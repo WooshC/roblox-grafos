@@ -1,0 +1,244 @@
+--[[
+
+██████╗ ██╗ █████╗ ██╗      ██████╗  ██████╗ ██╗   ██╗███████╗    ██╗  ██╗██╗████████╗    ██╗   ██╗██████╗    ███████╗
+██╔══██╗██║██╔══██╗██║     ██╔═══██╗██╔════╝ ██║   ██║██╔════╝    ██║ ██╔╝██║╚══██╔══╝    ██║   ██║╚════██╗   ██╔════╝
+██║  ██║██║███████║██║     ██║   ██║██║  ███╗██║   ██║█████╗      █████╔╝ ██║   ██║       ██║   ██║ █████╔╝   ███████╗
+██║  ██║██║██╔══██║██║     ██║   ██║██║   ██║██║   ██║██╔══╝      ██╔═██╗ ██║   ██║       ╚██╗ ██╔╝██╔═══╝    ╚════██║
+██████╔╝██║██║  ██║███████╗╚██████╔╝╚██████╔╝╚██████╔╝███████╗    ██║  ██╗██║   ██║        ╚████╔╝ ███████╗██╗███████║
+╚═════╝ ╚═╝╚═╝  ╚═╝╚══════╝ ╚═════╝  ╚═════╝  ╚═════╝ ╚══════╝    ╚═╝  ╚═╝╚═╝   ╚═╝         ╚═══╝  ╚══════╝╚═╝╚══════╝
+DIALOGUE KIT V2.5
+
+•	Made with ♡ by Asadrith
+•	Current Build: 2.5 Patch 1 (Release Build)
+
+]]--
+
+--[[
+
+██╗███╗   ██╗███████╗ ██████╗ 
+██║████╗  ██║██╔════╝██╔═══██╗
+██║██╔██╗ ██║█████╗  ██║   ██║
+██║██║╚██╗██║██╔══╝  ██║   ██║
+██║██║ ╚████║██║     ╚██████╔╝
+╚═╝╚═╝  ╚═══╝╚═╝      ╚═════╝ 
+INFO
+
+• This is Dialogue Kit V2.5! The complete rewrite of Dialogue Kit V2.
+• Version 2.5 features an updated system with (from what I know) all bugs patched.
+
+• Dialogue Kit V2.5 was made to provide Roblox Developers a simple tool to make advanced interactive dialogues!
+• This can be used to let the player talk to NPC's, Make decisions or even be used to describe events happening in the experience.
+
+• The possibilities are almost endless with this system compared to V1, increasing due to the release of V2.5.
+
+• In V1, I used a system which lets you create dialogues in a singular ModuleScript which a LocalScript grabs the information for and starts a dialogue.
+• I thought that system was a bit cluttered, so in V2 you could create individual dialogues across multiple scripts by requiring the Module instead.
+• The system is still relatively the same but even less clutted with the introduction of the Config instance, allowing you to configurate the settings more easily.
+• The system has also been rewrote from the ground up going from 602 lines to 1389 lines, making this my largest asset I've ever made!
+• Rich Text support in Dialogue Kit V2.5 was assisted by Claude.
+
+• This script will provide you the basic information of everything, how to set things up, and planned updates.
+
+]]--
+
+--[[
+
+██████╗  ██████╗  ██████╗██╗   ██╗███╗   ███╗███████╗███╗   ██╗████████╗ █████╗ ████████╗██╗ ██████╗ ███╗   ██╗
+██╔══██╗██╔═══██╗██╔════╝██║   ██║████╗ ████║██╔════╝████╗  ██║╚══██╔══╝██╔══██╗╚══██╔══╝██║██╔═══██╗████╗  ██║
+██║  ██║██║   ██║██║     ██║   ██║██╔████╔██║█████╗  ██╔██╗ ██║   ██║   ███████║   ██║   ██║██║   ██║██╔██╗ ██║
+██║  ██║██║   ██║██║     ██║   ██║██║╚██╔╝██║██╔══╝  ██║╚██╗██║   ██║   ██╔══██║   ██║   ██║██║   ██║██║╚██╗██║
+██████╔╝╚██████╔╝╚██████╗╚██████╔╝██║ ╚═╝ ██║███████╗██║ ╚████║   ██║   ██║  ██║   ██║   ██║╚██████╔╝██║ ╚████║
+╚═════╝  ╚═════╝  ╚═════╝ ╚═════╝ ╚═╝     ╚═╝╚══════╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═══╝
+DOCUMENTATION
+
+This is the Documentation section of this script, it includes everything I can explain about Dialogue Kit V2.5 so you know what you're doing.
+
+Starting off, to install the system, drag and drop the DialogueKit ScreenGui into StarterGui, drag and drop the 'DialolgueKit' SoundGroup into SoundService & drag and drop the 'DialoguePrompts' folder into Workspace.
+If you test your experience out and locate the prompt, a dialogue should already be working for you.
+
+In this documentation, I'll give you a quick rundown on how the module works, teach you how to setup your first dialogue, make multiple dialogues and install skins.
+Starting off with how Dialogue Kit V2 works.
+
+---///--\\---
+
+You can use any type of script to require the 'DialogueKit' module.
+Inside of DialogueStorage is a LocalScript called TestPrompt. Keep this and don't delete it, it is a completely blank dialogue which you can use as a reference to create more dialogues.
+What TestPrompt does is: Require the module, Get Prompt of the Dialogue, Check when the Prompt is triggered, Start the dialogue by running dialogueKitModule.CreateDialogue().
+The TestPrompt LocalScript has the basic table laid out for you to create your first dialogue. In case you lose your test prompt, here's a blank CreateDialogue function will all the required stuff (plus without comments):
+
+local dialogueKitModule = require(script.Parent.Parent.DialogueKit)
+dialogueKitModule.CreateDialogue(
+	{
+		InitialLayer = "Layer1",
+		SkinName = "DefaultDark",
+		Config = script.Config,
+
+		Layers = {
+			Layer1 = {
+				Dialogue = {
+					'Content1',
+					'Content2',
+					'Content3'
+				},
+					
+				DialogueSounds = {nil, nil},
+				DialogueImage = "rbxassetid://14973462209",
+				Title = "DialogueTitle",
+
+				Replies = {
+					reply1 = {
+						ReplyText = "Reply",
+						ReplyLayer = "Layer2"
+					},
+						
+					_goodbye = {
+						ReplyText = "Goodbye!",
+					}
+				},
+					
+				Exec = {
+				}
+			},
+				
+			Layer2 = {
+				Dialogue = {"Thanks for replying."},
+				DialogueSounds = {},
+				DialogueImage = "rbxassetid://14973462209",
+				Title = "DialogueTitle",
+
+				Replies = {
+				},
+					
+				Exec = {
+				}
+			},
+		}
+	}
+)
+
+You can use the function above in anything that uses ':Connect(function end))' and it will create a dialogue.
+If you still have the TestPrompt, please open it and you will see comments on how everything works in the CreateDialogue function.
+DialoguePrompts is also NOT required.
+
+---///--\\---
+
+To create your first dialogue, first duplicate the TestPrompt LocalScript & duplicate Workspace.DialoguePrompts.TestPrompt1, Rename your duplicates to something you'll remember.
+Then, inside your duplicate TestPrompt LocalScript, change DialoguePrompt to the duplicated TestPrompt1 you just created.
+After that, fill out the CreateDialogue with Content, repeat these steps to create another dialogue.
+
+If you have more knowledge in scripting, you'll know that you can run .CreateDialogue in the same script to make chains of dialogues.
+
+---///--\\---
+
+Now, to install a Skin.
+Skins are basically redesigns of the default Dialogue skin. DefaultWhite is a good example because it comes pre-installed with Dialogue Kit V2.5
+You can switch to the DefaultWhite skin by going to the top of your CreateDialogue function and editing 'SkinName' from 'DefaultDark' to 'DefaultWhite'.
+
+Dialogue kit V2 also comes with free optional skins. You can find them next to this documentation script if you didn't delete them.
+More information on how to install those optional skins are inside another script. Open the Skins folder and locate the 'How To Install (Open Me!)' script and open it, if it wasn't obvious already.
+
+---///--\\---
+
+If you want to create your own Dialogue Skin, use the 'Custom' Dialogue Skin provided in the Skins folder and edit it to your liking!
+You will need some UI Design knowledge for it though, make sure to note that the names of the instances in the Custom skin should remain the exact same, otherwise you'll get errors.
+
+---///--\\---
+
+███╗   ██╗ ██████╗ ██████╗ ███████╗██╗  ██╗██╗████████╗
+████╗  ██║██╔═══██╗██╔══██╗██╔════╝██║ ██╔╝██║╚══██╔══╝
+██╔██╗ ██║██║   ██║██║  ██║█████╗  █████╔╝ ██║   ██║   
+██║╚██╗██║██║   ██║██║  ██║██╔══╝  ██╔═██╗ ██║   ██║   
+██║ ╚████║╚██████╔╝██████╔╝███████╗██║  ██╗██║   ██║   
+╚═╝  ╚═══╝ ╚═════╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝   ╚═╝   
+NODEKIT
+
+This is the documentation for nodekit, the plugin made for Dialogue Kit V2.5 to make Dialogues using a node editor, no code.
+https://create.roblox.com/store/asset/105655496665616
+
+To use nodekit, first off make sure you have the 'UIDragDetectors' beta feature enabled. If you don't then you will not be able to use the plugin.
+Once you've done that, create a ScreenGui with a Frame and put a DragDetector inside of it. Once you drag the frame, you shouldn't encounter any issues. (There is an issue with UIDragDetectors right now, which is why you have to do this.)
+Once you've done that, import Dialogue Kit V2.5 and set it up as normal.
+After that, let's make a node.
+
+---///--\\---
+
+Open 'nodekit' on your Plugins window, start it and a new folder should appear in ReplicatedStorage. This is where all your node dialogues are stored.
+Click the + in the top right corner to create a new node dialogue, name it then open it!
+After that, you'll be sent to the 'nodeWorkspace'! You'll first be greeted with an image giving you some quick information, once you've read it you can remove it by going to the top left corner (the Toolbar), click the trash icon and then click the image to delete it. To navigate the workspace, click the Mouse Pointer icon (Select tool) in the Toolbar and drag the grid to pan around. Once we insert nodes you can use this tool to drag your nodes and create connections. (If you get lost on the grid, you can click the 'Center' button above the close button to recenter yourself to the center of the grid.)
+To create your first node, we have to do them in this order: Config Node, Dialogue Start Node, Layer Node, Dialogue Content Node or Reply Node, to create a node you must have the 'Add' tool selected. Use the add tool by going to the Toolbar and clicking the + icon. Select the Config node and move your mouse over to the grid and insert it where you want. (If you want you can go ahead and reposition it now with the Select tool!) Once you've done that, configure the config node to your liking and then insert the Dialogue Start Node somewhere. Setting the SkinName on this node is required (If you're unsure, just set it to DefaultDark or DefaultLight.
+After you do that, click the yellow circle at the bottom right of the config node to start creating a connection. (Select the circle again to cancel making a connection!) To create the connection, move your mouse to the purple circle on the left side of the Dialogue Start Node and click to connect them together. That is how you make connections! If you want to remove a connection, simply just click the start connector. (A start connector is any connector on the right side of a node)
+Now that you know how to create, remove, edit and connect nodes, start by connecting your Dialogue Start Node to a Layer node and configuring your layer node.
+A Layer node has multiple start connectors, Dialogue and Dialogue Sounds can connect to Dialogue Content Nodes, Replies can connect to Reply Nodes.
+You can make a Dialogue Content Node larger by clicking the + button on it, this is perfect for having a very long dialogue.
+You should know what to do now if you've made a dialogue on Dialogue Kit V2.5 with code before, I'll let you figure it out!
+
+---///--\\---
+
+Once you finish making your dialogue, click 'Close' to save your dialogue.
+To start your dialogue, this is all you have to do (refer to your TestPrompt and make sure DialoguePrompt & DialogueKitModule is defined):
+
+dialoguePrompt.Triggered:Connect(function(player)
+    dialogueKitModule.startNodeDialogue("yournodehere_node")
+end)
+
+Or, if you're using the NodeTestPrompt, just change the attribute on the script to the name of your node! (example: yournodehere_node)
+
+After that, playtest your game and see the dialogue in action!
+
+---///--\\---
+
+If you have any questions or would like to submit a bug report, (BUG REPORTS FOR V2.5 ONLY, I AM NOT SUPPORTING V2 ANYMORE.)
+Contact me by replying DevForum post or Messaging me on the DevForum!
+https://devforum.roblox.com/t/3106134
+
+Thanks for reading the documentation & using Dialogue Kit V2.5!
+
+]]--
+
+--[[
+
+██╗   ██╗██████╗ ██████╗  █████╗ ████████╗███████╗███████╗
+██║   ██║██╔══██╗██╔══██╗██╔══██╗╚══██╔══╝██╔════╝██╔════╝
+██║   ██║██████╔╝██║  ██║███████║   ██║   █████╗  ███████╗
+██║   ██║██╔═══╝ ██║  ██║██╔══██║   ██║   ██╔══╝  ╚════██║
+╚██████╔╝██║     ██████╔╝██║  ██║   ██║   ███████╗███████║
+ ╚═════╝ ╚═╝     ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚══════╝╚══════╝
+UPDATES
+
+V2.5 PATCH 2
+
+◉ Patch 2 isn't released yet, check back later!
+
+05/24/25 V2.5 PATCH 1
+
+◉ nodekit is now released, use nodekit to make Dialogues without opening a single script!
+◉ A new NodeTestPrompt has been created, you don't need to open it, just change the Attribute on the LocalScript to the name of the node.
+◉ Find documentation on how to use nodekit above.
+
+03/17/25 // Bug Fix
+◉ When a ReplyLayer is set to 'nil' on a reply, it now acts as a goodbye button and stops the dialogue. (Useful for interactive dialogues)
+
+03/12/25 // V2.5 Release
+◉ Released Dialogue Kit V2.5, Dialogue Kit V2 is now obsolete & unsupported,
+◉ I rewrote the whole script, that's all you need to know really.
+
+◉ Fixed most bugs relating to Walkspeed,
+◉ Fixed most bugs relating to player death,
+◉ Added the new 'Hotline' skin,
+◉ I now use task.wait() for the typewriter instead of just wait(),
+◉ Added a new 'KeyCode' setting where users can press a keybind to continue dialogue,
+◉ Updated how Settings works, now renamed to Config in Dialogues.
+
+08/31/24 // Patch 1 (Dialogue Kit V2)
+◉ New skins - Goofy & RPG,
+◉ New setting - Change pitch for all sounds & StopDialogueOnDeath,
+◉ You can now execute code when the Continue button is clicked,
+◉ Fixed the Continue Button being unable to be clicked with the Virtual Cursor.
+
+08/06/24 // Release (Dialogue Kit V2)
+◉ The model is released and all features above are included.
+
+]]--
+
+-- Made with ♡ by Asadrith. Last updated on May 24 2025.
+-- This is a completely open source project. Do whatever you want with it, edit it, fork it, I don't care. Just don't claim it's yours :)

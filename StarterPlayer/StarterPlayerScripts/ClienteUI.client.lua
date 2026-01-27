@@ -1,0 +1,827 @@
+-- ClienteUI.client.lua (Frontend Refactorizado V3)
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+local playerGui = player:WaitForChild("PlayerGui")
+
+local LevelsConfig = require(ReplicatedStorage:WaitForChild("LevelsConfig"))
+
+-- Eventos Remotos
+-- Eventos Remotos
+local Remotes = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Remotes")
+
+local eventoReiniciar = Remotes:WaitForChild("ReiniciarNivel", 10)
+local eventoAlgo = Remotes:WaitForChild("EjecutarAlgoritmo", 10)
+local eventoInventario = Remotes:WaitForChild("ActualizarInventario", 10)
+
+-- CONFIGURACIÓN DE UI
+if playerGui:FindFirstChild("GameUI") then playerGui.GameUI:Destroy() end
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "GameUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+-- === COMPONENTES UI ===
+local function crearBoton(nombre, texto, color, posicion)
+	local boton = Instance.new("TextButton")
+	boton.Name = nombre
+	boton.Size = UDim2.new(0, 180, 0, 50)
+	boton.Position = posicion
+	boton.Text = texto
+	boton.BackgroundColor3 = color
+	boton.TextColor3 = Color3.new(1, 1, 1)
+	boton.Font = Enum.Font.FredokaOne
+	boton.TextSize = 20
+	boton.Parent = screenGui
+	
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 12)
+	corner.Parent = boton
+	
+	local stroke = Instance.new("UIStroke")
+	stroke.Thickness = 2
+	stroke.Color = Color3.new(0,0,0)
+	stroke.Transparency = 0.5
+	stroke.Parent = boton
+	
+	return boton
+end
+
+local btnReiniciar = crearBoton("BtnReiniciar", "🔄 REINICIAR", Color3.fromRGB(231, 76, 60), UDim2.new(0.5, 10, 0.9, -60))
+local btnMapa = crearBoton("BtnMapa", "🗺️ MAPA", Color3.fromRGB(52, 152, 219), UDim2.new(0.5, -190, 0.9, -60))
+local btnAlgo = crearBoton("BtnAlgo", "🧠 ALGORITMO", Color3.fromRGB(155, 89, 182), UDim2.new(0.5, 210, 0.9, -60))
+local btnMisiones = crearBoton("BtnMisiones", "📋 MISIONES", Color3.fromRGB(46, 204, 113), UDim2.new(0.5, -390, 0.9, -60))
+
+-- Visibilidad inicial (Bloqueado hasta obtener objeto)
+btnMapa.Visible = false
+btnAlgo.Visible = false
+
+-- Elementos del Mapa
+local flechaNav = Instance.new("ImageLabel")
+flechaNav.Name = "FlechaNav"
+flechaNav.Image = "rbxassetid://6034873722" -- Flecha simple
+flechaNav.BackgroundTransparency = 1
+flechaNav.Size = UDim2.new(0, 60, 0, 60)
+flechaNav.Position = UDim2.new(0.5, -30, 0.5, -30)
+flechaNav.Visible = false
+flechaNav.Parent = screenGui
+
+local distanciaLabel = Instance.new("TextLabel")
+distanciaLabel.Name = "DistanciaLabel"
+distanciaLabel.Size = UDim2.new(0, 200, 0, 30)
+distanciaLabel.Position = UDim2.new(0.5, -100, 0.5, 40)
+distanciaLabel.BackgroundTransparency = 1
+distanciaLabel.TextColor3 = Color3.new(1, 1, 1)
+distanciaLabel.TextStrokeTransparency = 0
+distanciaLabel.Font = Enum.Font.GothamBold
+distanciaLabel.TextSize = 20
+distanciaLabel.Text = ""
+distanciaLabel.Visible = false
+distanciaLabel.Parent = screenGui
+
+-- === LÓGICA DE MAPA ===
+local mapaActivo = false
+local misionesActivo = false
+local camaraConnection = nil
+local techoOriginalTransparency = {}
+local zoomLevel = 80 -- Zoom FIJO (no se puede cambiar)
+local zoomBloqueado = true -- ⚡ NUEVO: Bloquear zoom para evitar crashes
+local etiquetasNodos = {}
+
+-- Panel de Misión mejorado (Definición Temprana)
+local misionFrame = Instance.new("Frame")
+misionFrame.Name = "MisionFrame"
+misionFrame.Size = UDim2.new(0, 320, 0, 200) -- Más alto y ancho para acomodar texto largo
+misionFrame.Position = UDim2.new(0, 20, 0.5, -100) -- A la izquierda
+misionFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+misionFrame.BackgroundTransparency = 0.4
+misionFrame.Visible = false
+misionFrame.Parent = screenGui
+
+local cornerM = Instance.new("UICorner"); cornerM.CornerRadius = UDim.new(0, 12); cornerM.Parent = misionFrame
+local listLayout = Instance.new("UIListLayout")
+listLayout.Parent = misionFrame
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Padding = UDim.new(0, 5)
+listLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+
+-- Titulo Misión
+local tituloMision = Instance.new("TextLabel")
+tituloMision.Name = "Titulo"
+tituloMision.Size = UDim2.new(1,0,0,30)
+tituloMision.BackgroundTransparency = 1
+tituloMision.Text = " 📋 OBJETIVOS"
+tituloMision.TextColor3 = Color3.new(1,0.8,0)
+tituloMision.Font = Enum.Font.GothamBlack
+tituloMision.TextSize = 20
+tituloMision.TextXAlignment = Enum.TextXAlignment.Left
+tituloMision.Parent = misionFrame
+
+-- Panel de Puntaje y Estrellas (Centro de la pantalla)
+local scoreFrame = Instance.new("Frame")
+scoreFrame.Name = "ScoreFrame"
+scoreFrame.Size = UDim2.new(0, 250, 0, 120)
+scoreFrame.Position = UDim2.new(0.5, -125, 0.1, 0) -- Centro superior
+scoreFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+scoreFrame.BackgroundTransparency = 0.3
+scoreFrame.Visible = false
+scoreFrame.Parent = screenGui
+
+local cornerS = Instance.new("UICorner"); cornerS.CornerRadius = UDim.new(0, 16); cornerS.Parent = scoreFrame
+local strokeS = Instance.new("UIStroke")
+strokeS.Thickness = 3
+strokeS.Color = Color3.fromRGB(255, 215, 0) -- Dorado
+strokeS.Transparency = 0.3
+strokeS.Parent = scoreFrame
+
+-- Etiqueta de Estrellas
+local estrellaLabel = Instance.new("TextLabel")
+estrellaLabel.Name = "EstrellaLabel"
+estrellaLabel.Size = UDim2.new(1, 0, 0.5, 0)
+estrellaLabel.Position = UDim2.new(0, 0, 0.1, 0)
+estrellaLabel.BackgroundTransparency = 1
+estrellaLabel.Text = "⭐⭐⭐"
+estrellaLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
+estrellaLabel.Font = Enum.Font.GothamBlack
+estrellaLabel.TextSize = 40
+estrellaLabel.TextStrokeTransparency = 0.5
+estrellaLabel.Parent = scoreFrame
+
+-- Etiqueta de Puntaje
+local puntajeLabel = Instance.new("TextLabel")
+puntajeLabel.Name = "PuntajeLabel"
+puntajeLabel.Size = UDim2.new(1, 0, 0.35, 0)
+puntajeLabel.Position = UDim2.new(0, 0, 0.6, 0)
+puntajeLabel.BackgroundTransparency = 1
+puntajeLabel.Text = "0 / 1200 pts"
+puntajeLabel.TextColor3 = Color3.new(1, 1, 1)
+puntajeLabel.Font = Enum.Font.GothamBold
+puntajeLabel.TextSize = 24
+puntajeLabel.TextStrokeTransparency = 0.5
+puntajeLabel.Parent = scoreFrame
+
+-- Función para actualizar el panel de puntaje
+local function actualizarPanelPuntaje()
+	local stats = player:FindFirstChild("leaderstats")
+	if not stats then return end
+	
+	local puntos = stats:FindFirstChild("Puntos")
+	local estrellas = stats:FindFirstChild("Estrellas")
+	
+	if puntos then
+		puntajeLabel.Text = puntos.Value .. " / 1200 pts"
+	end
+	
+	if estrellas then
+		local numEstrellas = estrellas.Value
+		local textoEstrellas = ""
+		
+		for i = 1, 3 do
+			if i <= numEstrellas then
+				textoEstrellas = textoEstrellas .. "⭐"
+			else
+				textoEstrellas = textoEstrellas .. "☆"
+			end
+		end
+		
+		estrellaLabel.Text = textoEstrellas
+	end
+end
+
+-- Escuchar cambios en Puntos y Estrellas
+task.spawn(function()
+	local stats = player:WaitForChild("leaderstats", 10)
+	if stats then
+		local puntos = stats:WaitForChild("Puntos", 5)
+		local estrellas = stats:WaitForChild("Estrellas", 5)
+		
+		if puntos then
+			puntos.Changed:Connect(actualizarPanelPuntaje)
+		end
+		
+		if estrellas then
+			estrellas.Changed:Connect(actualizarPanelPuntaje)
+		end
+		
+		actualizarPanelPuntaje() -- Actualizar inicial
+	end
+end)
+
+-- Evento Misión
+local eventoMision = Remotes:WaitForChild("ActualizarMision", 5) 
+
+-- Estado de misiones (para persistir entre abrir/cerrar mapa)
+local estadoMisiones = {false, false, false, false, false, false, false, false}
+
+if eventoMision then
+	eventoMision.OnClientEvent:Connect(function(indiceMision, completada)
+		print("🎯 Cliente recibió actualización Misión " .. indiceMision .. ": " .. tostring(completada))
+		
+		-- Actualizar estado local
+		estadoMisiones[indiceMision] = completada
+		
+		-- Si el mapa está abierto, actualizar visualmente
+		if not misionFrame.Visible then 
+			print("⚠️ Mapa cerrado, guardando estado para cuando se abra")
+			return 
+		end
+		
+		-- Buscar la etiqueta correspondiente
+		local labels = {}
+		for _, child in ipairs(misionFrame:GetChildren()) do
+			if child:IsA("TextLabel") and child.Name ~= "Titulo" then
+				table.insert(labels, child)
+			end
+		end
+		
+		if labels[indiceMision] then
+			local lbl = labels[indiceMision]
+			
+			-- Solo actualizar si no está ya marcada
+			if not string.find(lbl.Text, "✅") then
+				lbl.TextColor3 = Color3.fromRGB(46, 204, 113) -- Verde Éxito
+				lbl.TextTransparency = 0.3
+				lbl.Text = "✅ " .. lbl.Text
+				print("✅ Misión " .. indiceMision .. " marcada visualmente")
+			end
+		else
+			warn("⚠️ No se encontró label para misión " .. indiceMision)
+		end
+	end)
+end
+
+-- Evento de Inventario (Desbloquear botones)
+if eventoInventario then
+	eventoInventario.OnClientEvent:Connect(function(objetoID, tiene)
+		print("🎒 Cliente Inventario Update: " .. objetoID .. " = " .. tostring(tiene))
+		
+		if objetoID == "Mapa" then
+			btnMapa.Visible = tiene
+			if tiene then
+				-- Animación de notificación
+				local notif = Instance.new("TextLabel")
+				notif.Size = UDim2.new(0, 300, 0, 50)
+				notif.Position = UDim2.new(0.5, -150, 0.2, 0)
+				notif.Text = "¡Mapa Desbloqueado!"
+				notif.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+				notif.TextColor3 = Color3.new(1,1,1)
+				notif.Font = Enum.Font.FredokaOne
+				notif.TextSize = 24
+				notif.Parent = screenGui
+				
+				game.Debris:AddItem(notif, 3)
+			end
+			
+		elseif objetoID == "Tablet" then
+			btnAlgo.Visible = tiene
+			if tiene then
+				-- Animación notificación
+				local notif = Instance.new("TextLabel")
+				notif.Size = UDim2.new(0, 300, 0, 50)
+				notif.Position = UDim2.new(0.5, -150, 0.2, 60) -- Un poco más abajo
+				notif.Text = "¡Manual BFS Obtenido!"
+				notif.BackgroundColor3 = Color3.fromRGB(155, 89, 182)
+				notif.TextColor3 = Color3.new(1,1,1)
+				notif.Font = Enum.Font.FredokaOne
+				notif.TextSize = 24
+				notif.Parent = screenGui
+				
+				game.Debris:AddItem(notif, 3)
+			end
+		end
+	end)
+end
+
+-- Función etiquetas (Usando Part Invisible para máxima fiabilidad)
+local function mostrarEtiquetasNodos(mostrar)
+	if not mostrar then
+		for _, obj in ipairs(etiquetasNodos) do 
+			if obj.PartAncla then obj.PartAncla:Destroy() end -- Destruir parte física
+			if obj.Gui then obj.Gui:Destroy() end -- Destruir GUI
+		end
+		etiquetasNodos = {}
+		return
+	end
+	
+	local nivelID = player:FindFirstChild("leaderstats") and player.leaderstats.Nivel.Value or 0
+	local config = LevelsConfig[nivelID] or LevelsConfig[0]
+	local nivelModel = workspace:FindFirstChild(config.Modelo)
+	if not nivelModel and workspace:FindFirstChild("Nivel" .. nivelID) then
+		nivelModel = workspace:FindFirstChild("Nivel" .. nivelID)
+	end
+	
+	local postesFolder = nivelModel and nivelModel:FindFirstChild("Objetos") and nivelModel.Objetos:FindFirstChild("Postes")
+	
+	-- Configuración de Nombres Amigables (Si existiera en config, aquí se leería)
+	-- local alias = config.NombresNodos or {} 
+	
+	if postesFolder then
+		for _, poste in ipairs(postesFolder:GetChildren()) do
+			if poste:IsA("Model") then
+				-- Encontrar centro
+				local centroPos = poste:GetPivot().Position
+				if poste.PrimaryPart then centroPos = poste.PrimaryPart.Position end
+				
+				-- 1. Crear Parte Invisible (Ancla)
+				local parteAncla = Instance.new("Part")
+				parteAncla.Name = "EtiquetaAncla_" .. poste.Name
+				parteAncla.Size = Vector3.new(1,1,1)
+				parteAncla.Transparency = 1
+				parteAncla.Anchored = true
+				parteAncla.CanCollide = false
+				parteAncla.Position = centroPos + Vector3.new(0, 8, 0) -- 8 Studs arriba del centro
+				parteAncla.Parent = workspace -- Workspace directo para evitar problemas de jerarquía
+				
+				-- 2. Crear Billboard
+				local bb = Instance.new("BillboardGui")
+				bb.Name = "EtiquetaGui"
+				bb.Size = UDim2.new(0, 200, 0, 80)
+				bb.StudsOffset = Vector3.new(0, 2, 0)
+				bb.AlwaysOnTop = true
+				bb.Parent = parteAncla -- Hijo de la parte en workspace
+				
+				local lbl = Instance.new("TextLabel")
+				lbl.Size = UDim2.new(1,0,1,0)
+				lbl.BackgroundTransparency = 1
+				-- Usar alias si existe, sino nombre del poste
+				lbl.Text = poste.Name 
+				lbl.TextColor3 = Color3.new(1, 1, 1)
+				lbl.TextStrokeTransparency = 0
+				lbl.Font = Enum.Font.FredokaOne
+				lbl.TextSize = 25 -- GRANDE
+				lbl.Parent = bb
+				
+				-- Guardar referencias para limpieza y logica
+				table.insert(etiquetasNodos, {PartAncla = parteAncla, Gui = bb, PosteRef = poste})
+			end
+		end
+	else
+		warn("⚠️ No se encontró carpeta de postes")
+	end
+end
+
+-- ⚠️ ZOOM DESHABILITADO para evitar crashes
+-- Si quieres habilitar zoom, cambia zoomBloqueado = false arriba
+UserInputService.InputChanged:Connect(function(input, gameProcessed)
+	if mapaActivo and input.UserInputType == Enum.UserInputType.MouseWheel and not zoomBloqueado then
+		-- Zoom habilitado (actualmente deshabilitado)
+		zoomLevel = zoomLevel - (input.Position.Z * 10)
+		zoomLevel = math.clamp(zoomLevel, 70, 100) -- Rango más seguro
+	end
+end)
+
+-- Restaurar visuales de un selector a su estado normal (Invisible)
+local function restaurarSelector(selector)
+	if not selector then return end
+	selector.Transparency = 1 -- Volver a ser invisible
+	selector.Color = Color3.fromRGB(196, 196, 196)
+	selector.Material = Enum.Material.Plastic -- Restaurar material
+	
+	local origSize = selector:GetAttribute("OriginalSize")
+	if origSize then selector.Size = origSize end
+end
+
+-- ============================================
+-- TOGGLE MISIONES (Declaración temprana)
+-- ============================================
+
+local toggleMisiones  -- Declaración forward
+
+-- ============================================
+-- TOGGLE MAPA
+-- ============================================
+local function toggleMapa()
+	mapaActivo = not mapaActivo
+	
+	-- Detectar datos del nivel actual
+	local nivelID = player:FindFirstChild("leaderstats") and player.leaderstats.Nivel.Value or 0
+	local config = LevelsConfig[nivelID] or LevelsConfig[0]
+	local nombreInicio = config.NodoInicio 
+	local nombreFin = config.NodoFin
+	local listaMisiones = config.Misiones or {"¡Conecta la red eléctrica!"}
+	
+	local nivelModel = workspace:FindFirstChild(config.Modelo)
+	-- Fallback
+	if not nivelModel and workspace:FindFirstChild("Nivel" .. nivelID) then
+		nivelModel = workspace:FindFirstChild("Nivel" .. nivelID)
+	end
+	
+	local techosFolder = nivelModel and nivelModel:FindFirstChild("Techos")
+	local postesFolder = nivelModel and nivelModel:FindFirstChild("Objetos") and nivelModel.Objetos:FindFirstChild("Postes")
+	
+	local char = player.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	
+	-- Cerrar panel de misiones si está abierto
+	if misionesActivo then
+		toggleMisiones()
+	end
+	
+	-- Función para crear efecto "Rayos X" en cables
+	-- Visualización de cables ("Rayos X") ELIMINADA por causar artefactos verticales
+
+
+	if mapaActivo then
+		-- A. ACTIVAR
+		camera.CameraType = Enum.CameraType.Scriptable
+		btnMapa.Text = "CERRAR MAPA"
+		btnMapa.BackgroundColor3 = Color3.fromRGB(46, 204, 113) 
+		flechaNav.Visible = true
+		distanciaLabel.Visible = true
+		
+		-- Mostrar panel de puntaje
+		scoreFrame.Visible = true
+		actualizarPanelPuntaje()
+		
+		-- Activar visión de cables "Rayos X" (ELIMINADO)
+
+		
+		-- ⚡ PERMITIR MOVIMIENTO: No anclar al jugador
+		-- (Comentado para permitir movimiento durante el mapa)
+		-- if root then
+		-- 	root.Anchored = true
+		-- end
+		
+		-- Mostrar Misión (Limpiar y Llenar)
+		misionFrame.Visible = true
+		for _, child in ipairs(misionFrame:GetChildren()) do
+			if child:IsA("TextLabel") and child ~= tituloMision then child:Destroy() end
+		end
+		
+		for i, misionConfig in ipairs(listaMisiones) do
+			local lbl = Instance.new("TextLabel")
+			lbl.Size = UDim2.new(1, -10, 0, 25)
+			lbl.BackgroundTransparency = 1
+			
+			-- Extraer texto (soporta objetos y strings)
+			local texto
+			if type(misionConfig) == "table" then
+				texto = misionConfig.Texto or "Misión sin texto"
+			else
+				texto = tostring(misionConfig)
+			end
+			
+			-- Aplicar estado guardado
+			if estadoMisiones[i] then
+				lbl.Text = "✅ " .. texto
+				lbl.TextColor3 = Color3.fromRGB(46, 204, 113)
+				lbl.TextTransparency = 0.3
+			else
+				lbl.Text = "  " .. texto
+				lbl.TextColor3 = Color3.new(1,1,1)
+				lbl.TextTransparency = 0
+			end
+			
+			lbl.Font = Enum.Font.GothamMedium
+			lbl.TextSize = 14
+			lbl.TextXAlignment = Enum.TextXAlignment.Left
+			lbl.TextWrapped = true
+			lbl.AutomaticSize = Enum.AutomaticSize.Y -- Ajustar altura automáticamente
+			lbl.Parent = misionFrame
+		end
+		
+		mostrarEtiquetasNodos(true)
+		
+		-- Transparentar Techos
+		if techosFolder then
+			table.clear(techoOriginalTransparency)
+			for _, techo in ipairs(techosFolder:GetChildren()) do
+				if techo:IsA("BasePart") then
+					techoOriginalTransparency[techo] = techo.Transparency
+					techo.Transparency = 0.95
+					techo.CastShadow = false
+				end
+			end
+		end
+		
+		-- Loop Render
+		camaraConnection = RunService.RenderStepped:Connect(function()
+			if root and player.Character then
+				local centro = root.Position
+				
+				-- Actualizar Cámara
+				camera.CFrame = CFrame.new(centro + Vector3.new(0, zoomLevel, 0), centro)
+				
+				-- Variables para Flecha
+				local objetivoNav = nil
+				local distMin = math.huge
+				
+				if postesFolder then
+					for _, poste in ipairs(postesFolder:GetChildren()) do
+						if poste:IsA("Model") then
+							local selector = poste:FindFirstChild("Selector")
+							local distPlayer = (poste:GetPivot().Position - centro).Magnitude
+							local distMetros = math.floor(distPlayer / 5)
+							
+							-- Gestionar Selectores
+							if selector and selector:IsA("BasePart") then
+								
+								-- HACER VISIBLE
+								selector.Transparency = 0
+								
+								local energizado = poste:GetAttribute("Energizado")
+								local esInicio = (poste.Name == nombreInicio)
+								
+								-- 1. NODO INICIO (Azul Neon)
+								if esInicio then
+									selector.Color = Color3.fromRGB(52, 152, 219) -- Azul
+									selector.Material = Enum.Material.Neon
+									
+								-- 2. NO ENERGIZADO (Rojo Neon + Grande)
+								elseif energizado ~= true then -- nil or false
+									selector.Color = Color3.fromRGB(231, 76, 60) -- Rojo mate
+									selector.Material = Enum.Material.Neon
+									
+									-- Guardar tamaño original si no existe
+									if not selector:GetAttribute("OriginalSize") then
+										selector:SetAttribute("OriginalSize", selector.Size)
+									end
+									
+									-- Aumentar tamaño levemente
+									local origSize = selector:GetAttribute("OriginalSize")
+									if origSize then selector.Size = origSize * 1.3 end
+									
+									-- Candidato a navegación (Buscamos errores)
+									if distPlayer < distMin then
+										distMin = distPlayer
+										objetivoNav = poste
+									end
+									
+								-- 3. ENERGIZADO (Verde Plastic)
+								else
+									selector.Color = Color3.fromRGB(46, 204, 113) -- Verde
+									selector.Material = Enum.Material.Plastic
+									
+									local origSize = selector:GetAttribute("OriginalSize")
+									if origSize then selector.Size = origSize end
+								end
+							end
+							
+							-- Actualizar Etiquetas de Distancia y Meta
+							for _, objEtiqueta in ipairs(etiquetasNodos) do
+								-- Comprobar si esta etiqueta pertenece al poste actual
+								local esEstePoste = false
+								if objEtiqueta.PosteRef == poste then
+									esEstePoste = true
+								elseif not objEtiqueta.PosteRef and objEtiqueta.PartAncla then
+									-- Fallback por nombre si falla ref
+									if string.find(objEtiqueta.PartAncla.Name, poste.Name) then
+										esEstePoste = true
+									end
+								end
+								
+								if esEstePoste then
+									local gui = objEtiqueta.Gui
+									
+									-- Nombre Personalizado
+									local nombreMostrar = poste.Name
+									if config.NombresPostes and config.NombresPostes[poste.Name] then
+										nombreMostrar = config.NombresPostes[poste.Name]
+									end
+									
+									local lblNombre = gui:FindFirstChild("TextLabel")
+									if lblNombre and lblNombre.Text ~= nombreMostrar then
+										lblNombre.Text = nombreMostrar
+									end
+									
+									-- Cartel META
+									if esFin then
+										local lblMeta = gui:FindFirstChild("MetaLbl")
+										if not lblMeta then
+											lblMeta = Instance.new("TextLabel")
+											lblMeta.Name = "MetaLbl"
+											lblMeta.Size = UDim2.new(1,0,0.5,0)
+											lblMeta.Position = UDim2.new(0,0,-0.8,0)
+											lblMeta.BackgroundTransparency = 1
+											lblMeta.Text = "🚩 META"
+											lblMeta.TextColor3 = Color3.new(1, 0.5, 0)
+											lblMeta.TextStrokeTransparency = 0
+											lblMeta.Font = Enum.Font.FredokaOne
+											lblMeta.TextSize = 22
+											lblMeta.Parent = gui
+										end
+									end
+									
+									local lblDist = gui:FindFirstChild("DistanciaLbl")
+									if not lblDist then
+										lblDist = Instance.new("TextLabel")
+										lblDist.Name = "DistanciaLbl"
+										lblDist.Size = UDim2.new(1,0,0.5,0)
+										lblDist.Position = UDim2.new(0,0,1,-5)
+										lblDist.BackgroundTransparency = 1
+										lblDist.Font = Enum.Font.FredokaOne
+										lblDist.TextSize = 16
+										lblDist.TextStrokeTransparency = 0
+										lblDist.Parent = gui
+									end
+									
+									local esEnergizado = poste:GetAttribute("Energizado")
+									if esEnergizado == true and poste.Name ~= nombreInicio then
+										lblDist.Visible = false
+									else
+										lblDist.Visible = false -- ⚠️ OCULTO: No mostrar metros en postes
+										lblDist.Text = distMetros .. "m"
+										lblDist.TextColor3 = (poste.Name == nombreInicio) and Color3.new(0,1,1) or Color3.new(1, 0.2, 0.2)
+									end
+								end
+							end
+						end
+					end
+				end
+				
+				-- Actualizar Flecha y Distancia
+				if objetivoNav then
+					flechaNav.Visible = true
+					distanciaLabel.Visible = true
+					flechaNav.ImageColor3 = Color3.fromRGB(255, 80, 80) -- Flecha Roja
+					
+					local diff = objetivoNav:GetPivot().Position - centro
+					local angle = math.atan2(diff.X, diff.Z)
+					flechaNav.Rotation = -math.deg(angle) + 180
+					
+					distanciaLabel.Text = "Reparar: " .. math.floor(distMin / 5) .. "m"
+				else
+					flechaNav.Visible = false
+					distanciaLabel.Text = "⚡ RED COMPLETADA"
+					distanciaLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+				end
+			end
+		end)
+		
+	else
+		-- B. DESACTIVAR
+		camera.CameraType = Enum.CameraType.Custom
+		btnMapa.Text = "🗺️ MAPA"
+		btnMapa.BackgroundColor3 = Color3.fromRGB(52, 152, 219)
+		flechaNav.Visible = false
+		
+		-- Ocultar panel de puntaje
+		scoreFrame.Visible = false
+		
+		-- Limpiar visión de cables (ELIMINADO)
+
+		
+		-- ⚡ DESANCLAR AL JUGADOR (Comentado porque ya no anclamos)
+		-- if root then
+		-- 	root.Anchored = false
+		-- end
+		distanciaLabel.Visible = false
+		misionFrame.Visible = false
+		
+		mostrarEtiquetasNodos(false)
+		
+		if camaraConnection then 
+			camaraConnection:Disconnect() 
+			camaraConnection = nil
+		end
+		
+		-- Restaurar Techos
+		if techosFolder then
+			for techo, tr in pairs(techoOriginalTransparency) do
+				if techo and techo.Parent then
+					techo.Transparency = tr
+					techo.CastShadow = true
+				end
+			end
+		end
+		
+		-- Restaurar Selectores (Invisibles y sin Highlight)
+		if postesFolder then
+			for _, poste in ipairs(postesFolder:GetChildren()) do
+				local selector = poste:FindFirstChild("Selector")
+				if selector then
+					restaurarSelector(selector)
+					if selector:FindFirstChild("AlertaVisual") then
+						selector.AlertaVisual:Destroy()
+					end
+				end
+			end
+		end
+	end
+end
+
+-- ============================================
+-- TOGGLE MISIONES (Implementación)
+-- ============================================
+
+toggleMisiones = function()
+	misionesActivo = not misionesActivo
+	
+	-- Cerrar mapa si está abierto
+	if mapaActivo and misionesActivo then
+		toggleMapa()
+	end
+	
+	if misionesActivo then
+		-- Mostrar panel de misiones
+		local nivelID = player:FindFirstChild("leaderstats") and player.leaderstats.Nivel.Value or 0
+		local config = LevelsConfig[nivelID] or LevelsConfig[0]
+		local listaMisiones = config.Misiones or {"¡Conecta la red eléctrica!"}
+		
+		misionFrame.Visible = true
+		btnMisiones.Text = "✅ CERRAR"
+		btnMisiones.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
+		
+		-- Limpiar y llenar misiones
+		for _, child in ipairs(misionFrame:GetChildren()) do
+			if child:IsA("TextLabel") and child ~= tituloMision then child:Destroy() end
+		end
+		
+		for i, misionConfig in ipairs(listaMisiones) do
+			local lbl = Instance.new("TextLabel")
+			lbl.Size = UDim2.new(1, -10, 0, 25)
+			lbl.BackgroundTransparency = 1
+			
+			-- Extraer texto (soporta objetos y strings)
+			local texto
+			if type(misionConfig) == "table" then
+				texto = misionConfig.Texto or "Misión sin texto"
+			else
+				texto = tostring(misionConfig)
+			end
+			
+			-- Aplicar estado guardado
+			if estadoMisiones[i] then
+				lbl.Text = "✅ " .. texto
+				lbl.TextColor3 = Color3.fromRGB(46, 204, 113)
+				lbl.TextTransparency = 0.3
+			else
+				lbl.Text = "  " .. texto
+				lbl.TextColor3 = Color3.new(1,1,1)
+				lbl.TextTransparency = 0
+			end
+			
+			lbl.Font = Enum.Font.GothamMedium
+			lbl.TextSize = 14
+			lbl.TextXAlignment = Enum.TextXAlignment.Left
+			lbl.TextWrapped = true
+			lbl.AutomaticSize = Enum.AutomaticSize.Y
+			lbl.Parent = misionFrame
+		end
+	else
+		-- Ocultar panel
+		misionFrame.Visible = false
+		btnMisiones.Text = "📋 MISIONES"
+		btnMisiones.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+	end
+end
+
+-- === LISTENERS ===
+btnMapa.MouseButton1Click:Connect(toggleMapa)
+btnMisiones.MouseButton1Click:Connect(toggleMisiones)
+
+btnReiniciar.MouseButton1Click:Connect(function()
+	if eventoReiniciar then 
+		eventoReiniciar:FireServer() 
+		if mapaActivo then toggleMapa() end -- Cerrar mapa al reiniciar
+		if misionesActivo then toggleMisiones() end -- Cerrar misiones al reiniciar
+	end
+end)
+
+-- Actualizar texto botón Algoritmo
+task.spawn(function()
+	while true do
+		task.wait(1)
+		if player:FindFirstChild("leaderstats") then
+			local nivelID = player.leaderstats.Nivel.Value
+			local config = LevelsConfig[nivelID]
+			if config and config.Algoritmo then
+				btnAlgo.Text = "🧠 EJECUTAR " .. config.Algoritmo
+			else
+				btnAlgo.Text = "🧠 EJECUTAR DIJKSTRA"
+			end
+		end
+	end
+end)
+
+btnAlgo.MouseButton1Click:Connect(function()
+	local nivelID = player:FindFirstChild("leaderstats") and player.leaderstats.Nivel.Value or 0
+	local config = LevelsConfig[nivelID] or LevelsConfig[0]
+	local algoName = config.Algoritmo or "Dijkstra"
+	
+	print("Enviando petición algoritmo: " .. algoName .. " para Nivel: " .. nivelID)
+	
+	if algoName == "BFS" then
+		-- Para BFS, usar el evento de visualización
+		local eventoBFS = ReplicatedStorage:FindFirstChild("VisualizarBFS")
+		if eventoBFS then
+			eventoBFS:FireServer(nivelID)
+			print("🎬 Solicitando visualización BFS...")
+		end
+	else
+		-- Para Dijkstra, usar el evento normal
+		if eventoAlgo then
+			local inicio = config.NodoInicio or "PostePanel"
+			local fin = config.NodoFin or "PosteFinal"
+			eventoAlgo:FireServer(algoName, inicio, fin, nivelID)
+		end
+	end
+end)
+
+print("✅ ClienteUI V3 Cargado: Funcionalidad completa de Mapa y Algoritmos")
