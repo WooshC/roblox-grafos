@@ -240,7 +240,7 @@ evento.OnServerEvent:Connect(function(player, algoritmo, nodoInicio, nodoFin, ni
 		
 		if paso.Tipo == "NodoActual" then
 			pintarNodo(paso.Nodo, Color3.fromRGB(255, 215, 0), Enum.Material.Neon, nivelID)
-			task.wait(0.6)
+			task.wait(2.0) -- Espera más larga para ver el nodo actual
 			
 		elseif paso.Tipo == "Explorando" then
 			pintarNodo(paso.Nodo, Color3.fromRGB(52, 152, 219), Enum.Material.Glass, nivelID)
@@ -251,7 +251,7 @@ evento.OnServerEvent:Connect(function(player, algoritmo, nodoInicio, nodoFin, ni
 				crearCableFantasma(paso.Nodo, paso.Origen, Color3.fromRGB(52, 152, 219), nivelID)
 			end
 			
-			task.wait(0.3)
+			task.wait(1.0) -- Espera moderada para ver la exploración
 		
 		elseif paso.Tipo == "Destino" then
 			print("🎯 Destino encontrado en el grafo")
@@ -263,7 +263,8 @@ evento.OnServerEvent:Connect(function(player, algoritmo, nodoInicio, nodoFin, ni
 	
 	-- CAMINO FINAL
 	if resultado.CaminoFinal and #resultado.CaminoFinal > 0 then
-		print("🏁 Camino encontrado! Costo: " .. (resultado.CostoTotal or "N/A"))
+		local distText = resultado.DistanciaTotal and (resultado.DistanciaTotal .. " m") or "N/A"
+		print("🏁 Camino encontrado! Saltos: " .. (resultado.CostoTotal or 0) .. " | Distancia: " .. distText)
 		
 		local camino = resultado.CaminoFinal
 		for i = 1, #camino do

@@ -252,16 +252,21 @@ roblox-grafos/
   - Cálculo de costos
   - Gestión de presupuesto
 
-- **GameplayEvents**: Propagación de energía
-  - BFS en tiempo real (instantáneo)
-  - BFS con visualización (lento, educativo)
-  - Actualización de luces
-  - Cables fantasma para demostración
+- **GameplayEvents.server.lua**: Lógica de juego central
+  - Gestión de Misiones y sus estados
+  - Actualización de luces y zonas (Zonas de energía)
+  - Detección de conexiones lógicas (backend)
 
-- **VisualizadorAlgoritmos**: Visualización de Dijkstra
-  - Animación paso a paso
-  - Cables fantasma
-  - Etiquetas de distancia
+- **VisualizadorAlgoritmos.server.lua**: Visualización educativa de algoritmos
+  - Animación paso a paso (Lento: 2s/nodo)
+  - Colores pedagógicos: Amarillo (Actual), Azul (Explorando), Verde (Camino)
+  - Cables fantasma para demostrar el funcionamiento interno
+
+- **SistemaUI_reinicio.server.lua**: Reinicio de niveles
+  - Limpia cables y dinero
+  - **Conserva** los ítems recogidos (Mapa, Tablet)
+
+> ℹ️ **Para ver la lista completa de Eventos, revisa [EVENTOS_README.md](./EVENTOS_README.md)**
 
 **Datos:**
 - **ManagerData**: Gestión de jugadores

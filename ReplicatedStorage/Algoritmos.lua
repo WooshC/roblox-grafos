@@ -121,7 +121,7 @@ function Algoritmos.BFSVisual(inicio, fin, nivelID)
 		end
 	end
 	
-	-- Reconstruir camino
+	-- Reconstruir camino y calcular distancia física real
 	local camino = {}
 	local u = fin
 	if previo[u] or u == inicio then
@@ -131,10 +131,34 @@ function Algoritmos.BFSVisual(inicio, fin, nivelID)
 		end
 	end
 	
+	-- Calcular distancia física total del camino
+	local distanciaTotal = 0
+	local function getPos(nombre)
+		-- Búsqueda simplificada de posición (asume estructura estándar)
+		local nivelName = (nivelID == 0) and "Nivel0_Tutorial" or ("Nivel" .. nivelID)
+		local modelo = workspace:FindFirstChild(nivelName)
+		local postes = modelo and modelo:FindFirstChild("Objetos") and modelo.Objetos:FindFirstChild("Postes")
+		local obj = postes and postes:FindFirstChild(nombre)
+		if obj then
+			if obj:IsA("Model") and obj.PrimaryPart then return obj.PrimaryPart.Position end
+			if obj:IsA("Model") then return obj:GetPivot().Position end
+		end
+		return Vector3.new(0,0,0)
+	end
+
+	for i = 1, #camino - 1 do
+		local p1 = getPos(camino[i])
+		local p2 = getPos(camino[i+1])
+		distanciaTotal = distanciaTotal + (p1 - p2).Magnitude
+	end
+	
+	local distanciaMetros = math.floor(distanciaTotal / 4) -- Conversión 4 studs = 1m
+
 	return {
 		Pasos = pasos,
 		CaminoFinal = camino,
-		CostoTotal = #camino - 1 -- En BFS el costo es el número de aristas
+		CostoTotal = #camino - 1, -- Costo lógico BFS (Saltos)
+		DistanciaTotal = distanciaMetros -- Costo físico (Metros)
 	}
 end
 

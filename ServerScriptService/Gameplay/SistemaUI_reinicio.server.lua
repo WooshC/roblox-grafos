@@ -65,14 +65,15 @@ remoteEvent.OnServerEvent:Connect(function(player)
 		print("⭐ Puntaje y estrellas reseteados")
 	end
 	
-	-- Resetear objetos del nivel actual
-	if config.Objetos then
-		local objetosIDs = {}
-		for _, obj in ipairs(config.Objetos) do
-			table.insert(objetosIDs, obj.ID)
-		end
-		InventoryManager.resetearNivel(player, nivelID, objetosIDs)
-	end
+	-- Resetear objetos del nivel actual (DESACTIVADO POR PETICIÓN USER)
+	-- El reinicio solo afecta cables y dinero, NO objetos obtenidos.
+	-- if config.Objetos then
+	-- 	local objetosIDs = {}
+	-- 	for _, obj in ipairs(config.Objetos) do
+	-- 		table.insert(objetosIDs, obj.ID)
+	-- 	end
+	-- 	InventoryManager.resetearNivel(player, nivelID, objetosIDs)
+	-- end
 	
 	-- 3. Eliminar cables visuales
 	-- (Esto borra todos los del workspace por simplicidad, pero está bien ya que limpia fantasmas también)

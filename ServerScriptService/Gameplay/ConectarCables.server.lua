@@ -162,12 +162,12 @@ local function conectarPostes(poste1, poste2, att1, att2, player)
 
 	-- 2. Calcular distancia (Peso)
 	local distanciaStuds = (att1.WorldPosition - att2.WorldPosition).Magnitude
-	local distanciaMetros = distanciaStuds / 5
-	distanciaMetros = math.floor(distanciaMetros * 10) / 10 
+	local distanciaMetros = distanciaStuds / 4 -- Unificamos criterio (4 studs = 1m)
+	distanciaMetros = math.floor(distanciaMetros) -- Entero
 
 	-- 3. CALCULAR COSTO
 	local costoPorMetro = configNivel.CostoPorMetro
-	local costoTotal = math.floor(distanciaMetros * costoPorMetro)
+	local costoTotal = distanciaMetros * costoPorMetro
 
 	-- 4. VERIFICAR DINERO DE JUGADOR
 	local leaderstats = player:FindFirstChild("leaderstats")
@@ -249,7 +249,7 @@ local function conectarPostes(poste1, poste2, att1, att2, player)
 	local lbl = Instance.new("TextLabel")
 	lbl.Size = UDim2.new(1,0,1,0)
 	lbl.BackgroundTransparency = 1
-	lbl.Text = distanciaMetros .. "m"
+	lbl.Text = string.format("%d m", distanciaMetros) -- Formato consistente
 	lbl.TextColor3 = Color3.new(1, 1, 1)
 	lbl.TextStrokeTransparency = 0
 	lbl.Font = Enum.Font.FredokaOne
