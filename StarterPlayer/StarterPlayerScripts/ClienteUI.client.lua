@@ -57,22 +57,14 @@ local btnReiniciar = crearBoton("BtnReiniciar", "🔄 REINICIAR", Color3.fromRGB
 local btnMapa = crearBoton("BtnMapa", "🗺️ MAPA", Color3.fromRGB(52, 152, 219), UDim2.new(0.5, -190, 0.9, -60))
 local btnAlgo = crearBoton("BtnAlgo", "🧠 ALGORITMO", Color3.fromRGB(155, 89, 182), UDim2.new(0.5, 210, 0.9, -60))
 local btnMisiones = crearBoton("BtnMisiones", "📋 MISIONES", Color3.fromRGB(46, 204, 113), UDim2.new(0.5, -390, 0.9, -60))
+local btnMatriz = crearBoton("BtnMatriz", "🔢 MATRIZ", Color3.fromRGB(255, 159, 67), UDim2.new(0.5, 410, 0.9, -60)) -- Nuevo botón
 
 -- Visibilidad inicial (Bloqueado hasta obtener objeto)
 btnMapa.Visible = false
 btnAlgo.Visible = false
 
--- Elementos del Mapa
-local flechaNav = Instance.new("ImageLabel")
-flechaNav.Name = "FlechaNav"
-flechaNav.Image = "rbxassetid://6034873722" -- Flecha simple
-flechaNav.BackgroundTransparency = 1
-flechaNav.Size = UDim2.new(0, 60, 0, 60)
-flechaNav.Position = UDim2.new(0.5, -30, 0.5, -30)
-flechaNav.Visible = false
-flechaNav.Parent = screenGui
-
 local distanciaLabel = Instance.new("TextLabel")
+
 distanciaLabel.Name = "DistanciaLabel"
 distanciaLabel.Size = UDim2.new(0, 200, 0, 30)
 distanciaLabel.Position = UDim2.new(0.5, -100, 0.5, 40)
@@ -91,7 +83,7 @@ local misionesActivo = false
 local camaraConnection = nil
 local techoOriginalTransparency = {}
 local zoomLevel = 80 -- Zoom FIJO (no se puede cambiar)
-local zoomBloqueado = true -- ⚡ NUEVO: Bloquear zoom para evitar crashes
+local zoomBloqueado = true -- NUEVO: Bloquear zoom para evitar crashes
 local etiquetasNodos = {}
 
 -- Panel de Misión mejorado (Definición Temprana)
@@ -432,8 +424,9 @@ local function toggleMapa()
 		camera.CameraType = Enum.CameraType.Scriptable
 		btnMapa.Text = "CERRAR MAPA"
 		btnMapa.BackgroundColor3 = Color3.fromRGB(46, 204, 113) 
-		flechaNav.Visible = true
-		distanciaLabel.Visible = true
+		-- flechaNav.Visible = true -- ELIMINADO
+		-- distanciaLabel.Visible = true -- ELIMINADO
+
 		
 		-- Mostrar panel de puntaje
 		scoreFrame.Visible = true
@@ -635,22 +628,22 @@ local function toggleMapa()
 					end
 				end
 				
-				-- Actualizar Flecha y Distancia
-				if objetivoNav then
-					flechaNav.Visible = true
-					distanciaLabel.Visible = true
-					flechaNav.ImageColor3 = Color3.fromRGB(255, 80, 80) -- Flecha Roja
+				-- Actualizar Flecha y Distancia (ELIMINADO)
+				-- if objetivoNav then
+					-- flechaNav.Visible = true
+					-- distanciaLabel.Visible = true
+					-- flechaNav.ImageColor3 = Color3.fromRGB(255, 80, 80) -- Flecha Roja
 					
-					local diff = objetivoNav:GetPivot().Position - centro
-					local angle = math.atan2(diff.X, diff.Z)
-					flechaNav.Rotation = -math.deg(angle) + 180
+					-- local diff = objetivoNav:GetPivot().Position - centro
+					-- local angle = math.atan2(diff.X, diff.Z)
+					-- flechaNav.Rotation = -math.deg(angle) + 180
 					
-					distanciaLabel.Text = "Reparar: " .. math.floor(distMin / 5) .. "m"
-				else
-					flechaNav.Visible = false
-					distanciaLabel.Text = "⚡ RED COMPLETADA"
-					distanciaLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-				end
+					-- distanciaLabel.Text = "Reparar: " .. math.floor(distMin / 5) .. "m"
+				-- else
+					-- flechaNav.Visible = false
+					-- distanciaLabel.Text = "⚡ RED COMPLETADA"
+					-- distanciaLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+				-- end
 			end
 		end)
 		
@@ -659,7 +652,8 @@ local function toggleMapa()
 		camera.CameraType = Enum.CameraType.Custom
 		btnMapa.Text = "🗺️ MAPA"
 		btnMapa.BackgroundColor3 = Color3.fromRGB(52, 152, 219)
-		flechaNav.Visible = false
+		-- flechaNav.Visible = false -- ELIMINADO
+
 		
 		-- Ocultar panel de puntaje
 		scoreFrame.Visible = false
@@ -671,7 +665,8 @@ local function toggleMapa()
 		-- if root then
 		-- 	root.Anchored = false
 		-- end
-		distanciaLabel.Visible = false
+		distanciaLabel.Visible = false -- Mantener oculto
+
 		misionFrame.Visible = false
 		
 		mostrarEtiquetasNodos(false)
@@ -772,6 +767,126 @@ toggleMisiones = function()
 	end
 end
 
+-- ============================================
+-- VIEW MATRIX LOGIC
+-- ============================================
+
+local matrixFrame = Instance.new("Frame")
+matrixFrame.Name = "MatrixFrame"
+matrixFrame.Size = UDim2.new(0, 600, 0, 450)
+matrixFrame.Position = UDim2.new(0.5, -300, 0.5, -225)
+matrixFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+matrixFrame.BackgroundTransparency = 0.1
+matrixFrame.Visible = false
+matrixFrame.Parent = screenGui
+
+local cornerMat = Instance.new("UICorner"); cornerMat.CornerRadius = UDim.new(0, 12); cornerMat.Parent = matrixFrame
+
+-- Titulo Matrix
+local titleMat = Instance.new("TextLabel")
+titleMat.Size = UDim2.new(1, 0, 0, 40)
+titleMat.BackgroundTransparency = 1
+titleMat.Text = "🔢 MATRIZ DE ADYACENCIA"
+titleMat.TextColor3 = Color3.fromRGB(255, 159, 67)
+titleMat.Font = Enum.Font.GothamBlack
+titleMat.TextSize = 24
+titleMat.Parent = matrixFrame
+
+local closeMat = Instance.new("TextButton")
+closeMat.Size = UDim2.new(0, 30, 0, 30)
+closeMat.Position = UDim2.new(1, -40, 0, 5)
+closeMat.Text = "X"
+closeMat.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
+closeMat.TextColor3 = Color3.new(1,1,1)
+closeMat.Parent = matrixFrame
+local cornerC = Instance.new("UICorner"); cornerC.CornerRadius = UDim.new(0, 8); cornerC.Parent = closeMat
+
+closeMat.MouseButton1Click:Connect(function() matrixFrame.Visible = false end)
+
+-- Scroll para la Grid
+local scrollMat = Instance.new("ScrollingFrame")
+scrollMat.Size = UDim2.new(1, -40, 1, -60)
+scrollMat.Position = UDim2.new(0, 20, 0, 50)
+scrollMat.BackgroundTransparency = 1
+scrollMat.CanvasSize = UDim2.new(2, 0, 2, 0) -- Expandable
+scrollMat.Parent = matrixFrame
+
+local getMatrixFunc = Remotes:WaitForChild("GetAdjacencyMatrix", 5)
+
+local function drawMatrix()
+	if not getMatrixFunc then return end
+	
+	-- Limpiar
+	scrollMat:ClearAllChildren()
+	
+	local nivelID = player:FindFirstChild("leaderstats") and player.leaderstats.Nivel.Value or 0
+	local data = getMatrixFunc:InvokeServer(nivelID)
+	
+	if not data or not data.Matrix then return end
+	
+	local headers = data.Headers
+	local matrix = data.Matrix
+	local cellWidth = 80
+	local cellHeight = 40
+	
+	-- 1. Cabecera Filas (Top)
+	for col, name in ipairs(headers) do
+		local lbl = Instance.new("TextLabel")
+		lbl.Size = UDim2.new(0, cellWidth, 0, cellHeight)
+		lbl.Position = UDim2.new(0, cellWidth * col, 0, 0) -- Shifted by 1 cell for corner
+		lbl.Text = name:sub(1, 8) -- Truncate
+		lbl.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+		lbl.TextColor3 = Color3.new(1,1,1)
+		lbl.BorderSizePixel = 1
+		lbl.BorderColor3 = Color3.new(0,0,0)
+		lbl.Parent = scrollMat
+	end
+	
+	-- 2. Filas de datos
+	for row, name in ipairs(headers) do
+		-- Cabecera Columna (Left)
+		local lblHeader = Instance.new("TextLabel")
+		lblHeader.Size = UDim2.new(0, cellWidth, 0, cellHeight)
+		lblHeader.Position = UDim2.new(0, 0, 0, cellHeight * row)
+		lblHeader.Text = name:sub(1, 8)
+		lblHeader.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+		lblHeader.TextColor3 = Color3.new(1,1,1)
+		lblHeader.BorderSizePixel = 1
+		lblHeader.BorderColor3 = Color3.new(0,0,0)
+		lblHeader.Parent = scrollMat
+		
+		-- Celdas
+		for col, val in ipairs(matrix[row]) do
+			local cell = Instance.new("TextLabel")
+			cell.Size = UDim2.new(0, cellWidth, 0, cellHeight)
+			cell.Position = UDim2.new(0, cellWidth * col, 0, cellHeight * row)
+			
+			if val == 0 then
+				cell.Text = "0"
+				cell.TextColor3 = Color3.fromRGB(150, 150, 150)
+			else
+				cell.Text = tostring(val)
+				cell.TextColor3 = Color3.fromRGB(46, 204, 113) -- Verde si hay conexión
+				cell.Font = Enum.Font.GothamBold
+			end
+			
+			cell.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+			cell.BorderSizePixel = 1
+			cell.BorderColor3 = Color3.new(0.2,0.2,0.2)
+			cell.Parent = scrollMat
+		end
+	end
+	
+	scrollMat.CanvasSize = UDim2.new(0, (#headers + 1) * cellWidth, 0, (#headers + 1) * cellHeight)
+end
+
+btnMatriz.MouseButton1Click:Connect(function()
+	matrixFrame.Visible = not matrixFrame.Visible
+	if matrixFrame.Visible then
+		drawMatrix()
+	end
+end)
+
 -- === LISTENERS ===
 btnMapa.MouseButton1Click:Connect(toggleMapa)
 btnMisiones.MouseButton1Click:Connect(toggleMisiones)
@@ -807,20 +922,14 @@ btnAlgo.MouseButton1Click:Connect(function()
 	
 	print("Enviando petición algoritmo: " .. algoName .. " para Nivel: " .. nivelID)
 	
-	if algoName == "BFS" then
-		-- Para BFS, usar el evento de visualización
-		local eventoBFS = ReplicatedStorage:FindFirstChild("VisualizarBFS")
-		if eventoBFS then
-			eventoBFS:FireServer(nivelID)
-			print("🎬 Solicitando visualización BFS...")
-		end
-	else
-		-- Para Dijkstra, usar el evento normal
-		if eventoAlgo then
-			local inicio = config.NodoInicio or "PostePanel"
-			local fin = config.NodoFin or "PosteFinal"
-			eventoAlgo:FireServer(algoName, inicio, fin, nivelID)
-		end
+	-- Unificamos todos los algoritmos bajo un solo evento maestro
+	-- Esto es más escalable y limpio.
+	if eventoAlgo then
+		local inicio = config.NodoInicio or "PostePanel"
+		local fin = config.NodoFin or "PosteFinal"
+		
+		eventoAlgo:FireServer(algoName, inicio, fin, nivelID)
+		print("🧠 Solicitando algoritmo: " .. algoName)
 	end
 end)
 

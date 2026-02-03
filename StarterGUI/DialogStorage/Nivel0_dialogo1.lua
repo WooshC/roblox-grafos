@@ -204,14 +204,16 @@ local function GenerarEstructura(dialogosSimples)
 				Function = function()
 					print("⚡ EJECUTANDO SpawnObject desde Confirmacion_Final...")
 					local ReplicatedStorage = game:GetService("ReplicatedStorage")
-					local folder = ReplicatedStorage:WaitForChild("ServerEvents", 5)
-					local event = folder and folder:WaitForChild("AparecerObjeto", 5)
+					-- USAR RUTA ESTÁNDAR NUEVA
+					local events = ReplicatedStorage:WaitForChild("Events", 5)
+					local remotes = events and events:WaitForChild("Remotes", 5)
+					local event = remotes and remotes:WaitForChild("AparecerObjeto", 5)
 					
 					if event then
 						event:FireServer(0, "Mapa")
 						print("✅ Solicitud de Mapa ENVIADA (Botón presionado)")
 					else
-						warn("❌ No se encontró ServerEvents/AparecerObjeto")
+						warn("❌ CRÍTICO: No se encontró Events/Remotes/AparecerObjeto")
 					end
 				end,
 				ExecTime = "Before", -- Ejecutar inmediatamente al entrar al nodo

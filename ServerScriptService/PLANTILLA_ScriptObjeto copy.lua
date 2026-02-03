@@ -90,9 +90,10 @@ prompt.Triggered:Connect(function(player)
 end)
 
 -- === SISTEMI DE REINICIO (REAPARECER) ===
-local evFolder = ReplicatedStorage:WaitForChild("ServerEvents", 10)
-if evFolder then
-	local eventoRestaurar = evFolder:WaitForChild("RestaurarObjetos", 10)
+local eventsFolder = ReplicatedStorage:WaitForChild("Events", 10)
+if eventsFolder then
+	local bindables = eventsFolder:WaitForChild("Bindables", 10)
+	local eventoRestaurar = bindables and bindables:WaitForChild("RestaurarObjetos", 10)
 	if eventoRestaurar then
 		eventoRestaurar.Event:Connect(function(nivelReiniciado)
 			if nivelReiniciado == NIVEL_ID then

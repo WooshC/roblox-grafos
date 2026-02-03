@@ -1,27 +1,34 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- 1. Crear evento remoto INMEDIATAMENTE
-local eventoNombre = "EjecutarAlgoritmo"
-local evento = ReplicatedStorage:FindFirstChild(eventoNombre) or Instance.new("RemoteEvent")
-evento.Name = eventoNombre
-evento.Parent = ReplicatedStorage
-print("✅ Evento 'EjecutarAlgoritmo' asegurado en ReplicatedStorage")
+print("▶️ INICIANDO VisualizadorAlgoritmos.server.lua...")
 
--- 2. Cargar dependencias con manejo de errores DEPURADO
--- 2. Cargar dependencias (Nombre corregido: "Algoritmos")
+-- 1. Referencia a Eventos (Esperamos que existan)
+local eventsFolder = ReplicatedStorage:WaitForChild("Events")
+local remotesFolder = eventsFolder:WaitForChild("Remotes")
+local evento = remotesFolder:WaitForChild("EjecutarAlgoritmo")
+
+print("✅ Visualizador: Evento EjecutarAlgoritmo encontrado.")
+
+-- 2. Cargar Dependencias
 local Algoritmos = nil
-local moduloRef = ReplicatedStorage:WaitForChild("Algoritmos", 10) -- Se llama "Algoritmos" en Studio
+local moduloRef = nil
+
+-- Intentar encontrar Algoritmos en varias ubicaciones
+if ReplicatedStorage:FindFirstChild("Algoritmos") then
+	moduloRef = ReplicatedStorage.Algoritmos
+elseif ReplicatedStorage:FindFirstChild("Utilidades") and ReplicatedStorage.Utilidades:FindFirstChild("Algoritmos") then
+	moduloRef = ReplicatedStorage.Utilidades.Algoritmos
+end
 
 if not moduloRef then
-	warn("❌ CRÍTICO: NO se encontró 'Algoritmos' en ReplicatedStorage. Verifica el nombre.")
+	warn("❌ CRÍTICO: NO se encontró módulo 'Algoritmos' en ReplicatedStorage ni en Utilidades.")
 else
 	local exitoLoad, resultado = pcall(require, moduloRef)
 	if exitoLoad then
 		Algoritmos = resultado
-		print("🧠 Visualizador: Módulo 'Algoritmos' cargado correctamente.")
+		print("✅ Visualizador: Módulo Algoritmos cargado ÉXITOSAMENTE.")
 	else
-		warn("❌ CRÍTICO: Falló el 'require' de Algoritmos.")
-		warn("📄 ERROR: " .. tostring(resultado))
+		warn("❌ Error cargando Algoritmos (require failed): " .. tostring(resultado))
 	end
 end
 
@@ -65,9 +72,7 @@ local function pintarNodo(nombreNodo, color, material, nivelID)
 end
 
 -- Función para pintar un cable (arista)
--- Función para pintar un cable (arista)
 local function pintarCable(nodoA, nodoB, color, grosor, nivelID)
-	
 	local carpetaPostes = obtenerCarpetaPostes(nivelID)
 	if not carpetaPostes then return false end
 	
@@ -78,19 +83,12 @@ local function pintarCable(nodoA, nodoB, color, grosor, nivelID)
 			local a1 = obj.Attachment1
 			
 			if a0 and a1 then
-				-- Verificar padres
 				local part0 = a0.Parent
 				local part1 = a1.Parent
-				
-				-- Necesitamos encontrar el MODELO del poste (abuelo o bisabuelo del attachment)
-				-- Asumimos jerarquía: ModeloPoste -> Parte/Selector -> Attachment
-				-- O ModeloPoste -> Attachment
 				
 				local modelA = part0:FindFirstAncestorWhichIsA("Model")
 				local modelB = part1:FindFirstAncestorWhichIsA("Model")
 				
-				-- VALIDACIÓN ESTRICTA DE PADRES
-				-- El modelo del poste debe ser hijo directo de la carpetaPostes del nivel actual
 				if modelA and modelB and modelA.Parent == carpetaPostes and modelB.Parent == carpetaPostes then
 					local p1 = modelA.Name
 					local p2 = modelB.Name
@@ -107,7 +105,9 @@ local function pintarCable(nodoA, nodoB, color, grosor, nivelID)
 	return false -- No encontrado
 end
 
--- Función Helper para crear cable fantasma
+-- Variable de control de ejecución
+local ejecucionActual = 0 -- ID incremental para cancelar hilos antiguos
+
 local function crearCableFantasma(nodoA, nodoB, color, nivelID)
 	local carpetaPostes = obtenerCarpetaPostes(nivelID)
 	local objA = carpetaPostes and carpetaPostes:FindFirstChild(nodoA)
@@ -130,7 +130,8 @@ local function crearCableFantasma(nodoA, nodoB, color, nivelID)
 			
 			-- Etiqueta Fantasma
 			local midPoint = (attA.WorldPosition + attB.WorldPosition) / 2
-			local dist = (attA.WorldPosition - attB.WorldPosition).Magnitude
+			local distStuds = (attA.WorldPosition - attB.WorldPosition).Magnitude
+			local distMetros = distStuds / 4 -- Conversión: 4 studs aprox 1 metro en Roblox estandar
 			
 			local etiquetaPart = Instance.new("Part")
 			etiquetaPart.Name = "EtiquetaFantasma"
@@ -150,8 +151,9 @@ local function crearCableFantasma(nodoA, nodoB, color, nivelID)
 			local lbl = Instance.new("TextLabel")
 			lbl.Size = UDim2.new(1,0,1,0)
 			lbl.BackgroundTransparency = 1
-			lbl.Text = math.floor(dist) .. "m"
+			lbl.Text = string.format("%d m", math.floor(distMetros)) -- Mostrar entero
 			lbl.TextColor3 = color
+
 			lbl.TextStrokeTransparency = 0
 			lbl.Font = Enum.Font.FredokaOne
 			lbl.TextSize = 18
@@ -163,104 +165,139 @@ local function crearCableFantasma(nodoA, nodoB, color, nivelID)
 	return nil
 end
 
--- Escuchar evento
+-- Función de limpieza
+local function limpiarVisualizacion(nivelID)
+	print("🧹 Limpiando visualización anterior en Nivel " .. tostring(nivelID))
+	
+	-- 1. Restaurar Colores de Postes
+	local carpetaPostes = obtenerCarpetaPostes(nivelID)
+	if carpetaPostes then
+		for _, poste in ipairs(carpetaPostes:GetChildren()) do
+			local partes = {poste:FindFirstChild("Part"), poste:FindFirstChild("Selector"), poste:FindFirstChild("Poste"), poste.PrimaryPart}
+			for _, p in ipairs(partes) do
+				if p then
+					p.Color = Color3.fromRGB(196, 196, 196) -- Color Base (Gris)
+					p.Material = Enum.Material.Plastic
+				end
+			end
+		end
+	end
+	
+	-- 2. Eliminar elementos temporales
+	for _, obj in ipairs(workspace:GetChildren()) do
+		if obj.Name == "CableFantasma" or obj.Name == "EtiquetaFantasma" then
+			obj:Destroy()
+		end
+	end
+end
+
+-- Escuchar evento PRINCIPAL
 evento.OnServerEvent:Connect(function(player, algoritmo, nodoInicio, nodoFin, nivelID)
-	-- [Resto del código de inicialización igual...]
-	nivelID = nivelID or 1 
+	nivelID = nivelID or 0
 	print("📡 SEÑAL RECIBIDA: " .. tostring(algoritmo) .. " en Nivel: " .. nivelID)
 	
 	if not exito then
-		warn("❌ No se puede ejecutar: Módulo de algoritmos roto.")
+		warn("❌ No se puede ejecutar: Módulo de algoritmos no cargado.")
 		return
 	end
 
-	-- Función de limpieza
-	local function limpiarVisualizacion()
-		print("🧹 Limpiando visualización anterior en Nivel " .. nivelID)
-		
-		-- 1. Restaurar Colores de Postes
-		local carpetaPostes = obtenerCarpetaPostes(nivelID)
-		if carpetaPostes then
-			for _, poste in ipairs(carpetaPostes:GetChildren()) do
-				local partes = {poste:FindFirstChild("Part"), poste:FindFirstChild("Selector"), poste:FindFirstChild("Poste"), poste.PrimaryPart}
-				for _, p in ipairs(partes) do
-					if p then
-						p.Color = Color3.fromRGB(196, 196, 196) -- Color Base (Gris)
-						p.Material = Enum.Material.Plastic
-					end
-				end
-			end
+	-- Aumentar ejecución ID para cancelar anteriores
+	ejecucionActual = ejecucionActual + 1
+	local miEjecucionID = ejecucionActual
+
+	-- Ejecución Dinámica según Algoritmo solicitado
+	limpiarVisualizacion(nivelID)
+	print("🧠 Ejecutando Algoritmo Visual [" .. algoritmo .. "]: " .. tostring(nodoInicio) .. " -> " .. tostring(nodoFin))
+	
+	local resultado = nil
+	if algoritmo == "Dijkstra" then
+		if Algoritmos.DijkstraVisual then
+			resultado = Algoritmos.DijkstraVisual(nodoInicio, nodoFin, nivelID)
+		else
+			warn("⚠️ DijkstraVisual no encontrado en módulo.")
 		end
-		
-		-- 2. Eliminar elementos temporales
-		for _, obj in ipairs(workspace:GetChildren()) do
-			if obj.Name == "CableFantasma" or obj.Name == "EtiquetaFantasma" then
-				obj:Destroy()
-			end
+	elseif algoritmo == "BFS" then
+		if Algoritmos.BFSVisual then
+			resultado = Algoritmos.BFSVisual(nodoInicio, nodoFin, nivelID)
+		else
+			warn("⚠️ BFSVisual no implementado en módulo Algoritmos")
 		end
 	end
+	
+	if not resultado then 
+		print("❌ Error: Algoritmo '"..tostring(algoritmo).."' devolvió nil o no soportado")
+		return 
+	end
+	
+	print("🔍 Pasos encontrados: " .. #(resultado.Pasos or {}))
+	
+	if not resultado.Pasos then return end
 
-	-- Admitimos BFS o Dijkstra (visualización idéntica en grafos unitarios)
-	if algoritmo == "Dijkstra" or algoritmo == "BFS" then
-		limpiarVisualizacion()
-		print("🧠 Ejecutando Algoritmo Visual [" .. algoritmo .. "]: " .. tostring(nodoInicio) .. " -> " .. tostring(nodoFin))
+	-- ANIMACIÓN DEL PROCESO
+	for _, paso in ipairs(resultado.Pasos) do
+		-- CHECK CANCELACIÓN
+		if miEjecucionID ~= ejecucionActual then return end
 		
-		local resultado = Algoritmos.DijkstraVisual(nodoInicio, nodoFin, nivelID)
-		
-		if not resultado then 
-			print("❌ Error: Dijkstra devolvió nil")
-			return 
-		end
-		
-		print("🔍 Pasos encontrados: " .. #resultado.Pasos)
-		
-		-- ANIMACIÓN DEL PROCESO
-		for _, paso in ipairs(resultado.Pasos) do
-			if paso.Tipo == "NodoActual" then
-				pintarNodo(paso.Nodo, Color3.fromRGB(255, 215, 0), Enum.Material.Neon, nivelID)
-				task.wait(0.6)
-				
-			elseif paso.Tipo == "Explorando" then
-				pintarNodo(paso.Nodo, Color3.fromRGB(52, 152, 219), Enum.Material.Glass, nivelID)
-				
-				-- Intentar pintar cable REAL, si no, crear FANTASMA
-				local pintado = pintarCable(paso.Nodo, paso.Origen, Color3.fromRGB(52, 152, 219), 0.3, nivelID)
-				if not pintado then
-					crearCableFantasma(paso.Nodo, paso.Origen, Color3.fromRGB(52, 152, 219), nivelID)
-				end
-				
-				task.wait(0.3)
+		if paso.Tipo == "NodoActual" then
+			pintarNodo(paso.Nodo, Color3.fromRGB(255, 215, 0), Enum.Material.Neon, nivelID)
+			task.wait(0.6)
 			
-			elseif paso.Tipo == "Destino" then
-				print("🎯 Destino encontrado en el grafo")
+		elseif paso.Tipo == "Explorando" then
+			pintarNodo(paso.Nodo, Color3.fromRGB(52, 152, 219), Enum.Material.Glass, nivelID)
+			
+			-- Intentar pintar cable REAL, si no, crear FANTASMA
+			local pintado = pintarCable(paso.Nodo, paso.Origen, Color3.fromRGB(52, 152, 219), 0.3, nivelID)
+			if not pintado then
+				crearCableFantasma(paso.Nodo, paso.Origen, Color3.fromRGB(52, 152, 219), nivelID)
+			end
+			
+			task.wait(0.3)
+		
+		elseif paso.Tipo == "Destino" then
+			print("🎯 Destino encontrado en el grafo")
+		end
+	end
+	
+	-- CHECK CANCELACIÓN
+	if miEjecucionID ~= ejecucionActual then return end
+	
+	-- CAMINO FINAL
+	if resultado.CaminoFinal and #resultado.CaminoFinal > 0 then
+		print("🏁 Camino encontrado! Costo: " .. (resultado.CostoTotal or "N/A"))
+		
+		local camino = resultado.CaminoFinal
+		for i = 1, #camino do
+			-- CHECK CANCELACIÓN
+			if miEjecucionID ~= ejecucionActual then return end
+			
+			local nodoActual = camino[i]
+			local nodoSiguiente = camino[i+1]
+			
+			pintarNodo(nodoActual, Color3.fromRGB(46, 204, 113), Enum.Material.Neon, nivelID)
+			
+			if nodoSiguiente then
+				local cableExistente = pintarCable(nodoActual, nodoSiguiente, Color3.fromRGB(46, 204, 113), 0.5, nivelID)
+				if not cableExistente then
+					crearCableFantasma(nodoActual, nodoSiguiente, Color3.fromRGB(46, 204, 113), nivelID)
+				end
+				task.wait(0.2)
 			end
 		end
-		
-		-- CAMINO FINAL
-		if resultado.CaminoFinal and #resultado.CaminoFinal > 0 then
-			print("🏁 Camino encontrado! Costo: " .. resultado.CostoTotal)
-			
-			-- NOTA: No limpiamos visualización aquí para que se vea el rastro de exploración + camino.
-			-- Si quieres limpiar solo exploración, habría que etiquetar diferente los objetos.
-			-- limpiarVisualizacion() 
-			
-			local camino = resultado.CaminoFinal
-			for i = 1, #camino do
-				local nodoActual = camino[i]
-				local nodoSiguiente = camino[i+1]
-				
-				pintarNodo(nodoActual, Color3.fromRGB(46, 204, 113), Enum.Material.Neon, nivelID)
-				
-				if nodoSiguiente then
-					local cableExistente = pintarCable(nodoActual, nodoSiguiente, Color3.fromRGB(46, 204, 113), 0.5, nivelID)
-					if not cableExistente then
-						crearCableFantasma(nodoActual, nodoSiguiente, Color3.fromRGB(46, 204, 113), nivelID)
-					end
-					task.wait(0.2)
-				end
-			end
-		else
-			print("⚠️ No existe camino entre " .. nodoInicio .. " y " .. nodoFin)
-		end
+	else
+		print("⚠️ No existe camino entre " .. tostring(nodoInicio) .. " y " .. tostring(nodoFin))
 	end
 end)
+
+-- Escuchar también el reinicio para cancelar
+local bindables = eventsFolder:WaitForChild("Bindables")
+local restaurarEvent = bindables:WaitForChild("RestaurarObjetos")
+
+if restaurarEvent then
+	restaurarEvent.Event:Connect(function()
+		print("🛑 Visualizador: Detectado reinicio, cancelando animación actual.")
+		ejecucionActual = ejecucionActual + 1 -- Invalidar ejecución actual
+		limpiarVisualizacion(0) -- Limpiar nivel 0 por defecto o pasar argumento si es posible
+	end)
+end
+
+print("✅ VisualizadorAlgoritmos.server.lua INICIADO CORRECTAMENTE")

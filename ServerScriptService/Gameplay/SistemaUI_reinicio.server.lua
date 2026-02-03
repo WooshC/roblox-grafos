@@ -16,31 +16,22 @@ local remoteEvent = Remotes:WaitForChild("ReiniciarNivel")
 -- =======================================================
 -- INICIALIZACIÓN DE EVENTOS PARA SCRIPTS INDIVIDUALES
 -- =======================================================
--- Creamos esto AL INICIO para asegurar que los scripts de los objetos (que usan WaitForChild)
--- encuentren los eventos inmediatamente y se conecten correctamente.
+local eventsFolder = ReplicatedStorage:WaitForChild("Events")
+local bindables = eventsFolder:WaitForChild("Bindables")
+local remotes = eventsFolder:WaitForChild("Remotes")
 
+-- Referencias a Eventos Estandarizados
+local eventoRestaurar = bindables:WaitForChild("RestaurarObjetos")
+local eventoDesbloquear = bindables:WaitForChild("DesbloquearObjeto")
+
+-- Soporte Legacy (Opcional: Si existe la carpeta antigua, la usamos de puente, sino no)
 local serverEvents = ReplicatedStorage:FindFirstChild("ServerEvents")
-if not serverEvents then
-	serverEvents = Instance.new("Folder")
-	serverEvents.Name = "ServerEvents"
-	serverEvents.Parent = ReplicatedStorage
+local eventoLegacy = nil
+if serverEvents then
+	eventoLegacy = serverEvents:FindFirstChild("RestaurarObjetos")
 end
 
-local eventoLegacy = serverEvents:FindFirstChild("RestaurarObjetos")
-if not eventoLegacy then
-	eventoLegacy = Instance.new("BindableEvent")
-	eventoLegacy.Name = "RestaurarObjetos"
-	eventoLegacy.Parent = serverEvents
-end
-
-local eventoDesbloquearLegacy = serverEvents:FindFirstChild("DesbloquearObjeto")
-if not eventoDesbloquearLegacy then
-	eventoDesbloquearLegacy = Instance.new("BindableEvent")
-	eventoDesbloquearLegacy.Name = "DesbloquearObjeto"
-	eventoDesbloquearLegacy.Parent = serverEvents
-end
-
-print("✅ SistemaUI: Eventos 'ServerEvents' inicializados correctamente.")
+print("✅ SistemaUI: Eventos inicializados correctamente (Estándar).")
 
 
 -- 3. LÓGICA DEL SERVIDOR (RESETEAR)
@@ -152,6 +143,10 @@ remoteEvent.OnServerEvent:Connect(function(player)
 	if eventoRestaurar then
 		eventoRestaurar:Fire(nivelID)
 	end
+	
+	-- 7. Notificar a los clientes para que limpien visuales locales (Partículas, etc.)
+	print("📡 SistemaUI: Enviando señal de reinicio a TODOS los clientes...")
+	remoteEvent:FireAllClients()
 	
 	print("✅ NIVEL REINICIADO")
 end)

@@ -5,36 +5,18 @@ local InventoryManager = require(ReplicatedStorage:WaitForChild("Utilidades"):Wa
 InventoryManager.init()
 print("✅ InventoryManager inicializado (desde GestorEventos)")
 
--- 2. Asegurar Estructura de Eventos
-local serverEvents = ReplicatedStorage:FindFirstChild("ServerEvents")
-if not serverEvents then
-	serverEvents = Instance.new("Folder")
-	serverEvents.Name = "ServerEvents"
-	serverEvents.Parent = ReplicatedStorage
-end
+-- 2. Asegurar Estructura de Eventos (Estandarizada)
+local eventsFolder = ReplicatedStorage:WaitForChild("Events")
+local remotesFolder = eventsFolder:WaitForChild("Remotes")
+local bindablesFolder = eventsFolder:WaitForChild("Bindables")
 
 -- Evento para recibir señales del Cliente (Diálogos)
-local eventoAparecer = serverEvents:FindFirstChild("AparecerObjeto")
-if not eventoAparecer then
-	eventoAparecer = Instance.new("RemoteEvent")
-	eventoAparecer.Name = "AparecerObjeto"
-	eventoAparecer.Parent = serverEvents
-end
+local eventoAparecer = remotesFolder:WaitForChild("AparecerObjeto")
 
 -- Evento para comunicar con Scripts de Objetos (Servidor interno)
-local eventoDesbloquear = serverEvents:FindFirstChild("DesbloquearObjeto")
-if not eventoDesbloquear then
-	eventoDesbloquear = Instance.new("BindableEvent")
-	eventoDesbloquear.Name = "DesbloquearObjeto"
-	eventoDesbloquear.Parent = serverEvents
-end
+local eventoDesbloquear = bindablesFolder:WaitForChild("DesbloquearObjeto")
 
-local eventoRestaurar = serverEvents:FindFirstChild("RestaurarObjetos")
-if not eventoRestaurar then
-	eventoRestaurar = Instance.new("BindableEvent")
-	eventoRestaurar.Name = "RestaurarObjetos"
-	eventoRestaurar.Parent = serverEvents
-end
+local eventoRestaurar = bindablesFolder:WaitForChild("RestaurarObjetos")
 
 -- 3. Puente: Cliente (Diálogo) -> Servidor (Script Individual)
 eventoAparecer.OnServerEvent:Connect(function(player, nivelID, objetoID)
