@@ -56,6 +56,18 @@ local ColorBloqueado = Color3.fromRGB(149, 165, 166)
 -- FUNCIONES DE UI
 -- ============================================
 
+-- Helper para forzar visibilidad recursiva
+local function ForzarVisibilidadRecursiva(padre)
+	if not padre then return end
+	if padre:IsA("GuiObject") then padre.Visible = true end
+	
+	for _, hijo in ipairs(padre:GetDescendants()) do
+		if hijo:IsA("GuiObject") then
+			hijo.Visible = true
+		end
+	end
+end
+
 local function ActualizarPanelInfo(levelID)
 	local config = LevelsConfig[levelID]
 	if not config then return end
@@ -84,9 +96,11 @@ local function ActualizarPanelInfo(levelID)
 	BotonJugar.Text = "JUGAR " .. estrellasStr
 	
 	-- Habilitar botón jugar
-	BotonJugar.Visible = true
 	BotonJugar.AutoButtonColor = true
-	BotonJugar.BackgroundColor3 = Color3.fromRGB(46, 204, 113) 
+	BotonJugar.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+	
+	-- 🔥 FORZAR VISIBILIDAD DE TODO EL PANEL Y SUS HIJOS
+	ForzarVisibilidadRecursiva(InfoPanel)
 end
 
 local function BloquearPanel()
@@ -141,6 +155,7 @@ local function CargarBotonesNiveles()
 				
 				if estaDesbloqueado then
 					-- ESTILO DESBLOQUEADO
+					boton.Visible = true -- 🔥 FORZAR VISIBILIDAD
 					boton.BackgroundColor3 = ColorDesbloqueado
 					boton.AutoButtonColor = true
 					boton.TextTransparency = 0
@@ -152,6 +167,7 @@ local function CargarBotonesNiveles()
 					end)
 				else
 					-- ESTILO BLOQUEADO (Pero visible)
+					boton.Visible = true -- 🔥 FORZAR VISIBILIDAD
 					boton.BackgroundColor3 = ColorBloqueado
 					boton.AutoButtonColor = true -- Permitir click
 					boton.TextTransparency = 0.5 
@@ -261,8 +277,20 @@ task.spawn(function()
 			print("🔄 Refrescando selector de niveles...")
 			
 			-- FORZAR VISIBILIDAD DE TODOS LOS ELEMENTOS
-			if Contenedor then Contenedor.Visible = true end
-			if InfoPanel then InfoPanel.Visible = true end
+			if Contenedor then 
+				Contenedor.Visible = true 
+				for _, child in ipairs(Contenedor:GetChildren()) do
+					if child:IsA("GuiObject") then child.Visible = true end
+				end
+			end
+			
+			if InfoPanel then 
+				InfoPanel.Visible = true 
+				for _, child in ipairs(InfoPanel:GetChildren()) do
+					if child:IsA("GuiObject") then child.Visible = true end
+				end
+			end
+			
 			if BotonesFrame then BotonesFrame.Visible = true end
 			
 			task.wait(0.3) -- Esperar a que cámara se mueva

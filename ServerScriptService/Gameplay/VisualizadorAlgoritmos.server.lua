@@ -221,44 +221,62 @@ local function validarRutaJugador(nivelID, player, resultadoAlgoritmo)
 	end
 
 	-- ========================================
-	-- 2. CABLES EXPLORADOS POR BFS (Todo lo que visitó)
+	-- 2. DEFINIR EL SET DE REFERENCIA (LO QUE EL ALGORITMO EXPLORÓ)
 	-- ========================================
-	local cablesOptimos = {} -- { ["NodoA_NodoB"] = true }
-
-	-- Extraer de los pasos del algoritmo
-	for _, paso in ipairs(resultadoAlgoritmo.Pasos) do
+	-- El jugador debe replicar físicamente todo lo que el algoritmo "toca".
+	local cablesObjetivo = {} -- { ["NodoA_NodoB"] = true }
+	
+	for _, paso in ipairs(resultadoAlgoritmo.Pasos or {}) do
 		if paso.Tipo == "Explorando" and paso.Nodo and paso.Origen then
 			local clave = paso.Nodo < paso.Origen 
 				and (paso.Nodo .. "_" .. paso.Origen) 
 				or (paso.Origen .. "_" .. paso.Nodo)
-			cablesOptimos[clave] = true
+			cablesObjetivo[clave] = true
 		end
 	end
 
 	-- ========================================
-	-- 3. COMPARAR
+	-- 3. VALIDACIÓN ESTRICTA (Coincidencia Perfecta)
 	-- ========================================
 	local aciertos = 0
-	local fallos = 0
+	local cablesExtra = 0
+	local cablesFaltantes = 0
 
+	-- A. Revisar lo que el jugador puso (Aciertos y Extras)
 	for cable, _ in pairs(cablesJugador) do
-		if cablesOptimos[cable] then
+		if cablesObjetivo[cable] then
 			aciertos = aciertos + 1
 		else
-			fallos = fallos + 1
+			cablesExtra = cablesExtra + 1
 		end
 	end
+	
+	-- B. Revisar lo que le faltó (Objetivo - Aciertos)
+	local totalObjetivo = #tableKeys(cablesObjetivo)
+	cablesFaltantes = totalObjetivo - aciertos
 
-	local bonusPuntos = aciertos * 100
-	local penalizacion = fallos * 50
-	local puntosNetos = math.max(0, bonusPuntos - penalizacion)
+	-- ========================================
+	-- 4. CÁLCULO DE PUNTAJE
+	-- ========================================
+	local bonusBase = aciertos * 100
+	local castigoFaltantes = cablesFaltantes * 50
+	local castigoExtras = cablesExtra * 25
+	
+	local puntosNetos = math.max(0, bonusBase - castigoFaltantes - castigoExtras)
 
-	print("🎯 VALIDACIÓN (Cables):")
-	print("   ✅ Aciertos: " .. aciertos .. " cables correctos (+'" .. bonusPuntos .. " pts)")
-	print("   ❌ Fallos: " .. fallos .. " cables innecesarios (-" .. penalizacion .. " pts)")
-	print("   🔍 BFS exploró: " .. #tableKeys(cablesOptimos) .. " cables")
-	print("   🎮 Jugador usó: " .. #tableKeys(cablesJugador) .. " cables")
-	print("   💰 BONUS NETO: " .. puntosNetos)
+	print("🎯 VALIDACIÓN DEL ALGORITMO:")
+	print("   🤖 El algoritmo requiere: " .. totalObjetivo .. " conexiones")
+	print("   ✅ Tu construcción coincide en: " .. aciertos)
+	
+	if cablesFaltantes > 0 then
+		print("   ⚠️ TE FALTARON: " .. cablesFaltantes .. " cables que el algoritmo necesitaba.")
+	end
+	
+	if cablesExtra > 0 then
+		print("   ❌ SOBRARON: " .. cablesExtra .. " cables que el algoritmo no usó.")
+	end
+	
+	print("   💰 PUNTOS: +"..bonusBase.." (Aciertos) -"..castigoFaltantes.." (Faltas) -"..castigoExtras.." (Extras) = " .. puntosNetos)
 
 	-- Aplicar bonus AL PUNTAJE BASE
 	local stats = player:FindFirstChild("leaderstats")

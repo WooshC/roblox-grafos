@@ -39,29 +39,38 @@ LevelsConfig[0] = {
 	Misiones = {
 		{
 			ID = 1,
-			Texto = "Energiza al menos 3 nodos",
-			Tipo = "NODOS_MINIMOS",
-			Parametros = { Cantidad = 3 }
+			Texto = "Energiza la Toma de Corriente (toma_corriente)",
+			Tipo = "NODO_ENERGIZADO",
+			Parametros = {
+				Nodo = "toma_corriente"
+			}
 		},
 		{
 			ID = 2,
-			Texto = "Activa la Zona de Luz Principal",
-			Tipo = "ZONA_ACTIVADA",
-			Parametros = { Zona = "Zona_luz_1" }
+			Texto = "Energiza al menos 3 nodos",
+			Tipo = "NODOS_MINIMOS",
+			Parametros = {
+				Cantidad = 3
+			}
 		},
 		{
 			ID = 3,
-			Texto = "Conecta el circuito completo",
-			Tipo = "CIRCUITO_CERRADO",
-			Parametros = {}
+			Texto = "¡Llega a la Torre de Control!",
+			Tipo = "NODO_ENERGIZADO",
+			Parametros = {
+				Nodo = "PosteFinal"
+			}
 		},
 		{
 			ID = 4,
-			Texto = "Energiza la Toma de Corriente",
-			Tipo = "NODO_ENERGIZADO",
-			Parametros = { Nodo = "toma_corriente" }
+			Texto = "¡Energiza toda la red! (8/8 nodos)",
+			Tipo = "TODOS_LOS_NODOS",
+			Parametros = {
+				Cantidad = 8
+			}
 		}
 	},
+
 
 	Objetos = {
 		{ ID = "Mapa", Nombre = "Mapa de Villa Conexa", Descripcion = "Desbloquea la vista de mapa", Icono = "🗺️", Modelo = "MapaModel" },
