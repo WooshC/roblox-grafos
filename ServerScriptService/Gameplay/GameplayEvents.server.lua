@@ -23,7 +23,10 @@ local eventoVisualizarBFS = Remotes:WaitForChild("EjecutarAlgoritmo")
 -- ============================================
 local function actualizarPuntajeYEstrellas(player, nivelID)
 	local config = LevelsConfig[nivelID]
-	if not config or not config.Misiones then return end
+	if not config or not config.Misiones then 
+		warn("⚠️ No hay misiones configuradas para nivel " .. nivelID)
+		return 
+	end
 
 	local totalMisiones = #config.Misiones
 	if totalMisiones == 0 then return end
@@ -36,19 +39,26 @@ local function actualizarPuntajeYEstrellas(player, nivelID)
 		end
 	end
 
-	-- Regla de 3: (completadas / total) × 1200
+	-- Regla de 3: (misionesCompletadas / totalMisiones) * 1200
 	local maxPuntos = 1200
 	local puntosActuales = math.floor((misionesCompletadas / totalMisiones) * maxPuntos)
 
 	-- Actualizar leaderstats
 	local stats = player:FindFirstChild("leaderstats")
-	if not stats then return end
+	if not stats then 
+		warn("⚠️ leaderstats no encontrado para " .. player.Name)
+		return 
+	end
 
 	-- Actualizar Puntos
 	local puntos = stats:FindFirstChild("Puntos")
-	if puntos and puntos.Value ~= puntosActuales then
-		puntos.Value = puntosActuales
-		print("💰 " .. player.Name .. " → " .. puntosActuales .. " pts (" .. misionesCompletadas .. "/" .. totalMisiones .. ")")
+	if puntos then
+		if puntos.Value ~= puntosActuales then
+			puntos.Value = puntosActuales
+			print("💰 Puntaje actualizado: " .. player.Name .. " → " .. puntosActuales .. " pts (" .. misionesCompletadas .. "/" .. totalMisiones .. ")")
+		end
+	else
+		warn("⚠️ IntValue 'Puntos' no encontrado en leaderstats")
 	end
 
 	-- Actualizar Estrellas
@@ -65,7 +75,7 @@ local function actualizarPuntajeYEstrellas(player, nivelID)
 
 		if estrellas.Value ~= nuevasEstrellas then
 			estrellas.Value = nuevasEstrellas
-			print("⭐ " .. player.Name .. " → " .. nuevasEstrellas .. " estrellas")
+			print("⭐ Estrellas actualizadas: " .. player.Name .. " → " .. nuevasEstrellas)
 		end
 	end
 end
@@ -84,7 +94,11 @@ local function activarComponentesZona(zona, estado)
 
 			local materialOriginal = componente:GetAttribute("MaterialOriginal")
 			if materialOriginal == "Neon" or componente.Material == Enum.Material.Neon then
-				componente.Material = estado and Enum.Material.Neon or Enum.Material.Plastic
+				if estado then
+					componente.Material = Enum.Material.Neon
+				else
+					componente.Material = Enum.Material.Plastic
+				end
 			end
 		end
 	end
@@ -115,7 +129,9 @@ local function actualizarLucesZonas(nivelID)
 		for nombreNodo, infoNodo in pairs(config.Nodos) do
 			local zonaAsignada = infoNodo.Zona
 			if zonaAsignada then
-				nodosPorZona[zonaAsignada] = nodosPorZona[zonaAsignada] or {}
+				if not nodosPorZona[zonaAsignada] then
+					nodosPorZona[zonaAsignada] = {}
+				end
 				table.insert(nodosPorZona[zonaAsignada], nombreNodo)
 			end
 		end
@@ -147,7 +163,11 @@ local function actualizarLucesZonas(nivelID)
 				end
 			end
 
-			estadoZona = (modoActivacion == "ALL") and (nodosEnergizados == #nodosRequeridos) or (nodosEnergizados > 0)
+			if modoActivacion == "ALL" then
+				estadoZona = (nodosEnergizados == #nodosRequeridos)
+			else
+				estadoZona = (nodosEnergizados > 0)
+			end
 		end
 
 		local componentesEncontrados = {}
@@ -170,6 +190,8 @@ end
 -- ============================================
 -- VERIFICACIÓN DE CONECTIVIDAD
 -- ============================================
+local cablesYaProcesados = {}
+
 local function pintarCablesSegunEnergia(nivelID, visitados, llegoAlFinal)
 	local todosLosCables = NivelUtils.obtenerCablesDelNivel(nivelID)
 
@@ -183,7 +205,11 @@ local function pintarCablesSegunEnergia(nivelID, visitados, llegoAlFinal)
 			local ambosEnergizados = visitados[p1.Name] and visitados[p2.Name]
 
 			if ambosEnergizados then
-				cable.Color = llegoAlFinal and BrickColor.new("Lime green") or BrickColor.new("Cyan")
+				if llegoAlFinal then
+					cable.Color = BrickColor.new("Lime green")
+				else
+					cable.Color = BrickColor.new("Cyan")
+				end
 				cable.Thickness = 0.3
 			else
 				cable.Color = BrickColor.new("Dark stone grey")
@@ -195,6 +221,8 @@ end
 
 local function verificarConectividad(nivelID, modoVisualizacion)
 	modoVisualizacion = modoVisualizacion or false
+
+	print("🔍 verificarConectividad - Nivel: " .. nivelID .. " | Modo visualización: " .. tostring(modoVisualizacion))
 
 	local config = LevelsConfig[nivelID]
 	if not config then return end
@@ -253,17 +281,21 @@ local function verificarConectividad(nivelID, modoVisualizacion)
 					numNodosConectados = numNodosConectados + 1
 
 					if not modoVisualizacion then
-						-- Actualizar misiones
+						print("✅ Nodo energizado: " .. nombreVecino)
+
+						-- 🔥 ACTUALIZAR MISIONES INMEDIATAMENTE
 						local estadoJuego = MisionManager.construirEstadoJuego(visitados, numNodosConectados, config, nil, {})
 						local resultados = MisionManager.verificarTodasLasMisiones(config, estadoJuego)
 
+						-- Actualizar estado de cada misión
 						for misionID, completada in pairs(resultados) do
 							MisionManager.actualizarMisionGlobal(misionID, completada)
 						end
 
-						-- Actualizar puntaje para jugadores en este nivel
+						-- 🔥 ACTUALIZAR PUNTAJE PARA TODOS LOS JUGADORES
 						for _, player in ipairs(Players:GetPlayers()) do
-							if player:GetAttribute("CurrentLevelID") == nivelID then
+							local playerNivelID = player:GetAttribute("CurrentLevelID")
+							if playerNivelID == nivelID then
 								actualizarPuntajeYEstrellas(player, nivelID)
 							end
 						end
@@ -288,11 +320,15 @@ end
 -- ============================================
 local function initNivel(nivelID)
 	task.wait(1)
-	
+	print("🔌 Inicializando Nivel " .. nivelID)
+
+	actualizarLucesZonas(nivelID)
+
 	local config = LevelsConfig[nivelID]
 	if not config then return end
 
 	local carpetaPostes = NivelUtils.obtenerCarpetaPostes(nivelID)
+
 	if carpetaPostes then
 		for _, poste in ipairs(carpetaPostes:GetChildren()) do
 			if poste:IsA("Model") then
@@ -305,8 +341,6 @@ local function initNivel(nivelID)
 			inicio:SetAttribute("Energizado", true)
 		end
 	end
-	
-	actualizarLucesZonas(nivelID)
 end
 
 initNivel(0)
@@ -314,6 +348,7 @@ initNivel(1)
 
 -- Escuchar cambios en conexiones
 eventoConexion.Event:Connect(function(nivelID)
+	print("🔔 Evento ConexionCambiada recibido para Nivel " .. nivelID)
 	verificarConectividad(nivelID, false)
 end)
 
@@ -329,56 +364,96 @@ end)
 -- ============================================
 -- EVENTO: Finalizar Nivel
 -- ============================================
-local function calcularEstrellas(nivelID, puntos)
+-- ============================================
+-- EVENTO: Finalizar Nivel
+-- ============================================
+local function calcularEstrellas(nivelID, puntosBaseMisiones)
 	local config = LevelsConfig[nivelID]
-	if not config or not config.ScoreThresholds then
-		return puntos > 0 and 1 or 0
+	if not config then return 0 end
+	
+	-- Support both naming conventions (Puntuacion or ScoreThresholds)
+	local thresholds = config.Puntuacion or config.ScoreThresholds
+	if not thresholds then
+		return puntosBaseMisiones > 0 and 1 or 0
 	end
 
-	local thresholds = config.ScoreThresholds
-	if puntos >= (thresholds.Gold or 9999) then return 3
-	elseif puntos >= (thresholds.Silver or 9999) then return 2
-	elseif puntos >= (thresholds.Bronze or 9999) then return 1
+	-- Extract thresholds with support for English/Spanish keys
+	local scoreTres = thresholds.TresEstrellas or thresholds.Gold or 1200
+	local scoreDos = thresholds.DosEstrellas or thresholds.Silver or 800
+	local scoreUna = thresholds.UnaEstrella or thresholds.Bronze or 100
+
+	if puntosBaseMisiones >= scoreTres then return 3
+	elseif puntosBaseMisiones >= scoreDos then return 2
+	elseif puntosBaseMisiones >= scoreUna then return 1
 	else return 0 end
 end
 
 local LevelCompletedEvent = Remotes:FindFirstChild("LevelCompleted")
 if LevelCompletedEvent then
-	LevelCompletedEvent.OnServerEvent:Connect(function(player, nivelID, estrellas, puntos)
-		local stats = player:FindFirstChild("leaderstats")
-		if stats then
-			local puntosVal = stats:FindFirstChild("Puntos") or stats:FindFirstChild("Score")
-			if puntosVal then
-				puntos = puntosVal.Value
+	LevelCompletedEvent.OnServerEvent:Connect(function(player, nivelID, estrellas, puntosTotalConBono)
+		print("🏆 Jugador " .. player.Name .. " completó Nivel " .. nivelID)
+
+		-- 1. Calcular puntos BASE solo por misiones para las estrellas
+		local config = LevelsConfig[nivelID]
+		local totalMisiones = config and config.Misiones and #config.Misiones or 1
+		local misionesCompletadas = 0
+		
+		for i = 1, totalMisiones do
+			if MisionManager.obtenerEstado(player, i) then
+				misionesCompletadas = misionesCompletadas + 1
 			end
 		end
 
-		estrellas = calcularEstrellas(nivelID, puntos)
+		-- Puntos base según misiones (sin bonos)
+		local thresholds = config.Puntuacion or config.ScoreThresholds or {}
+		local maxPuntosBase = thresholds.TresEstrellas or thresholds.Gold or 1200
+		local puntosBaseMisiones = math.floor((misionesCompletadas / totalMisiones) * maxPuntosBase)
+		
+		print("📊 Desglose: Misiones " .. misionesCompletadas .. "/" .. totalMisiones .. " -> Base: " .. puntosBaseMisiones .. " | Total con Bonos: " .. puntosTotalConBono)
 
+		-- 2. Calcular estrellas usando SOLO los puntos base de las misiones
+		estrellas = calcularEstrellas(nivelID, puntosBaseMisiones)
+
+		-- 3. Actualizar Leaderstats (Puntos totales se guardan como moneda, Estrellas según misiones)
+		local stats = player:FindFirstChild("leaderstats")
 		if stats then
+			-- Guardamos el total con bonos como "Puntos" acumulados (para ranking o moneda)
+			local puntosVal = stats:FindFirstChild("Puntos") or stats:FindFirstChild("Score")
+			if puntosVal then
+				puntosVal.Value = puntosTotalConBono
+			end
+			
 			local estrellasVal = stats:FindFirstChild("Estrellas")
 			if estrellasVal then
 				estrellasVal.Value = estrellas
 			end
 		end
 
+		print("   📊 Guardando - Estrellas: " .. estrellas .. " | Puntos Totales: " .. puntosTotalConBono)
+
 		if not player:GetAttribute("CurrentLevelID") then
 			player:SetAttribute("CurrentLevelID", nivelID)
 		end
 
 		if _G.CompleteLevel then
-			_G.CompleteLevel(player, estrellas, puntos)
+			_G.CompleteLevel(player, estrellas, puntosTotalConBono)
+			print("✅ Progreso guardado via _G.CompleteLevel")
+		else
+			warn("❌ _G.CompleteLevel no está disponible")
 		end
 
 		task.wait(1)
 		local OpenMenuEvent = Bindables:FindFirstChild("OpenMenu")
 		if OpenMenuEvent then
 			OpenMenuEvent:Fire()
-			LevelCompletedEvent:FireClient(player, nivelID, estrellas, puntos)
+			LevelCompletedEvent:FireClient(player, nivelID, estrellas, puntosTotalConBono)
 		end
 
-		print("🎉 Nivel " .. nivelID .. " completado: " .. estrellas .. "⭐ | " .. puntos .. " pts")
+		print("🎉 Nivel " .. nivelID .. " finalizado. Regresando al menú...")
 	end)
+	print("✅ Listener LevelCompleted registrado")
+else
+	warn("❌ Evento LevelCompleted no encontrado en Remotes")
 end
 
-print("⚡ GameplayEvents v2.1 - Sistema de puntaje activo")
+print("⚡ GameplayEvents v2.2 - Estrellas basadas solo en Misiones")
