@@ -9,9 +9,9 @@ LevelsConfig[0] = {
 	Nombre = "Campo de Entrenamiento",
 	Modelo = "Nivel0_Tutorial", -- El nombre del Modelo en ServerStorage/Niveles
 	Descripcion = "Aprende los conceptos básicos: Nodos, Aristas y Pesos.",
-	DineroInicial = 2000,
-	CostoPorMetro = 2, -- Pequeño costo para enseñar concepto
-	Algoritmo = "BFS", -- El tutorial enseña conectividad básica
+	DineroInicial = 0,
+	CostoPorMetro = 0,
+	Algoritmo = "BFS",
 
 	-- Configuración del Grafo Tutorial
 	NodoInicio = "PostePanel",
@@ -25,7 +25,6 @@ LevelsConfig[0] = {
 		["Poste4"] = {"Poste1", "PosteFinal","Poste3"},
 		["Poste5"] = {"PostePanel", "PosteFinal"},
 		["PosteFinal"] = {"Poste4","Poste5"},
-		["toma_corriente"] = {"PostePanel"}  -- Nuevo nodo
 	},
 
 	-- Checklist de Misión (Nuevo formato declarativo)
@@ -64,8 +63,6 @@ LevelsConfig[0] = {
 		}
 	},
 
-	-- Objetos Coleccionables del Nivel
-	-- Cada objeto debe tener un Model en el nivel con ProximityPrompt (o agregarse por script)
 	Objetos = {
 		{
 			ID = "Mapa",
