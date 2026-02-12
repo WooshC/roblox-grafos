@@ -1,5 +1,5 @@
--- DataManager.server.lua (Antes MoneyData)
--- Maneja Dinero, Nivel y Teletransporte inicial
+-- ManagerData.server.lua
+-- Maneja el guardado de progreso (Niveles, Estrellas, Puntajes, Inventario) y la carga de niveles.
 
 local Players = game:GetService("Players")
 local DataStoreService = game:GetService("DataStoreService")
@@ -7,181 +7,257 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LevelsConfig = require(ReplicatedStorage:WaitForChild("LevelsConfig"))
 local NivelUtils = require(ReplicatedStorage:WaitForChild("Utilidades"):WaitForChild("NivelUtils"))
 
-local MainStore = DataStoreService:GetDataStore("PlayerData_v3_Mezclado")
+local MainStore = DataStoreService:GetDataStore("PlayerData_v4_Levels") -- Incrementamos versión para limpiar datos viejos
 
 -- ============================================
--- TELETRANSPORTE
+-- EVENTOS Y CARPETAS
 -- ============================================
+local EventsFolder = ReplicatedStorage:FindFirstChild("Events") or Instance.new("Folder", ReplicatedStorage)
+EventsFolder.Name = "Events"
 
-local function teleportToLevel(player, nivelID)
-	-- Esperar a que el personaje exista físicamente
-	local character = player.Character or player.CharacterAdded:Wait()
-	local rootPart = character:WaitForChild("HumanoidRootPart")
+local RemotesFolder = EventsFolder:FindFirstChild("Remotes") or Instance.new("Folder", EventsFolder)
+RemotesFolder.Name = "Remotes"
 
-	-- Parche por si el personaje no ha terminado de cargar bien
-	task.wait(0.5) 
+-- Función para que el cliente pida sus datos de progreso
+local GetProgressFunc = RemotesFolder:FindFirstChild("GetPlayerProgress") or Instance.new("RemoteFunction", RemotesFolder)
+GetProgressFunc.Name = "GetPlayerProgress"
 
-	local config = LevelsConfig[nivelID]
+-- Evento para que el cliente pida jugar un nivel
+local RequestPlayEvent = RemotesFolder:FindFirstChild("RequestPlayLevel") or Instance.new("RemoteEvent", RemotesFolder)
+RequestPlayEvent.Name = "RequestPlayLevel"
 
-	-- Validación de seguridad
-	if not config then 
-		warn("⚠️ Nivel " .. tostring(nivelID) .. " no configurado. Enviando a Nivel 0.")
-		nivelID = 0
-		config = LevelsConfig[0]
-	end
+-- Cache en memoria de los datos de jugadores
+local SessionData = {}
 
-	-- Buscar modelo de nivel usando utilidad
-	local nivelModel = NivelUtils.obtenerModeloNivel(nivelID)
-	
-	if not nivelModel then
-		warn("⚠️ Esperando modelo de nivel: " .. config.Modelo)
-		task.wait(2)
-		nivelModel = NivelUtils.obtenerModeloNivel(nivelID)
-	end
-
-	if not nivelModel then
-		warn("❌ ERROR CRÍTICO: No se encontró el modelo '" .. tostring(config.Modelo) .. "' tras esperar.")
-		return
-	end
-
-	-- ✅ USAR UTILIDAD PARA OBTENER SPAWN (Prioriza SpawnLocation correctamente)
-	local targetPosition = NivelUtils.obtenerPosicionSpawn(nivelID)
-
-	if targetPosition then
-		rootPart.CFrame = CFrame.new(targetPosition)
-		print("🚀 " .. player.Name .. " enviado a: " .. config.Nombre .. " (Pos: " .. tostring(targetPosition) .. ")")
-
-		-- AL ENTRAR AL NIVEL: RESETEAR DINERO DE PRESUPUESTO
-		local stats = player:FindFirstChild("leaderstats")
-		if stats then
-			local money = stats:FindFirstChild("Money")
-			if money then
-				money.Value = config.DineroInicial or 2000
-				print("💰 Presupuesto asignado: $" .. money.Value)
-			end
-		end
-	else
-		warn("⚠️ No hay dónde spawnear en Nivel " .. nivelID)
-	end
-end
-
--- === 2. GESTIÓN DE DATOS ===
-
--- Datos por defecto
+-- ============================================
+-- CONFIGURACIÓN DE DATOS DEFAULT
+-- ============================================
 local DEFAULT_DATA = {
-	NivelActual = 0,
-	XP = 0,
-	-- Money = 0 -- Si quisieras guardar dinero global, iría aquí.
-	-- Pero como es un puzzle de presupuesto, el dinero es volátil por nivel.
+	-- Progreso por nivel
+	Levels = {
+		["0"] = { Unlocked = true, Stars = 0, HighScore = 0 }, -- Tutorial siempre abierto
+		["1"] = { Unlocked = false, Stars = 0, HighScore = 0 },
+		["2"] = { Unlocked = false, Stars = 0, HighScore = 0 },
+		["3"] = { Unlocked = false, Stars = 0, HighScore = 0 },
+		["4"] = { Unlocked = false, Stars = 0, HighScore = 0 }
+	},
+	-- Objetos coleccionables globales (Mapa, Algoritmos, etc.)
+	Inventory = {} 
 }
 
--- Cargar datos
+-- ============================================
+-- GESTIÓN DE DATOS (LOAD/SAVE)
+-- ============================================
+
 local function loadData(player)
 	local success, data = pcall(function()
 		return MainStore:GetAsync("User_" .. player.UserId)
 	end)
 
 	if not success then
-		warn("⚠️ Error cargando datos para " .. player.Name .. ": " .. tostring(data))
-		data = nil -- Forzar default
+		warn("⚠️ Error cargando datos para " .. player.Name)
+		data = nil
 	end
-
-	-- Merge con defaults por si agregamos campos nuevos en el futuro
+	
+	-- Deep Merge con Defaults (para asegurar que existan todos los campos)
 	data = data or {}
-	for k, v in pairs(DEFAULT_DATA) do
-		if data[k] == nil then data[k] = v end
+	
+	if not data.Levels then data.Levels = {} end
+	if not data.Inventory then data.Inventory = {} end
+
+	-- Asegurar que todos los niveles del config existan en la data
+	for i = 0, 4 do -- Asumiendo niveles 0 a 4
+		local sID = tostring(i)
+		if not data.Levels[sID] then
+			data.Levels[sID] = { 
+				Unlocked = (i == 0), -- Solo el 0 desbloqueado por defecto
+				Stars = 0, 
+				HighScore = 0 
+			}
+		end
 	end
 
+	SessionData[player.UserId] = data
 	return data
 end
 
--- Guardar datos
 local function saveData(player)
-	if not player:FindFirstChild("leaderstats") then return end
+	local data = SessionData[player.UserId]
+	if not data then return end
 
-	local nivelVal = player.leaderstats:FindFirstChild("Nivel")
-	-- El dinero no lo guardamos porque es presupuesto de nivel
+	local success, err = pcall(function()
+		MainStore:SetAsync("User_" .. player.UserId, data)
+	end)
 
-	if nivelVal then
-		local dataToSave = {
-			NivelActual = nivelVal.Value,
-			XP = 0 -- Aquí podrías leer un valor de XP si lo tuvieras
-		}
-
-		pcall(function()
-			MainStore:SetAsync("User_" .. player.UserId, dataToSave)
-			print("💾 Progreso guardado: Nivel " .. dataToSave.NivelActual)
-		end)
+	if success then
+		print("💾 Progreso guardado para " .. player.Name)
+	else
+		warn("❌ Error guardando datos: " .. tostring(err))
 	end
 end
 
--- Crear HUD de stats
-local function createLeaderstats(player, data)
-	local leaderstats = Instance.new("Folder")
-	leaderstats.Name = "leaderstats"
-	leaderstats.Parent = player
+-- ============================================
+-- API PARA EL CLIENTE (REMOTES)
+-- ============================================
 
-	-- Nivel (Progreso Global)
-	local nivel = Instance.new("IntValue")
-	nivel.Name = "Nivel"
-	nivel.Value = data.NivelActual or 0
-	nivel.Parent = leaderstats
-
-	-- Dinero (Presupuesto de la Sesión/Nivel)
-	local money = Instance.new("IntValue")
-	money.Name = "Money"
-	money.Value = 0 -- Se setea al teleportar
-	money.Parent = leaderstats
-
-	-- Puntos (Score del nivel actual)
-	local puntos = Instance.new("IntValue")
-	puntos.Name = "Puntos"
-	puntos.Value = 0
-	puntos.Parent = leaderstats
-
-	-- Estrellas (Calificación)
-	local estrellas = Instance.new("IntValue")
-	estrellas.Name = "Estrellas"
-	estrellas.Value = 0
-	estrellas.Parent = leaderstats
+-- El cliente pide "Dame mi progreso para pintar el menú"
+GetProgressFunc.OnServerInvoke = function(player)
+	local data = SessionData[player.UserId]
+	if not data then 
+		-- Si por alguna razón no cargó, intentar cargar de nuevo o devolver defaults
+		data = loadData(player) 
+	end
+	return data
 end
 
--- === 3. CONEXIONES ===
+-- El cliente pide "Quiero jugar el Nivel X"
+RequestPlayEvent.OnServerEvent:Connect(function(player, levelId)
+	local sID = tostring(levelId)
+	local data = SessionData[player.UserId]
+	
+	if not data then return end
+	
+	local levelData = data.Levels[sID]
+	
+	-- Validar si existe y está desbloqueado
+	if levelData and levelData.Unlocked then
+		print("🚀 " .. player.Name .. " solicitó ir al Nivel " .. sID)
+		
+		-- TELETRANSPORTE
+		local config = LevelsConfig[tonumber(levelId)]
+		if config then
+			setupLevelForPlayer(player, tonumber(levelId), config)
+		end
+	else
+		warn("⛔ " .. player.Name .. " intentó acceder a Nivel BLOQUEADO: " .. sID)
+	end
+end)
+
+-- ============================================
+-- LÓGICA DE JUEGO Y TELETRANSPORTE
+-- ============================================
+
+function setupLevelForPlayer(player, levelId, config)
+	local character = player.Character or player.CharacterAdded:Wait()
+	local rootPart = character:WaitForChild("HumanoidRootPart")
+	
+	-- 1. Buscar Modelo de Nivel
+	local nivelModel = NivelUtils.obtenerModeloNivel(levelId)
+	if not nivelModel then
+		warn("⚠️ Modelo de nivel no encontrado inmediatamente, esperando...")
+		task.wait(1)
+		nivelModel = NivelUtils.obtenerModeloNivel(levelId)
+	end
+	
+	-- 2. Teletransportar
+	local targetPosition = NivelUtils.obtenerPosicionSpawn(levelId)
+	if targetPosition then
+		-- Pequeña pausa para asegurar carga
+		task.wait(0.5) 
+		rootPart.CFrame = CFrame.new(targetPosition)
+		
+		-- 3. Configurar Leaderstats Temporales de la Sesión (Dinero del Nivel)
+		local stats = player:FindFirstChild("leaderstats")
+		if not stats then
+			stats = Instance.new("Folder", player)
+			stats.Name = "leaderstats"
+		end
+		
+		-- Restaurar NIVEL para compatibilidad con ClienteUI antiguo
+		local nivelVal = stats:FindFirstChild("Nivel") or Instance.new("IntValue", stats)
+		nivelVal.Name = "Nivel"
+		nivelVal.Value = tonumber(levelId) -- Le ponemos el ID del nivel actual
+		
+		-- Dinero (Es el presupuesto del nivel, se reinicia siempre)
+		local money = stats:FindFirstChild("Money") or Instance.new("IntValue", stats)
+		money.Name = "Money"
+		money.Value = config.DineroInicial or 0
+		
+		-- Puntos del nivel actual (Reiniciados)
+		local score = stats:FindFirstChild("Score") or Instance.new("IntValue", stats)
+		score.Name = "Score"
+		score.Value = 0
+
+		-- Actualizar variable de sesión para saber en qué nivel está jugando
+		-- (Útil para guardar al final)
+		player:SetAttribute("CurrentLevelID", levelId)
+		
+		print("✅ " .. player.Name .. " listo en " .. config.Nombre .. " con $" .. money.Value)
+	else
+		warn("❌ No se encontró Spawn para Nivel " .. levelId)
+	end
+end
+
+
+-- ============================================
+-- FUNCIONES EXPORTADAS (GLOBALES)
+-- Para usar desde otros scripts (ej: al completar nivel)
+-- ============================================
+
+-- Llamar a esto cuando el jugador gana el nivel
+function _G.CompleteLevel(player, starsObtained, scoreObtained)
+	local currentLevelId = player:GetAttribute("CurrentLevelID")
+	if currentLevelId == nil then return end
+	
+	local sID = tostring(currentLevelId)
+	local data = SessionData[player.UserId]
+	if not data then return end
+	
+	-- Guardar mejor puntaje
+	local lvlData = data.Levels[sID]
+	if scoreObtained > lvlData.HighScore then
+		lvlData.HighScore = scoreObtained
+	end
+	if starsObtained > lvlData.Stars then
+		lvlData.Stars = starsObtained
+	end
+	
+	-- DESBLOQUEAR SIGUIENTE NIVEL
+	local nextLevelId = currentLevelId + 1
+	local sNextID = tostring(nextLevelId)
+	
+	if LevelsConfig[nextLevelId] then -- Si existe el siguiente nivel en config
+		if not data.Levels[sNextID] then
+			data.Levels[sNextID] = { Unlocked = false, Stars = 0, HighScore = 0 }
+		end
+		
+		if not data.Levels[sNextID].Unlocked then
+			data.Levels[sNextID].Unlocked = true
+			print("🔓 Nivel " .. nextLevelId .. " DESBLOQUEADO!")
+			-- Aquí podrías mandar notificación al cliente
+		end
+	end
+	
+	saveData(player)
+end
+
+-- Llamar a esto cuando el jugador recoge un objeto especial (Mapa, Algoritmo)
+function _G.CollectItem(player, itemId)
+	local data = SessionData[player.UserId]
+	if data and not table.find(data.Inventory, itemId) then
+		table.insert(data.Inventory, itemId)
+		print("🎒 Objeto recolectado: " .. itemId)
+		saveData(player) -- Guardado seguro
+	end
+end
+
+-- ============================================
+-- CONEXIONES LIFECYCLE
+-- ============================================
 
 Players.PlayerAdded:Connect(function(player)
-	local data = loadData(player)
-	createLeaderstats(player, data)
-
-	-- Cuando cargue el personaje, lo mandamos a su nivel
-	player.CharacterAdded:Connect(function()
-		local stats = player:FindFirstChild("leaderstats")
-		local nivelActual = stats and stats.Nivel.Value or 0
-		teleportToLevel(player, nivelActual)
-	end)
+	loadData(player)
+	-- NO teletransportamos automáticamente. El jugador se queda en el Lobby/Menú.
 end)
 
 Players.PlayerRemoving:Connect(function(player)
 	saveData(player)
+	SessionData[player.UserId] = nil
 end)
 
 game:BindToClose(function()
 	for _, player in ipairs(Players:GetPlayers()) do
 		saveData(player)
 	end
-end)
-
--- DEBUG: Comando para testear avance (opcional)
--- game.ReplicatedStorage:WaitForChild("CompletarNivel").OnServerEvent...
-local eventoCompletar = Instance.new("RemoteEvent")
-eventoCompletar.Name = "CompletarNivel"
-eventoCompletar.Parent = ReplicatedStorage or workspace
-
-eventoCompletar.OnServerEvent:Connect(function(player)
-	local stats = player:FindFirstChild("leaderstats")
-	if stats then
-		stats.Nivel.Value = stats.Nivel.Value + 1
-		print("🎉 NIVEL COMPLETADO! Avanzando a Nivel " .. stats.Nivel.Value)
-		saveData(player)
-		player:LoadCharacter() -- Respawn para cargar siguiente nivel
-	end
+	task.wait(2) -- Dar tiempo a DataStore
 end)

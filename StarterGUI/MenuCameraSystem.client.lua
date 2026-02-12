@@ -26,6 +26,7 @@ local SFXClick = CarpetaSonidos and CarpetaSonidos:FindFirstChild("Click")
 
 local EscenarioCreditos = EscenariosFolder:WaitForChild("MenuCreditos")
 local EscenarioAjustes = EscenariosFolder:WaitForChild("MenuAjustes")
+local EscenarioSelector = EscenariosFolder:WaitForChild("SelectorNiveles")
 
 -- // CONTENIDO DE LOS ESCENARIOS // --
 
@@ -54,13 +55,22 @@ local ContenidoEscenarioAjustes = {
 	TituloText = EscenarioAjustes:WaitForChild("Tittle"):WaitForChild("TittleText")
 }
 
+local ContenidoSelectorNiveles = {
+	BotonCerrar = EscenarioSelector:WaitForChild("Close"),
+	FrameSelector = EscenarioSelector:WaitForChild("AjustesFrame"), 
+	ContenedorInfo = EscenarioSelector:WaitForChild("Contenedor"), -- AQUI AGREGAMOS EL CONTENEDOR NUEVO
+	TituloFrame = EscenarioSelector:WaitForChild("Tittle"),
+	TituloText = EscenarioSelector:WaitForChild("Tittle"):WaitForChild("TittleText")
+}
+
 
 -- // CAMARAS PARA CADA ESCENARIO // --
 
 local CamarasTotales = {
 	MenuPrincipalCamara = Cameras:WaitForChild("Menu"),
 	AjustesCamara = Cameras:WaitForChild("CamaraAjuste"),
-	CreditosCamara = Cameras:WaitForChild("CamaraCreditos")
+	CreditosCamara = Cameras:WaitForChild("CamaraCreditos"),
+	SelectorCamara = Cameras:WaitForChild("CamaraSelector")
 }
 
 -- // AJUSTES PRINCIPALES // --
@@ -143,27 +153,8 @@ local function CambiarEscenario(camaraDestino, contenidoVisible, contenidoOculta
 end
 
 ContenidoMenuPrincipal.BotonPlay.MouseButton1Click:Connect(function()
-	if BotonesBloqueados then return end
-	BotonesBloqueados = true
-	if SFXBotonPlay then SFXBotonPlay:Play() end
-
-	AnimarTransicion(true, function()
-		OcultarTodo()
-		EnMenu = false -- Ya no estamos en menú
-		
-		local camaraActual = workspace.CurrentCamera
-		local jugador = Players.LocalPlayer
-		
-		-- Restaurar cámara de juego
-		camaraActual.CameraType = Enum.CameraType.Custom
-		if jugador.Character then
-			camaraActual.CameraSubject = jugador.Character:FindFirstChild("Humanoid")
-		end
-		
-		AnimarTransicion(false)
-		task.wait(Cooldown)
-		BotonesBloqueados = false
-	end)
+	print("🖱️ Click Play -> Ir a Selector de Niveles")
+	CambiarEscenario(CamarasTotales.SelectorCamara, ContenidoSelectorNiveles, ContenidoMenuPrincipal)
 end)
 
 
@@ -191,6 +182,11 @@ end)
 ContenidoEscenarioAjustes.BotonCerrar.MouseButton1Click:Connect(function()
 	print("🖱️ Cerrar Ajustes")
 	CambiarEscenario(CamarasTotales.MenuPrincipalCamara, ContenidoMenuPrincipal, ContenidoEscenarioAjustes)
+end)
+
+ContenidoSelectorNiveles.BotonCerrar.MouseButton1Click:Connect(function()
+	print("🖱️ Cerrar Selector de Niveles")
+	CambiarEscenario(CamarasTotales.MenuPrincipalCamara, ContenidoMenuPrincipal, ContenidoSelectorNiveles)
 end)
 
 
@@ -227,5 +223,6 @@ CambiarVisibilidad(ContenidoMenuPrincipal, {})
 -- Asegurarse de ocultar los otros marcos explícitamente si CambiarVisibilidad no lo hizo (por estar vacio el segundo arg)
 for _, obj in pairs(ContenidoEscenarioCreditos) do if obj:IsA("GuiObject") then obj.Visible = false end end
 for _, obj in pairs(ContenidoEscenarioAjustes) do if obj:IsA("GuiObject") then obj.Visible = false end end
+for _, obj in pairs(ContenidoSelectorNiveles) do if obj:IsA("GuiObject") then obj.Visible = false end end
 
 print("✅ MenuCameraSystem Corregido Cargado")

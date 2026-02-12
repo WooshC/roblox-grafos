@@ -4,19 +4,30 @@ local LevelsConfig = {}
 -- Los modelos de los niveles deben estar guardados en: ServerStorage > Niveles
 -- El nombre del modelo debe coincidir con el campo 'Modelo' definido abajo.
 
--- Nivel 0: Campo de Entrenamiento (Tutorial)
+-- ==========================================
+-- NIVEL 0: TUTORIAL BÁSICO
+-- ==========================================
 LevelsConfig[0] = {
 	Nombre = "Campo de Entrenamiento",
-	Modelo = "Nivel0_Tutorial", -- El nombre del Modelo en ServerStorage/Niveles
-	Descripcion = "Aprende los conceptos básicos: Nodos, Aristas y Pesos.",
-	DineroInicial = 0,
+	DescripcionCorta = "Aprende los conceptos básicos de conexión.",
+	ImageId = "rbxassetid://1234567890", -- Placeholder
+	Modelo = "Nivel0_Tutorial", 
+	Descripcion = "Bienvenido a Villa Conexa. Tu misión es aprender a conectar los generadores con las torres usando cables. ¡No gastes todo tu presupuesto!",
+	DineroInicial = 0, -- Tutorial no usa dinero
 	CostoPorMetro = 0,
 	Algoritmo = "BFS",
+	
+	-- Puntuación (Fácil para tutorial)
+	Puntuacion = {
+		TresEstrellas = 100, 
+		DosEstrellas = 50,
+		RecompensaXP = 50 
+	},
 
-	-- Configuración del Grafo Tutorial
+	-- Configuración del Grafo
 	NodoInicio = "PostePanel",
 	NodoFin = "PosteFinal",
-	NodosTotales = 8, -- Total de postes (PostePanel, Poste1-5, PosteFinal, toma_corriente)
+	NodosTotales = 8,
 	Adyacencias = {
 		["PostePanel"] = {"Poste1","Poste5","toma_corriente"},
 		["Poste1"] = {"PostePanel", "Poste2","Poste4"},
@@ -26,164 +37,123 @@ LevelsConfig[0] = {
 		["Poste5"] = {"PostePanel", "PosteFinal"},
 		["PosteFinal"] = {"Poste4","Poste5"},
 	},
-
-	-- Checklist de Misión (Nuevo formato declarativo)
-	Misiones = {
-		{
-			ID = 1,
-			Texto = "Conecta el Generador a la Torre 1 (Poste1)",
-			Tipo = "NODO_ENERGIZADO",
-			Parametros = {
-				Nodo = "Poste1"
-			}
-		},
-		{
-			ID = 2,
-			Texto = "¡Llega a la Torre de Control!",
-			Tipo = "NODO_ENERGIZADO",
-			Parametros = {
-				Nodo = "PosteFinal"
-			}
-		},
-		{
-			ID = 3,
-			Texto = "¡Energiza toda la red! (8/8 nodos)",
-			Tipo = "TODOS_LOS_NODOS",
-			Parametros = {
-				Cantidad = 8
-			}
-		},
-		{
-			ID = 4,
-			Texto = "Energiza la Toma de Corriente y recoge el mapa",
-			Tipo = "NODO_ENERGIZADO",
-			Parametros = {
-				Nodo = "toma_corriente"
-			}
-		}
-	},
-
+	-- Entidades y Misiones
 	Objetos = {
-		{
-			ID = "Mapa",
-			Nombre = "Mapa de Villa Conexa",
-			Descripcion = "Desbloquea la vista de mapa",
-			Icono = "🗺️",
-			Modelo = "MapaModel" -- Nombre del modelo físico en el nivel
-		},
-		{
-			ID = "Algoritmo_BFS",
-			Nombre = "Manual de BFS",
-			Descripcion = "Desbloquea el algoritmo BFS",
-			Icono = "🧠",
-			Modelo = "AlgoritmoBFS" -- Nombre del modelo físico (ej: en el mostrador)
-		}
+		{ ID = "Mapa", Nombre = "Mapa de Villa Conexa", Descripcion = "Desbloquea la vista de mapa", Icono = "🗺️", Modelo = "MapaModel" },
+		{ ID = "Algoritmo_BFS", Nombre = "Manual de BFS", Descripcion = "Desbloquea el algoritmo BFS", Icono = "🧠", Modelo = "AlgoritmoBFS" }
 	},
-
-	-- Configuración de Nodos y sus Zonas
-	-- Cada nodo puede pertenecer a una zona específica
-	-- Si un nodo tiene energía, su zona se enciende
 	Nodos = {
-		PostePanel = { 
-			Zona = nil,  -- No pertenece a ninguna zona (es el generador)
-			Alias = "Generador"
-		},
-		Poste1 = { 
-			Zona = "Zona_luz_1",  -- Pertenece a Zona_luz_1
-			Alias = "Torre 1"
-		},
-		Poste2 = { 
-			Zona = "Zona_luz_1",  -- Pertenece a Zona_luz_1
-			Alias = "Torre 2"
-		},
-		Poste3 = { 
-			Zona = "Zona_luz_1",  -- Pertenece a Zona_luz_1
-			Alias = "Torre 3"
-		},
-		Poste4 = { 
-			Zona = "Zona_luz_1",  -- Pertenece a Zona_luz_1
-			Alias = "Torre 4"
-		},
-		Poste5 = { 
-			Zona = "Zona_luz_1",  -- Pertenece a Zona_luz_1
-			Alias = "Torre 5"
-		},
-		PosteFinal = { 
-			Zona = "Zona_luz_1",  -- Pertenece a Zona_luz_1
-			Alias = "Torre Control"
-		},
-		toma_corriente = { 
-			Zona = "Zona_luz_2",  -- ⚡ ÚNICO nodo en Zona_luz_2
-			Alias = "Toma Corriente"
-		}
+		PostePanel = { Zona = nil, Alias = "Generador" },
+		Poste1 = { Zona = "Zona_luz_1", Alias = "Torre 1" },
+		Poste2 = { Zona = "Zona_luz_1", Alias = "Torre 2" },
+		Poste3 = { Zona = "Zona_luz_1", Alias = "Torre 3" },
+		Poste4 = { Zona = "Zona_luz_1", Alias = "Torre 4" },
+		Poste5 = { Zona = "Zona_luz_1", Alias = "Torre 5" },
+		PosteFinal = { Zona = "Zona_luz_1", Alias = "Torre Control" },
+		toma_corriente = { Zona = "Zona_luz_2", Alias = "Toma Corriente" }
 	},
-
-	-- Configuración de Zonas
-	-- Modo: "ANY" = al menos un nodo energizado, "ALL" = todos los nodos energizados
 	Zonas = {
-		["Zona_luz_1"] = {
-			Modo = "ALL",  -- Requiere Postes 1, 2, 3, 4, 5 y Final
-			Descripcion = "Sector principal: Torre de Control"
-		},
-		["Zona_luz_2"] = {
-			Modo = "ANY",  -- Requiere toma_corriente
-			Descripcion = "Sector secundario: Puerta"
-		}
-	},
-
-	-- Nombres Personalizados para Etiquetas
-	NombresPostes = {
-		["PostePanel"] = "Generador",
-		["PosteFinal"] = "Torre Control",
-		["Poste1"] = "Torre 1",
-		["Poste2"] = "Torre 2",
-		["Poste3"] = "Torre 3",
-		["toma_corriente"] = "Toma Corriente"
-	},
-
-	-- Sistema de Puntuación (Idealización)
-	Puntuacion = {
-		TresEstrellas = 100, 
-		DosEstrellas = 200,
-		RecompensaXP = 50 
+		["Zona_luz_1"] = { Modo = "ALL", Descripcion = "Sector principal: Torre de Control" },
+		["Zona_luz_2"] = { Modo = "ANY", Descripcion = "Sector secundario: Puerta" }
 	}
 }
 
--- Nivel 1: Primer Desafío
+-- ==========================================
+-- NIVEL 1: LA PRIMERA RED
+-- ==========================================
 LevelsConfig[1] = {
 	Nombre = "La Primera Red",
+	DescripcionCorta = "Conecta el barrio residencial con bajo presupuesto.",
+	ImageId = "rbxassetid://1234567891", -- Placeholder
 	Modelo = "Nivel1_Basico",
-	Descripcion = "Conecta el panel principal sin gastar todo tu presupuesto.",
+	Descripcion = "Los residentes necesitan luz. Usa el algoritmo BFS para encontrar la ruta más corta y ahorrar dinero.",
 	DineroInicial = 5000,
 	CostoPorMetro = 20,
-	Algoritmo = "BFS", -- Barrio Laberíntico usa BFS/DFS
+	Algoritmo = "BFS",
 	NodoInicio = "PostePanel",
 	NodoFin = "Poste6",
 
-	-- Configuración de Puntuación
 	Puntuacion = {
 		TresEstrellas = 1200, 
-		DosEstrellas = 2000,
+		DosEstrellas = 800,
 		RecompensaXP = 150
 	},
 
-	-- DEFINICIÓN PROFESIONAL DEL GRAFO (Grafo Ideal)
-	-- Aquí defines qué postes PUEDEN conectarse entre sí.
 	Adyacencias = {
 		["PostePanel"] = {"Poste1", "Poste2"},
 		["Poste1"] = {"PostePanel", "Poste2"},
 		["Poste2"] = {"PostePanel", "Poste1", "Poste6"},
 		["Poste6"] = {"Poste2"}
-		-- Agrega más nodos aquí si los tienes (ej: Poste3, Poste4...)
 	}
 }
 
--- Nivel 2
+-- ==========================================
+-- NIVEL 2: EXPANSIÓN URBANA
+-- ==========================================
 LevelsConfig[2] = {
-	Nombre = "Expansion Urbana",
-	Modelo = "Nivel2_Expansion",
+	Nombre = "Expansión Urbana",
+	DescripcionCorta = "Una zona más amplia requiere planificación cuidadosa.",
+	ImageId = "rbxassetid://1234567892", -- Placeholder
+	Modelo = "Nivel2_Expansion", -- Asegúrate de tener este modelo o cambiar el nombre
+	Descripcion = "La ciudad crece. Conecta los nuevos distritos comerciales. Cuidado con los obstáculos que encarecen el cableado.",
 	DineroInicial = 8000,
-	CostoPorMetro = 35
+	CostoPorMetro = 35,
+	Algoritmo = "DFS", -- Introducción a DFS tal vez?
+	NodoInicio = "GeneradorCentral",
+	NodoFin = "SubestacionNorte",
+
+	Puntuacion = {
+		TresEstrellas = 2500, 
+		DosEstrellas = 1500,
+		RecompensaXP = 200
+	},
+	Adyacencias = {} -- Rellenar con grafo real
+}
+
+-- ==========================================
+-- NIVEL 3: EL COMPLEJO INDUSTRIAL
+-- ==========================================
+LevelsConfig[3] = {
+	Nombre = "Complejo Industrial",
+	DescripcionCorta = "Alta demanda de energía y rutas costosas.",
+	ImageId = "rbxassetid://1234567893", -- Placeholder
+	Modelo = "Nivel3_Industrial",
+	Descripcion = "Las fábricas necesitan potencia estable. Las distancias son largas y el cobre es caro.",
+	DineroInicial = 12000,
+	CostoPorMetro = 50,
+	Algoritmo = "Dijkstra", -- Introducción a pesos?
+	NodoInicio = "PlantaNuclear",
+	NodoFin = "FabricaAceros",
+
+	Puntuacion = {
+		TresEstrellas = 4000, 
+		DosEstrellas = 2500,
+		RecompensaXP = 300
+	},
+	Adyacencias = {}
+}
+
+-- ==========================================
+-- NIVEL 4: LA GRAN METRÓPOLIS
+-- ==========================================
+LevelsConfig[4] = {
+	Nombre = "Gran Metrópolis",
+	DescripcionCorta = "El desafío final de optimización.",
+	ImageId = "rbxassetid://1234567894", -- Placeholder
+	Modelo = "Nivel4_Final",
+	Descripcion = "Toda la ciudad depende de ti. Debes interconectar múltiples subestaciones con la máxima eficiencia posible.",
+	DineroInicial = 20000,
+	CostoPorMetro = 45,
+	Algoritmo = "Dijkstra",
+	NodoInicio = "CentralHidro",
+	NodoFin = "Rascacielos",
+
+	Puntuacion = {
+		TresEstrellas = 8000, 
+		DosEstrellas = 5000,
+		RecompensaXP = 500
+	},
+	Adyacencias = {}
 }
 
 return LevelsConfig

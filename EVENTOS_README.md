@@ -13,8 +13,9 @@ ReplicatedStorage
     │   ├── ⚡ ActualizarInventario (RemoteEvent)
     │   ├── ⚡ ActualizarMision     (RemoteEvent)
     │   ├── ⚡ AparecerObjeto       (RemoteEvent)
+    │   ├── ⚡ RequestPlayLevel     (RemoteEvent)  
     │   ├── 📞 GetAdjacencyMatrix   (RemoteFunction)
-
+    │   ├── 📞 GetPlayerProgress    (RemoteFunction) 
     │   └── 📞 VerificarInventario  (RemoteFunction)
     │
     └── 📂 Bindables
@@ -34,8 +35,9 @@ ReplicatedStorage
 | `ReiniciarNivel` | RemoteEvent | Pide resetear el nivel actual | *Ninguno* |
 | `ActualizarInventario`| RemoteEvent | Avisa al cliente que obtuvo un ítem | `ItemID` (ej. "Mapa"), `Tiene` (bool) |
 | `ActualizarMision` | RemoteEvent | Actualiza checkbox de misiones en UI | `MisionIndex`, `Completada` (bool) |
+| `RequestPlayLevel` | RemoteEvent | Solicita cargar un nivel desde el menú | `LevelID` (int) |
 | `GetAdjacencyMatrix` | **RemoteFunction** | Pide datos para la tabla Matriz | *Return:* `{Headers, Matrix}` |
-
+| `GetPlayerProgress` | **RemoteFunction** | Pide tabla de niveles desbloqueados | *Return:* `{Levels, Inventory}` |
 | `VerificarInventario`| **RemoteFunction** | Chequea si el jugador tiene X ítem | *Return:* `Bool` |
 
 ### 📂 Events/Bindables (Servidor ↔ Servidor)
