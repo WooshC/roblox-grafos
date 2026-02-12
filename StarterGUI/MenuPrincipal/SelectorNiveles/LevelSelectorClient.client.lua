@@ -249,4 +249,31 @@ if LevelCompletedEvent then
 	end)
 end
 
+-- ============================================
+-- EVENTO: Refrescar cuando se abre el menú
+-- ============================================
+task.spawn(function()
+	local Bindables = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Bindables")
+	local OpenMenuEvent = Bindables:WaitForChild("OpenMenu", 10)
+	
+	if OpenMenuEvent then
+		OpenMenuEvent.Event:Connect(function()
+			print("🔄 Refrescando selector de niveles...")
+			
+			-- FORZAR VISIBILIDAD DE TODOS LOS ELEMENTOS
+			if Contenedor then Contenedor.Visible = true end
+			if InfoPanel then InfoPanel.Visible = true end
+			if BotonesFrame then BotonesFrame.Visible = true end
+			
+			task.wait(0.3) -- Esperar a que cámara se mueva
+			BloquearPanel()
+			CargarBotonesNiveles()
+			print("✅ Niveles actualizados")
+		end)
+		print("✅ LevelSelector: Escuchando evento OpenMenu")
+	end
+end)
+
 print("✅ Selector de Niveles (Cliente) Inicializado correctamente")
+
+

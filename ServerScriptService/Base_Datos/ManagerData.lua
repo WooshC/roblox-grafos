@@ -7,7 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LevelsConfig = require(ReplicatedStorage:WaitForChild("LevelsConfig"))
 local NivelUtils = require(ReplicatedStorage:WaitForChild("Utilidades"):WaitForChild("NivelUtils"))
 
-local MainStore = DataStoreService:GetDataStore("PlayerData_v4_Levels") -- Incrementamos versión para limpiar datos viejos
+local MainStore = DataStoreService:GetDataStore("PlayerData_v4_Levels")
 
 -- ============================================
 -- EVENTOS Y CARPETAS
@@ -18,15 +18,12 @@ EventsFolder.Name = "Events"
 local RemotesFolder = EventsFolder:FindFirstChild("Remotes") or Instance.new("Folder", EventsFolder)
 RemotesFolder.Name = "Remotes"
 
--- Función para que el cliente pida sus datos de progreso
 local GetProgressFunc = RemotesFolder:FindFirstChild("GetPlayerProgress") or Instance.new("RemoteFunction", RemotesFolder)
 GetProgressFunc.Name = "GetPlayerProgress"
 
--- Evento para que el cliente pida jugar un nivel
 local RequestPlayEvent = RemotesFolder:FindFirstChild("RequestPlayLevel") or Instance.new("RemoteEvent", RemotesFolder)
 RequestPlayEvent.Name = "RequestPlayLevel"
 
--- Evento para notificar al cliente que completó el nivel
 local LevelCompletedEvent = RemotesFolder:FindFirstChild("LevelCompleted") or Instance.new("RemoteEvent", RemotesFolder)
 LevelCompletedEvent.Name = "LevelCompleted"
 
@@ -37,17 +34,63 @@ local SessionData = {}
 -- CONFIGURACIÓN DE DATOS DEFAULT
 -- ============================================
 local DEFAULT_DATA = {
-	-- Progreso por nivel
 	Levels = {
-		["0"] = { Unlocked = true, Stars = 0, HighScore = 0 }, -- Tutorial siempre abierto
+		["0"] = { Unlocked = true, Stars = 0, HighScore = 0 },
 		["1"] = { Unlocked = false, Stars = 0, HighScore = 0 },
 		["2"] = { Unlocked = false, Stars = 0, HighScore = 0 },
 		["3"] = { Unlocked = false, Stars = 0, HighScore = 0 },
 		["4"] = { Unlocked = false, Stars = 0, HighScore = 0 }
 	},
-	-- Objetos coleccionables globales (Mapa, Algoritmos, etc.)
 	Inventory = {} 
 }
+
+-- ============================================
+-- 🔧 NUEVA FUNCIÓN: INICIALIZACIÓN DE LEADERSTATS
+-- ============================================
+local function setupLeaderstats(player)
+	local stats = player:FindFirstChild("leaderstats")
+	if not stats then
+		stats = Instance.new("Folder")
+		stats.Name = "leaderstats"
+		stats.Parent = player
+	end
+
+	-- Nivel actual
+	if not stats:FindFirstChild("Nivel") then
+		local nivel = Instance.new("IntValue")
+		nivel.Name = "Nivel"
+		nivel.Value = 0
+		nivel.Parent = stats
+	end
+
+	-- Dinero (presupuesto)
+	if not stats:FindFirstChild("Money") then
+		local money = Instance.new("IntValue")
+		money.Name = "Money"
+		money.Value = 0
+		money.Parent = stats
+	end
+
+	-- ⭐ PUNTOS - Sistema de misiones (CRÍTICO)
+	if not stats:FindFirstChild("Puntos") then
+		local puntos = Instance.new("IntValue")
+		puntos.Name = "Puntos"
+		puntos.Value = 0
+		puntos.Parent = stats
+		print("✅ IntValue 'Puntos' creado para " .. player.Name)
+	end
+
+	-- ⭐ ESTRELLAS - Basado en puntaje (CRÍTICO)
+	if not stats:FindFirstChild("Estrellas") then
+		local estrellas = Instance.new("IntValue")
+		estrellas.Name = "Estrellas"
+		estrellas.Value = 0
+		estrellas.Parent = stats
+		print("✅ IntValue 'Estrellas' creado para " .. player.Name)
+	end
+
+	print("📊 Leaderstats configurados para " .. player.Name)
+end
 
 -- ============================================
 -- GESTIÓN DE DATOS (LOAD/SAVE)
@@ -62,19 +105,18 @@ local function loadData(player)
 		warn("⚠️ Error cargando datos para " .. player.Name)
 		data = nil
 	end
-	
-	-- Deep Merge con Defaults (para asegurar que existan todos los campos)
+
 	data = data or {}
-	
+
 	if not data.Levels then data.Levels = {} end
 	if not data.Inventory then data.Inventory = {} end
 
-	-- Asegurar que todos los niveles del config existan en la data
-	for i = 0, 4 do -- Asumiendo niveles 0 a 4
+	-- Asegurar que todos los niveles existan
+	for i = 0, 4 do
 		local sID = tostring(i)
 		if not data.Levels[sID] then
 			data.Levels[sID] = { 
-				Unlocked = (i == 0), -- Solo el 0 desbloqueado por defecto
+				Unlocked = (i == 0),
 				Stars = 0, 
 				HighScore = 0 
 			}
@@ -104,30 +146,23 @@ end
 -- API PARA EL CLIENTE (REMOTES)
 -- ============================================
 
--- El cliente pide "Dame mi progreso para pintar el menú"
 GetProgressFunc.OnServerInvoke = function(player)
 	local data = SessionData[player.UserId]
 	if not data then 
-		-- Si por alguna razón no cargó, intentar cargar de nuevo o devolver defaults
 		data = loadData(player) 
 	end
 	return data
 end
 
--- El cliente pide "Quiero jugar el Nivel X"
 RequestPlayEvent.OnServerEvent:Connect(function(player, levelId)
 	local sID = tostring(levelId)
 	local data = SessionData[player.UserId]
-	
+
 	if not data then return end
-	
+
 	local levelData = data.Levels[sID]
-	
-	-- Validar si existe y está desbloqueado
+
 	if levelData and levelData.Unlocked then
-		-- print("🚀 " .. player.Name .. " solicitó ir al Nivel " .. sID)
-		
-		-- TELETRANSPORTE
 		local config = LevelsConfig[tonumber(levelId)]
 		if config then
 			setupLevelForPlayer(player, tonumber(levelId), config)
@@ -144,104 +179,98 @@ end)
 function setupLevelForPlayer(player, levelId, config)
 	local character = player.Character or player.CharacterAdded:Wait()
 	local rootPart = character:WaitForChild("HumanoidRootPart")
-	
-	-- 1. Buscar Modelo de Nivel
+
+	-- Asegurar que leaderstats existan antes de entrar al nivel
+	setupLeaderstats(player)
+
 	local nivelModel = NivelUtils.obtenerModeloNivel(levelId)
 	if not nivelModel then
-		warn("⚠️ Modelo de nivel no encontrado inmediatamente, esperando...")
+		warn("⚠️ Modelo de nivel no encontrado, esperando...")
 		task.wait(1)
 		nivelModel = NivelUtils.obtenerModeloNivel(levelId)
 	end
-	
-	-- 2. Teletransportar
+
 	local targetPosition = NivelUtils.obtenerPosicionSpawn(levelId)
 	if targetPosition then
-		-- Pequeña pausa para asegurar carga
 		task.wait(0.5) 
 		rootPart.CFrame = CFrame.new(targetPosition)
-		
-		-- 3. Configurar Leaderstats Temporales de la Sesión (Dinero del Nivel)
-		local stats = player:FindFirstChild("leaderstats")
-		if not stats then
-			stats = Instance.new("Folder", player)
-			stats.Name = "leaderstats"
-		end
-		
-		-- Restaurar NIVEL para compatibilidad con ClienteUI antiguo
-		local nivelVal = stats:FindFirstChild("Nivel") or Instance.new("IntValue", stats)
-		nivelVal.Name = "Nivel"
-		nivelVal.Value = tonumber(levelId) -- Le ponemos el ID del nivel actual
-		
-		-- Dinero (Es el presupuesto del nivel, se reinicia siempre)
-		local money = stats:FindFirstChild("Money") or Instance.new("IntValue", stats)
-		money.Name = "Money"
-		money.Value = config.DineroInicial or 0
-		
-		-- Puntos del nivel actual (Reiniciados)
-		local score = stats:FindFirstChild("Score") or Instance.new("IntValue", stats)
-		score.Name = "Score"
-		score.Value = 0
 
-		-- Actualizar variable de sesión para saber en qué nivel está jugando
-		-- (Útil para guardar al final)
+		local stats = player:FindFirstChild("leaderstats")
+
+		-- Actualizar valores del nivel
+		local nivelVal = stats:FindFirstChild("Nivel")
+		if nivelVal then
+			nivelVal.Value = tonumber(levelId)
+		end
+
+		local money = stats:FindFirstChild("Money")
+		if money then
+			money.Value = config.DineroInicial or 0
+		end
+
+		-- 🔧 RESETEAR Puntos y Estrellas al iniciar nivel
+		local puntos = stats:FindFirstChild("Puntos")
+		if puntos then
+			puntos.Value = 0
+			print("🔄 Puntos reseteados para nuevo nivel")
+		end
+
+		local estrellas = stats:FindFirstChild("Estrellas")
+		if estrellas then
+			estrellas.Value = 0
+			print("🔄 Estrellas reseteadas para nuevo nivel")
+		end
+
 		player:SetAttribute("CurrentLevelID", levelId)
-		
-		-- print("✅ " .. player.Name .. " listo en " .. config.Nombre .. " con $" .. money.Value)
+
+		print("✅ " .. player.Name .. " listo en " .. config.Nombre .. " con $" .. (money and money.Value or 0))
 	else
 		warn("❌ No se encontró Spawn para Nivel " .. levelId)
 	end
 end
 
-
 -- ============================================
 -- FUNCIONES EXPORTADAS (GLOBALES)
--- Para usar desde otros scripts (ej: al completar nivel)
 -- ============================================
 
--- Llamar a esto cuando el jugador gana el nivel
 function _G.CompleteLevel(player, starsObtained, scoreObtained)
 	local currentLevelId = player:GetAttribute("CurrentLevelID")
 	if currentLevelId == nil then return end
-	
+
 	local sID = tostring(currentLevelId)
 	local data = SessionData[player.UserId]
 	if not data then return end
-	
-	-- Guardar mejor puntaje
+
 	local lvlData = data.Levels[sID]
-	if scoreObtained > lvlData.HighScore then
-		lvlData.HighScore = scoreObtained
-	end
-	if starsObtained > lvlData.Stars then
-		lvlData.Stars = starsObtained
-	end
-	
+	lvlData.HighScore = scoreObtained
+	lvlData.Stars = starsObtained
+
+	print("📝 Nivel " .. sID .. " actualizado: " .. starsObtained .. "⭐ | " .. scoreObtained .. " pts")
+
 	-- DESBLOQUEAR SIGUIENTE NIVEL
 	local nextLevelId = currentLevelId + 1
 	local sNextID = tostring(nextLevelId)
-	
-	if LevelsConfig[nextLevelId] then -- Si existe el siguiente nivel en config
+
+	if LevelsConfig[nextLevelId] then
 		if not data.Levels[sNextID] then
 			data.Levels[sNextID] = { Unlocked = false, Stars = 0, HighScore = 0 }
 		end
-		
+
 		if not data.Levels[sNextID].Unlocked then
 			data.Levels[sNextID].Unlocked = true
 			print("🔓 Nivel " .. nextLevelId .. " DESBLOQUEADO!")
-			-- Aquí podrías mandar notificación al cliente
 		end
 	end
-	
+
 	saveData(player)
 end
 
--- Llamar a esto cuando el jugador recoge un objeto especial (Mapa, Algoritmo)
 function _G.CollectItem(player, itemId)
 	local data = SessionData[player.UserId]
 	if data and not table.find(data.Inventory, itemId) then
 		table.insert(data.Inventory, itemId)
 		print("🎒 Objeto recolectado: " .. itemId)
-		saveData(player) -- Guardado seguro
+		saveData(player)
 	end
 end
 
@@ -250,8 +279,13 @@ end
 -- ============================================
 
 Players.PlayerAdded:Connect(function(player)
+	-- 🔧 PRIMERO: Inicializar leaderstats
+	setupLeaderstats(player)
+
+	-- SEGUNDO: Cargar datos de progreso
 	loadData(player)
-	-- NO teletransportamos automáticamente. El jugador se queda en el Lobby/Menú.
+
+	print("👤 " .. player.Name .. " conectado - Datos y leaderstats listos")
 end)
 
 Players.PlayerRemoving:Connect(function(player)
@@ -263,5 +297,7 @@ game:BindToClose(function()
 	for _, player in ipairs(Players:GetPlayers()) do
 		saveData(player)
 	end
-	task.wait(2) -- Dar tiempo a DataStore
+	task.wait(2)
 end)
+
+print("✅ ManagerData v4 FIXED - Sistema completo cargado")

@@ -78,7 +78,7 @@ local function desconectarPostes(poste1, poste2, player)
 
 	-- Borrar cable visual, ETIQUETAS, y HACES DE LUZ
 	for _, child in ipairs(workspace:GetChildren()) do
-		
+
 
 		-- 1. Borrar RopeConstraint (Beams ya no se usan en server)
 		if child:IsA("RopeConstraint") then
@@ -88,14 +88,14 @@ local function desconectarPostes(poste1, poste2, player)
 			if a0 and a1 then
 				local p1 = a0.Parent and a0.Parent.Parent
 				local p2 = a1.Parent and a1.Parent.Parent
-				
+
 				-- Destruir Cable
 				if (p1 == poste1 and p2 == poste2) or (p1 == poste2 and p2 == poste1) then
 					child:Destroy()
 				end
 			end
 		end
-		
+
 		-- Notificar clientes para borrar partículas
 		if pulseEvent then
 			pulseEvent:FireAllClients("StopPulse", poste1, poste2)
@@ -115,11 +115,11 @@ local function desconectarPostes(poste1, poste2, player)
 
 	print("════════════════════════════")
 	print("🔌 DESCONEXIÓN EXITOSA (Nivel " .. nivelIDPoste .. ")")
-	
+
 	-- ⚡ DISPARAR EVENTO PARA RE-VERIFICAR ENERGÍA
 	local serverEvents = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Bindables")
 	local eventoConexion = serverEvents:WaitForChild("ConexionCambiada")
-	
+
 	if eventoConexion then
 		eventoConexion:Fire(nivelIDPoste)
 	end
@@ -193,24 +193,24 @@ local function conectarPostes(poste1, poste2, att1, att2, player)
 	rope.Thickness = 0.15
 	rope.Color = BrickColor.new("Black")
 	rope.Parent = workspace
-	
+
 	-- 6a. PARTÍCULAS (Visualización dirigida según el grafo)
 	local esBidireccional = true
 	local nodoOrigen = poste1
 	local nodoDestino = poste2
-	
+
 	-- Verificar definición del grafo para dirección
 	if configNivel and configNivel.Adyacencias then
 		local ady = configNivel.Adyacencias
 		local p1 = poste1.Name
 		local p2 = poste2.Name
-		
+
 		local puedeIr_1to2 = false
 		local puedeIr_2to1 = false
-		
+
 		if ady[p1] and table.find(ady[p1], p2) then puedeIr_1to2 = true end
 		if ady[p2] and table.find(ady[p2], p1) then puedeIr_2to1 = true end
-		
+
 		if puedeIr_1to2 and puedeIr_2to1 then
 			esBidireccional = true
 		elseif puedeIr_1to2 then
@@ -256,7 +256,7 @@ local function conectarPostes(poste1, poste2, att1, att2, player)
 	lbl.Font = Enum.Font.FredokaOne
 	lbl.TextSize = 20
 	lbl.Parent = bb
-	
+
 	-- 🔊 REPRODUCIR SONIDO DE ÉXITO
 	reproducirSonido(SOUND_CONNECT_ID, att2)
 
@@ -292,10 +292,10 @@ local function onClick(selector, player)
 	if not seleccionActual then
 		selecciones[player] = selector
 		print("👉 Seleccionado Inicio:", poste.Name)
-		
+
 		-- 🔊 Sonido click
 		reproducirSonido(SOUND_CLICK_ID, selector)
-		
+
 		-- ⚡ Iniciar visualización de cable en cliente
 		local att = getAttachment(selector)
 		if att then
@@ -305,7 +305,7 @@ local function onClick(selector, player)
 	end
 
 	-- 2. SEGUNDO CLICK (Intentar conectar o cancelar)
-	
+
 	-- Cancelar si selecciona lo mismo
 	if seleccionActual == selector then 
 		print("↩️ Selección cancelada")

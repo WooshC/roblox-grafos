@@ -166,6 +166,26 @@ local function CambiarEscenario(camaraDestino, contenidoVisible, contenidoOculta
 		ForzarCamaraScriptable() -- Asegurar tipo antes de mover
 		workspace.CurrentCamera.CFrame = camaraDestino.CFrame
 		CambiarVisibilidad(contenidoVisible, contenidoOcultar)
+		
+		-- FORZAR VISIBILIDAD DE ELEMENTOS DEL SELECTOR
+		if contenidoVisible == ContenidoSelectorNiveles then
+			task.wait(0.1) -- Pequeño delay para asegurar que todo cargó
+			if ContenidoSelectorNiveles.ContenedorInfo then 
+				ContenidoSelectorNiveles.ContenedorInfo.Visible = true 
+			end
+			if ContenidoSelectorNiveles.FrameSelector then 
+				ContenidoSelectorNiveles.FrameSelector.Visible = true 
+			end
+			-- Hacer visibles los hijos del Contenedor también
+			if ContenidoSelectorNiveles.ContenedorInfo then
+				for _, child in ipairs(ContenidoSelectorNiveles.ContenedorInfo:GetChildren()) do
+					if child:IsA("GuiObject") then
+						child.Visible = true
+					end
+				end
+			end
+		end
+		
 		AnimarTransicion(false)
 		task.wait(Cooldown)
 		BotonesBloqueados = false
@@ -322,3 +342,46 @@ task.defer(function()
 	task.wait(0.5) -- Pequeña pausa para asegurar carga de modelos
 	AnimarTransicion(false)
 end)
+
+-- ============================================
+-- EVENTO: Regresar al Selector (Desde Gameplay)
+-- ============================================
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+task.spawn(function()
+	local Events = ReplicatedStorage:WaitForChild("Events", 10)
+	if not Events then warn("❌ No se encontró carpeta Events") return end
+	
+	local Bindables = Events:WaitForChild("Bindables", 5)
+	if not Bindables then warn("❌ No se encontró carpeta Bindables") return end
+	
+	local OpenMenuEvent = Bindables:FindFirstChild("OpenMenu")
+	if not OpenMenuEvent then
+		OpenMenuEvent = Instance.new("BindableEvent")
+		OpenMenuEvent.Name = "OpenMenu"
+		OpenMenuEvent.Parent = Bindables
+		print("✅ MenuCameraSystem: Evento OpenMenu creado")
+	end
+	
+	OpenMenuEvent.Event:Connect(function()
+		print("🎉 Regresando al Selector de Niveles...")
+		
+		-- Restaurar estado menú
+		EnMenu = true
+		BotonesBloqueados = false
+		
+		-- Ocultar UI de Roblox
+		ConfigurarCoreGui(false)
+		
+		-- Forzar cámara scriptable
+		local Camera = Workspace.CurrentCamera
+		if Camera then
+			Camera.CameraType = Enum.CameraType.Scriptable
+		end
+		
+		-- Transición al Selector
+		CambiarEscenario(CamarasTotales.SelectorCamara, ContenidoSelectorNiveles, ContenidoMenuPrincipal)
+	end)
+	
+	print("✅ MenuCameraSystem: Escuchando evento OpenMenu")
+end)
+

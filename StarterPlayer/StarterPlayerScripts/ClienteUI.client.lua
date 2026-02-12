@@ -57,11 +57,100 @@ local btnReiniciar = crearBoton("BtnReiniciar", "🔄 REINICIAR", Color3.fromRGB
 local btnMapa = crearBoton("BtnMapa", "🗺️ MAPA", Color3.fromRGB(52, 152, 219), UDim2.new(0.5, -190, 0.9, -60))
 local btnAlgo = crearBoton("BtnAlgo", "🧠 ALGORITMO", Color3.fromRGB(155, 89, 182), UDim2.new(0.5, 210, 0.9, -60))
 local btnMisiones = crearBoton("BtnMisiones", "📋 MISIONES", Color3.fromRGB(46, 204, 113), UDim2.new(0.5, -390, 0.9, -60))
-local btnMatriz = crearBoton("BtnMatriz", "🔢 MATRIZ", Color3.fromRGB(255, 159, 67), UDim2.new(0.5, 410, 0.9, -60)) -- Nuevo botón
+local btnMatriz = crearBoton("BtnMatriz", "🔢 MATRIZ", Color3.fromRGB(255, 159, 67), UDim2.new(0.5, 410, 0.9, -60))
+local btnFinalizar = crearBoton("BtnFinalizar", "🏆 FINALIZAR NIVEL", Color3.fromRGB(46, 204, 113), UDim2.new(0.5, -95, 0.75, 0))
 
--- Visibilidad inicial (Bloqueado hasta obtener objeto)
+-- Label de Puntaje (siempre visible)
+local lblPuntaje = Instance.new("TextLabel")
+lblPuntaje.Name = "LabelPuntaje"
+lblPuntaje.Size = UDim2.new(0, 250, 0, 60)
+lblPuntaje.Position = UDim2.new(1, -270, 0, 20)
+lblPuntaje.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+lblPuntaje.BackgroundTransparency = 0.3
+lblPuntaje.Text = "⭐ 0 | 💰 0 pts"
+lblPuntaje.TextColor3 = Color3.new(1, 1, 1)
+lblPuntaje.Font = Enum.Font.FredokaOne
+lblPuntaje.TextSize = 24
+lblPuntaje.Parent = screenGui
+
+local cornerPuntaje = Instance.new("UICorner")
+cornerPuntaje.CornerRadius = UDim.new(0, 12)
+cornerPuntaje.Parent = lblPuntaje
+
+local strokePuntaje = Instance.new("UIStroke")
+strokePuntaje.Thickness = 3
+strokePuntaje.Color = Color3.fromRGB(255, 215, 0)
+strokePuntaje.Parent = lblPuntaje
+
+-- Visibilidad inicial
 btnMapa.Visible = false
 btnAlgo.Visible = false
+btnFinalizar.Visible = false -- Solo aparece después de validación
+lblPuntaje.Visible = false -- Se mostrará en gameplay
+
+-- ============================================
+-- DETECTOR DE MENÚ (Ocultar UI en menú)
+-- ============================================
+local mapaActivo = false -- MOVED UP
+local misionesActivo = false -- MOVED UP
+
+local enMenu = true -- Por defecto empezamos en menú
+local botonesGameplay = {btnReiniciar, btnMapa, btnAlgo, btnMisiones, btnMatriz, btnFinalizar, lblPuntaje}
+
+local function actualizarVisibilidadUI(estaEnMenu)
+	enMenu = estaEnMenu
+	
+	-- Ocultar/Mostrar botones de gameplay
+	for _, btn in ipairs(botonesGameplay) do
+		if estaEnMenu then
+			btn.Visible = false
+		else
+			-- Restaurar visibilidad según su estado lógico
+			if btn == btnFinalizar then
+				-- Mantener oculto hasta que se active por validación
+				btn.Visible = false
+			elseif btn == btnMapa or btn == btnAlgo then
+				-- Se controlan por inventario
+				-- Mantener su estado actual
+			elseif btn == lblPuntaje then
+				-- Label de puntaje siempre visible en gameplay
+				btn.Visible = true
+			else
+				-- Otros botones siempre visibles en gameplay
+				btn.Visible = not estaEnMenu
+			end
+		end
+	end
+	
+	-- Ocultar Money (leaderstat) en menú
+	local leaderstats = player:FindFirstChild("leaderstats")
+	if leaderstats then
+		local money = leaderstats:FindFirstChild("Money") or leaderstats:FindFirstChild("Dinero")
+		if money then
+			-- Roblox no permite ocultar leaderstats directamente, pero podemos ponerlo en 0 visualmente
+			-- O crear un overlay que lo tape
+			-- Por ahora solo registro que está en menú para otros scripts
+		end
+	end
+end
+
+-- Escuchar cambios de cámara para detectar menú
+task.spawn(function()
+	while wait(0.5) do
+		local cam = workspace.CurrentCamera
+		if cam and cam.CameraType == Enum.CameraType.Scriptable then
+			-- Probablemente en menú, PERO verificar que no sea el mapa
+			if not enMenu and not mapaActivo then
+				actualizarVisibilidadUI(true)
+			end
+		elseif cam and cam.CameraType == Enum.CameraType.Custom then
+			-- En gameplay
+			if enMenu then
+				actualizarVisibilidadUI(false)
+			end
+		end
+	end
+end)
 
 local distanciaLabel = Instance.new("TextLabel")
 
@@ -78,8 +167,7 @@ distanciaLabel.Visible = false
 distanciaLabel.Parent = screenGui
 
 -- === LÓGICA DE MAPA ===
-local mapaActivo = false
-local misionesActivo = false
+-- mapaActivo y misionesActivo movidos arriba
 local camaraConnection = nil
 local techoOriginalTransparency = {}
 local zoomLevel = 80 -- Zoom FIJO (no se puede cambiar)
@@ -102,6 +190,30 @@ listLayout.Parent = misionFrame
 listLayout.SortOrder = Enum.SortOrder.LayoutOrder
 listLayout.Padding = UDim.new(0, 5)
 listLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+
+-- Botón Cerrar Mapa/Misiones
+local btnCerrarMapa = Instance.new("TextButton")
+btnCerrarMapa.Name = "BtnCerrar"
+btnCerrarMapa.Size = UDim2.new(0, 30, 0, 30)
+btnCerrarMapa.Position = UDim2.new(1, -35, 0, 5)
+btnCerrarMapa.Text = "✕"
+btnCerrarMapa.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
+btnCerrarMapa.TextColor3 = Color3.new(1, 1, 1)
+btnCerrarMapa.Font = Enum.Font.GothamBold
+btnCerrarMapa.TextSize = 20
+btnCerrarMapa.Parent = misionFrame
+
+local cornerBtn = Instance.new("UICorner")
+cornerBtn.CornerRadius = UDim.new(0, 8)
+cornerBtn.Parent = btnCerrarMapa
+
+btnCerrarMapa.MouseButton1Click:Connect(function()
+	if mapaActivo then
+		toggleMapa()
+	elseif misionesActivo then
+		toggleMisiones()
+	end
+end)
 
 -- Titulo Misión
 local tituloMision = Instance.new("TextLabel")
@@ -165,13 +277,16 @@ local function actualizarPanelPuntaje()
 	
 	local puntos = stats:FindFirstChild("Puntos")
 	local estrellas = stats:FindFirstChild("Estrellas")
+	local dinero = stats:FindFirstChild("Money") or stats:FindFirstChild("Dinero")
 	
 	if puntos then
 		puntajeLabel.Text = puntos.Value .. " / 1200 pts"
 	end
 	
+	local eVal = 0
 	if estrellas then
 		local numEstrellas = estrellas.Value
+		eVal = numEstrellas
 		local textoEstrellas = ""
 		
 		for i = 1, 3 do
@@ -184,6 +299,15 @@ local function actualizarPanelPuntaje()
 		
 		estrellaLabel.Text = textoEstrellas
 	end
+	
+	-- Actualizar Label Principal (HUD) "⭐ 0 | 💰 0 pts"
+	if lblPuntaje then
+		local pVal = puntos and puntos.Value or 0
+		local dVal = dinero and dinero.Value or 0
+		-- Mostramos Estrellas y Puntos (o Dinero si prefieres)
+		-- Asumimos Puntos ya que dice 'pts'
+		lblPuntaje.Text = "⭐ " .. eVal .. " | 💰 " .. pVal .. " pts"
+	end
 end
 
 -- Escuchar cambios en Puntos y Estrellas
@@ -192,6 +316,7 @@ task.spawn(function()
 	if stats then
 		local puntos = stats:WaitForChild("Puntos", 5)
 		local estrellas = stats:WaitForChild("Estrellas", 5)
+		local dinero = stats:WaitForChild("Money", 5) or stats:WaitForChild("Dinero", 5)
 		
 		if puntos then
 			puntos.Changed:Connect(actualizarPanelPuntaje)
@@ -199,6 +324,10 @@ task.spawn(function()
 		
 		if estrellas then
 			estrellas.Changed:Connect(actualizarPanelPuntaje)
+		end
+		
+		if dinero then
+			dinero.Changed:Connect(actualizarPanelPuntaje)
 		end
 		
 		actualizarPanelPuntaje() -- Actualizar inicial
@@ -389,6 +518,11 @@ local toggleMisiones  -- Declaración forward
 -- TOGGLE MAPA
 -- ============================================
 local function toggleMapa()
+	-- A. Cerrar misiones si está abierto (evitar conflicto)
+	if misionesActivo then
+		toggleMisiones()
+	end
+	
 	mapaActivo = not mapaActivo
 	
 	-- Detectar datos del nivel actual
@@ -409,11 +543,6 @@ local function toggleMapa()
 	
 	local char = player.Character
 	local root = char and char:FindFirstChild("HumanoidRootPart")
-	
-	-- Cerrar panel de misiones si está abierto
-	if misionesActivo then
-		toggleMisiones()
-	end
 	
 	-- Función para crear efecto "Rayos X" en cables
 	-- Visualización de cables ("Rayos X") ELIMINADA por causar artefactos verticales
@@ -520,6 +649,7 @@ local function toggleMapa()
 								
 								local energizado = poste:GetAttribute("Energizado")
 								local esInicio = (poste.Name == nombreInicio)
+								local esFin = (poste.Name == nombreFin)
 								
 								-- 1. NODO INICIO (Azul Neon)
 								if esInicio then
@@ -706,12 +836,12 @@ end
 -- ============================================
 
 toggleMisiones = function()
-	misionesActivo = not misionesActivo
-	
-	-- Cerrar mapa si está abierto
-	if mapaActivo and misionesActivo then
+	-- A. Cerrar mapa si está abierto (evitar conflicto)
+	if mapaActivo then
 		toggleMapa()
 	end
+	
+	misionesActivo = not misionesActivo
 	
 	if misionesActivo then
 		-- Mostrar panel de misiones
@@ -922,8 +1052,10 @@ btnAlgo.MouseButton1Click:Connect(function()
 	
 	print("Enviando petición algoritmo: " .. algoName .. " para Nivel: " .. nivelID)
 	
+	-- Ocultar botón finalizar si estaba visible
+	btnFinalizar.Visible = false
+	
 	-- Unificamos todos los algoritmos bajo un solo evento maestro
-	-- Esto es más escalable y limpio.
 	if eventoAlgo then
 		local inicio = config.NodoInicio or "PostePanel"
 		local fin = config.NodoFin or "PosteFinal"
@@ -933,4 +1065,78 @@ btnAlgo.MouseButton1Click:Connect(function()
 	end
 end)
 
-print("✅ ClienteUI V3 Cargado: Funcionalidad completa de Mapa y Algoritmos")
+-- ============================================
+-- BOTÓN FINALIZAR NIVEL
+-- ============================================
+btnFinalizar.MouseButton1Click:Connect(function()
+	local nivelID = player:FindFirstChild("leaderstats") and player.leaderstats.Nivel.Value or 0
+	local stats = player:FindFirstChild("leaderstats")
+	local estrellas = stats and stats:FindFirstChild("Estrellas") and stats.Estrellas.Value or 0
+	local puntos = stats and stats:FindFirstChild("Puntos") and stats.Puntos.Value or 0
+	
+	print("🏆 Finalizando nivel " .. nivelID)
+	
+	-- Disparar evento de nivel completado
+	local LevelCompletedEvent = Remotes:FindFirstChild("LevelCompleted")
+	if LevelCompletedEvent then
+		LevelCompletedEvent:FireServer(nivelID, estrellas, puntos)
+		btnFinalizar.Visible = false -- Ocultar para evitar doble click
+	else
+		warn("❌ Evento LevelCompleted no encontrado")
+	end
+end)
+
+-- Listener: Mostrar botón después de validación
+task.spawn(function()
+	local messageSub
+	messageSub = game:GetService("LogService").MessageOut:Connect(function(message, messageType)
+		-- Detectar mensaje de validación completa
+		if message:find("Algoritmo completado") or message:find("💰 BONUS NETO:") then
+			task.wait(1) -- Pequeña espera
+			if not enMenu then -- Solo mostrar si estamos en gameplay
+				btnFinalizar.Visible = true
+				print("🏆 Botón Finalizar activado")
+			end
+		end
+	end)
+end)
+
+-- ============================================
+-- ACTUALIZAR LABEL DE PUNTAJE
+-- ============================================
+task.spawn(function()
+	local function actualizarLabelPuntaje()
+		local leaderstats = player:FindFirstChild("leaderstats")
+		if not leaderstats then return end
+		
+		local estrellas = leaderstats:FindFirstChild("Estrellas")
+		local puntos = leaderstats:FindFirstChild("Puntos")
+		
+		local txtEstrellas = estrellas and estrellas.Value or 0
+		local txtPuntos = puntos and puntos.Value or 0
+		
+		lblPuntaje.Text = string.format("⭐ %d | 💰 %d pts", txtEstrellas, txtPuntos)
+	end
+	
+	-- Actualizar inicialmente
+	task.wait(1)
+	actualizarLabelPuntaje()
+	
+	-- Monitorear cambios
+	local leaderstats = player:WaitForChild("leaderstats", 10)
+	if leaderstats then
+		local estrellas = leaderstats:FindFirstChild("Estrellas")
+		local puntos = leaderstats:FindFirstChild("Puntos")
+		
+		if estrellas then
+			estrellas:GetPropertyChangedSignal("Value"):Connect(actualizarLabelPuntaje)
+		end
+		
+		if puntos then
+			puntos:GetPropertyChangedSignal("Value"):Connect(actualizarLabelPuntaje)
+		end
+	end
+end)
+
+print("✅ ClienteUI V3 Cargado: Funcionalidad completa de Mapa yAlgoritmos")
+

@@ -1,33 +1,28 @@
 local LevelsConfig = {}
 
--- Configuración Global de Estructura
--- Los modelos de los niveles deben estar guardados en: ServerStorage > Niveles
--- El nombre del modelo debe coincidir con el campo 'Modelo' definido abajo.
-
 -- ==========================================
 -- NIVEL 0: TUTORIAL BÁSICO
 -- ==========================================
 LevelsConfig[0] = {
 	Nombre = "Campo de Entrenamiento",
 	DescripcionCorta = "Aprende los conceptos básicos de conexión.",
-	ImageId = "rbxassetid://1234567890", -- Placeholder
+	ImageId = "rbxassetid://1234567890",
 	Modelo = "Nivel0_Tutorial", 
 	Descripcion = "Bienvenido a Villa Conexa. Tu misión es aprender a conectar los generadores con las torres usando cables. ¡No gastes todo tu presupuesto!",
-	DineroInicial = 0, -- Tutorial no usa dinero
+	DineroInicial = 0,
 	CostoPorMetro = 0,
 	Algoritmo = "BFS",
-	
-	-- Puntuación (Fácil para tutorial)
+
 	Puntuacion = {
 		TresEstrellas = 100, 
 		DosEstrellas = 50,
 		RecompensaXP = 50 
 	},
 
-	-- Configuración del Grafo
 	NodoInicio = "PostePanel",
 	NodoFin = "PosteFinal",
 	NodosTotales = 8,
+
 	Adyacencias = {
 		["PostePanel"] = {"Poste1","Poste5","toma_corriente"},
 		["Poste1"] = {"PostePanel", "Poste2","Poste4"},
@@ -37,11 +32,42 @@ LevelsConfig[0] = {
 		["Poste5"] = {"PostePanel", "PosteFinal"},
 		["PosteFinal"] = {"Poste4","Poste5"},
 	},
-	-- Entidades y Misiones
+
+	-- ============================================
+	-- MISIONES (CRÍTICO PARA PUNTAJE)
+	-- ============================================
+	Misiones = {
+		{
+			ID = 1,
+			Texto = "Energiza al menos 3 nodos",
+			Tipo = "NODOS_MINIMOS",
+			Parametros = { Cantidad = 3 }
+		},
+		{
+			ID = 2,
+			Texto = "Activa la Zona de Luz Principal",
+			Tipo = "ZONA_ACTIVADA",
+			Parametros = { Zona = "Zona_luz_1" }
+		},
+		{
+			ID = 3,
+			Texto = "Conecta el circuito completo",
+			Tipo = "CIRCUITO_CERRADO",
+			Parametros = {}
+		},
+		{
+			ID = 4,
+			Texto = "Energiza la Toma de Corriente",
+			Tipo = "NODO_ENERGIZADO",
+			Parametros = { Nodo = "toma_corriente" }
+		}
+	},
+
 	Objetos = {
 		{ ID = "Mapa", Nombre = "Mapa de Villa Conexa", Descripcion = "Desbloquea la vista de mapa", Icono = "🗺️", Modelo = "MapaModel" },
 		{ ID = "Algoritmo_BFS", Nombre = "Manual de BFS", Descripcion = "Desbloquea el algoritmo BFS", Icono = "🧠", Modelo = "AlgoritmoBFS" }
 	},
+
 	Nodos = {
 		PostePanel = { Zona = nil, Alias = "Generador" },
 		Poste1 = { Zona = "Zona_luz_1", Alias = "Torre 1" },
@@ -52,6 +78,7 @@ LevelsConfig[0] = {
 		PosteFinal = { Zona = "Zona_luz_1", Alias = "Torre Control" },
 		toma_corriente = { Zona = "Zona_luz_2", Alias = "Toma Corriente" }
 	},
+
 	Zonas = {
 		["Zona_luz_1"] = { Modo = "ALL", Descripcion = "Sector principal: Torre de Control" },
 		["Zona_luz_2"] = { Modo = "ANY", Descripcion = "Sector secundario: Puerta" }
@@ -64,7 +91,7 @@ LevelsConfig[0] = {
 LevelsConfig[1] = {
 	Nombre = "La Primera Red",
 	DescripcionCorta = "Conecta el barrio residencial con bajo presupuesto.",
-	ImageId = "rbxassetid://1234567891", -- Placeholder
+	ImageId = "rbxassetid://1234567891",
 	Modelo = "Nivel1_Basico",
 	Descripcion = "Los residentes necesitan luz. Usa el algoritmo BFS para encontrar la ruta más corta y ahorrar dinero.",
 	DineroInicial = 5000,
@@ -84,6 +111,28 @@ LevelsConfig[1] = {
 		["Poste1"] = {"PostePanel", "Poste2"},
 		["Poste2"] = {"PostePanel", "Poste1", "Poste6"},
 		["Poste6"] = {"Poste2"}
+	},
+
+	-- Agregar misiones también para este nivel
+	Misiones = {
+		{
+			ID = 1,
+			Texto = "Conecta al menos 2 nodos",
+			Tipo = "NODOS_MINIMOS",
+			Parametros = { Cantidad = 2 }
+		},
+		{
+			ID = 2,
+			Texto = "Llega al nodo final",
+			Tipo = "CIRCUITO_CERRADO",
+			Parametros = {}
+		},
+		{
+			ID = 3,
+			Texto = "Ahorra presupuesto: Mantén al menos $3000",
+			Tipo = "PRESUPUESTO_RESTANTE",
+			Parametros = { Cantidad = 3000 }
+		}
 	}
 }
 
@@ -93,12 +142,12 @@ LevelsConfig[1] = {
 LevelsConfig[2] = {
 	Nombre = "Expansión Urbana",
 	DescripcionCorta = "Una zona más amplia requiere planificación cuidadosa.",
-	ImageId = "rbxassetid://1234567892", -- Placeholder
-	Modelo = "Nivel2_Expansion", -- Asegúrate de tener este modelo o cambiar el nombre
+	ImageId = "rbxassetid://1234567892",
+	Modelo = "Nivel2_Expansion",
 	Descripcion = "La ciudad crece. Conecta los nuevos distritos comerciales. Cuidado con los obstáculos que encarecen el cableado.",
 	DineroInicial = 8000,
 	CostoPorMetro = 35,
-	Algoritmo = "DFS", -- Introducción a DFS tal vez?
+	Algoritmo = "DFS",
 	NodoInicio = "GeneradorCentral",
 	NodoFin = "SubestacionNorte",
 
@@ -107,7 +156,17 @@ LevelsConfig[2] = {
 		DosEstrellas = 1500,
 		RecompensaXP = 200
 	},
-	Adyacencias = {} -- Rellenar con grafo real
+
+	Adyacencias = {},
+
+	Misiones = {
+		{
+			ID = 1,
+			Texto = "Completa el circuito",
+			Tipo = "CIRCUITO_CERRADO",
+			Parametros = {}
+		}
+	}
 }
 
 -- ==========================================
@@ -116,12 +175,12 @@ LevelsConfig[2] = {
 LevelsConfig[3] = {
 	Nombre = "Complejo Industrial",
 	DescripcionCorta = "Alta demanda de energía y rutas costosas.",
-	ImageId = "rbxassetid://1234567893", -- Placeholder
+	ImageId = "rbxassetid://1234567893",
 	Modelo = "Nivel3_Industrial",
 	Descripcion = "Las fábricas necesitan potencia estable. Las distancias son largas y el cobre es caro.",
 	DineroInicial = 12000,
 	CostoPorMetro = 50,
-	Algoritmo = "Dijkstra", -- Introducción a pesos?
+	Algoritmo = "Dijkstra",
 	NodoInicio = "PlantaNuclear",
 	NodoFin = "FabricaAceros",
 
@@ -130,7 +189,17 @@ LevelsConfig[3] = {
 		DosEstrellas = 2500,
 		RecompensaXP = 300
 	},
-	Adyacencias = {}
+
+	Adyacencias = {},
+
+	Misiones = {
+		{
+			ID = 1,
+			Texto = "Completa el circuito",
+			Tipo = "CIRCUITO_CERRADO",
+			Parametros = {}
+		}
+	}
 }
 
 -- ==========================================
@@ -139,7 +208,7 @@ LevelsConfig[3] = {
 LevelsConfig[4] = {
 	Nombre = "Gran Metrópolis",
 	DescripcionCorta = "El desafío final de optimización.",
-	ImageId = "rbxassetid://1234567894", -- Placeholder
+	ImageId = "rbxassetid://1234567894",
 	Modelo = "Nivel4_Final",
 	Descripcion = "Toda la ciudad depende de ti. Debes interconectar múltiples subestaciones con la máxima eficiencia posible.",
 	DineroInicial = 20000,
@@ -153,7 +222,17 @@ LevelsConfig[4] = {
 		DosEstrellas = 5000,
 		RecompensaXP = 500
 	},
-	Adyacencias = {}
+
+	Adyacencias = {},
+
+	Misiones = {
+		{
+			ID = 1,
+			Texto = "Completa el circuito",
+			Tipo = "CIRCUITO_CERRADO",
+			Parametros = {}
+		}
+	}
 }
 
 return LevelsConfig
