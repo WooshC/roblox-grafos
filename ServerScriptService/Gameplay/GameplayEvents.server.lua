@@ -296,15 +296,48 @@ local function limpiarCablesFantasma()
 	end
 end
 
+-- ============================================
+-- PINTADO DE CABLES (Separado de la lógica)
+-- ============================================
+
+local function pintarCablesSegunEnergia(nivelID, visitados, llegoAlFinal)
+	local todosLosCables = NivelUtils.obtenerCablesDelNivel(nivelID)
+	
+	for _, cable in ipairs(todosLosCables) do
+		if not cable.Parent then continue end -- Cable destruido
+		
+		-- Obtener postes conectados
+		local p1 = cable.Attachment0 and cable.Attachment0.Parent and cable.Attachment0.Parent.Parent
+		local p2 = cable.Attachment1 and cable.Attachment1.Parent and cable.Attachment1.Parent.Parent
+		
+		if p1 and p2 then
+			local ambosEnergizados = visitados[p1.Name] and visitados[p2.Name]
+			
+			if ambosEnergizados then
+				-- Cable energizado
+				if llegoAlFinal then
+					cable.Color = BrickColor.new("Lime green") -- Completo
+				else
+					cable.Color = BrickColor.new("Cyan") -- Parcial
+				end
+				cable.Thickness = 0.3
+			else
+				-- Cable sin energía
+				cable.Color = BrickColor.new("Dark stone grey")
+				cable.Thickness = 0.2
+			end
+		end
+	end
+end
+
+-- ============================================
+-- VERIFICACIÓN DE CONECTIVIDAD (Solo lógica)
+-- ============================================
+
 local function verificarConectividad(nivelID, modoVisualizacion)
-	-- modoVisualizacion: true = mostrar animación lenta (botón algoritmo)
-	--                    false/nil = instantáneo (conexión manual)
 	modoVisualizacion = modoVisualizacion or false
 
-	-- Limpiar cables fantasma si es modo visualización
-	if modoVisualizacion then
-		limpiarCablesFantasma()
-	end
+	if modoVisualizacion then limpiarCablesFantasma() end
 
 	local config = LevelsConfig[nivelID]
 	if not config then return end
@@ -312,178 +345,92 @@ local function verificarConectividad(nivelID, modoVisualizacion)
 	local carpetaPostes = NivelUtils.obtenerCarpetaPostes(nivelID)
 	if not carpetaPostes then return end
 
-	-- Estado de propagación
 	local visitados = {}
-	local cablesNuevos = {} -- Solo cables nuevos en esta iteración
 
-	-- ⚠️ CAMBIO CLAVE: NO resetear TODOS los cables, solo obtener los existentes
-	local todosLosCables = NivelUtils.obtenerCablesDelNivel(nivelID)
-
-	-- 🔄 RESETEAR TODOS LOS CABLES A GRIS (para reflejar desconexiones)
-	if not modoVisualizacion then
-		for _, cable in ipairs(todosLosCables) do
-			cable.Color = BrickColor.new("Dark stone grey")  -- Gris (sin energía)
-			cable.Thickness = 0.2
-		end
-	end
-
-	-- Resetear atributos de energía (SOLO en modo normal)
+	-- Resetear estado de energía
 	if not modoVisualizacion then
 		for _, poste in ipairs(carpetaPostes:GetChildren()) do
 			poste:SetAttribute("Energizado", false)
 		end
 	end
 
-	-- Propagación BFS desde el Nodo Inicio
+	-- BFS: Propagación de energía
 	local cola = { config.NodoInicio }
 	visitados[config.NodoInicio] = true
 
-	-- Marcar inicio como energizado (SOLO en modo normal)
 	if not modoVisualizacion then
 		local posteInicio = NivelUtils.buscarPoste(config.NodoInicio, nivelID)
-		if posteInicio then 
-			posteInicio:SetAttribute("Energizado", true) 
-		end
+		if posteInicio then posteInicio:SetAttribute("Energizado", true) end
 	end
 
-	if modoVisualizacion then
-		print("⚡ [VISUALIZACIÓN] Propagación de energía en Nivel " .. nivelID .. " desde " .. config.NodoInicio)
-		print("📚 BFS = Búsqueda en AMPLITUD (nivel por nivel)")
-	end
-
-	-- Contador para actualizar misiones incrementalmente
 	local numNodosConectados = 1
 
 	while #cola > 0 do
-		-- ⚡ SOLO hacer delay si es modo visualización
-		if modoVisualizacion then
-			task.wait(1.0) -- 🐢 Lento para visualización educativa
-		end
+		if modoVisualizacion then task.wait(1.0) end
 
 		local nombreActual = table.remove(cola, 1)
 		local posteActual = NivelUtils.buscarPoste(nombreActual, nivelID)
 
 		if posteActual then
-			-- Energizar SOLO en modo normal
 			if not modoVisualizacion then
 				posteActual:SetAttribute("Energizado", true)
 			end
 
-			-- En modo visualización, usar adyacencias del grafo ideal
-			-- En modo normal, usar conexiones reales
-			local vecinosAExplorar = {}
-
+			-- Vecinos a explorar
+			local vecinos = {}
 			if modoVisualizacion then
-				-- MODO VISUALIZACIÓN: Usar grafo ideal (adyacencias configuradas)
 				if config.Adyacencias and config.Adyacencias[nombreActual] then
-					vecinosAExplorar = config.Adyacencias[nombreActual]
+					vecinos = config.Adyacencias[nombreActual]
 				end
 			else
-				-- MODO NORMAL: Usar solo cables conectados
-				local conexiones = posteActual:FindFirstChild("Connections")
-				if conexiones then
-					for _, val in ipairs(conexiones:GetChildren()) do
-						table.insert(vecinosAExplorar, val.Name)
+				local conns = posteActual:FindFirstChild("Connections")
+				if conns then
+					for _, v in ipairs(conns:GetChildren()) do
+						table.insert(vecinos, v.Name)
 					end
 				end
 			end
 
-			-- Explorar vecinos
-			for _, nombreVecino in ipairs(vecinosAExplorar) do
-				-- Buscar cable real (puede existir o no)
-				local cableEncontrado = NivelUtils.buscarCable(nombreActual, nombreVecino, nivelID)
-
+			for _, nombreVecino in ipairs(vecinos) do
 				if not visitados[nombreVecino] and NivelUtils.buscarPoste(nombreVecino, nivelID) then
 					visitados[nombreVecino] = true
 					table.insert(cola, nombreVecino)
 					numNodosConectados = numNodosConectados + 1
 
 					if modoVisualizacion then
-						print("   -> Explorando: " .. nombreVecino)
-
-						-- 🎬 CREAR CABLE FANTASMA para visualización
-						if cableEncontrado then
-							-- Si hay cable real, pintarlo
-							cableEncontrado.Color = BrickColor.new("Cyan")
-							cableEncontrado.Thickness = 0.3
+						print("   -> " .. nombreVecino)
+						local cable = NivelUtils.buscarCable(nombreActual, nombreVecino, nivelID)
+						if cable then
+							cable.Color = BrickColor.new("Cyan")
+							cable.Thickness = 0.3
 						else
-							-- Si NO hay cable real, crear uno fantasma
 							crearCableFantasma(nombreActual, nombreVecino, BrickColor.new("Cyan"), nivelID)
 						end
 					else
-						-- 🔍 DEBUG: Mostrar nodo visitado
-						print("⚡ Energizado: " .. nombreVecino .. " (Total: " .. numNodosConectados .. " nodos)")
-					end
-
-					-- ✅ ACTUALIZAR MISIONES (NUEVO SISTEMA)
-					if not modoVisualizacion then
-						-- Construir estado del juego
-						local estadoJuego = MisionManager.construirEstadoJuego(
-							visitados,
-							numNodosConectados,
-							config,
-							nil,  -- player (nil = todos los jugadores)
-							{}    -- zonasActivas (se puede calcular después)
-						)
-
-						-- Verificar todas las misiones
+						-- ACTUALIZAR MISIONES
+						local estadoJuego = MisionManager.construirEstadoJuego(visitados, numNodosConectados, config, nil, {})
 						local resultados = MisionManager.verificarTodasLasMisiones(config, estadoJuego)
-
-						-- 🔍 DEBUG: Mostrar resultados de misiones
-						print("📋 Verificando misiones...")
+						
 						for misionID, completada in pairs(resultados) do
-							print("   Misión " .. misionID .. ": " .. (completada and "✅" or "❌"))
+							MisionManager.actualizarMisionGlobal(misionID, completada)
 						end
-
-						-- Actualizar UI de Misiones
-						for misionID, completada in pairs(resultados) do
-							-- Solo enviamos update si cambia (MisionManager cliente filtra, pero aqui aseguramos broadcast)
-							-- Para simplificar, mandamos el estado actual y el cliente decide si muestra notificación
-							if completada then
-								MisionManager.actualizarMisionGlobal(misionID, true)
-							else
-								-- Opcional: Si quieres que se "desmarquen" cuando rompes el circuito
-								MisionManager.actualizarMisionGlobal(misionID, false)
-							end
-						end
-
-						-- ✅ ACTUALIZAR PUNTAJE Y ESTRELLAS
+						
 						actualizarPuntajeGlobal(nivelID, resultados)
-					end
-
-					if not modoVisualizacion and cableEncontrado then
-						-- Solo en modo normal (no visualización)
-						if not cablesYaProcesados[cableEncontrado] then
-							cableEncontrado.Color = BrickColor.new("Cyan")
-							table.insert(cablesNuevos, cableEncontrado)
-							cablesYaProcesados[cableEncontrado] = true
-						end
-					end
-
-				elseif visitados[nombreVecino] and cableEncontrado and not modoVisualizacion then
-					-- Cable ya visitado, mantener color (solo en modo normal)
-					if not cablesYaProcesados[cableEncontrado] then
-						cableEncontrado.Color = BrickColor.new("Cyan")
-						cablesYaProcesados[cableEncontrado] = true
 					end
 				end
 			end
 		end
 	end
 
-	-- Verificar si llegó al final
 	local llegoAlFinal = visitados[config.NodoFin] == true
 
-	-- Actualizar luces por zonas (SOLO en modo normal)
+	-- PINTAR CABLES (CAPA SEPARADA)
 	if not modoVisualizacion then
+		pintarCablesSegunEnergia(nivelID, visitados, llegoAlFinal)
 		actualizarLucesZonas(nivelID)
-	end
-
-	if llegoAlFinal then
-		if modoVisualizacion then
-			print("✅ [VISUALIZACIÓN] Camino encontrado hasta " .. config.NodoFin)
-
-			-- Pintar cables fantasma de verde
+	else
+		if llegoAlFinal then
+			print("✅ Camino encontrado!")
 			task.wait(0.5)
 			for _, obj in ipairs(workspace:GetChildren()) do
 				if obj.Name == "CableFantasmaBFS" then
@@ -492,23 +439,11 @@ local function verificarConectividad(nivelID, modoVisualizacion)
 				end
 			end
 		else
-			-- Modo normal: pintar cables reales
-			for _, cable in ipairs(todosLosCables) do
-				if cable.Parent then -- Verificar que no fue destruido
-					local p1 = cable.Attachment0 and cable.Attachment0.Parent and cable.Attachment0.Parent.Parent
-					local p2 = cable.Attachment1 and cable.Attachment1.Parent and cable.Attachment1.Parent.Parent
-
-					if p1 and p2 and visitados[p1.Name] and visitados[p2.Name] then
-						cable.Color = BrickColor.new("Lime green")
-					end
-				end
-			end
-		end
-	else
-		if modoVisualizacion then
-			print("❌ [VISUALIZACIÓN] No hay camino hasta " .. config.NodoFin)
+			print("❌ Camino incompleto")
 		end
 	end
+	
+	return visitados, llegoAlFinal -- Retornar para futuras validaciones
 end
 
 -- ============================================

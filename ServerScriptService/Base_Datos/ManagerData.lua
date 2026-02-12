@@ -26,6 +26,10 @@ GetProgressFunc.Name = "GetPlayerProgress"
 local RequestPlayEvent = RemotesFolder:FindFirstChild("RequestPlayLevel") or Instance.new("RemoteEvent", RemotesFolder)
 RequestPlayEvent.Name = "RequestPlayLevel"
 
+-- Evento para notificar al cliente que completó el nivel
+local LevelCompletedEvent = RemotesFolder:FindFirstChild("LevelCompleted") or Instance.new("RemoteEvent", RemotesFolder)
+LevelCompletedEvent.Name = "LevelCompleted"
+
 -- Cache en memoria de los datos de jugadores
 local SessionData = {}
 
@@ -121,7 +125,7 @@ RequestPlayEvent.OnServerEvent:Connect(function(player, levelId)
 	
 	-- Validar si existe y está desbloqueado
 	if levelData and levelData.Unlocked then
-		print("🚀 " .. player.Name .. " solicitó ir al Nivel " .. sID)
+		-- print("🚀 " .. player.Name .. " solicitó ir al Nivel " .. sID)
 		
 		-- TELETRANSPORTE
 		local config = LevelsConfig[tonumber(levelId)]
@@ -182,7 +186,7 @@ function setupLevelForPlayer(player, levelId, config)
 		-- (Útil para guardar al final)
 		player:SetAttribute("CurrentLevelID", levelId)
 		
-		print("✅ " .. player.Name .. " listo en " .. config.Nombre .. " con $" .. money.Value)
+		-- print("✅ " .. player.Name .. " listo en " .. config.Nombre .. " con $" .. money.Value)
 	else
 		warn("❌ No se encontró Spawn para Nivel " .. levelId)
 	end

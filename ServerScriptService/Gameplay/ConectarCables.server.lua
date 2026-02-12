@@ -185,6 +185,7 @@ local function conectarPostes(poste1, poste2, att1, att2, player)
 
 	-- 6. Crear cable visual
 	local rope = Instance.new("RopeConstraint")
+	rope.Name = "Cable_" .. poste1.Name .. "_" .. poste2.Name -- NOMBRE ÚNICO PARA BUSQUEDA
 	rope.Attachment0 = att1
 	rope.Attachment1 = att2
 	rope.Length = distanciaStuds

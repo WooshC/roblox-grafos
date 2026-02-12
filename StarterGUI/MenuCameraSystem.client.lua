@@ -7,8 +7,28 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local UI = script.Parent
+local StarterGui = game:GetService("StarterGui")
+
+-- Función segura para configurar CoreGui (Chat, Mochila, etc)
+local function ConfigurarCoreGui(habilitado)
+	task.spawn(function()
+		local exito = false
+		while not exito do
+			exito, _ = pcall(function()
+				StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.All, habilitado)
+			end)
+			if not exito then task.wait(0.2) end
+		end
+	end)
+end
+
 local TrancisionFrame = UI:WaitForChild("FrameDeTransicion", 10)
-if not TrancisionFrame then warn("⚠️ FrameDeTransicion no encontrado en " .. UI.Name) return end
+if not TrancisionFrame then warn("⚠️ FrameDeTransicion no encontrado") return end
+
+-- PANTALLA NEGRA INMEDIATA (Ocultar carga)
+TrancisionFrame.Visible = true
+TrancisionFrame.BackgroundTransparency = 0
+-- Haremos FadeIn al final de la inicialización
 
 local Cameras = Workspace:WaitForChild("CamarasMenu", 10)
 if not Cameras then warn("⚠️ Carpeta CamarasMenu no encontrada en Workspace") return end
@@ -152,6 +172,56 @@ local function CambiarEscenario(camaraDestino, contenidoVisible, contenidoOculta
 	end)
 end
 
+-- ============================================
+-- GLOBAL: INICIAR JUEGO (Libera la cámara)
+-- ============================================
+function _G.StartGame()
+	print("🎬 Iniciando transición al juego...")
+	if BotonesBloqueados then return end
+	BotonesBloqueados = true
+	
+	AnimarTransicion(true, function()
+		EnMenu = false -- Importante: Ya no forzamos la cámara en el respawn
+		OcultarTodo()
+		
+		local cam = workspace.CurrentCamera
+		cam.CameraType = Enum.CameraType.Custom
+		if Players.LocalPlayer.Character then
+			cam.CameraSubject = Players.LocalPlayer.Character:FindFirstChild("Humanoid")
+		end
+		
+		AnimarTransicion(false)
+		BotonesBloqueados = false
+	end)
+end
+
+-- ============================================
+-- GLOBAL: ABRIR SELECTOR (Con BindableEvent)
+-- ============================================
+local Bindables = game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Bindables")
+local OpenMenuEvent = Bindables:FindFirstChild("OpenMenu") or Instance.new("BindableEvent", Bindables)
+OpenMenuEvent.Name = "OpenMenu"
+
+OpenMenuEvent.Event:Connect(function()
+	print("🎞️ Regresando al Selector de Niveles (Evento Recibido)...")
+	
+	-- Restaurar estado menú
+	EnMenu = true
+	BotonesBloqueados = false -- Asegurar desbloqueo
+	
+	-- IMPORTANTE: Asegurar que UI de Roblox se oculte
+	ConfigurarCoreGui(false)
+	
+	-- Forzar Cámara Scriptable
+	ForzarCamaraScriptable()
+	
+	-- Asegurar que CurrentCamera esté en una posición inicial válida antes de tween
+	-- (Opcional, pero ayuda si la cámara estaba muy lejos)
+	
+	-- Transición al Selector
+	CambiarEscenario(CamarasTotales.SelectorCamara, ContenidoSelectorNiveles, ContenidoMenuPrincipal)
+end)
+
 ContenidoMenuPrincipal.BotonPlay.MouseButton1Click:Connect(function()
 	print("🖱️ Click Play -> Ir a Selector de Niveles")
 	CambiarEscenario(CamarasTotales.SelectorCamara, ContenidoSelectorNiveles, ContenidoMenuPrincipal)
@@ -203,26 +273,52 @@ end
 -- INICIALIZACIÓN
 -- ============================================
 
--- Esperar a que cargue el personaje
-local player = Players.LocalPlayer
-player.CharacterAdded:Connect(function()
-	-- Si el personaje respawnea y sigo en el menú, forzar la cámara de nuevo
-	if EnMenu then
-		workspace.CurrentCamera.CameraType = Enum.CameraType.Scriptable
-		workspace.CurrentCamera.CFrame = CamarasTotales.MenuPrincipalCamara.CFrame
+-- ============================================
+-- INICIALIZACIÓN ROBUSTA (Para evitar parpadeo de cámara)
+-- ============================================
+
+-- 1. Forzar cámara INMEDIATAMENTE
+local cam = workspace.CurrentCamera
+cam.CameraType = Enum.CameraType.Scriptable
+cam.CFrame = CamarasTotales.MenuPrincipalCamara.CFrame
+
+-- 2. Mantener forzado durante un momento (combate el auto-spawn inicial)
+task.spawn(function()
+	for i = 1, 60 do -- 1 segundo aprox
+		if EnMenu then
+			cam.CameraType = Enum.CameraType.Scriptable
+			cam.CFrame = CamarasTotales.MenuPrincipalCamara.CFrame
+		else
+			break
+		end
+		task.wait()
 	end
 end)
 
--- Configuración inicial
-player:RequestStreamAroundAsync(CamarasTotales.MenuPrincipalCamara.Position)
-workspace.CurrentCamera.CameraType = Enum.CameraType.Scriptable
-workspace.CurrentCamera.CFrame = CamarasTotales.MenuPrincipalCamara.CFrame
+-- 3. Pre-Cargar zona
+if Players.LocalPlayer then
+	Players.LocalPlayer:RequestStreamAroundAsync(CamarasTotales.MenuPrincipalCamara.Position)
+end
 
--- Visibilidad inicial
+-- 4. Eventos de Personaje (Respawn en menú)
+Players.LocalPlayer.CharacterAdded:Connect(function()
+	if EnMenu then
+		cam.CameraType = Enum.CameraType.Scriptable
+		cam.CFrame = CamarasTotales.MenuPrincipalCamara.CFrame
+	end
+end)
+
+-- 5. Visibilidad Inicial UI
 CambiarVisibilidad(ContenidoMenuPrincipal, {})
--- Asegurarse de ocultar los otros marcos explícitamente si CambiarVisibilidad no lo hizo (por estar vacio el segundo arg)
 for _, obj in pairs(ContenidoEscenarioCreditos) do if obj:IsA("GuiObject") then obj.Visible = false end end
 for _, obj in pairs(ContenidoEscenarioAjustes) do if obj:IsA("GuiObject") then obj.Visible = false end end
 for _, obj in pairs(ContenidoSelectorNiveles) do if obj:IsA("GuiObject") then obj.Visible = false end end
 
-print("✅ MenuCameraSystem Corregido Cargado")
+-- Ocultar UI de Roblox al inicio
+ConfigurarCoreGui(false)
+
+-- FADE IN PARA MOSTRAR MENÚ
+task.defer(function()
+	task.wait(0.5) -- Pequeña pausa para asegurar carga de modelos
+	AnimarTransicion(false)
+end)

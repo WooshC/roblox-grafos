@@ -19,35 +19,38 @@ local InfoPanel = Contenedor:WaitForChild("InfoNivelPanel")
 
 -- UI Elements del InfoPanel (Búsqueda Robusta)
 local TituloNivel = InfoPanel:WaitForChild("TituloNivel", 5) or InfoPanel:FindFirstChild("Titulo")
+if TituloNivel then TituloNivel.TextScaled = true end -- EVITAR DESBORDE DE TEXTO
+
 local ImagenContainer = InfoPanel:WaitForChild("ImagenContainer", 5)
 local ImagenNivel = ImagenContainer and (ImagenContainer:FindFirstChild("ImageLabel") or ImagenContainer:FindFirstChild("PreviewImage"))
+
 local DescripcionContainer = InfoPanel:WaitForChild("DescripcionScroll", 5) or InfoPanel:FindFirstChild("DescripcionContainer")
 local DescripcionTexto = DescripcionContainer and (DescripcionContainer:FindFirstChild("TextoDesc") or DescripcionContainer:FindFirstChild("DescripcionTexto"))
+
 local BotonJugar = InfoPanel:WaitForChild("BotonJugar", 5)
 
+-- Búsqueda recursiva para Stats (ya que pueden estar dentro de StatsFrame o sueltos)
+local PuntajeTexto = InfoPanel:FindFirstChild("Puntaje", true) -- true busca recursivamente
+local EstrellasTexto = InfoPanel:FindFirstChild("Estrellas", true)
+
 -- Validaciones de UI urgentes
-if not ImagenNivel then warn("⚠️ UI ERROR: No encuentro ImageLabel dentro de ImagenContainer") end
-if not DescripcionTexto then warn("⚠️ UI ERROR: No encuentro el texto de descripción") end
-if not BotonJugar then warn("⚠️ UI ERROR: No encuentro BotonJugar") end
+if not ImagenNivel then warn("⚠️ UI ERROR: No encuentro ImageLabel") end
+if not PuntajeTexto then warn("⚠️ UI ERROR: No encuentro label Puntaje") end
 
 -- Configuración Remotos
 local Remotes = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Remotes")
 local GetProgressFunc = Remotes:WaitForChild("GetPlayerProgress", 10)
 local RequestPlayEvent = Remotes:WaitForChild("RequestPlayLevel", 10)
 
-if not GetProgressFunc or not RequestPlayEvent then
-	warn("❌ ERROR CRÍTICO: Faltan eventos remotos. Revisa ManagerData.")
-	return
-end
+if not GetProgressFunc or not RequestPlayEvent then return end
 
 -- Estado Local
 local NivelSeleccionado = nil
-local DatosJugador = nil -- Cache de datos {Levels = {...}, Inventory = {...}}
+local DatosJugador = nil 
 
 -- Colores
-local ColorDesbloqueado = Color3.fromRGB(44, 62, 80) -- Azul oscuro
-local ColorBloqueado = Color3.fromRGB(149, 165, 166) -- Gris
-local ColorSeleccionado = Color3.fromRGB(52, 152, 219) -- Azul claro
+local ColorDesbloqueado = Color3.fromRGB(44, 62, 80)
+local ColorBloqueado = Color3.fromRGB(149, 165, 166)
 
 -- ============================================
 -- FUNCIONES DE UI
@@ -64,7 +67,7 @@ local function ActualizarPanelInfo(levelID)
 	DescripcionTexto.Text = config.Descripcion or "Sin descripción."
 	ImagenNivel.Image = config.ImageId or "rbxassetid://0"
 	
-	-- Actualizar Stats (Si tenemos datos)
+	-- Actualizar Stats 
 	local data = DatosJugador and DatosJugador.Levels[tostring(levelID)]
 	local estrellas = data and data.Stars or 0
 	local score = data and data.HighScore or 0
@@ -77,23 +80,26 @@ local function ActualizarPanelInfo(levelID)
 		if i <= estrellas then estrellasStr = estrellasStr .. "⭐" else estrellasStr = estrellasStr .. "☆" end
 	end
 	
-	-- Mostrar estrellas en algún lado (en el botón jugar o en un label aparte)
 	if EstrellasTexto then EstrellasTexto.Text = estrellasStr end
 	BotonJugar.Text = "JUGAR " .. estrellasStr
 	
 	-- Habilitar botón jugar
 	BotonJugar.Visible = true
 	BotonJugar.AutoButtonColor = true
-	BotonJugar.BackgroundColor3 = Color3.fromRGB(46, 204, 113) -- Verde
+	BotonJugar.BackgroundColor3 = Color3.fromRGB(46, 204, 113) 
 end
 
 local function BloquearPanel()
 	TituloNivel.Text = "SELECCIONA UN NIVEL"
 	DescripcionTexto.Text = "Elige un nivel desbloqueado para ver los detalles y comenzar tu misión."
 	ImagenNivel.Image = ""
+	
 	BotonJugar.Visible = false
+	
+	-- Limpiar basura visual (Valores por defecto)
 	if EstrellasTexto then EstrellasTexto.Text = "" end
 	if PuntajeTexto then PuntajeTexto.Text = "" end
+	
 	NivelSeleccionado = nil
 end
 
@@ -140,27 +146,30 @@ local function CargarBotonesNiveles()
 					boton.TextTransparency = 0
 					if boton:FindFirstChild("LockIcon") then boton.LockIcon:Destroy() end
 					
-					-- Evento Click
+					-- Evento Click Normal
 					boton.MouseButton1Click:Connect(function()
 						ActualizarPanelInfo(nID)
 					end)
 				else
-					-- ESTILO BLOQUEADO
+					-- ESTILO BLOQUEADO (Pero visible)
 					boton.BackgroundColor3 = ColorBloqueado
-					boton.AutoButtonColor = false
-					boton.TextTransparency = 0.8 -- Texto tenue
+					boton.AutoButtonColor = true -- Permitir click
+					boton.TextTransparency = 0.5 
 					CrearIconoCandado(boton)
 					
 					boton.MouseButton1Click:Connect(function()
-						-- Feedback visual de error
-						local origColor = boton.BackgroundColor3
-						boton.BackgroundColor3 = Color3.fromRGB(231, 76, 60) -- Rojo error
-						task.wait(0.2)
-						boton.BackgroundColor3 = origColor
+						-- Mostrar info del nivel bloqueado
+						ActualizarPanelInfo(nID)
 						
-						TituloNivel.Text = "NIVEL BLOQUEADO"
-						DescripcionTexto.Text = "Debes completar el nivel anterior para acceder a este desafío."
-						BotonJugar.Visible = false
+						-- Desactivar botón jugar explícitamente
+						BotonJugar.Visible = true
+						BotonJugar.Text = "BLOQUEADO 🔒"
+						BotonJugar.BackgroundColor3 = Color3.fromRGB(127, 140, 141) -- Gris
+						BotonJugar.AutoButtonColor = false
+						
+						-- Desconectar evento jugar anterior (la función Jugar chequea NivelSeleccionado, pero aqui prevenimos visualmente)
+						-- Un truco simple es cambiar NivelSeleccionado a nil temporalmente al pulsar Jugar si estuviera bloqueado, 
+						-- pero mejor controlamos en el evento del boton jugar.
 					end)
 				end
 			end
@@ -174,12 +183,30 @@ end
 
 BotonJugar.MouseButton1Click:Connect(function()
 	if NivelSeleccionado ~= nil then
+		-- VALIDAR BLOQUEO REAL
+		local nivelData = DatosJugador and DatosJugador.Levels[tostring(NivelSeleccionado)]
+		if not nivelData or not nivelData.Unlocked then
+			print("🔒 Intento de jugar nivel bloqueado")
+			BotonJugar.Text = "BLOQUEADO"
+			task.wait(1)
+			BotonJugar.Text = "Jugar" -- Restaurar texto aunque siga bloqueado visualmente
+			return
+		end
+		
 		print("🎮 Solicitando jugar Nivel " .. NivelSeleccionado)
 		-- Feedback visual
 		BotonJugar.Text = "CARGANDO..."
 		BotonJugar.BackgroundColor3 = Color3.fromRGB(127, 140, 141)
 		
 		RequestPlayEvent:FireServer(NivelSeleccionado)
+		
+		-- LIBERAR CÁMARA E INICIAR JUEGO
+		if _G.StartGame then
+			task.wait(0.5) -- Pequeña pausa para sincronizar con el server spawneando
+			_G.StartGame()
+		else
+			warn("❌ _G.StartGame no encontrado en MenuCameraSystem")
+		end
 	end
 end)
 
@@ -200,6 +227,26 @@ end)
 if BotonesFrame.Visible then
 	CargarBotonesNiveles()
 	BloquearPanel()
+end
+
+-- EVENTO NIVEL COMPLETADO (Victory!)
+local LevelCompletedEvent = Remotes:WaitForChild("LevelCompleted", 5)
+if LevelCompletedEvent then
+	LevelCompletedEvent.OnClientEvent:Connect(function(nivelID, estrellas, puntos)
+		print("🏆 ¡Nivel " .. nivelID .. " Completado! " .. estrellas .. " Estrellas")
+		
+		task.wait(2) -- Esperar celebración en juego (si la hay)
+		
+		-- Volver al selector para mostrar progreso
+		local Bindables = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Bindables")
+		local OpenMenuEvent = Bindables:FindFirstChild("OpenMenu")
+		
+		if OpenMenuEvent then
+			OpenMenuEvent:Fire()
+		else
+			warn("❌ Evento OpenMenu no encontrado en Bindables")
+		end
+	end)
 end
 
 print("✅ Selector de Niveles (Cliente) Inicializado correctamente")

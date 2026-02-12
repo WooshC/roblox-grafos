@@ -130,8 +130,8 @@ pulseEvent.OnClientEvent:Connect(function(accion, p1, p2, esBidireccional)
 		
 		if not att1 or not att2 then return end
 		
-		local pos1 = att1.WorldPosition
-		local pos2 = att2.WorldPosition
+		local pos1 = att1:IsA("Attachment") and att1.WorldPosition or att1.Position
+		local pos2 = att2:IsA("Attachment") and att2.WorldPosition or att2.Position
 		
 		local particulas = {}
 		
