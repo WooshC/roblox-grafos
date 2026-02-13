@@ -417,7 +417,7 @@ if restaurarEvent then
 		print("🛑 Reinicio detectado, limpiando algoritmo")
 		ejecucionActual = ejecucionActual + 1
 		for nivelID, _ in pairs(estadoAlgoritmo) do
-			toggleVisualizacion(nivelID, true) -- Forzar ocultar
+			limpiarVisualizacionCompleta(nivelID) -- Corregido: Usar función existente
 			estadoAlgoritmo[nivelID] = nil
 		end
 	end)

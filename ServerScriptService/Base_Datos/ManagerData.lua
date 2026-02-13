@@ -9,6 +9,8 @@ local NivelUtils = require(ReplicatedStorage:WaitForChild("Utilidades"):WaitForC
 
 local MainStore = DataStoreService:GetDataStore("PlayerData_v4_Levels")
 
+local MainStore = DataStoreService:GetDataStore("PlayerData_v4_Levels")
+
 -- ============================================
 -- EVENTOS Y CARPETAS
 -- ============================================
@@ -92,11 +94,23 @@ local function setupLeaderstats(player)
 	print("📊 Leaderstats configurados para " .. player.Name)
 end
 
+-- 3. EVENTOS INTERNOS (Sync con InventoryManager)
+local Bindables = EventsFolder:FindFirstChild("Bindables") or Instance.new("Folder", EventsFolder)
+Bindables.Name = "Bindables"
+
+local GuardarInvEvent = Bindables:FindFirstChild("GuardarInventario") or Instance.new("BindableEvent", Bindables)
+GuardarInvEvent.Name = "GuardarInventario"
+
+GuardarInvEvent.Event:Connect(function(player, itemID)
+	_G.CollectItem(player, itemID)
+end)
+
 -- ============================================
 -- GESTIÓN DE DATOS (LOAD/SAVE)
 -- ============================================
 
 local function loadData(player)
+	-- ... (lógica existente de carga) ...
 	local success, data = pcall(function()
 		return MainStore:GetAsync("User_" .. player.UserId)
 	end)
@@ -107,11 +121,10 @@ local function loadData(player)
 	end
 
 	data = data or {}
-
 	if not data.Levels then data.Levels = {} end
 	if not data.Inventory then data.Inventory = {} end
 
-	-- Asegurar que todos los niveles existan
+	-- Asegurar niveles
 	for i = 0, 4 do
 		local sID = tostring(i)
 		if not data.Levels[sID] then
@@ -124,6 +137,15 @@ local function loadData(player)
 	end
 
 	SessionData[player.UserId] = data
+	
+	-- 🔥 SINCRONIZAR CON INVENTORY MANAGER (ReplicatedStorage)
+	-- Le pasamos la lista guardada para que la use en tiempo real
+	local ReplicatedStorage = game:GetService("ReplicatedStorage")
+	local InventoryManager = require(ReplicatedStorage.Utilidades.InventoryManager)
+	if InventoryManager then
+		InventoryManager.cargarInventario(player, data.Inventory)
+	end
+	
 	return data
 end
 

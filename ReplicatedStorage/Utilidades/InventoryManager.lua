@@ -36,22 +36,31 @@ end
 -- GESTIÓN DE INVENTARIO
 -- ============================================
 
---- Inicializa el inventario de un jugador
---- @param player Player
+--- Inicializa el inventario de un jugador (Vacío)
 function InventoryManager.inicializarJugador(player)
+	if not _inventarios[player.UserId] then
+		_inventarios[player.UserId] = {}
+	end
+end
+
+--- Carga inventario desde datos guardados (ManagerData)
+function InventoryManager.cargarInventario(player, listaItems)
 	_inventarios[player.UserId] = {}
-	print("🎒 Inventario inicializado para " .. player.Name)
+	if listaItems then
+		for _, itemID in ipairs(listaItems) do
+			_inventarios[player.UserId][itemID] = true
+		end
+	end
+	print("🎒 Inventario CARGADO para " .. player.Name .. ": " .. tostring(#listaItems or 0) .. " items.")
+	InventoryManager.sincronizarConCliente(player)
 end
 
 --- Limpia el inventario al salir
---- @param player Player
 function InventoryManager.limpiarJugador(player)
 	_inventarios[player.UserId] = nil
 end
 
---- Agrega un objeto al inventario
---- @param player Player
---- @param objetoID string - ID del objeto (ej: "Mapa", "Algoritmo_BFS")
+--- Agrega un objeto al inventario y PERSISTE
 function InventoryManager.agregarObjeto(player, objetoID)
 	local inventario = _inventarios[player.UserId]
 	if not inventario then
@@ -59,14 +68,26 @@ function InventoryManager.agregarObjeto(player, objetoID)
 		inventario = _inventarios[player.UserId]
 	end
 	
-	-- Agregar objeto
+	if inventario[objetoID] then return end -- Ya lo tiene
+	
+	-- Agregar objeto RAM
 	inventario[objetoID] = true
 	
 	-- Notificar al cliente
 	if _eventoInventario then
 		_eventoInventario:FireClient(player, objetoID, true)
-		print("✅ " .. player.Name .. " obtuvo: " .. objetoID)
 	end
+	
+	-- NOTIFICAR A MANAGERDATA (PERSISTENCIA)
+	local Bindables = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Bindables")
+	local eventoGuardar = Bindables:FindFirstChild("GuardarInventario")
+	if eventoGuardar then
+		eventoGuardar:Fire(player, objetoID)
+	else
+		warn("⚠️ No se encontró Bindable 'GuardarInventario', el objeto no se guardará permanentemente.")
+	end
+	
+	print("✅ " .. player.Name .. " obtuvo y guardó: " .. objetoID)
 end
 
 --- Verifica si el jugador tiene un objeto
