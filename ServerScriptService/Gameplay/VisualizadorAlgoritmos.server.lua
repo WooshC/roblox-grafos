@@ -44,11 +44,11 @@ local estadoAlgoritmo = {} -- { [nivelID] = { resultado = table, yaValidado = bo
 -- COLORES DEL ALGORITMO (Diferenciados)
 -- ============================================
 local COLORES = {
-	Explorando = Color3.fromRGB(255, 140, 0),  -- Naranja brillante
-	Actual = Color3.fromRGB(255, 69, 0),       -- Naranja rojizo
-	CaminoFinal = Color3.fromRGB(138, 43, 226),-- Violeta brillante
-	CableExplorando = "Deep orange",
-	CableFinal = "Royal purple"
+	Explorando = Color3.fromRGB(255, 165, 0),  -- Naranja (Visitado)
+	Actual = Color3.fromRGB(255, 0, 0),        -- Rojo (Nodo actual)
+	CaminoFinal = Color3.fromRGB(0, 255, 0),   -- Verde (Camino óptimo - como pidió el usuario para "todo verde")
+	CableExplorando = "Neon orange",           -- Naranja brillante
+	CableFinal = "Lime green"                  -- Verde brillante
 }
 
 -- Función Helper para encontrar la carpeta de postes

@@ -1,10 +1,5 @@
 --[[
-	MINIMAPA v10 - Cables en carpeta Conexiones
-	
-	✅ Los cables ahora están en Postes/Conexiones
-	✅ Colores automáticos según energización
-	✅ Nodos rojos brillantes cuando NO están energizados
-	✅ Estructura mucho más limpia y organizada
+	MINIMAPA v11 - Visualización Híbrida (Cables Fantasma + Reales)
 ]]
 
 local Players = game:GetService("Players")
@@ -16,7 +11,7 @@ local player = Players.LocalPlayer
 local LevelsConfig = require(ReplicatedStorage:WaitForChild("LevelsConfig"))
 
 -- CONFIGURACIÓN
-local ZOOM = 80
+local ZOOM = 140 
 local TAMANO_MAPA = 250
 
 -- 1. CREAR GUI
@@ -77,7 +72,7 @@ local carpetaPostesReal = nil
 local mapaSelectores = {}
 local listaCables = {}
 local listaParticulas = {}
-local cantidadCablesAnterior = 0 -- Para evitar spam de logs
+local cantidadCablesAnterior = 0 
 
 -- 2. FUNCIÓN PARA CARGAR SELECTORES
 local function cargarSelectores(nivelID)
@@ -95,7 +90,7 @@ local function cargarSelectores(nivelID)
 	end
 
 	local nivelModel = Workspace:FindFirstChild(config.Modelo)
-	-- FALLBACK: Si no encuentra "Nivel1_Basico", busca "Nivel1"
+	-- FALLBACK
 	if not nivelModel and string.match(config.Modelo, "Nivel(%d+)") then
 		local numNivel = string.match(config.Modelo, "Nivel(%d+)")
 		nivelModel = Workspace:FindFirstChild("Nivel" .. numNivel)
@@ -166,25 +161,34 @@ local function sincronizarSelectores()
 			local energizado = posteReal:GetAttribute("Energizado")
 			local nombre = posteReal.Name
 			
-			-- 🔥 SIEMPRE VISIBLE EN EL MINIMAPA
 			selectorClon.Transparency = 0
 			selectorClon.Material = Enum.Material.Neon
+			
+			local colorReal = selectorReal.Color
 
-			-- Lógica de color INDEPENDIENTE del mundo real
-			if nombre == "PostePanel" or nombre == "GeneradorCentral" then
-				selectorClon.Color = Color3.fromRGB(52, 152, 219) -- Azul (Generador)
-			elseif nombre == "PosteFinal" or nombre == "TorreControl" then
-				selectorClon.Color = Color3.fromRGB(255, 140, 0) -- Naranja (Destino)
-			elseif energizado == true then
-				selectorClon.Color = Color3.fromRGB(46, 204, 113) -- Verde (Energizado)
+			-- Lógica de color (PRIORIDAD: Visualizador de Algoritmo - Material Neon/Glass)
+			if selectorReal.Material == Enum.Material.Neon or selectorReal.Material == Enum.Material.Glass then
+				selectorClon.Color = colorReal
+				selectorClon.Material = Enum.Material.Neon -- Forzar Neon para visibilidad
 			else
-				selectorClon.Color = Color3.fromRGB(231, 76, 60) -- Rojo (Sin energía)
+				-- Lógica normal de energía
+				selectorClon.Material = Enum.Material.Neon
+				
+				if nombre == "PostePanel" or nombre == "GeneradorCentral" then
+					selectorClon.Color = Color3.fromRGB(52, 152, 219) 
+				elseif nombre == "PosteFinal" or nombre == "TorreControl" then
+					selectorClon.Color = Color3.fromRGB(255, 140, 0)
+				elseif energizado == true then
+					selectorClon.Color = Color3.new(0, 1, 0) -- Verde (Energizado)
+				else
+					selectorClon.Color = Color3.fromRGB(231, 76, 60) -- Rojo (Sin energía)
+				end
 			end
 		end
 	end
 end
 
--- 4. ✅ FUNCIÓN CORREGIDA PARA CLONAR CABLES (busca en carpeta Conexiones)
+-- 4. FUNCIÓN PARA ACTUALIZAR CABLES (Híbrido)
 local function actualizarCables()
 	-- Limpiar cables anteriores
 	for _, cable in ipairs(listaCables) do
@@ -196,94 +200,121 @@ local function actualizarCables()
 
 	if not carpetaPostesReal then return end
 
-	-- ✅ BUSCAR en carpeta Conexiones
-	local carpetaConexiones = carpetaPostesReal:FindFirstChild("Conexiones")
-	if not carpetaConexiones then 
-		-- Si no hay carpeta, no hay cables
-		return 
+	-- Calculamos el color "base" si está energizado (para cables normales)
+	local config = LevelsConfig[nivelActualID] or LevelsConfig[0]
+	local nombreFin = config.NodoFin or "PosteFinal"
+	local posteFin = carpetaPostesReal:FindFirstChild(nombreFin) or carpetaPostesReal.Parent:FindFirstChild(nombreFin)
+	local finalEnergizado = posteFin and posteFin:GetAttribute("Energizado")
+	local colorBaseEnergizado = finalEnergizado and Color3.new(0, 1, 0) or Color3.fromRGB(0, 162, 255)
+
+	-- Helper para getKey
+	local function getCableKey(att0, att1)
+		if not att0 or not att1 then return nil end
+		local p0 = att0.Parent; local p1 = att1.Parent
+		if not p0 or not p1 then return nil end
+		local m0 = p0:FindFirstAncestorWhichIsA("Model")
+		local m1 = p1:FindFirstAncestorWhichIsA("Model")
+		if m0 and m1 then
+			return (m0.Name < m1.Name) and (m0.Name.."_"..m1.Name) or (m1.Name.."_"..m0.Name)
+		end
+		return nil
 	end
 
-	for _, cable in ipairs(carpetaConexiones:GetChildren()) do
-		if cable:IsA("RopeConstraint") and cable.Visible then
-			local a0 = cable.Attachment0
-			local a1 = cable.Attachment1
+	-- 1. MAPEAR CABLES FANTASMA (Algoritmo)
+	local mapaFantasmas = {} -- Key -> RopeConstraint object
+	for _, obj in ipairs(workspace:GetChildren()) do
+		if obj.Name == "CableFantasmaAlgoritmo" and obj:IsA("RopeConstraint") and obj.Visible then
+			local key = getCableKey(obj.Attachment0, obj.Attachment1)
+			if key then
+				mapaFantasmas[key] = obj
+			end
+		end
+	end
 
-			if a0 and a1 then
-				local part0 = a0.Parent
-				local part1 = a1.Parent
+	-- 2. DIBUJAR CABLES REALES (Con prioridad Fantasma)
+	local carpetaConexiones = carpetaPostesReal:FindFirstChild("Conexiones") 
+		or carpetaPostesReal.Parent:FindFirstChild("Conexiones")
+		or carpetaPostesReal:FindFirstChild("Connections")
 
-				if part0 and part1 then
-					local modelA = part0:FindFirstAncestorWhichIsA("Model")
-					local modelB = part1:FindFirstAncestorWhichIsA("Model")
-
-					if modelA and modelB and 
-						modelA.Parent == carpetaPostesReal and 
-						modelB.Parent == carpetaPostesReal then
-
-						-- Buscar selectores clonados
-						local refA = mapaSelectores[modelA.Name]
-						local refB = mapaSelectores[modelB.Name]
-
-						if refA and refB then
-							local selectorClonA = refA.Clon
-							local selectorClonB = refB.Clon
-							local posteA = refA.Poste
-							local posteB = refB.Poste
-
-							-- Crear attachments en los selectores clonados
-							local attA = selectorClonA:FindFirstChildOfClass("Attachment")
-							if not attA then
-								attA = Instance.new("Attachment")
-								attA.Parent = selectorClonA
-							end
-
-							local attB = selectorClonB:FindFirstChildOfClass("Attachment")
-							if not attB then
-								attB = Instance.new("Attachment")
-								attB.Parent = selectorClonB
-							end
-
-							-- ✅ SOLUCIÓN DEFINITIVA: USAR PARTES FÍSICAS (Siempre se ven)
-							local dist = (attA.WorldPosition - attB.WorldPosition).Magnitude
-							local centro = (attA.WorldPosition + attB.WorldPosition) / 2
-							
-							local cablePart = Instance.new("Part")
-							cablePart.Name = "CableVisualPart"
-							cablePart.Anchored = true
-							cablePart.CanCollide = false
-							cablePart.CastShadow = false
+	if carpetaConexiones then
+		for _, cable in ipairs(carpetaConexiones:GetChildren()) do
+			if cable:IsA("RopeConstraint") and cable.Visible then
+				local attA = cable.Attachment0
+				local attB = cable.Attachment1
+				
+				if attA and attB then
+					local key = getCableKey(attA, attB)
+					if key then
+						local dist = (attA.WorldPosition - attB.WorldPosition).Magnitude
+						local centro = (attA.WorldPosition + attB.WorldPosition) / 2
+						
+						local cablePart = Instance.new("Part")
+						cablePart.Name = "CableVisualPart"
+						cablePart.Anchored = true
+						cablePart.CanCollide = false
+						cablePart.CastShadow = false
+						cablePart.Material = Enum.Material.Neon
+						cablePart.Size = Vector3.new(2, 2, dist)
+						cablePart.CFrame = CFrame.lookAt(centro, attB.WorldPosition)
+						
+						-- DECIDIR COLOR
+						if mapaFantasmas[key] then
+							-- PRIORIDAD: Fantasma
+							local fantasma = mapaFantasmas[key]
+							cablePart.Color = fantasma.Color.Color 
 							cablePart.Material = Enum.Material.Neon
-							cablePart.Size = Vector3.new(2, 2, dist) -- Grosor exagerado para visibilidad
+							mapaFantasmas[key] = nil -- Consumir
+						else
+							-- Lógica normal
+							local pA = attA.Parent:FindFirstAncestorWhichIsA("Model")
+							local pB = attB.Parent:FindFirstAncestorWhichIsA("Model")
+							local eA = pA and pA:GetAttribute("Energizado")
+							local eB = pB and pB:GetAttribute("Energizado")
 							
-							-- Orientar la parte hacia el destino
-							cablePart.CFrame = CFrame.lookAt(centro, attB.WorldPosition)
-							
-							-- ✅ DETERMINAR COLOR BASADO EN ENERGIZACIÓN
-							local energizadoA = posteA:GetAttribute("Energizado")
-							local energizadoB = posteB:GetAttribute("Energizado")
-							
-							if energizadoA == true and energizadoB == true then
-								-- Ambos energizados -> Verde Neón
-								cablePart.Color = Color3.fromRGB(46, 255, 113)
-								cablePart.Transparency = 0 -- Totalmente visible
+							if eA and eB then
+								cablePart.Color = colorBaseEnergizado
 							else
-								-- Sin energía -> Gris Oscuro
 								cablePart.Color = Color3.fromRGB(80, 80, 80)
-								cablePart.Transparency = 0
 							end
-
-							cablePart.Parent = worldModel
-							table.insert(listaCables, cablePart)
 						end
+						
+						cablePart.Transparency = 0
+						cablePart.Parent = worldModel
+						table.insert(listaCables, cablePart)
 					end
 				end
 			end
 		end
 	end
 
-	-- Solo imprimir si cambió la cantidad de cables
+	-- 3. DIBUJAR FANTASMAS RESTANTES
+	for key, fantasma in pairs(mapaFantasmas) do
+		local attA = fantasma.Attachment0
+		local attB = fantasma.Attachment1
+		if attA and attB then
+			local dist = (attA.WorldPosition - attB.WorldPosition).Magnitude
+			local centro = (attA.WorldPosition + attB.WorldPosition) / 2
+			
+			local cablePart = Instance.new("Part")
+			cablePart.Name = "CableFantasmaVisual"
+			cablePart.Anchored = true
+			cablePart.CanCollide = false
+			cablePart.CastShadow = false
+			cablePart.Material = Enum.Material.Neon
+			cablePart.Size = Vector3.new(2.5, 2.5, dist)
+			cablePart.CFrame = CFrame.lookAt(centro, attB.WorldPosition)
+			
+			cablePart.Color = fantasma.Color.Color
+			cablePart.Transparency = 0
+			
+			cablePart.Parent = worldModel
+			table.insert(listaCables, cablePart)
+		end
+	end
+
+	-- Log opcional
 	if #listaCables ~= cantidadCablesAnterior then
-		print("🔌 [MINIMAPA] Cables actualizados: " .. #listaCables)
+		-- print("🔌 [MINIMAPA] Cables actualizados: " .. #listaCables)
 		cantidadCablesAnterior = #listaCables
 	end
 end
@@ -312,9 +343,9 @@ local function actualizarParticulas()
 	end
 end
 
--- Escuchar evento de volver al menú (para ocultar minimapa)
+-- LISTENERS
 task.spawn(function()
-	local Events = game:GetService("ReplicatedStorage"):WaitForChild("Events", 10)
+	local Events = ReplicatedStorage:WaitForChild("Events", 10)
 	if not Events then return end
 	local Bindables = Events:WaitForChild("Bindables", 10)
 	if not Bindables then return end
@@ -330,7 +361,6 @@ task.spawn(function()
 	end
 end)
 
--- 6. DETECTAR CAMBIO DE NIVEL
 player:GetAttributeChangedSignal("CurrentLevelID"):Connect(function()
 	local levelID = player:GetAttribute("CurrentLevelID")
 	if levelID and levelID >= 0 then
@@ -348,7 +378,7 @@ player:GetAttributeChangedSignal("CurrentLevelID"):Connect(function()
 	end
 end)
 
--- Activar si ya está en un nivel
+-- INIT CHECK
 local currentLevel = player:GetAttribute("CurrentLevelID")
 if currentLevel and currentLevel >= 0 then
 	nivelActualID = currentLevel
@@ -358,7 +388,7 @@ if currentLevel and currentLevel >= 0 then
 	screenGui.Enabled = true
 end
 
--- 7. UPDATE LOOP
+-- UPDATE LOOP
 local tiempoActualizacionCables = 0
 local tiempoActualizacionParticulas = 0
 
@@ -388,4 +418,4 @@ RunService.RenderStepped:Connect(function(dt)
 	end
 end)
 
-print("✅ Minimapa v10 (Cables en Conexiones) Listo")
+print("✅ Minimapa v11 (Híbrido) Listo")
