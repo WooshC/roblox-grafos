@@ -1,8 +1,8 @@
 local LevelsConfig = {}
 
--- ==========================================
+-- ============================================
 -- NIVEL 0: TUTORIAL BÁSICO
--- ==========================================
+-- ============================================
 LevelsConfig[0] = {
 	Nombre = "Campo de Entrenamiento",
 	DescripcionCorta = "Aprende los conceptos básicos de conexión.",
@@ -71,27 +71,51 @@ LevelsConfig[0] = {
 		}
 	},
 
-
 	Objetos = {
 		{ ID = "Mapa", Nombre = "Mapa de Villa Conexa", Descripcion = "Desbloquea la vista de mapa", Icono = "🗺️", Modelo = "MapaModel" },
 		{ ID = "Algoritmo_BFS", Nombre = "Manual de BFS", Descripcion = "Desbloquea el algoritmo BFS", Icono = "🧠", Modelo = "AlgoritmoBFS" },
 		{ ID = "Algoritmo_Dijkstra", Nombre = "Manual de Dijkstra", Descripcion = "Desbloquea el algoritmo Dijkstra", Icono = "⚡", Modelo = "AlgoritmoDijkstra" }
 	},
 
+	-- ============================================
+	-- NODOS CON ALIASES INTEGRADOS
+	-- ============================================
 	Nodos = {
-		PostePanel = { Zona = nil, Alias = "Generador" },
-		Poste1 = { Zona = "Zona_luz_1", Alias = "Torre 1" },
-		Poste2 = { Zona = "Zona_luz_1", Alias = "Torre 2" },
-		Poste3 = { Zona = "Zona_luz_1", Alias = "Torre 3" },
-		Poste4 = { Zona = "Zona_luz_1", Alias = "Torre 4" },
-		Poste5 = { Zona = "Zona_luz_1", Alias = "Torre 5" },
-		PosteFinal = { Zona = "Zona_luz_1", Alias = "Torre Control" },
-		toma_corriente = { Zona = "Zona_luz_2", Alias = "Toma Corriente" }
+		PostePanel = { Zona = nil, Alias = "🔌 Generador" },
+		Poste1 = { Zona = "Zona_luz_1", Alias = "🏢 Torre 1" },
+		Poste2 = { Zona = "Zona_luz_1", Alias = "🏢 Torre 2" },
+		Poste3 = { Zona = "Zona_luz_1", Alias = "🏢 Torre 3" },
+		Poste4 = { Zona = "Zona_luz_1", Alias = "🏢 Torre 4" },
+		Poste5 = { Zona = "Zona_luz_1", Alias = "🏢 Torre 5" },
+		PosteFinal = { Zona = "Zona_luz_1", Alias = "🚩 Torre Control" },
+		toma_corriente = { Zona = "Zona_luz_2", Alias = "💡 Toma Corriente" }
 	},
 
+	-- ============================================
+	-- RETROCOMPATIBILIDAD (Viejo formato)
+	-- ============================================
+	NombresPostes = {
+		["PostePanel"] = "Generador",
+		["PosteFinal"] = "Torre Control",
+		["Poste1"] = "Torre 1",
+		["Poste2"] = "Torre 2",
+		["Poste3"] = "Torre 3",
+		["Poste5"] = "Torre 5",
+		["toma_corriente"] = "Toma Corriente"
+	},
+
+	-- ============================================
+	-- CONFIGURACIÓN DE ZONAS
+	-- ============================================
 	Zonas = {
-		["Zona_luz_1"] = { Modo = "ALL", Descripcion = "Sector principal: Torre de Control" },
-		["Zona_luz_2"] = { Modo = "ANY", Descripcion = "Sector secundario: Puerta" }
+		["Zona_luz_1"] = {
+			Modo = "ALL",
+			Descripcion = "Sector principal: Torre de Control"
+		},
+		["Zona_luz_2"] = {
+			Modo = "ANY",
+			Descripcion = "Sector secundario: Puerta"
+		}
 	}
 }
 
@@ -123,7 +147,6 @@ LevelsConfig[1] = {
 		["Poste6"] = {"Poste2"}
 	},
 
-	-- Agregar misiones también para este nivel
 	Misiones = {
 		{
 			ID = 1,
@@ -142,6 +165,33 @@ LevelsConfig[1] = {
 			Texto = "Ahorra presupuesto: Mantén al menos $3000",
 			Tipo = "PRESUPUESTO_RESTANTE",
 			Parametros = { Cantidad = 3000 }
+		}
+	},
+
+	-- ============================================
+	-- NODOS CON ALIASES
+	-- ============================================
+	Nodos = {
+		PostePanel = { Zona = nil, Alias = "🔌 Generador Principal" },
+		Poste1 = { Zona = "Zona_Residencial", Alias = "🏠 Torre Residencial 1" },
+		Poste2 = { Zona = "Zona_Residencial", Alias = "🏠 Torre Residencial 2" },
+		Poste6 = { Zona = "Zona_Residencial", Alias = "🚩 Torre Distribuidora" }
+	},
+
+	-- ============================================
+	-- RETROCOMPATIBILIDAD
+	-- ============================================
+	NombresPostes = {
+		["PostePanel"] = "Generador Principal",
+		["Poste1"] = "Torre Residencial 1",
+		["Poste2"] = "Torre Residencial 2",
+		["Poste6"] = "Torre Distribuidora"
+	},
+
+	Zonas = {
+		["Zona_Residencial"] = {
+			Modo = "ALL",
+			Descripcion = "Zona de casas residenciales"
 		}
 	},
 
@@ -180,6 +230,23 @@ LevelsConfig[2] = {
 			Tipo = "CIRCUITO_CERRADO",
 			Parametros = {}
 		}
+	},
+
+	Nodos = {
+		GeneradorCentral = { Zona = nil, Alias = "⚙️ Generador Central" },
+		SubestacionNorte = { Zona = "Zona_Norte", Alias = "🚩 Subestación Norte" }
+	},
+
+	NombresPostes = {
+		["GeneradorCentral"] = "Generador Central",
+		["SubestacionNorte"] = "Subestación Norte"
+	},
+
+	Zonas = {
+		["Zona_Norte"] = {
+			Modo = "ALL",
+			Descripcion = "Distrito comercial norte"
+		}
 	}
 }
 
@@ -213,6 +280,23 @@ LevelsConfig[3] = {
 			Tipo = "CIRCUITO_CERRADO",
 			Parametros = {}
 		}
+	},
+
+	Nodos = {
+		PlantaNuclear = { Zona = nil, Alias = "⚛️ Planta Nuclear" },
+		FabricaAceros = { Zona = "Zona_Industrial", Alias = "🏭 Fábrica de Aceros" }
+	},
+
+	NombresPostes = {
+		["PlantaNuclear"] = "Planta Nuclear",
+		["FabricaAceros"] = "Fábrica de Aceros"
+	},
+
+	Zonas = {
+		["Zona_Industrial"] = {
+			Modo = "ALL",
+			Descripcion = "Complejo industrial"
+		}
 	}
 }
 
@@ -245,6 +329,23 @@ LevelsConfig[4] = {
 			Texto = "Completa el circuito",
 			Tipo = "CIRCUITO_CERRADO",
 			Parametros = {}
+		}
+	},
+
+	Nodos = {
+		CentralHidro = { Zona = nil, Alias = "💧 Central Hidroeléctrica" },
+		Rascacielos = { Zona = "Centro_Financiero", Alias = "🏢 Torre Rascacielos" }
+	},
+
+	NombresPostes = {
+		["CentralHidro"] = "Central Hidroeléctrica",
+		["Rascacielos"] = "Torre Rascacielos"
+	},
+
+	Zonas = {
+		["Centro_Financiero"] = {
+			Modo = "ALL",
+			Descripcion = "Centro financiero de la metrópolis"
 		}
 	}
 }
