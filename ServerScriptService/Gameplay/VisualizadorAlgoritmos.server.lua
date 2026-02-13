@@ -289,17 +289,29 @@ local function validarRutaJugador(nivelID, player, resultadoAlgoritmo)
 	end
 
 	-- ========================================
-	-- 2. DEFINIR EL SET DE REFERENCIA (LO QUE EL ALGORITMO EXPLORÓ)
+	-- 2. DEFINIR EL SET DE REFERENCIA (SOLO CAMINO ÓPTIMO SI EXISTE)
 	-- ========================================
-	-- El jugador debe replicar físicamente todo lo que el algoritmo "toca".
 	local cablesObjetivo = {} -- { ["NodoA_NodoB"] = true }
 	
-	for _, paso in ipairs(resultadoAlgoritmo.Pasos or {}) do
-		if paso.Tipo == "Explorando" and paso.Nodo and paso.Origen then
-			local clave = paso.Nodo < paso.Origen 
-				and (paso.Nodo .. "_" .. paso.Origen) 
-				or (paso.Origen .. "_" .. paso.Nodo)
+	if resultadoAlgoritmo.CaminoFinal and #resultadoAlgoritmo.CaminoFinal > 1 then
+		-- Prioridad: Validar solo el camino final (para Dijkstra/BFS óptimo)
+		local camino = resultadoAlgoritmo.CaminoFinal
+		for i = 1, #camino - 1 do
+			local n1 = camino[i]
+			local n2 = camino[i+1]
+			
+			local clave = n1 < n2 and (n1 .. "_" .. n2) or (n2 .. "_" .. n1)
 			cablesObjetivo[clave] = true
+		end
+	else
+		-- Fallback: Validar toda la exploración (Modo antiguo)
+		for _, paso in ipairs(resultadoAlgoritmo.Pasos or {}) do
+			if paso.Tipo == "Explorando" and paso.Nodo and paso.Origen then
+				local clave = paso.Nodo < paso.Origen 
+					and (paso.Nodo .. "_" .. paso.Origen) 
+					or (paso.Origen .. "_" .. paso.Nodo)
+				cablesObjetivo[clave] = true
+			end
 		end
 	end
 
@@ -447,6 +459,11 @@ evento.OnServerEvent:Connect(function(player, algoritmo, nodoInicio, nodoFin, ni
 	-- CAMINO FINAL
 	if resultado.CaminoFinal and #resultado.CaminoFinal > 0 then
 		print("🏁 Camino óptimo encontrado!")
+		
+		-- LIMPIAR EXPLORACIÓN PREVIA (Visualmente)
+		-- Para que solo quede el camino final resaltado
+		limpiarVisualizacionCompleta(nivelID) 
+		task.wait(0.5)
 
 		local camino = resultado.CaminoFinal
 		for i = 1, #camino do
