@@ -243,29 +243,37 @@ local function actualizarCables()
 								attB.Parent = selectorClonB
 							end
 
-							-- Crear cable clonado
-							local cableClon = Instance.new("RopeConstraint")
-							cableClon.Attachment0 = attA
-							cableClon.Attachment1 = attB
-							cableClon.Length = (attA.WorldPosition - attB.WorldPosition).Magnitude
-							cableClon.Visible = true
-							cableClon.Thickness = 0.5
-
+							-- ✅ SOLUCIÓN DEFINITIVA: USAR PARTES FÍSICAS (Siempre se ven)
+							local dist = (attA.WorldPosition - attB.WorldPosition).Magnitude
+							local centro = (attA.WorldPosition + attB.WorldPosition) / 2
+							
+							local cablePart = Instance.new("Part")
+							cablePart.Name = "CableVisualPart"
+							cablePart.Anchored = true
+							cablePart.CanCollide = false
+							cablePart.CastShadow = false
+							cablePart.Material = Enum.Material.Neon
+							cablePart.Size = Vector3.new(2, 2, dist) -- Grosor exagerado para visibilidad
+							
+							-- Orientar la parte hacia el destino
+							cablePart.CFrame = CFrame.lookAt(centro, attB.WorldPosition)
+							
 							-- ✅ DETERMINAR COLOR BASADO EN ENERGIZACIÓN
 							local energizadoA = posteA:GetAttribute("Energizado")
 							local energizadoB = posteB:GetAttribute("Energizado")
 							
 							if energizadoA == true and energizadoB == true then
-								-- Ambos energizados -> verde
-								cableClon.Color = BrickColor.new("Lime green")
+								-- Ambos energizados -> Verde Neón
+								cablePart.Color = Color3.fromRGB(46, 255, 113)
+								cablePart.Transparency = 0 -- Totalmente visible
 							else
-								-- Al menos uno sin energía -> negro
-								cableClon.Color = BrickColor.new("Black")
+								-- Sin energía -> Gris Oscuro
+								cablePart.Color = Color3.fromRGB(80, 80, 80)
+								cablePart.Transparency = 0
 							end
 
-							cableClon.Parent = worldModel
-
-							table.insert(listaCables, cableClon)
+							cablePart.Parent = worldModel
+							table.insert(listaCables, cablePart)
 						end
 					end
 				end
