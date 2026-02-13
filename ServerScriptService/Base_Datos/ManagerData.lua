@@ -153,14 +153,21 @@ local function saveData(player)
 	local data = SessionData[player.UserId]
 	if not data then return end
 
+	-- Log de depuración para inventario
+	if data.Inventory then
+		print("💾 Guardando datos de " .. player.Name .. " | Inventario: " .. table.concat(data.Inventory, ", "))
+	else
+		warn("⚠️ Inventario vacío o nil al guardar para " .. player.Name)
+	end
+
 	local success, err = pcall(function()
 		MainStore:SetAsync("User_" .. player.UserId, data)
 	end)
 
 	if success then
-		print("💾 Progreso guardado para " .. player.Name)
+		print("✅ PROGRESO GUARDADO EXITOSAMENTE en DataStore para " .. player.Name)
 	else
-		warn("❌ Error guardando datos: " .. tostring(err))
+		warn("❌ ERROR CRÍTICO guardando datos: " .. tostring(err))
 	end
 end
 

@@ -91,10 +91,12 @@ lblPuntaje.Visible = false -- Se mostrará en gameplay
 -- ============================================
 -- DETECTOR DE MENÚ (Ocultar UI en menú)
 -- ============================================
-local mapaActivo = false -- MOVED UP
-local misionesActivo = false -- MOVED UP
+local mapaActivo = false 
+local misionesActivo = false 
+local tieneMapa = false -- NUEVO: Estado de posesión
+local tieneAlgo = false -- NUEVO: Estado de posesión
 
-local enMenu = true -- Por defecto empezamos en menú
+local enMenu = true 
 local botonesGameplay = {btnReiniciar, btnMapa, btnAlgo, btnMisiones, btnMatriz, btnFinalizar, lblPuntaje}
 
 local function actualizarVisibilidadUI(estaEnMenu)
@@ -105,19 +107,17 @@ local function actualizarVisibilidadUI(estaEnMenu)
 		if estaEnMenu then
 			btn.Visible = false
 		else
-			-- Restaurar visibilidad según su estado lógico
+			-- Restaurar visibilidad según su estado lógico Y posesión
 			if btn == btnFinalizar then
-				-- Mantener oculto hasta que se active por validación
-				btn.Visible = false
-			elseif btn == btnMapa or btn == btnAlgo then
-				-- Se controlan por inventario
-				-- Mantener su estado actual
+				btn.Visible = false -- Se activa por evento separado
+			elseif btn == btnMapa then
+				btn.Visible = tieneMapa
+			elseif btn == btnAlgo then
+				btn.Visible = tieneAlgo
 			elseif btn == lblPuntaje then
-				-- Label de puntaje siempre visible en gameplay
 				btn.Visible = true
 			else
-				-- Otros botones siempre visibles en gameplay
-				btn.Visible = not estaEnMenu
+				btn.Visible = true
 			end
 		end
 	end
@@ -381,9 +381,11 @@ end
 if eventoInventario then
 	eventoInventario.OnClientEvent:Connect(function(objetoID, tiene)
 		print("🎒 Cliente Inventario Update: " .. objetoID .. " = " .. tostring(tiene))
-		
+
 		if objetoID == "Mapa" then
-			btnMapa.Visible = tiene
+			tieneMapa = tiene
+			btnMapa.Visible = tiene and (not enMenu)
+			
 			if tiene then
 				-- Animación de notificación
 				local notif = Instance.new("TextLabel")
@@ -399,14 +401,16 @@ if eventoInventario then
 				game.Debris:AddItem(notif, 3)
 			end
 			
-		elseif objetoID == "Tablet" then
-			btnAlgo.Visible = tiene
+		elseif objetoID == "Tablet" or objetoID == "Algoritmo_BFS" or objetoID == "Algoritmo_Dijkstra" then
+			tieneAlgo = tiene
+			btnAlgo.Visible = tiene and (not enMenu)
+			
 			if tiene then
 				-- Animación notificación
 				local notif = Instance.new("TextLabel")
 				notif.Size = UDim2.new(0, 300, 0, 50)
 				notif.Position = UDim2.new(0.5, -150, 0.2, 60) -- Un poco más abajo
-				notif.Text = "¡Manual BFS Obtenido!"
+				notif.Text = "¡Manual Algoritmo Obtenido!"
 				notif.BackgroundColor3 = Color3.fromRGB(155, 89, 182)
 				notif.TextColor3 = Color3.new(1,1,1)
 				notif.Font = Enum.Font.FredokaOne
@@ -1139,4 +1143,30 @@ task.spawn(function()
 end)
 
 print("✅ ClienteUI V3 Cargado: Funcionalidad completa de Mapa yAlgoritmos")
+
+-- ============================================
+-- 🔄 RECUPERAR INVENTARIO (Persistencia al cambiar nivel)
+-- ============================================
+task.spawn(function()
+	task.wait(2) -- Esperar a que todo cargue
+	local funcGetInv = Remotes:WaitForChild("GetInventory", 5)
+	if funcGetInv then
+		print("🎒 Solicitando inventario persistente...")
+		local inventario = funcGetInv:InvokeServer()
+		
+		if inventario then
+			for itemID, _ in pairs(inventario) do
+				print("   - Recuperado: " .. itemID)
+				
+				if itemID == "Mapa" then
+					tieneMapa = true
+				elseif itemID == "Tablet" or itemID == "Algoritmo_BFS" or itemID == "Algoritmo_Dijkstra" then
+					tieneAlgo = true
+				end
+			end
+			-- Sincronizar UI con el estado recuperado
+			actualizarVisibilidadUI(enMenu)
+		end
+	end
+end)
 

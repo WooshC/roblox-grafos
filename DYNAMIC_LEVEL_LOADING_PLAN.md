@@ -17,7 +17,7 @@ En lugar de tener todos los niveles en `Workspace`, los moveremos a una carpeta 
   ```
 
 ### B. Ciclo de Vida del Nivel (ControladorEscenario)
-El script existente `ControladorEscenario.server.lua` (o `ManagerData`) será responsable de:
+El script existente `ManagerData` será responsable de:
 1. **Limpiar**: Destruir el nivel actual del `Workspace` cuando el jugador se vaya o cambie.
 2. **Clonar**: Tomar el modelo del nivel solicitado desde `ServerStorage`.
 3. **Posicionar**: Colocar el clon en el `Workspace`.

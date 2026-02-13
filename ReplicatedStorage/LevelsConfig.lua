@@ -74,7 +74,8 @@ LevelsConfig[0] = {
 
 	Objetos = {
 		{ ID = "Mapa", Nombre = "Mapa de Villa Conexa", Descripcion = "Desbloquea la vista de mapa", Icono = "🗺️", Modelo = "MapaModel" },
-		{ ID = "Algoritmo_BFS", Nombre = "Manual de BFS", Descripcion = "Desbloquea el algoritmo BFS", Icono = "🧠", Modelo = "AlgoritmoBFS" }
+		{ ID = "Algoritmo_BFS", Nombre = "Manual de BFS", Descripcion = "Desbloquea el algoritmo BFS", Icono = "🧠", Modelo = "AlgoritmoBFS" },
+		{ ID = "Algoritmo_Dijkstra", Nombre = "Manual de Dijkstra", Descripcion = "Desbloquea el algoritmo Dijkstra", Icono = "⚡", Modelo = "AlgoritmoDijkstra" }
 	},
 
 	Nodos = {
@@ -105,7 +106,7 @@ LevelsConfig[1] = {
 	Descripcion = "Los residentes necesitan luz. Usa el algoritmo BFS para encontrar la ruta más corta y ahorrar dinero.",
 	DineroInicial = 5000,
 	CostoPorMetro = 20,
-	Algoritmo = "BFS",
+	Algoritmo = "Dijkstra",
 	NodoInicio = "PostePanel",
 	NodoFin = "Poste6",
 
@@ -142,6 +143,10 @@ LevelsConfig[1] = {
 			Tipo = "PRESUPUESTO_RESTANTE",
 			Parametros = { Cantidad = 3000 }
 		}
+	},
+
+	Objetos = {
+		{ ID = "Algoritmo_Dijkstra", Nombre = "Manual de Dijkstra", Descripcion = "Aprende a encontrar el camino más barato", Icono = "⚡", Modelo = "AlgoritmoDijkstra" }
 	}
 }
 

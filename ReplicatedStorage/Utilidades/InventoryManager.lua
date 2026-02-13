@@ -30,6 +30,17 @@ function InventoryManager.init()
 			return InventoryManager.tieneObjeto(player, objetoID)
 		end
 	end
+
+	-- Función para obtener TODO el inventario
+	local funcGetFull = Remotes:FindFirstChild("GetInventory")
+	if not funcGetFull then
+		funcGetFull = Instance.new("RemoteFunction", Remotes)
+		funcGetFull.Name = "GetInventory"
+	end
+	
+	funcGetFull.OnServerInvoke = function(player)
+		return InventoryManager.obtenerInventario(player)
+	end
 end
 
 -- ============================================

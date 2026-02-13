@@ -95,6 +95,12 @@ local function cargarSelectores(nivelID)
 	end
 
 	local nivelModel = Workspace:FindFirstChild(config.Modelo)
+	-- FALLBACK: Si no encuentra "Nivel1_Basico", busca "Nivel1"
+	if not nivelModel and string.match(config.Modelo, "Nivel(%d+)") then
+		local numNivel = string.match(config.Modelo, "Nivel(%d+)")
+		nivelModel = Workspace:FindFirstChild("Nivel" .. numNivel)
+	end
+	
 	if not nivelModel then
 		warn("⚠️ [MINIMAPA] Modelo no encontrado: " .. config.Modelo)
 		return
@@ -156,19 +162,23 @@ local function sincronizarSelectores()
 		local selectorClon = refs.Clon
 		local posteReal = refs.Poste
 
-		if selectorReal and selectorReal.Parent and selectorClon and selectorClon.Parent and posteReal then
+		if selectorReal and selectorClon and posteReal then
 			local energizado = posteReal:GetAttribute("Energizado")
+			local nombre = posteReal.Name
+			
+			-- 🔥 SIEMPRE VISIBLE EN EL MINIMAPA
+			selectorClon.Transparency = 0
+			selectorClon.Material = Enum.Material.Neon
 
-			if energizado == true then
-				selectorClon.Color = selectorReal.Color
-				selectorClon.Material = Enum.Material.Neon
+			-- Lógica de color INDEPENDIENTE del mundo real
+			if nombre == "PostePanel" or nombre == "GeneradorCentral" then
+				selectorClon.Color = Color3.fromRGB(52, 152, 219) -- Azul (Generador)
+			elseif nombre == "PosteFinal" or nombre == "TorreControl" then
+				selectorClon.Color = Color3.fromRGB(255, 140, 0) -- Naranja (Destino)
+			elseif energizado == true then
+				selectorClon.Color = Color3.fromRGB(46, 204, 113) -- Verde (Energizado)
 			else
-				selectorClon.Color = Color3.fromRGB(231, 76, 60)
-				selectorClon.Material = Enum.Material.Neon
-			end
-
-			if selectorClon.Transparency ~= selectorReal.Transparency then
-				selectorClon.Transparency = selectorReal.Transparency
+				selectorClon.Color = Color3.fromRGB(231, 76, 60) -- Rojo (Sin energía)
 			end
 		end
 	end
