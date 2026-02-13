@@ -95,7 +95,7 @@ local function cargarSelectores(nivelID)
 		local numNivel = string.match(config.Modelo, "Nivel(%d+)")
 		nivelModel = Workspace:FindFirstChild("Nivel" .. numNivel)
 	end
-	
+
 	if not nivelModel then
 		warn("⚠️ [MINIMAPA] Modelo no encontrado: " .. config.Modelo)
 		return
@@ -160,10 +160,10 @@ local function sincronizarSelectores()
 		if selectorReal and selectorClon and posteReal then
 			local energizado = posteReal:GetAttribute("Energizado")
 			local nombre = posteReal.Name
-			
+
 			selectorClon.Transparency = 0
 			selectorClon.Material = Enum.Material.Neon
-			
+
 			local colorReal = selectorReal.Color
 
 			-- Lógica de color (PRIORIDAD: Visualizador de Algoritmo - Material Neon/Glass)
@@ -173,7 +173,7 @@ local function sincronizarSelectores()
 			else
 				-- Lógica normal de energía
 				selectorClon.Material = Enum.Material.Neon
-				
+
 				if nombre == "PostePanel" or nombre == "GeneradorCentral" then
 					selectorClon.Color = Color3.fromRGB(52, 152, 219) 
 				elseif nombre == "PosteFinal" or nombre == "TorreControl" then
@@ -241,13 +241,13 @@ local function actualizarCables()
 			if cable:IsA("RopeConstraint") and cable.Visible then
 				local attA = cable.Attachment0
 				local attB = cable.Attachment1
-				
+
 				if attA and attB then
 					local key = getCableKey(attA, attB)
 					if key then
 						local dist = (attA.WorldPosition - attB.WorldPosition).Magnitude
 						local centro = (attA.WorldPosition + attB.WorldPosition) / 2
-						
+
 						local cablePart = Instance.new("Part")
 						cablePart.Name = "CableVisualPart"
 						cablePart.Anchored = true
@@ -256,7 +256,7 @@ local function actualizarCables()
 						cablePart.Material = Enum.Material.Neon
 						cablePart.Size = Vector3.new(2, 2, dist)
 						cablePart.CFrame = CFrame.lookAt(centro, attB.WorldPosition)
-						
+
 						-- DECIDIR COLOR
 						if mapaFantasmas[key] then
 							-- PRIORIDAD: Fantasma
@@ -270,14 +270,14 @@ local function actualizarCables()
 							local pB = attB.Parent:FindFirstAncestorWhichIsA("Model")
 							local eA = pA and pA:GetAttribute("Energizado")
 							local eB = pB and pB:GetAttribute("Energizado")
-							
+
 							if eA and eB then
 								cablePart.Color = colorBaseEnergizado
 							else
 								cablePart.Color = Color3.fromRGB(80, 80, 80)
 							end
 						end
-						
+
 						cablePart.Transparency = 0
 						cablePart.Parent = worldModel
 						table.insert(listaCables, cablePart)
@@ -294,7 +294,7 @@ local function actualizarCables()
 		if attA and attB then
 			local dist = (attA.WorldPosition - attB.WorldPosition).Magnitude
 			local centro = (attA.WorldPosition + attB.WorldPosition) / 2
-			
+
 			local cablePart = Instance.new("Part")
 			cablePart.Name = "CableFantasmaVisual"
 			cablePart.Anchored = true
@@ -303,10 +303,10 @@ local function actualizarCables()
 			cablePart.Material = Enum.Material.Neon
 			cablePart.Size = Vector3.new(2.5, 2.5, dist)
 			cablePart.CFrame = CFrame.lookAt(centro, attB.WorldPosition)
-			
+
 			cablePart.Color = fantasma.Color.Color
 			cablePart.Transparency = 0
-			
+
 			cablePart.Parent = worldModel
 			table.insert(listaCables, cablePart)
 		end
@@ -349,7 +349,7 @@ task.spawn(function()
 	if not Events then return end
 	local Bindables = Events:WaitForChild("Bindables", 10)
 	if not Bindables then return end
-	
+
 	local OpenMenuEvent = Bindables:WaitForChild("OpenMenu", 10)
 	if OpenMenuEvent then
 		OpenMenuEvent.Event:Connect(function()
