@@ -1,5 +1,6 @@
--- VisualEffects.client.lua
--- Maneja efectos visuales locales: Cable Dragging y Pulse Traffic
+-- VisualEffects.client.lua (v3 - VERSIÓN FINAL)
+-- ✅ TrafficParticles se crean dentro del modelo del poste de ORIGEN
+-- ✅ Esto evita que aparezcan en workspace y se clonen incorrectamente en el minimapa
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -15,8 +16,6 @@ if eventoReiniciar then
 	print("✅ VisualEffects: Escuchando evento ReiniciarNivel")
 end
 
-
-
 -- ==========================================
 -- CABLE DRAGGING LOGIC
 -- ==========================================
@@ -29,7 +28,6 @@ local function limpiarCable()
 	hazActual = nil
 	attJugadorActual = nil
 end
-
 
 cableDragEvent.OnClientEvent:Connect(function(action, attStart)
 	if action == "Start" and attStart then
@@ -60,7 +58,6 @@ cableDragEvent.OnClientEvent:Connect(function(action, attStart)
 	elseif action == "Stop" then
 		limpiarCable()
 	end
-
 end)
 
 -- ==========================================
@@ -74,7 +71,8 @@ local function obtenerClave(p1, p2)
 	if p1.Name < p2.Name then return p1.Name .. "_" .. p2.Name else return p2.Name .. "_" .. p1.Name end
 end
 
-local function generarParticulaTrafico(posInicio, posFin, color, duracion)
+-- ✅ CORRECCIÓN CRÍTICA: Recibe el modelo del poste como padre
+local function generarParticulaTrafico(posInicio, posFin, color, duracion, modeloPosteParent)
 	local parte = Instance.new("Part")
 	parte.Size = Vector3.new(0.6, 0.6, 0.6)
 	parte.Shape = Enum.PartType.Ball
@@ -85,15 +83,28 @@ local function generarParticulaTrafico(posInicio, posFin, color, duracion)
 	parte.Anchored = true
 	parte.Position = posInicio
 	parte.Name = "TrafficParticle"
-	parte.Parent = workspace
+	
+	-- ✅ CRÍTICO: Parentear dentro del modelo del poste, NO en workspace
+	-- Esto evita que el minimapa encuentre la partícula suelta en workspace
+	if modeloPosteParent and modeloPosteParent:IsA("Model") then
+		parte.Parent = modeloPosteParent
+	else
+		warn("⚠️ [VisualEffects] modeloPosteParent no es válido, usando workspace como fallback")
+		parte.Parent = workspace
+	end
 	
 	-- Efecto Trail
 	local rastro = Instance.new("Trail")
-	rastro.Attachment0 = Instance.new("Attachment", parte); rastro.Attachment0.Position = Vector3.new(0, 0.1, 0)
-	rastro.Attachment1 = Instance.new("Attachment", parte); rastro.Attachment1.Position = Vector3.new(0, -0.1, 0)
+	rastro.Attachment0 = Instance.new("Attachment", parte)
+	rastro.Attachment0.Position = Vector3.new(0, 0.1, 0)
+	rastro.Attachment1 = Instance.new("Attachment", parte)
+	rastro.Attachment1.Position = Vector3.new(0, -0.1, 0)
 	rastro.FaceCamera = true
 	rastro.Lifetime = 0.3
-	rastro.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0,0), NumberSequenceKeypoint.new(1,1)})
+	rastro.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0),
+		NumberSequenceKeypoint.new(1, 1)
+	})
 	rastro.Color = ColorSequence.new(color)
 	rastro.Parent = parte
 	
@@ -117,32 +128,49 @@ local function generarParticulaTrafico(posInicio, posFin, color, duracion)
 	return parte
 end
 
-
 pulseEvent.OnClientEvent:Connect(function(accion, p1, p2, esBidireccional)
+	-- Validar que p1 y p2 son modelos
+	if not p1 or not p1:IsA("Model") then
+		warn("⚠️ [VisualEffects] p1 no es un Model válido")
+		return
+	end
+	if not p2 or not p2:IsA("Model") then
+		warn("⚠️ [VisualEffects] p2 no es un Model válido")
+		return
+	end
+	
 	local clave = obtenerClave(p1, p2)
 	
 	if accion == "StartPulse" then
-		if pulsosActivos[clave] then return end -- Evitar duplicados
+		if pulsosActivos[clave] then 
+			print("⚠️ [VisualEffects] Ya existe pulso activo para: " .. clave)
+			return 
+		end
 		
 		-- Obtener posiciones
 		local att1 = p1:FindFirstChild("Attachment", true) or p1.PrimaryPart
 		local att2 = p2:FindFirstChild("Attachment", true) or p2.PrimaryPart
 		
-		if not att1 or not att2 then return end
+		if not att1 or not att2 then 
+			warn("⚠️ [VisualEffects] No se encontraron attachments en los postes")
+			return 
+		end
 		
 		local pos1 = att1:IsA("Attachment") and att1.WorldPosition or att1.Position
 		local pos2 = att2:IsA("Attachment") and att2.WorldPosition or att2.Position
 		
 		local particulas = {}
 		
-		-- 1. Particula A -> B (Cyan)
-		local part1 = generarParticulaTrafico(pos1, pos2, Color3.fromRGB(0, 255, 255), 2.0)
+		-- ✅ 1. Particula A -> B (Cyan) - parenteada dentro de p1
+		local part1 = generarParticulaTrafico(pos1, pos2, Color3.fromRGB(0, 255, 255), 2.0, p1)
 		table.insert(particulas, part1)
+		print("✅ [VisualEffects] Creada partícula A->B en: " .. p1:GetFullName())
 		
-		-- 2. Particula B -> A (Gold) -- Si es bidireccional
+		-- ✅ 2. Particula B -> A (Gold) - parenteada dentro de p2 (si es bidireccional)
 		if esBidireccional then
-			local part2 = generarParticulaTrafico(pos2, pos1, Color3.fromRGB(255, 200, 0), 2.0)
+			local part2 = generarParticulaTrafico(pos2, pos1, Color3.fromRGB(255, 200, 0), 2.0, p2)
 			table.insert(particulas, part2)
+			print("✅ [VisualEffects] Creada partícula B->A en: " .. p2:GetFullName())
 		end
 		
 		pulsosActivos[clave] = particulas
@@ -153,6 +181,7 @@ pulseEvent.OnClientEvent:Connect(function(accion, p1, p2, esBidireccional)
 				p:Destroy()
 			end
 			pulsosActivos[clave] = nil
+			print("🗑️ [VisualEffects] Partículas eliminadas para: " .. clave)
 		end
 	end
 end)
@@ -160,14 +189,16 @@ end)
 -- Limpiar partículas al reiniciar
 if eventoReiniciar then
 	eventoReiniciar.OnClientEvent:Connect(function()
+		local count = 0
 		for clave, particulas in pairs(pulsosActivos) do
 			for _, p in ipairs(particulas) do
 				p:Destroy()
+				count = count + 1
 			end
 		end
 		table.clear(pulsosActivos)
-		print("VisualEffects: Particulas limpiadas por reinicio")
+		print("✅ VisualEffects: " .. count .. " partículas limpiadas por reinicio")
 	end)
 end
 
-print("VisualEffects Client cargado (Particles + Drag)")
+print("✅ VisualEffects Client v3 (FINAL - Partículas en modelos) cargado")

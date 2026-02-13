@@ -88,11 +88,12 @@ local function pintarNodo(nombreNodo, color, material, nivelID)
 	end
 end
 
--- Pintar cable
+-- Pintar cable (Buscamos en Workspace y en Conexiones)
 local function pintarCable(nodoA, nodoB, color, grosor, nivelID)
 	local carpetaPostes = obtenerCarpetaPostes(nivelID)
 	if not carpetaPostes then return false end
 
+	-- 1. Buscar en Workspace (Sistema antiguo)
 	for _, obj in ipairs(workspace:GetChildren()) do
 		if obj:IsA("RopeConstraint") then
 			local a0 = obj.Attachment0
@@ -105,7 +106,7 @@ local function pintarCable(nodoA, nodoB, color, grosor, nivelID)
 				local modelA = part0:FindFirstAncestorWhichIsA("Model")
 				local modelB = part1:FindFirstAncestorWhichIsA("Model")
 
-				if modelA and modelB and modelA.Parent == carpetaPostes and modelB.Parent == carpetaPostes then
+				if modelA and modelB and (modelA.Parent == carpetaPostes or modelA.Parent.Parent == carpetaPostes) then
 					local p1 = modelA.Name
 					local p2 = modelB.Name
 
@@ -118,6 +119,37 @@ local function pintarCable(nodoA, nodoB, color, grosor, nivelID)
 			end
 		end
 	end
+	
+	-- 2. Buscar en Carpeta Conexiones (Sistema Nuevo)
+	local carpetaConexiones = carpetaPostes:FindFirstChild("Conexiones")
+	if carpetaConexiones then
+		for _, obj in ipairs(carpetaConexiones:GetChildren()) do
+			if obj:IsA("RopeConstraint") then
+				local a0 = obj.Attachment0
+				local a1 = obj.Attachment1
+
+				if a0 and a1 then
+					local part0 = a0.Parent
+					local part1 = a1.Parent
+
+					local modelA = part0:FindFirstAncestorWhichIsA("Model")
+					local modelB = part1:FindFirstAncestorWhichIsA("Model")
+
+					if modelA and modelB then
+						local p1 = modelA.Name
+						local p2 = modelB.Name
+
+						if (p1 == nodoA and p2 == nodoB) or (p1 == nodoB and p2 == nodoA) then
+							obj.Color = BrickColor.new(color)
+							if grosor then obj.Thickness = grosor end
+							return true
+						end
+					end
+				end
+			end
+		end
+	end
+	
 	return false
 end
 
@@ -166,11 +198,14 @@ local function limpiarVisualizacionCompleta(nivelID)
 	local carpetaPostes = obtenerCarpetaPostes(nivelID)
 	if carpetaPostes then
 		for _, poste in ipairs(carpetaPostes:GetChildren()) do
-			local partes = {poste:FindFirstChild("Part"), poste:FindFirstChild("Selector"), poste.PrimaryPart}
-			for _, p in ipairs(partes) do
-				if p then
-					p.Color = Color3.fromRGB(196, 196, 196)
-					p.Material = Enum.Material.Plastic
+			-- ✅ CORRECCIÓN: Solo procesar Models (postes), no carpetas como Conexiones
+			if poste:IsA("Model") then
+				local partes = {poste:FindFirstChild("Part"), poste:FindFirstChild("Selector"), poste.PrimaryPart}
+				for _, p in ipairs(partes) do
+					if p then
+						p.Color = Color3.fromRGB(196, 196, 196)
+						p.Material = Enum.Material.Plastic
+					end
 				end
 			end
 		end
@@ -193,6 +228,12 @@ local function validarRutaJugador(nivelID, player, resultadoAlgoritmo)
 	if not resultadoAlgoritmo or not resultadoAlgoritmo.Pasos then return end
 
 	local estado = estadoAlgoritmo[nivelID]
+	-- Inicializar estado si no existe (por seguridad)
+	if not estado then
+		estado = {}
+		estadoAlgoritmo[nivelID] = estado
+	end
+
 	if estado.yaValidado then
 		print("⚠️ Validación ya ejecutada. Ejecuta el algoritmo de nuevo para recalcular.")
 		return
@@ -206,16 +247,43 @@ local function validarRutaJugador(nivelID, player, resultadoAlgoritmo)
 	-- ========================================
 	local cablesJugador = {} -- { ["NodoA_NodoB"] = true }
 
+	-- Buscar en carpeta Conexiones (Nueva estructura)
+	local carpetaConexiones = carpetaPostes:FindFirstChild("Conexiones")
+	if carpetaConexiones then
+		for _, cable in ipairs(carpetaConexiones:GetChildren()) do
+			if cable:IsA("RopeConstraint") then
+				local att0 = cable.Attachment0
+				local att1 = cable.Attachment1
+				
+				if att0 and att1 then
+					local p1 = att0.Parent and att0.Parent.Parent
+					local p2 = att1.Parent and att1.Parent.Parent
+					
+					if p1 and p2 then
+						local n1 = p1.Name
+						local n2 = p2.Name
+						-- Clave ordenada
+						local clave = n1 < n2 and (n1 .. "_" .. n2) or (n2 .. "_" .. n1)
+						cablesJugador[clave] = true
+					end
+				end
+			end
+		end
+	end
+
+	-- Compatibilidad antigua
 	for _, poste in ipairs(carpetaPostes:GetChildren()) do
-		local conns = poste:FindFirstChild("Connections")
-		if conns then
-			for _, val in ipairs(conns:GetChildren()) do
-				local nombreVecino = val.Name
-				-- Clave ordenada para evitar duplicados (A-B = B-A)
-				local clave = poste.Name < nombreVecino 
-					and (poste.Name .. "_" .. nombreVecino) 
-					or (nombreVecino .. "_" .. poste.Name)
-				cablesJugador[clave] = true
+		if poste:IsA("Model") then
+			local conns = poste:FindFirstChild("Connections")
+			if conns then
+				for _, val in ipairs(conns:GetChildren()) do
+					local nombreVecino = val.Name
+					-- Clave ordenada para evitar duplicados (A-B = B-A)
+					local clave = poste.Name < nombreVecino 
+						and (poste.Name .. "_" .. nombreVecino) 
+						or (nombreVecino .. "_" .. poste.Name)
+					cablesJugador[clave] = true
+				end
 			end
 		end
 	end
@@ -277,6 +345,7 @@ local function validarRutaJugador(nivelID, player, resultadoAlgoritmo)
 	end
 	
 	print("   💰 PUNTOS: +"..bonusBase.." (Aciertos) -"..castigoFaltantes.." (Faltas) -"..castigoExtras.." (Extras) = " .. puntosNetos)
+	print("   💰 BONUS NETO: " .. puntosNetos) -- Mensaje clave para el cliente
 
 	-- Aplicar bonus AL PUNTAJE BASE
 	local stats = player:FindFirstChild("leaderstats")
@@ -401,6 +470,7 @@ evento.OnServerEvent:Connect(function(player, algoritmo, nodoInicio, nodoFin, ni
 		task.wait(1)
 		validarRutaJugador(nivelID, player, resultado)
 
+		-- 🔥 ESTA LÍNEA ES CLAVE: Activa el botón en el cliente
 		print("✅ Algoritmo completado. Visualización permanece visible para análisis.")
 	else
 		print("⚠️ No existe camino")

@@ -193,27 +193,32 @@ end
 local cablesYaProcesados = {}
 
 local function pintarCablesSegunEnergia(nivelID, visitados, llegoAlFinal)
-	local todosLosCables = NivelUtils.obtenerCablesDelNivel(nivelID)
+	local carpetaPostes = NivelUtils.obtenerCarpetaPostes(nivelID)
+	if not carpetaPostes then return end
+	
+	-- ✅ Buscar cables en carpeta Conexiones
+	local carpetaConexiones = carpetaPostes:FindFirstChild("Conexiones")
+	if not carpetaConexiones then return end
+	
+	for _, cable in ipairs(carpetaConexiones:GetChildren()) do
+		if cable:IsA("RopeConstraint") and cable.Parent then
+			local p1 = cable.Attachment0 and cable.Attachment0.Parent and cable.Attachment0.Parent.Parent
+			local p2 = cable.Attachment1 and cable.Attachment1.Parent and cable.Attachment1.Parent.Parent
 
-	for _, cable in ipairs(todosLosCables) do
-		if not cable.Parent then continue end
+			if p1 and p2 then
+				local ambosEnergizados = visitados[p1.Name] and visitados[p2.Name]
 
-		local p1 = cable.Attachment0 and cable.Attachment0.Parent and cable.Attachment0.Parent.Parent
-		local p2 = cable.Attachment1 and cable.Attachment1.Parent and cable.Attachment1.Parent.Parent
-
-		if p1 and p2 then
-			local ambosEnergizados = visitados[p1.Name] and visitados[p2.Name]
-
-			if ambosEnergizados then
-				if llegoAlFinal then
-					cable.Color = BrickColor.new("Lime green")
+				if ambosEnergizados then
+					if llegoAlFinal then
+						cable.Color = BrickColor.new("Lime green")
+					else
+						cable.Color = BrickColor.new("Cyan")
+					end
+					cable.Thickness = 0.3
 				else
-					cable.Color = BrickColor.new("Cyan")
+					cable.Color = BrickColor.new("Black")
+					cable.Thickness = 0.2
 				end
-				cable.Thickness = 0.3
-			else
-				cable.Color = BrickColor.new("Dark stone grey")
-				cable.Thickness = 0.2
 			end
 		end
 	end

@@ -1,9 +1,10 @@
 --[[
-	MINIMAPA v6 - ViewportFrame con Sincronización en Tiempo Real
+	MINIMAPA v10 - Cables en carpeta Conexiones
 	
-	Clona los Selectores de los postes y los mantiene sincronizados
-	con el estado real del juego (Energizado, Color, Material).
-	Clona cables y partículas desde Workspace.
+	✅ Los cables ahora están en Postes/Conexiones
+	✅ Colores automáticos según energización
+	✅ Nodos rojos brillantes cuando NO están energizados
+	✅ Estructura mucho más limpia y organizada
 ]]
 
 local Players = game:GetService("Players")
@@ -15,7 +16,7 @@ local player = Players.LocalPlayer
 local LevelsConfig = require(ReplicatedStorage:WaitForChild("LevelsConfig"))
 
 -- CONFIGURACIÓN
-local ZOOM = 80 -- Altura de la cámara
+local ZOOM = 80
 local TAMANO_MAPA = 250
 
 -- 1. CREAR GUI
@@ -73,100 +74,99 @@ worldModel.Parent = viewport
 -- Referencias
 local nivelActualID = nil
 local carpetaPostesReal = nil
-local mapaSelectores = {} -- { [nombrePoste] = {Real = BasePart, Clon = BasePart} }
+local mapaSelectores = {}
 local listaCables = {}
 local listaParticulas = {}
+local cantidadCablesAnterior = 0 -- Para evitar spam de logs
 
 -- 2. FUNCIÓN PARA CARGAR SELECTORES
 local function cargarSelectores(nivelID)
 	print("🗺️ [MINIMAPA] Cargando nivel " .. nivelID)
-	
+
 	worldModel:ClearAllChildren()
 	mapaSelectores = {}
 	listaCables = {}
 	listaParticulas = {}
-	
+
 	local config = LevelsConfig[nivelID]
 	if not config then
 		warn("⚠️ [MINIMAPA] No existe config para nivel " .. nivelID)
 		return
 	end
-	
+
 	local nivelModel = Workspace:FindFirstChild(config.Modelo)
 	if not nivelModel then
 		warn("⚠️ [MINIMAPA] Modelo no encontrado: " .. config.Modelo)
 		return
 	end
-	
+
 	carpetaPostesReal = nivelModel:FindFirstChild("Objetos") 
 		and nivelModel.Objetos:FindFirstChild("Postes")
-	
+
 	if not carpetaPostesReal then
 		carpetaPostesReal = nivelModel:FindFirstChild("Postes", true)
 	end
-	
+
 	if not carpetaPostesReal then
 		warn("⚠️ [MINIMAPA] No se encontró carpeta Postes")
 		return
 	end
-	
+
 	print("📦 [MINIMAPA] Clonando selectores de " .. carpetaPostesReal:GetFullName())
-	
+
 	local cantidadClonados = 0
 	for _, poste in pairs(carpetaPostesReal:GetChildren()) do
 		if poste:IsA("Model") then
 			local selectorReal = poste:FindFirstChild("Selector")
 			if selectorReal and selectorReal:IsA("BasePart") then
-				-- Clonar el selector
 				local selectorClon = selectorReal:Clone()
 				selectorClon.Name = poste.Name .. "_Selector"
 				selectorClon.CanCollide = false
 				selectorClon.Anchored = true
 				selectorClon.CastShadow = false
-				
-				-- Limpiar scripts
+
 				for _, child in pairs(selectorClon:GetDescendants()) do
 					if child:IsA("Script") or child:IsA("LocalScript") then
 						child:Destroy()
 					end
 				end
-				
+
 				selectorClon.Parent = worldModel
-				
-				-- Guardar referencia
+
 				mapaSelectores[poste.Name] = {
 					Real = selectorReal,
-					Clon = selectorClon
+					Clon = selectorClon,
+					Poste = poste
 				}
-				
+
 				cantidadClonados = cantidadClonados + 1
 			end
 		end
 	end
-	
+
 	print("✅ [MINIMAPA] Clonados " .. cantidadClonados .. " selectores")
 end
 
 -- 3. FUNCIÓN PARA SINCRONIZAR SELECTORES
 local function sincronizarSelectores()
 	if not carpetaPostesReal then return end
-	
+
 	for nombrePoste, refs in pairs(mapaSelectores) do
 		local selectorReal = refs.Real
 		local selectorClon = refs.Clon
-		
-		if selectorReal and selectorReal.Parent and selectorClon and selectorClon.Parent then
-			-- Sincronizar Color
-			if selectorClon.Color ~= selectorReal.Color then
+		local posteReal = refs.Poste
+
+		if selectorReal and selectorReal.Parent and selectorClon and selectorClon.Parent and posteReal then
+			local energizado = posteReal:GetAttribute("Energizado")
+
+			if energizado == true then
 				selectorClon.Color = selectorReal.Color
+				selectorClon.Material = Enum.Material.Neon
+			else
+				selectorClon.Color = Color3.fromRGB(231, 76, 60)
+				selectorClon.Material = Enum.Material.Neon
 			end
-			
-			-- Sincronizar Material
-			if selectorClon.Material ~= selectorReal.Material then
-				selectorClon.Material = selectorReal.Material
-			end
-			
-			-- Sincronizar Transparency
+
 			if selectorClon.Transparency ~= selectorReal.Transparency then
 				selectorClon.Transparency = selectorReal.Transparency
 			end
@@ -174,7 +174,7 @@ local function sincronizarSelectores()
 	end
 end
 
--- 4. FUNCIÓN PARA CLONAR CABLES
+-- 4. ✅ FUNCIÓN CORREGIDA PARA CLONAR CABLES (busca en carpeta Conexiones)
 local function actualizarCables()
 	-- Limpiar cables anteriores
 	for _, cable in ipairs(listaCables) do
@@ -183,56 +183,78 @@ local function actualizarCables()
 		end
 	end
 	listaCables = {}
-	
-	-- Buscar cables en Workspace
-	for _, obj in ipairs(Workspace:GetDescendants()) do
-		if obj:IsA("RopeConstraint") and obj.Visible then
-			local a0 = obj.Attachment0
-			local a1 = obj.Attachment1
-			
+
+	if not carpetaPostesReal then return end
+
+	-- ✅ BUSCAR en carpeta Conexiones
+	local carpetaConexiones = carpetaPostesReal:FindFirstChild("Conexiones")
+	if not carpetaConexiones then 
+		-- Si no hay carpeta, no hay cables
+		return 
+	end
+
+	for _, cable in ipairs(carpetaConexiones:GetChildren()) do
+		if cable:IsA("RopeConstraint") and cable.Visible then
+			local a0 = cable.Attachment0
+			local a1 = cable.Attachment1
+
 			if a0 and a1 then
 				local part0 = a0.Parent
 				local part1 = a1.Parent
-				
+
 				if part0 and part1 then
 					local modelA = part0:FindFirstAncestorWhichIsA("Model")
 					local modelB = part1:FindFirstAncestorWhichIsA("Model")
-					
-					if modelA and modelB and carpetaPostesReal and 
-					   modelA.Parent == carpetaPostesReal and 
-					   modelB.Parent == carpetaPostesReal then
-						
+
+					if modelA and modelB and 
+						modelA.Parent == carpetaPostesReal and 
+						modelB.Parent == carpetaPostesReal then
+
 						-- Buscar selectores clonados
 						local refA = mapaSelectores[modelA.Name]
 						local refB = mapaSelectores[modelB.Name]
-						
+
 						if refA and refB then
 							local selectorClonA = refA.Clon
 							local selectorClonB = refB.Clon
-							
+							local posteA = refA.Poste
+							local posteB = refB.Poste
+
 							-- Crear attachments en los selectores clonados
 							local attA = selectorClonA:FindFirstChildOfClass("Attachment")
 							if not attA then
 								attA = Instance.new("Attachment")
 								attA.Parent = selectorClonA
 							end
-							
+
 							local attB = selectorClonB:FindFirstChildOfClass("Attachment")
 							if not attB then
 								attB = Instance.new("Attachment")
 								attB.Parent = selectorClonB
 							end
-							
-							-- Crear cable
+
+							-- Crear cable clonado
 							local cableClon = Instance.new("RopeConstraint")
 							cableClon.Attachment0 = attA
 							cableClon.Attachment1 = attB
 							cableClon.Length = (attA.WorldPosition - attB.WorldPosition).Magnitude
 							cableClon.Visible = true
-							cableClon.Thickness = (obj.Thickness or 0.3) * 1.5
-							cableClon.Color = obj.Color
-							cableClon.Parent = worldModel
+							cableClon.Thickness = 0.5
+
+							-- ✅ DETERMINAR COLOR BASADO EN ENERGIZACIÓN
+							local energizadoA = posteA:GetAttribute("Energizado")
+							local energizadoB = posteB:GetAttribute("Energizado")
 							
+							if energizadoA == true and energizadoB == true then
+								-- Ambos energizados -> verde
+								cableClon.Color = BrickColor.new("Lime green")
+							else
+								-- Al menos uno sin energía -> negro
+								cableClon.Color = BrickColor.new("Black")
+							end
+
+							cableClon.Parent = worldModel
+
 							table.insert(listaCables, cableClon)
 						end
 					end
@@ -240,24 +262,34 @@ local function actualizarCables()
 			end
 		end
 	end
+
+	-- Solo imprimir si cambió la cantidad de cables
+	if #listaCables ~= cantidadCablesAnterior then
+		print("🔌 [MINIMAPA] Cables actualizados: " .. #listaCables)
+		cantidadCablesAnterior = #listaCables
+	end
 end
 
 -- 5. FUNCIÓN PARA CLONAR PARTÍCULAS
 local function actualizarParticulas()
-	-- Limpiar partículas anteriores
 	for _, particula in ipairs(listaParticulas) do
 		if particula and particula.Parent then
 			particula:Destroy()
 		end
 	end
 	listaParticulas = {}
-	
-	-- Clonar partículas de tráfico
-	for _, obj in ipairs(Workspace:GetChildren()) do
-		if obj.Name == "TrafficParticle" and obj:IsA("BasePart") then
-			local clonParticula = obj:Clone()
-			clonParticula.Parent = worldModel
-			table.insert(listaParticulas, clonParticula)
+
+	if not carpetaPostesReal then return end
+
+	for _, poste in pairs(carpetaPostesReal:GetChildren()) do
+		if poste:IsA("Model") then
+			for _, obj in ipairs(poste:GetDescendants()) do
+				if obj.Name == "TrafficParticle" and obj:IsA("BasePart") then
+					local clonParticula = obj:Clone()
+					clonParticula.Parent = worldModel
+					table.insert(listaParticulas, clonParticula)
+				end
+			end
 		end
 	end
 end
@@ -268,7 +300,7 @@ player:GetAttributeChangedSignal("CurrentLevelID"):Connect(function()
 	if levelID and levelID >= 0 then
 		print("🗺️ [MINIMAPA] Activando para nivel " .. levelID)
 		nivelActualID = levelID
-		task.wait(1.5) -- Esperar a que cargue el nivel
+		task.wait(1.5)
 		cargarSelectores(levelID)
 		actualizarCables()
 		screenGui.Enabled = true
@@ -300,28 +332,24 @@ RunService.RenderStepped:Connect(function(dt)
 	local char = player.Character
 	local root = char and char:FindFirstChild("HumanoidRootPart")
 	if not root then return end
-	
+
 	local pos = root.Position
-	
-	-- Cámara cenital (igual que el mapa grande)
+
 	miniCamera.CFrame = CFrame.new(pos.X, pos.Y + ZOOM, pos.Z) * CFrame.Angles(math.rad(-90), 0, 0)
-	
-	-- Sincronizar colores cada frame
+
 	sincronizarSelectores()
-	
-	-- Actualizar cables periódicamente
+
 	tiempoActualizacionCables = tiempoActualizacionCables + dt
-	if tiempoActualizacionCables >= 0.5 then
+	if tiempoActualizacionCables >= 0.3 then
 		tiempoActualizacionCables = 0
 		actualizarCables()
 	end
-	
-	-- Actualizar partículas periódicamente
+
 	tiempoActualizacionParticulas = tiempoActualizacionParticulas + dt
-	if tiempoActualizacionParticulas >= 0.3 then
+	if tiempoActualizacionParticulas >= 0.5 then
 		tiempoActualizacionParticulas = 0
 		actualizarParticulas()
 	end
 end)
 
-print("✅ Minimapa v6 (Sincronización Completa) Listo")
+print("✅ Minimapa v10 (Cables en Conexiones) Listo")
