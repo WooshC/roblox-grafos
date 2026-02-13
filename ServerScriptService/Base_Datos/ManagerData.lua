@@ -250,6 +250,10 @@ function setupLevelForPlayer(player, levelId, config)
 			print("🔄 Estrellas reseteadas para nuevo nivel")
 		end
 
+		-- Forzar actualización de atributo para reactivar UI (minimapa, etc)
+		-- Incluso si es el mismo nivel, queremos disparar el evento Changed
+		player:SetAttribute("CurrentLevelID", -1)
+		task.wait() 
 		player:SetAttribute("CurrentLevelID", levelId)
 
 		print("✅ " .. player.Name .. " listo en " .. config.Nombre .. " con $" .. (money and money.Value or 0))

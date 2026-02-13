@@ -304,6 +304,24 @@ local function actualizarParticulas()
 	end
 end
 
+-- Escuchar evento de volver al menú (para ocultar minimapa)
+task.spawn(function()
+	local Events = game:GetService("ReplicatedStorage"):WaitForChild("Events", 10)
+	if not Events then return end
+	local Bindables = Events:WaitForChild("Bindables", 10)
+	if not Bindables then return end
+	
+	local OpenMenuEvent = Bindables:WaitForChild("OpenMenu", 10)
+	if OpenMenuEvent then
+		OpenMenuEvent.Event:Connect(function()
+			print("🗺️ [MINIMAPA] Ocultando por regreso al menú")
+			screenGui.Enabled = false
+			nivelActualID = nil
+			carpetaPostesReal = nil
+		end)
+	end
+end)
+
 -- 6. DETECTAR CAMBIO DE NIVEL
 player:GetAttributeChangedSignal("CurrentLevelID"):Connect(function()
 	local levelID = player:GetAttribute("CurrentLevelID")
