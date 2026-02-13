@@ -50,8 +50,15 @@ end
 function LevelService:loadLevel(nivelID)
 	print("📦 LevelService: Cargando nivel " .. nivelID .. "...")
 	
-	-- Descargar nivel anterior si existe
-	if currentLevel then
+	-- Descargar nivel anterior si existe (EXCEPTO si es el mismo que vamos a cargar y ya está en workspace)
+	-- Esto evita destruir el nivel que NivelUtils va a encontrar en Workspace
+	local alreadyInWorkspace = false
+	local tempModel = NivelUtils.obtenerModeloNivel(nivelID)
+	if tempModel and tempModel.Parent == Workspace and currentLevel == tempModel then
+		print("   ℹ️ El nivel ya está cargado y es el mismo. No descargando.")
+		alreadyInWorkspace = true
+	elseif currentLevel then
+		-- Si existe otro nivel diferente, lo descargamos
 		self:unloadLevel()
 	end
 	
@@ -64,18 +71,37 @@ function LevelService:loadLevel(nivelID)
 		return false
 	end
 	
-	-- Obtener el modelo del nivel
+	-- Obtener el modelo del nivel (Busca en ServerStorage o Workspace)
 	local nivelModelo = NivelUtils.obtenerModeloNivel(nivelID)
 	
 	if not nivelModelo then
-		warn("❌ LevelService: Modelo de Nivel " .. nivelID .. " no encontrado en ReplicatedStorage")
+		warn("❌ LevelService: Modelo de Nivel " .. nivelID .. " no encontrado")
 		return false
 	end
 	
-	-- Clonar el nivel al Workspace
-	local nivelClonado = nivelModelo:Clone()
-	nivelClonado.Name = "NivelActual"  -- Nombre estándar para fácil acceso
-	nivelClonado.Parent = Workspace
+	-- Lógica de clonación inteligente
+	local nivelClonado
+	
+	-- Caso 1: El nivel ya está en Workspace (Testing o Nivel Inicial)
+	-- Si el modelo que encontramos ESTÁ en Workspace, significa que ya existe.
+	if nivelModelo.Parent == Workspace then
+		print("   ℹ️ El nivel origen está en Workspace. Usando instancia existente.")
+		nivelClonado = nivelModelo 
+		-- NO CLONAMOS si es la primera carga y ya está ahí. 
+		-- Pero si queremos REINICIAR, necesitamos una copia limpia.
+		-- Por ahora, asumimos que si está en Workspace es el nivel activo.
+	else
+		-- Caso 2: El nivel está en Storage (Producción)
+		print("   📦 Clonando nivel desde Storage...")
+		nivelClonado = nivelModelo:Clone()
+		nivelClonado.Parent = Workspace
+	end
+	
+	if nivelClonado ~= nivelModelo then 
+		-- Solo renombramos si es una copia nueva.
+		-- Si usamos la existente en Workspace, mantenemos su nombre original para que NivelUtils la encuentre en el futuro.
+		nivelClonado.Name = "NivelActual"
+	end
 	
 	-- Guardar referencias
 	currentLevel = nivelClonado
@@ -374,7 +400,7 @@ function LevelService:isMisionCompleted(misionID, estadoJuego)
 	local misions = self:getMisiones()
 	for _, mision in pairs(misions) do
 		if mision.ID == misionID then
-			return misionManager:verificarMision(mision, estadoJuego)
+			return misionManager.verificarMision(mision, estadoJuego)
 		end
 	end
 	

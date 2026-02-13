@@ -1,10 +1,19 @@
+-- ServerScriptService/Gameplay/GraphTheoryService.server.lua
+-- SERVICIO DE TEORÍA DE GRAFOS (REFACTORIZADO)
+-- Expone datos del grafo (Matriz de Adyacencia) al cliente para visualización UI
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local ServerScriptService = game:GetService("ServerScriptService")
+
+-- Esperar inicialización de servicios
+task.wait(1)
+
+local GraphService = _G.Services.Graph
+local GraphUtils = _G.Services.GraphUtils
 
 local eventsFolder = ReplicatedStorage:WaitForChild("Events")
 local remotesFolder = eventsFolder:WaitForChild("Remotes")
 
--- Create RemoteFunction for Matrix Data
+-- Crear/Obtener RemoteFunction
 local getMatrixFunc = remotesFolder:FindFirstChild("GetAdjacencyMatrix")
 if not getMatrixFunc then
 	getMatrixFunc = Instance.new("RemoteFunction")
@@ -12,72 +21,63 @@ if not getMatrixFunc then
 	getMatrixFunc.Parent = remotesFolder
 end
 
--- Utility to find poles
-local function getAllPoles(nivelID)
-	local levelName = "Nivel" .. nivelID
-	if nivelID == 0 then levelName = "Nivel0_Tutorial" end
-	
-	local levelModel = workspace:FindFirstChild(levelName)
-	if not levelModel then return {} end
-	
-	local postsFolder = levelModel:FindFirstChild("Objetos") and levelModel.Objetos:FindFirstChild("Postes")
-	if not postsFolder then return {} end
-	
-	local poles = {}
-	for _, child in ipairs(postsFolder:GetChildren()) do
-		if child:IsA("Model") then
-			table.insert(poles, child)
-		end
+-- Función principal invocada por cliente
+local function getAdjacencyMatrix(player)
+	if not GraphService or not GraphUtils then
+		warn("❌ GraphTheoryService: Servicios no disponibles")
+		return {Headers={}, Matrix={}}
 	end
 	
-	-- Sort alphabetically for consistent matrix
-	table.sort(poles, function(a, b) return a.Name < b.Name end)
+	-- 1. Obtener Nodos (Postes)
+	local nodes = GraphService:getNodes()
 	
-	return poles
-end
-
--- Main function to build matrix
-local function buildAdjacencyMatrix(player, nivelID)
-	local poles = getAllPoles(nivelID)
-	local poleNames = {}
+	-- Clonar y ordenar alfabéticamente para consistencia visual en la matriz
+	local sortedNodes = {}
+	for _, node in ipairs(nodes) do
+		table.insert(sortedNodes, node)
+	end
+	table.sort(sortedNodes, function(a, b) return a.Name < b.Name end)
+	
+	-- 2. Construir Matriz
+	local headers = {}
 	local matrix = {}
+	local n = #sortedNodes
 	
-	-- 1. Index Poles
-	for i, pole in ipairs(poles) do
-		poleNames[i] = pole.Name
+	-- Obtener cables actuales
+	local cables = GraphService:getCables()
+	
+	for i = 1, n do
+		headers[i] = sortedNodes[i].Name
 		matrix[i] = {}
-		for j = 1, #poles do
-			matrix[i][j] = 0 -- 0 means no connection (or use math.huge for distance logic, but 0 is cleaner for UI)
-		end
-	end
-	
-	-- 2. Fill Matrix
-	for i, pole in ipairs(poles) do
-		local connections = pole:FindFirstChild("Connections")
-		if connections then
-			for _, conn in ipairs(connections:GetChildren()) do
-				if conn:IsA("NumberValue") then
-					local targetName = conn.Name
-					local weight = conn.Value
-					
-					-- Find index of target
-					for j, name in ipairs(poleNames) do
-						if name == targetName then
-							matrix[i][j] = weight
-							break
-						end
-					end
+		
+		for j = 1, n do
+			local nodeA = sortedNodes[i]
+			local nodeB = sortedNodes[j]
+			
+			if i == j then
+				matrix[i][j] = 0
+			else
+				-- Verificar conexión usando GraphUtils/Service
+				if GraphUtils.areConnected(nodeA, nodeB, cables) then
+					-- Calcular peso (distancia en metros)
+					-- Asumimos 4 studs = 1 metro como en el resto del juego
+					local distStuds = GraphUtils.getDistance(nodeA, nodeB)
+					matrix[i][j] = math.floor(distStuds / 4)
+				else
+					matrix[i][j] = 0
 				end
 			end
 		end
 	end
 	
+	print("📊 GraphTheoryService: Matriz enviada a " .. player.Name)
+	
 	return {
-		Headers = poleNames,
+		Headers = headers,
 		Matrix = matrix
 	}
 end
 
-getMatrixFunc.OnServerInvoke = buildAdjacencyMatrix
+getMatrixFunc.OnServerInvoke = getAdjacencyMatrix
 
-print("✅ GraphTheoryService loaded: Matrix Calculation Ready")
+print("✅ GraphTheoryService (Refactorizado) cargado")

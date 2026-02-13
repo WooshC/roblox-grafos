@@ -1,27 +1,46 @@
--- ConectarCables.server.lua (CORREGIDO)
--- ✅ CORRECCIÓN: Los RopeConstraints ahora se parentean dentro del modelo del primer poste
--- Esto organiza mejor la jerarquía y evita que estén sueltos en workspace
+-- ConectarCables_server.lua (REFACTORIZADO)
+-- Usa los nuevos servicios: LevelService, GraphService, AudioService, UIService
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local LevelsConfig = require(ReplicatedStorage:WaitForChild("LevelsConfig"))
-local NivelUtils = require(ReplicatedStorage:WaitForChild("Utilidades"):WaitForChild("NivelUtils"))
+local Players = game:GetService("Players")
 
--- Gestionar selecciones por jugador
-local selecciones = {} -- { [Player] = selector }
+-- ============================================
+-- CARGAR SERVICIOS
+-- ============================================
 
--- Configuración de Sonido
+-- Esperar a que Init.server.lua haya cargado los servicios
+task.wait(1)
+
+-- Servicios centralizados
+local LevelService = _G.Services.Level
+local GraphService = _G.Services.Graph
+local UIService = _G.Services.UI
+local AudioService = _G.Services.Audio
+local Enums = _G.Services.Enums
+local GraphUtils = _G.Services.GraphUtils
+
+-- Validar que servicios existen
+if not LevelService or not GraphService then
+	error("❌ CRÍTICO: Servicios no inicializados correctamente. Verifica Init.server.lua")
+end
+
+print("✅ ConectarCables: Todos los servicios cargados")
+
+-- ============================================
+-- CONFIGURACIÓN
+-- ============================================
+
+local selecciones = {}  -- { [Player] = selector }
 local SOUND_CONNECT_ID = "rbxassetid://8089220692"
 local SOUND_CLICK_ID = "rbxassetid://125043525599051"
 
 -- Referencias a eventos
-local eventsFolder = ReplicatedStorage:WaitForChild("Events")
-local remotesFolder = eventsFolder:WaitForChild("Remotes")
-
-local pulseEvent = remotesFolder:WaitForChild("PulseEvent")
-local cableDragEvent = remotesFolder:WaitForChild("CableDragEvent")
+local Remotes = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Remotes")
+local cableDragEvent = Remotes:WaitForChild("CableDragEvent")
+local pulseEvent = Remotes:WaitForChild("PulseEvent")
 
 -- ============================================
--- UTILIDADES LOCALES
+-- UTILIDADES
 -- ============================================
 
 local function getPosteFromSelector(selector)
@@ -33,36 +52,47 @@ local function getAttachment(selector)
 end
 
 local function reproducirSonido(id, parent)
-	local sound = Instance.new("Sound")
-	sound.SoundId = id
-	sound.Volume = 0.5
-	sound.Parent = parent
-	sound:Play()
-	game.Debris:AddItem(sound, 2)
+	if AudioService then
+		-- Usar AudioService si está disponible
+		AudioService:playSound(id, "sfx", {volume = 0.5})
+	else
+		-- Fallback a método antiguo
+		local sound = Instance.new("Sound")
+		sound.SoundId = id
+		sound.Volume = 0.5
+		sound.Parent = parent
+		sound:Play()
+		game.Debris:AddItem(sound, 2)
+	end
 end
 
--- Función para desconectar y reembolsar
+-- ============================================
+-- DESCONECTAR POSTES
+-- ============================================
+
 local function desconectarPostes(poste1, poste2, player)
-	local connections1 = poste1:FindFirstChild("Connections")
-	local connections2 = poste2:FindFirstChild("Connections")
-
-	local val1 = connections1 and connections1:FindFirstChild(poste2.Name)
-
-	if not val1 then return end
-
-	local distancia = val1.Value
-
-	local nivelIDPoste, configNivel = NivelUtils.obtenerNivelDelPoste(poste1)
-
-	if not NivelUtils.puedeModificarNivel(player, nivelIDPoste) then
-		local stats = player:FindFirstChild("leaderstats")
-		local nivelJugador = stats and stats:FindFirstChild("Nivel") and stats.Nivel.Value or 0
-		print("🔒 No puedes modificar cables de un nivel que no es el tuyo. (Tú: " .. nivelJugador .. ", Poste: " .. nivelIDPoste .. ")")
+	-- Validar nivel del jugador
+	local nivelID = LevelService:getCurrentLevelID()
+	if not LevelService:isLevelLoaded() or not nivelID then
+		warn("⚠️ No hay nivel cargado")
 		return
 	end
 
-	local costoPorMetro = configNivel.CostoPorMetro
-	local reembolso = math.floor(distancia * costoPorMetro)
+	-- Obtener información de conexión
+	local connections1 = poste1:FindFirstChild("Connections")
+	if not connections1 then return end
+
+	local distanciaValue = connections1:FindFirstChild(poste2.Name)
+	if not distanciaValue then return end
+
+	local distanciaMetros = distanciaValue.Value
+	local config = LevelService:getLevelConfig()
+
+	if not config then return end
+
+	-- Calcular reembolso
+	local costoPorMetro = config.CostoPorMetro
+	local reembolso = math.floor(distanciaMetros * costoPorMetro)
 
 	-- Devolver dinero
 	local leaderstats = player:FindFirstChild("leaderstats")
@@ -70,42 +100,30 @@ local function desconectarPostes(poste1, poste2, player)
 
 	if money then
 		money.Value = money.Value + reembolso
+		print("💰 Dinero reembolsado: $" .. reembolso)
 	end
 
-	-- Borrar datos de conexión
-	if connections1:FindFirstChild(poste2.Name) then connections1[poste2.Name]:Destroy() end
-	if connections2:FindFirstChild(poste1.Name) then connections2[poste1.Name]:Destroy() end
-
-	-- ✅ BUSCAR Y DESTRUIR CABLE EN CARPETA CONEXIONES
-	local carpetaPostes = poste1.Parent
-	local carpetaConexiones = carpetaPostes and carpetaPostes:FindFirstChild("Conexiones")
-	
-	if carpetaConexiones then
-		for _, cable in ipairs(carpetaConexiones:GetChildren()) do
-			if cable:IsA("RopeConstraint") then
-				local a0 = cable.Attachment0
-				local a1 = cable.Attachment1
-
-				if a0 and a1 then
-					local p1 = a0.Parent and a0.Parent.Parent
-					local p2 = a1.Parent and a1.Parent.Parent
-
-					if (p1 == poste1 and p2 == poste2) or (p1 == poste2 and p2 == poste1) then
-						cable:Destroy()
-						print("🗑️ Cable eliminado de Conexiones: " .. cable.Name)
-						break
-					end
-				end
-			end
-		end
+	-- Eliminar datos de conexión en postes
+	local connections2 = poste2:FindFirstChild("Connections")
+	if connections1:FindFirstChild(poste2.Name) then
+		connections1[poste2.Name]:Destroy()
+	end
+	if connections2 and connections2:FindFirstChild(poste1.Name) then
+		connections2[poste1.Name]:Destroy()
 	end
 
-	-- Notificar clientes para borrar partículas
+	-- Desregistrar cable en GraphService
+	GraphService:disconnectNodes(poste1, poste2)
+
+	-- Reproducir sonido
+	reproducirSonido(SOUND_CLICK_ID, poste1)
+
+	-- Detener pulso visual
 	if pulseEvent then
 		pulseEvent:FireAllClients("StopPulse", poste1, poste2)
 	end
 
-	-- Borrar Etiquetas de Peso en workspace
+	-- Eliminar etiqueta de peso
 	for _, child in ipairs(workspace:GetChildren()) do
 		if child.Name == "EtiquetaPeso_" .. poste1.Name .. "_" .. poste2.Name or 
 			child.Name == "EtiquetaPeso_" .. poste2.Name .. "_" .. poste1.Name then
@@ -113,56 +131,51 @@ local function desconectarPostes(poste1, poste2, player)
 		end
 	end
 
-	-- Resetear colores
-	local partes = {poste1:FindFirstChild("Part"), poste1:FindFirstChild("Selector"), poste1:FindFirstChild("Poste"), poste1.PrimaryPart}
-	for _, p in ipairs(partes) do if p then p.Color = Color3.fromRGB(196, 196, 196) end end
-
-	print("════════════════════════════")
-	print("🔌 DESCONEXIÓN EXITOSA (Nivel " .. nivelIDPoste .. ")")
-
-	-- Disparar evento para re-verificar energía
-	local serverEvents = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Bindables")
-	local eventoConexion = serverEvents:WaitForChild("ConexionCambiada")
-
-	if eventoConexion then
-		eventoConexion:Fire(nivelIDPoste)
+	-- Notificar al cliente UI
+	if UIService then
+		UIService:updateProgress()
+		UIService:updateBudget(player)
 	end
+
+	print("🔌 DESCONEXIÓN EXITOSA: " .. poste1.Name .. " <-> " .. poste2.Name)
 end
 
--- Función principal de conexión
+-- ============================================
+-- CONECTAR POSTES (FUNCIÓN PRINCIPAL)
+-- ============================================
+
 local function conectarPostes(poste1, poste2, att1, att2, player)
-	-- 1. DETECTAR NIVEL DE LOS POSTES
-	local nivelID1, configNivel1 = NivelUtils.obtenerNivelDelPoste(poste1)
-	local nivelID2, configNivel2 = NivelUtils.obtenerNivelDelPoste(poste2)
-
-	-- VALIDACIÓN DE NIVEL DE JUGADOR
-	if not NivelUtils.puedeModificarNivel(player, nivelID1) then
-		print("🔒 Este poste pertenece al Nivel " .. nivelID1)
+	-- VALIDAR NIVEL CARGADO
+	if not LevelService:isLevelLoaded() then
+		warn("❌ No hay nivel cargado")
 		return
 	end
 
-	-- Validación: No conectar postes de niveles distintos
-	if nivelID1 ~= nivelID2 then
-		print("🚫 ERROR: No puedes conectar postes de niveles distintos.")
+	local nivelID = LevelService:getCurrentLevelID()
+	local config = LevelService:getLevelConfig()
+
+	if not config then return end
+
+	-- VALIDAR QUE PUEDE CONECTAR
+	if not LevelService:canConnect(poste1, poste2) then
+		print("🚫 CONEXIÓN INVÁLIDA: Adyacencia no permitida")
+		if AudioService then
+			AudioService:playError()
+		end
+		if UIService then
+			UIService:notifyError(player, "Conexión Inválida", "Estos postes no pueden conectarse")
+		end
 		return
 	end
 
-	local configNivel = configNivel1
-
-	-- VALIDAR ADYACENCIA PERMITIDA
-	if not NivelUtils.esConexionValida(poste1.Name, poste2.Name, nivelID1) then
-		print("🚫 CONEXIÓN INVÁLIDA: Diseño no permite conexión.")
-		return
-	end
-
-	-- Validar duplicados (Si existe, desconecta)
+	-- VALIDAR DUPLICADOS
 	local connections1 = poste1:FindFirstChild("Connections")
 	if not connections1 then
 		connections1 = Instance.new("Folder")
 		connections1.Name = "Connections"
 		connections1.Parent = poste1
 	end
-	
+
 	local connections2 = poste2:FindFirstChild("Connections")
 	if not connections2 then
 		connections2 = Instance.new("Folder")
@@ -176,77 +189,88 @@ local function conectarPostes(poste1, poste2, att1, att2, player)
 		return
 	end
 
-	-- 2. Calcular distancia (Peso)
+	-- CALCULAR DISTANCIA Y COSTO
 	local distanciaStuds = (att1.WorldPosition - att2.WorldPosition).Magnitude
-	local distanciaMetros = distanciaStuds / 4
-	distanciaMetros = math.floor(distanciaMetros)
+	local distanciaMetros = math.floor(distanciaStuds / 4)
 
-	-- 3. CALCULAR COSTO
-	local costoPorMetro = configNivel.CostoPorMetro
+	local costoPorMetro = config.CostoPorMetro
 	local costoTotal = distanciaMetros * costoPorMetro
 
-	-- 4. VERIFICAR DINERO DE JUGADOR
+	-- VALIDAR DINERO
 	local leaderstats = player:FindFirstChild("leaderstats")
 	local money = leaderstats and leaderstats:FindFirstChild("Money")
 
-	if not money then return end
-
-	if money.Value < costoTotal then
-		print("🚫 FONDOS INSUFICIENTES. Necesitas:", costoTotal, "Tienes:", money.Value)
+	if not money then
+		warn("⚠️ No se encontró Money en leaderstats")
 		return
 	end
 
-	-- 5. DESCONTAR DINERO
-	money.Value = money.Value - costoTotal
+	if money.Value < costoTotal then
+		print("🚫 FONDOS INSUFICIENTES. Necesitas: $" .. costoTotal .. " | Tienes: $" .. money.Value)
+		if AudioService then
+			AudioService:playError()
+		end
+		if UIService then
+			UIService:notifyError(player, "Fondos Insuficientes", "Necesitas $" .. costoTotal)
+		end
+		return
+	end
 
-	-- ✅ 6. CREAR CABLE VISUAL - EN CARPETA CONEXIONES
+	-- DESCONTAR DINERO
+	money.Value = money.Value - costoTotal
+	print("💰 Dinero descontado: $" .. costoTotal .. " | Dinero restante: $" .. money.Value)
+
+	-- CREAR CABLE VISUAL
 	local rope = Instance.new("RopeConstraint")
 	rope.Name = "Cable_" .. poste1.Name .. "_" .. poste2.Name
 	rope.Attachment0 = att1
 	rope.Attachment1 = att2
 	rope.Length = distanciaStuds
 	rope.Visible = true
-	rope.Thickness = 0.15
+	rope.Thickness = Enums.Cable.NormalThickness
 	rope.Color = BrickColor.new("Black")
-	
-	-- Encontrar o crear carpeta Conexiones
-	local carpetaPostes = poste1.Parent
-	local carpetaConexiones = carpetaPostes:FindFirstChild("Conexiones")
-	if not carpetaConexiones then
-		carpetaConexiones = Instance.new("Folder")
-		carpetaConexiones.Name = "Conexiones"
-		carpetaConexiones.Parent = carpetaPostes
+
+	-- Parentear en carpeta Conexiones
+	local nivel = LevelService:getCurrentLevel()
+	if nivel then
+		local objetos = nivel:FindFirstChild("Objetos")
+		if objetos then
+			local postesFolder = objetos:FindFirstChild("Postes")
+			if postesFolder then
+				local carpetaConexiones = postesFolder:FindFirstChild("Conexiones")
+				if not carpetaConexiones then
+					carpetaConexiones = Instance.new("Folder")
+					carpetaConexiones.Name = "Conexiones"
+					carpetaConexiones.Parent = postesFolder
+				end
+				rope.Parent = carpetaConexiones
+			end
+		end
 	end
 
-	-- ✅ CORRECCIÓN: Parentear en la carpeta Conexiones
-	rope.Parent = carpetaConexiones
+	print("✅ Cable creado: " .. rope:GetFullName())
 
-	print("✅ Cable creado en: " .. rope:GetFullName())
+	-- REGISTRAR EN GRAPHSERVICE
+	GraphService:connectNodes(poste1, poste2, rope)
 
-	-- 6a. PARTÍCULAS (Visualización dirigida según el grafo)
+	-- CONFIGURAR PARTÍCULAS (PULSO VISUAL)
 	local esBidireccional = true
 	local nodoOrigen = poste1
 	local nodoDestino = poste2
 
-	-- Verificar definición del grafo para dirección
-	if configNivel and configNivel.Adyacencias then
-		local ady = configNivel.Adyacencias
+	if config.Adyacencias then
+		local ady = config.Adyacencias
 		local p1 = poste1.Name
 		local p2 = poste2.Name
 
-		local puedeIr_1to2 = false
-		local puedeIr_2to1 = false
+		local puedeIr_1to2 = ady[p1] and table.find(ady[p1], p2) or false
+		local puedeIr_2to1 = ady[p2] and table.find(ady[p2], p1) or false
 
-		if ady[p1] and table.find(ady[p1], p2) then puedeIr_1to2 = true end
-		if ady[p2] and table.find(ady[p2], p1) then puedeIr_2to1 = true end
-
-		if puedeIr_1to2 and puedeIr_2to1 then
-			esBidireccional = true
-		elseif puedeIr_1to2 then
+		if puedeIr_1to2 and not puedeIr_2to1 then
 			esBidireccional = false
 			nodoOrigen = poste1
 			nodoDestino = poste2
-		elseif puedeIr_2to1 then
+		elseif puedeIr_2to1 and not puedeIr_1to2 then
 			esBidireccional = false
 			nodoOrigen = poste2
 			nodoDestino = poste1
@@ -257,12 +281,12 @@ local function conectarPostes(poste1, poste2, att1, att2, player)
 		pulseEvent:FireAllClients("StartPulse", nodoOrigen, nodoDestino, esBidireccional)
 	end
 
-	-- 7. VISUALIZAR PESO (PEDAGOGÍA) - Estas etiquetas sí van en workspace
+	-- VISUALIZAR PESO (ETIQUETA DE DISTANCIA)
 	local midPoint = (att1.WorldPosition + att2.WorldPosition) / 2
 	local etiquetaPart = Instance.new("Part")
 	etiquetaPart.Name = "EtiquetaPeso_" .. poste1.Name .. "_" .. poste2.Name
 	etiquetaPart.Size = Vector3.new(0.5, 0.5, 0.5)
-	etiquetaPart.Transparency = 1 
+	etiquetaPart.Transparency = 1
 	etiquetaPart.Anchored = true
 	etiquetaPart.CanCollide = false
 	etiquetaPart.Position = midPoint
@@ -275,22 +299,22 @@ local function conectarPostes(poste1, poste2, att1, att2, player)
 	bb.Parent = etiquetaPart
 
 	local lbl = Instance.new("TextLabel")
-	lbl.Size = UDim2.new(1,0,1,0)
+	lbl.Size = UDim2.new(1, 0, 1, 0)
 	lbl.BackgroundTransparency = 1
-	lbl.Text = string.format("%d m", distanciaMetros)
+	lbl.Text = string.format("$%d | %dm", costoTotal, distanciaMetros)
 	lbl.TextColor3 = Color3.new(1, 1, 1)
 	lbl.TextStrokeTransparency = 0
 	lbl.Font = Enum.Font.FredokaOne
 	lbl.TextSize = 20
 	lbl.Parent = bb
 
-	-- Reproducir sonido de éxito
+	-- REPRODUCIR SONIDO
 	reproducirSonido(SOUND_CONNECT_ID, att2)
+	if AudioService then
+		AudioService:playCableConnected()
+	end
 
-	-- 8. Guardar datos lógicos
-	local connections1 = poste1:FindFirstChild("Connections")
-	local connections2 = poste2:FindFirstChild("Connections")
-
+	-- GUARDAR DATOS LÓGICOS EN POSTES
 	local c1 = Instance.new("NumberValue")
 	c1.Name = poste2.Name
 	c1.Value = distanciaMetros
@@ -301,29 +325,36 @@ local function conectarPostes(poste1, poste2, att1, att2, player)
 	c2.Value = distanciaMetros
 	c2.Parent = connections2
 
-	-- Evento de Gameplay (Luces)
-	local serverEvents = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Bindables")
-	local eventoConexion = serverEvents:WaitForChild("ConexionCambiada")
-
-	if eventoConexion then
-		eventoConexion:Fire(nivelID1)
+	-- ACTUALIZAR UI
+	if UIService then
+		UIService:updateProgress()
+		UIService:updateBudget(player)
+		UIService:notifySuccess(player, "Conexión Exitosa", "Cable conectado por $" .. costoTotal)
 	end
+
+	print("✅ CONEXIÓN EXITOSA: " .. poste1.Name .. " <-> " .. poste2.Name .. " ($" .. costoTotal .. ")")
 end
 
--- Manejo del click
+-- ============================================
+-- GESTOR DE CLICKS
+-- ============================================
+
 local function onClick(selector, player)
 	local poste = getPosteFromSelector(selector)
 	local seleccionActual = selecciones[player]
 
-	-- 1. PRIMER CLICK (Seleccionar inicio)
+	-- PRIMER CLICK (Seleccionar inicio)
 	if not seleccionActual then
 		selecciones[player] = selector
-		print("👉 Seleccionado Inicio:", poste.Name)
+		print("👉 Seleccionado Inicio: " .. poste.Name)
 
 		-- Sonido click
 		reproducirSonido(SOUND_CLICK_ID, selector)
+		if AudioService then
+			AudioService:playClick()
+		end
 
-		-- Iniciar visualización de cable en cliente
+		-- Iniciar visualización en cliente
 		local att = getAttachment(selector)
 		if att then
 			cableDragEvent:FireClient(player, "Start", att)
@@ -331,12 +362,12 @@ local function onClick(selector, player)
 		return
 	end
 
-	-- 2. SEGUNDO CLICK
+	-- SEGUNDO CLICK
 	local posteAnterior = getPosteFromSelector(seleccionActual)
 
 	-- Si hace click en el mismo poste, cancelar
 	if poste == posteAnterior then
-		print("❌ Mismo poste. Cancelando selección.")
+		print("⌛ Mismo poste. Cancelando selección.")
 		selecciones[player] = nil
 		cableDragEvent:FireClient(player, "Stop")
 		return
@@ -364,6 +395,7 @@ end
 -- ============================================
 -- REGISTRAR CLICK DETECTORS
 -- ============================================
+
 local function registrarPostes(carpetaPostes)
 	for _, poste in ipairs(carpetaPostes:GetChildren()) do
 		if poste:IsA("Model") then
@@ -378,20 +410,25 @@ local function registrarPostes(carpetaPostes)
 			end
 		end
 	end
-	print("✅ ClickDetectors registrados en:", carpetaPostes:GetFullName())
+	print("✅ ClickDetectors registrados en: " .. carpetaPostes:GetFullName())
 end
 
--- Buscar carpetas de postes en todos los niveles
-for _, nivel in ipairs(workspace:GetChildren()) do
-	if string.match(nivel.Name, "^Nivel") then
-		local objetos = nivel:FindFirstChild("Objetos")
-		if objetos then
-			local postesFolder = objetos:FindFirstChild("Postes")
-			if postesFolder then
-				registrarPostes(postesFolder)
-			end
+-- Buscar y registrar postes en nivel actual
+if LevelService then
+	LevelService:onLevelLoaded(function(nivelID, levelFolder, config)
+		print("🔌 ConectarCables: Registrando postes para Nivel " .. nivelID)
+
+		local postesFolder = LevelService:getPostes()
+		if postesFolder then
+			registrarPostes(postesFolder)
 		end
-	end
+	end)
 end
 
-print("✅ ConectarCables.server.lua (CORREGIDO) cargado - Cables ahora se parentean en postes")
+-- ============================================
+-- INICIALIZACIÓN
+-- ============================================
+
+print("⚡ ConectarCables (REFACTORIZADO) cargado exitosamente")
+print("   ✅ Usa: LevelService, GraphService")
+print("   ✅ Usa: UIService, AudioService")

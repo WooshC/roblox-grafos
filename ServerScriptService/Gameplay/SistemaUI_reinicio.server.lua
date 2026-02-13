@@ -1,153 +1,113 @@
--- SistemaUI.server.lua
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local LevelsConfig = require(ReplicatedStorage:WaitForChild("LevelsConfig"))
-local InventoryManager = require(ReplicatedStorage:WaitForChild("Utilidades"):WaitForChild("InventoryManager"))
+-- SistemaUI_reinicio.server.lua (REFACTORIZADO)
+-- Maneja el reinicio del nivel utilizando servicios centralizados
 
--- 1. CREAR EVENTO REMOTO (Backend)
--- 1. REFERENCIA A EVENTOS ESTÁTICOS
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+
+-- Esperar servicios
+task.wait(1)
+
+local LevelService = _G.Services.Level
+local GraphService = _G.Services.Graph
+local UIService = _G.Services.UI
+local AudioService = _G.Services.Audio
+
+-- Referencias a eventos
 local Events = ReplicatedStorage:WaitForChild("Events")
 local Remotes = Events:WaitForChild("Remotes")
 local Bindables = Events:WaitForChild("Bindables")
 
 local remoteEvent = Remotes:WaitForChild("ReiniciarNivel")
 
--- La GUI ahora se maneja desde el Cliente (StarterPlayerScripts)
-
--- =======================================================
--- INICIALIZACIÓN DE EVENTOS PARA SCRIPTS INDIVIDUALES
--- =======================================================
-local eventsFolder = ReplicatedStorage:WaitForChild("Events")
-local bindables = eventsFolder:WaitForChild("Bindables")
-local remotes = eventsFolder:WaitForChild("Remotes")
-
--- Referencias a Eventos Estandarizados
-local eventoRestaurar = bindables:WaitForChild("RestaurarObjetos")
-local eventoDesbloquear = bindables:WaitForChild("DesbloquearObjeto")
-
--- Soporte Legacy (Opcional: Si existe la carpeta antigua, la usamos de puente, sino no)
-local serverEvents = ReplicatedStorage:FindFirstChild("ServerEvents")
+-- Eventos legacy para compatibilidad con scripts antiguos de objetos
 local eventoLegacy = nil
+local serverEvents = ReplicatedStorage:FindFirstChild("ServerEvents")
 if serverEvents then
 	eventoLegacy = serverEvents:FindFirstChild("RestaurarObjetos")
 end
+local eventoRestaurar = Bindables:FindFirstChild("RestaurarObjetos")
 
-print("✅ SistemaUI: Eventos inicializados correctamente (Estándar).")
+-- ============================================
+-- LÓGICA DE REINICIO
+-- ============================================
 
-
--- 3. LÓGICA DEL SERVIDOR (RESETEAR)
 remoteEvent.OnServerEvent:Connect(function(player)
 	print("🔄 SOLICITUD DE REINICIO RECIBIDA:", player.Name)
 	
-	-- 1. Obtener Nivel Actual
-	local nivelID = 1 -- Default
-	local stats = player:FindFirstChild("leaderstats")
-	if stats and stats:FindFirstChild("Nivel") then
-		nivelID = stats.Nivel.Value
+	if not LevelService then
+		warn("❌ SistemaUI: LevelService no disponible")
+		return
 	end
 	
-	-- 2. Restablecer dinero según configuración del Nivel
-	local config = LevelsConfig[nivelID] or LevelsConfig[0]
-	local dineroBase = config.DineroInicial or 2000
+	-- 1. Resetear Nivel (Lógica centralizada)
+	-- Esto limpia cables, restaura objetos y reinicia misiones
+	LevelService:resetLevel()
 	
-	if stats and stats:FindFirstChild("Money") then
-		stats.Money.Value = dineroBase
-		print("💰 Dinero restablecido a $" .. dineroBase .. " (Nivel " .. nivelID .. ")")
-	end
+	-- 2. Restablecer Dinero y Stats del Jugador
+	-- (Esto es específico del jugador, LevelService maneja el nivel en sí)
+	local nivelID = LevelService:getCurrentLevelID()
+	local config = LevelService:getLevelConfig()
 	
-	-- Resetear Puntos y Estrellas del nivel actual
-	if stats then
-		if stats:FindFirstChild("Puntos") then
-			stats.Puntos.Value = 0
-		end
-		if stats:FindFirstChild("Estrellas") then
-			stats.Estrellas.Value = 0
-		end
-		print("⭐ Puntaje y estrellas reseteados")
-	end
-	
-	-- Resetear objetos del nivel actual (DESACTIVADO POR PETICIÓN USER)
-	-- El reinicio solo afecta cables y dinero, NO objetos obtenidos.
-	-- if config.Objetos then
-	-- 	local objetosIDs = {}
-	-- 	for _, obj in ipairs(config.Objetos) do
-	-- 		table.insert(objetosIDs, obj.ID)
-	-- 	end
-	-- 	InventoryManager.resetearNivel(player, nivelID, objetosIDs)
-	-- end
-	
-	-- 3. Eliminar cables visuales
-	-- (Esto borra todos los del workspace por simplicidad, pero está bien ya que limpia fantasmas también)
-	for _, obj in ipairs(workspace:GetChildren()) do
-		if obj:IsA("RopeConstraint") or obj.Name == "CableFantasma" then
-			obj:Destroy()
-		elseif string.sub(obj.Name, 1, 8) == "Etiqueta" then -- Borra EtiquetaPeso... y EtiquetaFantasma...
-			obj:Destroy()
+	if not config then
+		-- Fallback si no hay nivel cargado oficialmente (aunque LevelService debería tenerlo)
+		local stats = player:FindFirstChild("leaderstats")
+		if stats and stats:FindFirstChild("Nivel") then
+			nivelID = stats.Nivel.Value
+			local LevelsConfig = require(ReplicatedStorage:WaitForChild("LevelsConfig"))
+			config = LevelsConfig[nivelID] or LevelsConfig[0]
 		end
 	end
 	
-	-- 4. Encontrar carpeta de postes del Nivel Actual
-	local postesFolder = nil
-	local nombreModelo = config.Modelo -- ej: "Nivel0_Tutorial"
-	
-	if workspace:FindFirstChild(nombreModelo) then
-		postesFolder = workspace[nombreModelo]:FindFirstChild("Objetos") and workspace[nombreModelo].Objetos:FindFirstChild("Postes")
-	end
-	
-	-- Fallback para Nivel 1 si carpeta se llama "Nivel1" en vez de "Nivel1_Basico"
-	if not postesFolder and nivelID == 1 and workspace:FindFirstChild("Nivel1") then
-		postesFolder = workspace.Nivel1:FindFirstChild("Objetos") and workspace.Nivel1.Objetos:FindFirstChild("Postes")
-	end
-
-	if postesFolder then
-		for _, poste in ipairs(postesFolder:GetChildren()) do
-			if poste:IsA("Model") then -- Solo limpiar Modelos (Postes), no carpetas extra
-				-- Limpiar conexiones lógicas
-				local connections = poste:FindFirstChild("Connections")
-				if connections then
-					connections:ClearAllChildren()
-				end
-				
-				-- Resetear Colores
-				local partes = {poste:FindFirstChild("Part"), poste:FindFirstChild("Selector"), poste:FindFirstChild("Poste"), poste.PrimaryPart}
-				for _, p in ipairs(partes) do
-					if p then
-						p.Color = Color3.fromRGB(196, 196, 196)
-						p.Material = Enum.Material.Plastic
-					end
-				end
+	if config then
+		local dineroBase = config.DineroInicial or 2000
+		local stats = player:FindFirstChild("leaderstats")
+		
+		if stats then
+			-- Resetear Dinero
+			if stats:FindFirstChild("Money") then
+				stats.Money.Value = dineroBase
+				print("💰 Dinero restablecido a $" .. dineroBase .. " (Nivel " .. (nivelID or "?") .. ")")
 			end
+			
+			-- Resetear Puntos y Estrellas
+			if stats:FindFirstChild("Puntos") then stats.Puntos.Value = 0 end
+			if stats:FindFirstChild("Estrellas") then stats.Estrellas.Value = 0 end
+			
+			print("⭐ Puntaje y estrellas reseteados")
 		end
-		print("🧹 Postes limpiados en: " .. (postesFolder.Parent.Parent.Name))
-	else
-		warn("⚠️ No se encontró la carpeta de postes para limpiar en Nivel " .. nivelID)
 	end
 	
-	-- 5. Notificar cambio en conexiones (Para apagar luces)
-	local eventoConexion = Bindables:FindFirstChild("ConexionCambiada")
-	
-	if eventoConexion then
-		-- Esperar un frame por seguridad para asegurar que los cables se borraron
-		task.delay(0.1, function()
-			eventoConexion:Fire(nivelID) 
-		end)
+	-- 3. Limpieza Visual Extra (Por seguridad)
+	-- GraphService ya limpió cables lógicos, pero aseguramos limpieza visual de residuos
+	for _, obj in ipairs(workspace:GetChildren()) do
+		if obj.Name == "CableFantasma" or string.sub(obj.Name, 1, 8) == "Etiqueta" then 
+			obj:Destroy()
+		end
 	end
 	
-	-- 6. Restaurar objetos recolectables (Scripting individual)
-	-- Disparar evento para scripts del usuario (Legacy)
-	if eventoLegacy then
-		eventoLegacy:Fire(nivelID)
-		print("📢 Evento Legacy 'RestaurarObjetos' disparado para Nivel " .. nivelID)
+	-- 4. Eventos de compatibilidad (Objetos recolectables legacy)
+	if nivelID then
+		if eventoLegacy then
+			eventoLegacy:Fire(nivelID)
+		end
+		if eventoRestaurar then
+			eventoRestaurar:Fire(nivelID)
+		end
 	end
 	
-	-- También disparar evento interno si existe
-	local eventoRestaurar = Bindables:FindFirstChild("RestaurarObjetos")
-	if eventoRestaurar then
-		eventoRestaurar:Fire(nivelID)
+	-- 5. Audio
+	if AudioService then
+		AudioService:playClick() -- O sonido de 'trash' / reset
 	end
 	
-	-- 7. Notificar a los clientes para que limpien visuales locales (Partículas, etc.)
-	print("📡 SistemaUI: Enviando señal de reinicio a TODOS los clientes...")
-	remoteEvent:FireAllClients()
+	-- 6. Actualizar UI
+	if UIService then
+		UIService:notifyLevelReset()
+		UIService:updateAll()
+		UIService:notifyPlayer(player, "Nivel Reiniciado", "El nivel ha sido restaurado.", "info")
+	end
 	
-	print("✅ NIVEL REINICIADO")
+	print("✅ NIVEL REINICIADO EXITOSAMENTE")
 end)
+
+print("✅ SistemaUI_reinicio (Refactorizado) cargado")
