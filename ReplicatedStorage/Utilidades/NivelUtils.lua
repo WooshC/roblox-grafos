@@ -22,9 +22,31 @@ local _cachePostes = {}
 --- @param nivelID number (Opcional, si es nil busca cualquiera)
 --- @return Model|nil
 function NivelUtils.obtenerModeloNivel(nivelID)
-	-- ESTÁNDAR ÚNICO: El nivel activo SIEMPRE se llama "NivelActual"
-	-- El servidor (LevelService) se encarga de renombrarlo al cargarlo.
-	return Workspace:FindFirstChild("NivelActual")
+	-- Verificar si existe el estándar "NivelActual"
+	local nivelActual = Workspace:FindFirstChild("NivelActual")
+	if nivelActual then return nivelActual end
+
+	-- Fallback: Buscar por nombre específico si tenemos ID
+	if nivelID then
+		local config = LevelsConfig[nivelID]
+		if config and config.Modelo then
+			local modelo = Workspace:FindFirstChild(config.Modelo)
+			if modelo then return modelo end
+		end
+		
+		-- Fallback legacy
+		if nivelID == 0 then return Workspace:FindFirstChild("Nivel0_Tutorial") end
+		if nivelID == 1 then return Workspace:FindFirstChild("Nivel1") or Workspace:FindFirstChild("Nivel1_Basico") end
+	end
+
+	-- Búsqueda genérica si no hay ID o no se encontró
+	for _, child in ipairs(Workspace:GetChildren()) do
+		if string.match(child.Name, "^Nivel") then
+			return child
+		end
+	end
+
+	return nil
 end
 
 --- Obtiene la carpeta de postes de un nivel
@@ -53,16 +75,21 @@ end
 --- @param poste Model
 --- @return number nivelID, table config
 function NivelUtils.obtenerNivelDelPoste(poste)
-	-- Buscar ancestro común estándar
+	-- Buscar ancestro común
 	local ancestro = poste:FindFirstAncestor("NivelActual")
 	
-	if ancestro then
-		-- Si está en NivelActual, asumimos que es el nivel cargado.
-		-- (Nota: Para saber el ID exacto, deberías consultar LevelService o un atributo)
-		return 0, LevelsConfig[0] -- Retorno genérico, el ID real lo tiene el servidor
+	-- Si no está en "NivelActual", buscar nombres específicos
+	if not ancestro then
+		for nivelID, config in pairs(LevelsConfig) do
+			if config.Modelo then
+				ancestro = poste:FindFirstAncestor(config.Modelo)
+				if ancestro then return nivelID, config end
+			end
+		end
 	end
 	
-	return nil, nil
+	-- Si encontramos ancestro genérico, intentar deducir
+	return 0, LevelsConfig[0] -- Default seguro
 end
 
 -- ============================================

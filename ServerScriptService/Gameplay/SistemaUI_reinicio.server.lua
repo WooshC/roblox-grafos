@@ -4,8 +4,8 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 
--- Esperar servicios globales
-repeat task.wait(0.1) until _G.Services
+-- Esperar servicios
+task.wait(1)
 
 local LevelService = _G.Services.Level
 local GraphService = _G.Services.Graph

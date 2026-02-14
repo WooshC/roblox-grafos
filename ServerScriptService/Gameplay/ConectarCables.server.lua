@@ -8,8 +8,8 @@ local Players = game:GetService("Players")
 -- CARGAR SERVICIOS
 -- ============================================
 
--- Esperar servicios globales
-repeat task.wait(0.1) until _G.Services
+-- Esperar a que Init.server.lua haya cargado los servicios
+task.wait(1)
 
 -- Servicios centralizados
 local LevelService = _G.Services.Level

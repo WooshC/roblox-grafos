@@ -8,8 +8,8 @@ local Players = game:GetService("Players")
 -- CARGAR SERVICIOS
 -- ============================================
 
--- Esperar servicios globales
-repeat task.wait(0.1) until _G.Services
+-- Esperar a que Init.server.lua haya cargado los servicios
+task.wait(1)
 
 -- Servicios centralizados
 local LevelService = _G.Services.Level
@@ -195,22 +195,6 @@ end
 if LevelService then
 	LevelService:onLevelLoaded(function(nivelID, levelFolder, config)
 		print("🎮 Nivel " .. nivelID .. " cargado: " .. config.Nombre)
-
-		-- Teletransportar jugadores al spawn del nuevo nivel
-		local NivelUtils = require(ReplicatedStorage:WaitForChild("Utilidades"):WaitForChild("NivelUtils"))
-		local spawnPos = NivelUtils.obtenerPosicionSpawn(nivelID)
-
-		if spawnPos then
-			print("📍 Teletransportando jugadores a: " .. tostring(spawnPos))
-			for _, player in ipairs(Players:GetPlayers()) do
-				local char = player.Character
-				if char then
-					char:PivotTo(CFrame.new(spawnPos))
-				end
-			end
-		else
-			warn("⚠️ No se encontró punto de spawn para Nivel " .. nivelID)
-		end
 
 		-- Inicializar luces
 		task.wait(0.5)

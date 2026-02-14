@@ -55,7 +55,7 @@ local function setupLeaderstats(player)
 		stats.Parent = player
 	end
 
-	-- Crear valores si no existen
+	-- Nivel actual
 	if not stats:FindFirstChild("Nivel") then
 		local nivel = Instance.new("IntValue")
 		nivel.Name = "Nivel"
@@ -63,6 +63,7 @@ local function setupLeaderstats(player)
 		nivel.Parent = stats
 	end
 
+	-- Dinero (presupuesto)
 	if not stats:FindFirstChild("Money") then
 		local money = Instance.new("IntValue")
 		money.Name = "Money"
@@ -70,23 +71,40 @@ local function setupLeaderstats(player)
 		money.Parent = stats
 	end
 
+	-- ⭐ PUNTOS - Sistema de misiones (CRÍTICO)
 	if not stats:FindFirstChild("Puntos") then
 		local puntos = Instance.new("IntValue")
 		puntos.Name = "Puntos"
 		puntos.Value = 0
 		puntos.Parent = stats
+		print("✅ IntValue 'Puntos' creado para " .. player.Name)
 	end
 
+	-- ⭐ ESTRELLAS - Basado en puntaje (CRÍTICO)
 	if not stats:FindFirstChild("Estrellas") then
 		local estrellas = Instance.new("IntValue")
 		estrellas.Name = "Estrellas"
 		estrellas.Value = 0
 		estrellas.Parent = stats
+		print("✅ IntValue 'Estrellas' creado para " .. player.Name)
 	end
+
+	print("📊 Leaderstats configurados para " .. player.Name)
 end
 
+-- 3. EVENTOS INTERNOS (Sync con InventoryManager)
+local Bindables = EventsFolder:FindFirstChild("Bindables") or Instance.new("Folder", EventsFolder)
+Bindables.Name = "Bindables"
+
+local GuardarInvEvent = Bindables:FindFirstChild("GuardarInventario") or Instance.new("BindableEvent", Bindables)
+GuardarInvEvent.Name = "GuardarInventario"
+
+GuardarInvEvent.Event:Connect(function(player, itemID)
+	_G.CollectItem(player, itemID)
+end)
+
 -- ============================================
--- FUNCIONES DE CARGA Y GUARDADO
+-- GESTIÓN DE DATOS (LOAD/SAVE)
 -- ============================================
 
 local function loadData(player)
@@ -94,21 +112,33 @@ local function loadData(player)
 		return MainStore:GetAsync("User_" .. player.UserId)
 	end)
 
-	if success and data then
-		print("✅ Datos cargados para " .. player.Name)
-	else
-		print("🆕 Nuevos datos inicializados para " .. player.Name)
-		data = {}
-		for key, value in pairs(DEFAULT_DATA) do
-			data[key] = value
+	if not success then
+		warn("⚠️ Error cargando datos para " .. player.Name)
+		data = nil
+	end
+
+	data = data or {}
+	if not data.Levels then data.Levels = {} end
+	if not data.Inventory then data.Inventory = {} end
+
+	-- Asegurar niveles
+	for i = 0, 4 do
+		local sID = tostring(i)
+		if not data.Levels[sID] then
+			data.Levels[sID] = { 
+				Unlocked = (i == 0),
+				Stars = 0, 
+				HighScore = 0 
+			}
 		end
 	end
 
 	SessionData[player.UserId] = data
-
-	-- Sincronizar inventario con InventoryService
+	
+	-- 🔥 SINCRONIZAR CON INVENTORY SERVICE (ServerScriptService)
+	-- Le pasamos la lista guardada para que la use en tiempo real
 	task.spawn(function()
-		-- Esperar a que _G.Services esté disponible
+		-- Esperar a que el servicio esté disponible en _G
 		local attempts = 0
 		while (not _G.Services or not _G.Services.Inventory) and attempts < 10 do
 			task.wait(1)
@@ -161,51 +191,21 @@ GetProgressFunc.OnServerInvoke = function(player)
 	return data
 end
 
--- Esperar a que Init.server.lua registre _G.Services
-print("⏳ ManagerData: Esperando a que _G.Services esté disponible...")
-repeat 
-	task.wait(0.1) 
-until _G.Services and _G.Services.Level
-
-local LevelService = _G.Services.Level
-print("✅ ManagerData: LevelService conectado")
-
 RequestPlayEvent.OnServerEvent:Connect(function(player, levelId)
-	print("🎮 ManagerData: Solicitud de nivel " .. levelId .. " de " .. player.Name)
-	
 	local sID = tostring(levelId)
 	local data = SessionData[player.UserId]
 
-	if not data then 
-		warn("⚠️ No hay datos de sesión para " .. player.Name)
-		return 
-	end
+	if not data then return end
 
 	local levelData = data.Levels[sID]
 
-	-- Validar permisos
-	if not (levelData and levelData.Unlocked) then
-		warn("⛔ " .. player.Name .. " intentó acceder a Nivel BLOQUEADO: " .. sID)
-		return
-	end
-
-	local config = LevelsConfig[tonumber(levelId)]
-	if not config then
-		warn("⚠️ Configuración de nivel " .. levelId .. " no encontrada")
-		return
-	end
-
-	-- Cargar el nivel
-	print("📦 ManagerData: Cargando nivel " .. levelId .. "...")
-	local success = LevelService:loadLevel(tonumber(levelId))
-	
-	if success then
-		print("✅ ManagerData: Nivel " .. levelId .. " cargado, teleportando jugador...")
-		-- Esperar a que el nivel se replique
-		task.wait(0.5)
-		setupLevelForPlayer(player, tonumber(levelId), config)
+	if levelData and levelData.Unlocked then
+		local config = LevelsConfig[tonumber(levelId)]
+		if config then
+			setupLevelForPlayer(player, tonumber(levelId), config)
+		end
 	else
-		warn("❌ ManagerData: Error al cargar nivel " .. levelId)
+		warn("⛔ " .. player.Name .. " intentó acceder a Nivel BLOQUEADO: " .. sID)
 	end
 end)
 
@@ -225,17 +225,17 @@ function setupLevelForPlayer(player, levelId, config)
 	-- Asegurar que leaderstats existan antes de entrar al nivel
 	setupLeaderstats(player)
 
-	-- Esperar a que el nivel esté cargado en Workspace
+	-- Usar NivelUtils para buscar (ya que solo lee workspace, es seguro)
+	-- Aunque idealmente deberíamos pedirle a LevelService que cargue el nivel
+	-- Pero RequestPlayLevel ya llama a loadLevel en LevelService desde el cliente o Init?
+	-- Wait, Init.server.lua maneja RequestPlayLevel para cargar el nivel en el servidor.
+	-- Aquí solo manejamos teleport y stats.
+	
 	local nivelModel = NivelUtils.obtenerModeloNivel(levelId)
 	if not nivelModel then
-		print("⏳ Esperando que el nivel aparezca en Workspace...")
+		warn("⚠️ Modelo de nivel no encontrado, esperando...")
 		task.wait(1)
 		nivelModel = NivelUtils.obtenerModeloNivel(levelId)
-	end
-
-	if not nivelModel then
-		warn("❌ Nivel no encontrado en Workspace después de esperar")
-		return
 	end
 
 	local targetPosition = NivelUtils.obtenerPosicionSpawn(levelId)

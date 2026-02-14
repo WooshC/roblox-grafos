@@ -1,18 +1,17 @@
--- ReplicatedStorage/Shared/Utils/GraphAnimator.lua
--- Módulo dedicado EXCLUSIVAMENTE a generar los pasos de animación para visualización
--- Separa la lógica matemática (GraphUtils) de la lógica visual (GraphAnimator)
+local Algoritmos = {}
 
-local GraphAnimator = {}
+-- Función auxiliar para obtener vecinos y pesos
+local function obtenerAdyacencias(nivelID)
+	local LevelsConfig = require(game.ReplicatedStorage:WaitForChild("LevelsConfig"))
+	local config = LevelsConfig[nivelID] or LevelsConfig[0]
+	return config.Adyacencias or {}
+end
 
 -- ==========================================
 -- DIJKSTRA (Visual)
 -- ==========================================
--- Genera una secuencia de pasos para animar el algoritmo de Dijkstra
--- @param inicio: string (nombre del nodo inicial)
--- @param fin: string (nombre del nodo final)
--- @param adyacencias: table (mapa de conexiones { ["NodoA"] = {"NodoB", "NodoC"} })
--- @return: table { Pasos, CaminoFinal, CostoTotal }
-function GraphAnimator.DijkstraVisual(inicio, fin, adyacencias)
+function Algoritmos.DijkstraVisual(inicio, fin, nivelID)
+	local adyacencias = obtenerAdyacencias(nivelID)
 	local distancias = {}
 	local previo = {}
 	local cola = {}
@@ -26,16 +25,9 @@ function GraphAnimator.DijkstraVisual(inicio, fin, adyacencias)
 		distancias[nodo] = math.huge
 		table.insert(cola, nodo)
 	end
-	
-	-- Asegurar que inicio y fin estén en la cola y tabla
-	if not distancias[inicio] then 
-		table.insert(cola, inicio)
-		distancias[inicio] = math.huge 
-	end
-	if not distancias[fin] then 
-		table.insert(cola, fin)
-		distancias[fin] = math.huge 
-	end
+	-- Asegurar que inicio y fin estén en la cola
+	if not distancias[inicio] then table.insert(cola, inicio); distancias[inicio] = math.huge end
+	if not distancias[fin] then table.insert(cola, fin); distancias[fin] = math.huge end
 	
 	distancias[inicio] = 0
 	
@@ -45,7 +37,7 @@ function GraphAnimator.DijkstraVisual(inicio, fin, adyacencias)
 		local u = table.remove(cola, 1)
 		
 		if distancias[u] == math.huge then break end
-		if visitados[u] then continue end 
+		if visitados[u] then continue end -- Evitar duplicados si los hubiera
 		visitados[u] = true
 		
 		-- Registrar paso visual: Nodo Actual
@@ -95,14 +87,10 @@ end
 -- ==========================================
 -- BFS (Visual) - Breadth First Search
 -- ==========================================
--- Genera una secuencia de pasos para animar BFS
--- @param inicio: string (nombre del nodo inicial)
--- @param fin: string (nombre del nodo final)
--- @param adyacencias: table (mapa de conexiones)
--- @return: table { Pasos, CaminoFinal, CostoTotal }
-function GraphAnimator.BFSVisual(inicio, fin, adyacencias)
+function Algoritmos.BFSVisual(inicio, fin, nivelID)
+	local adyacencias = obtenerAdyacencias(nivelID)
 	local cola = {inicio}
-	local visitados = {[inicio] = true} -- Marca como visitado al encolar
+	local visitados = {[inicio] = true}
 	local previo = {}
 	
 	local pasos = {}
@@ -110,7 +98,7 @@ function GraphAnimator.BFSVisual(inicio, fin, adyacencias)
 	while #cola > 0 do
 		local u = table.remove(cola, 1)
 		
-		-- Registrar paso visual: Nodo Actual (Visitando)
+		-- Registrar paso visual: Nodo Actual
 		table.insert(pasos, {Tipo = "NodoActual", Nodo = u})
 		
 		if u == fin then
@@ -126,14 +114,14 @@ function GraphAnimator.BFSVisual(inicio, fin, adyacencias)
 					previo[v] = u
 					table.insert(cola, v)
 					
-					-- Registrar paso visual: Explorando (Descubriendo)
+					-- Registrar paso visual: Explorando
 					table.insert(pasos, {Tipo = "Explorando", Nodo = v, Origen = u})
 				end
 			end
 		end
 	end
 	
-	-- Reconstruir camino
+	-- Reconstruir camino y calcular distancia física real
 	local camino = {}
 	local u = fin
 	if previo[u] or u == inicio then
@@ -143,12 +131,35 @@ function GraphAnimator.BFSVisual(inicio, fin, adyacencias)
 		end
 	end
 	
-	-- Calcular métricas simples para evitar dependencias
+	-- Calcular distancia física total del camino
+	local distanciaTotal = 0
+	local function getPos(nombre)
+		-- Búsqueda simplificada de posición (asume estructura estándar)
+		local nivelName = (nivelID == 0) and "Nivel0_Tutorial" or ("Nivel" .. nivelID)
+		local modelo = workspace:FindFirstChild(nivelName)
+		local postes = modelo and modelo:FindFirstChild("Objetos") and modelo.Objetos:FindFirstChild("Postes")
+		local obj = postes and postes:FindFirstChild(nombre)
+		if obj then
+			if obj:IsA("Model") and obj.PrimaryPart then return obj.PrimaryPart.Position end
+			if obj:IsA("Model") then return obj:GetPivot().Position end
+		end
+		return Vector3.new(0,0,0)
+	end
+
+	for i = 1, #camino - 1 do
+		local p1 = getPos(camino[i])
+		local p2 = getPos(camino[i+1])
+		distanciaTotal = distanciaTotal + (p1 - p2).Magnitude
+	end
+	
+	local distanciaMetros = math.floor(distanciaTotal / 4) -- Conversión 4 studs = 1m
+
 	return {
 		Pasos = pasos,
 		CaminoFinal = camino,
-		CostoTotal = #camino - 1
+		CostoTotal = #camino - 1, -- Costo lógico BFS (Saltos)
+		DistanciaTotal = distanciaMetros -- Costo físico (Metros)
 	}
 end
 
-return GraphAnimator
+return Algoritmos
