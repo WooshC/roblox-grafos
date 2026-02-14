@@ -19,10 +19,10 @@ local AliasUtils = {}
 --- @return string nombreMostrar
 function AliasUtils.getNodeAlias(nivelID, nodeName)
 	if not nodeName then return "Nodo Desconocido" end
-	
+
 	local config = LevelsConfig[nivelID]
 	if not config then return nodeName end
-	
+
 	-- PRIORIDAD 1: Buscar en Nodos[nodeName].Alias (Nueva estructura)
 	if config.Nodos and config.Nodos[nodeName] then
 		local nodoData = config.Nodos[nodeName]
@@ -30,12 +30,12 @@ function AliasUtils.getNodeAlias(nivelID, nodeName)
 			return nodoData.Alias
 		end
 	end
-	
+
 	-- PRIORIDAD 2: Buscar en NombresPostes (Retrocompatibilidad con viejo sistema)
 	if config.NombresPostes and config.NombresPostes[nodeName] then
 		return config.NombresPostes[nodeName]
 	end
-	
+
 	-- FALLBACK: Devolver nombre del nodo
 	return nodeName
 end
@@ -47,13 +47,13 @@ end
 function AliasUtils.getAllNodeAliases(nivelID)
 	local config = LevelsConfig[nivelID]
 	local aliases = {}
-	
+
 	if not config or not config.Nodos then return aliases end
-	
+
 	for nodeName, nodoData in pairs(config.Nodos) do
 		aliases[nodeName] = AliasUtils.getNodeAlias(nivelID, nodeName)
 	end
-	
+
 	return aliases
 end
 
@@ -63,11 +63,11 @@ end
 --- @return string|nil zonaID
 function AliasUtils.getNodeZone(nivelID, nodeName)
 	local config = LevelsConfig[nivelID]
-	
+
 	if config and config.Nodos and config.Nodos[nodeName] then
 		return config.Nodos[nodeName].Zona
 	end
-	
+
 	return nil
 end
 
@@ -91,15 +91,15 @@ end
 function AliasUtils.getNodesInZone(nivelID, zonaID)
 	local config = LevelsConfig[nivelID]
 	local nodos = {}
-	
+
 	if not config or not config.Nodos then return nodos end
-	
+
 	for nodeName, nodoData in pairs(config.Nodos) do
 		if nodoData.Zona == zonaID then
 			table.insert(nodos, nodeName)
 		end
 	end
-	
+
 	return nodos
 end
 
@@ -109,11 +109,11 @@ end
 --- @return table|nil configZona
 function AliasUtils.getZoneConfig(nivelID, zonaID)
 	local config = LevelsConfig[nivelID]
-	
+
 	if config and config.Zonas and config.Zonas[zonaID] then
 		return config.Zonas[zonaID]
 	end
-	
+
 	return nil
 end
 
@@ -127,15 +127,15 @@ end
 --- @return string|nil nombreNodo
 function AliasUtils.getNodeByAlias(nivelID, alias)
 	local config = LevelsConfig[nivelID]
-	
+
 	if not config or not config.Nodos then return nil end
-	
+
 	for nodeName, nodoData in pairs(config.Nodos) do
 		if nodoData.Alias == alias then
 			return nodeName
 		end
 	end
-	
+
 	return nil
 end
 
@@ -145,9 +145,9 @@ end
 --- @return boolean
 function AliasUtils.nodeExists(nivelID, nodeName)
 	local config = LevelsConfig[nivelID]
-	
+
 	if not config or not config.Nodos then return false end
-	
+
 	return config.Nodos[nodeName] ~= nil
 end
 
@@ -157,13 +157,13 @@ end
 function AliasUtils.getAllNodeNames(nivelID)
 	local config = LevelsConfig[nivelID]
 	local nombres = {}
-	
+
 	if not config or not config.Nodos then return nombres end
-	
+
 	for nodeName, _ in pairs(config.Nodos) do
 		table.insert(nombres, nodeName)
 	end
-	
+
 	return nombres
 end
 

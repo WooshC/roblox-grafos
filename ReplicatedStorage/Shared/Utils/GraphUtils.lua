@@ -29,17 +29,17 @@ end
 -- Obtiene la carpeta de Postes del nivel actual
 function GraphUtils.getPostesFolder(levelFolder)
 	if not levelFolder then return nil end
-	
+
 	-- Intento 1 (Directo)
 	local p = levelFolder:FindFirstChild("Postes")
 	if p then return p end
-	
+
 	-- Intento 2 (Dentro de Objetos - Estructura estándar actual)
 	local objetos = levelFolder:FindFirstChild("Objetos")
 	if objetos then
 		return objetos:FindFirstChild("Postes")
 	end
-	
+
 	return nil
 end
 
@@ -108,7 +108,7 @@ function GraphUtils.bfs(startNode, cablesTable)
 
 	while #queue > 0 do
 		local current = table.remove(queue, 1)
-		
+
 		local neighbors = GraphUtils.getNeighbors(current, cablesTable)
 		for _, neighbor in ipairs(neighbors) do
 			if not visited[neighbor.Name] then
@@ -146,7 +146,7 @@ function GraphUtils.dijkstra(startNode, cablesTable)
 	-- Inicializar
 	-- (Nota: Necesitamos la lista de todos los nodos para inicializar distancias a infinito
 	--  pero aquí simplificamos asumiendo que solo visitamos lo alcanzable)
-	
+
 	distances[startNode.Name] = 0
 	local queue = {{node = startNode, dist = 0}}
 
@@ -167,7 +167,7 @@ function GraphUtils.dijkstra(startNode, cablesTable)
 			-- Peso = 1 por defecto (o leer atributo Peso)
 			local weight = 1 
 			-- Podríamos leer weight de la conexión si existiera
-			
+
 			if (distances[u.Name] + weight) < (distances[v.Name] or math.huge) then
 				distances[v.Name] = distances[u.Name] + weight
 				table.insert(queue, {node = v, dist = distances[v.Name]})

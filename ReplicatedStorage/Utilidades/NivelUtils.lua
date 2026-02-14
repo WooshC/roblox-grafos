@@ -33,7 +33,7 @@ function NivelUtils.obtenerModeloNivel(nivelID)
 			local modelo = Workspace:FindFirstChild(config.Modelo)
 			if modelo then return modelo end
 		end
-		
+
 		-- Fallback legacy
 		if nivelID == 0 then return Workspace:FindFirstChild("Nivel0_Tutorial") end
 		if nivelID == 1 then return Workspace:FindFirstChild("Nivel1") or Workspace:FindFirstChild("Nivel1_Basico") end
@@ -77,7 +77,7 @@ end
 function NivelUtils.obtenerNivelDelPoste(poste)
 	-- Buscar ancestro común
 	local ancestro = poste:FindFirstAncestor("NivelActual")
-	
+
 	-- Si no está en "NivelActual", buscar nombres específicos
 	if not ancestro then
 		for nivelID, config in pairs(LevelsConfig) do
@@ -87,7 +87,7 @@ function NivelUtils.obtenerNivelDelPoste(poste)
 			end
 		end
 	end
-	
+
 	-- Si encontramos ancestro genérico, intentar deducir
 	return 0, LevelsConfig[0] -- Default seguro
 end
@@ -126,19 +126,19 @@ end
 --- @return RopeConstraint|nil
 function NivelUtils.buscarCable(nodoA, nodoB, nivelID)
 	local cables = NivelUtils.obtenerCablesDelNivel(nivelID)
-	
+
 	for _, cable in ipairs(cables) do
 		local att0 = cable.Attachment0
 		local att1 = cable.Attachment1
-		
+
 		if att0 and att1 then
 			local p1 = att0.Parent and att0.Parent.Parent
 			local p2 = att1.Parent and att1.Parent.Parent
-			
+
 			if p1 and p2 then
 				if (p1.Name == nodoA and p2.Name == nodoB) or 
-				   (p1.Name == nodoB and p2.Name == nodoA) then
-				   return cable
+					(p1.Name == nodoB and p2.Name == nodoA) then
+					return cable
 				end
 			end
 		end
