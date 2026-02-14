@@ -1,6 +1,7 @@
 -- ================================================================
--- MapManager.lua
+-- MapManager.lua (CORREGIDO)
 -- Gestiona activación/desactivación de vista de mapa
+-- ✅ ARREGLO: Llama updateAllPositions() en el loop de renderizado
 -- ================================================================
 
 local MapManager = {}
@@ -41,10 +42,10 @@ end
 
 --- Activa/desactiva el mapa
 function MapManager:toggle(forceState)
-    if forceState ~= nil then
-        if forceState then self:enable() else self:disable() end
-        return
-    end
+	if forceState ~= nil then
+		if forceState then self:enable() else self:disable() end
+		return
+	end
 
 	if state.mapaActivo then
 		self:disable()
@@ -58,29 +59,29 @@ function MapManager:enable()
 	state.mapaActivo = true
 
 	-- Cambiar apariencia del botón
-    if btnMapa then
-        btnMapa.Text = "CERRAR MAPA"
-        btnMapa.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
-    end
+	if btnMapa then
+		btnMapa.Text = "CERRAR MAPA"
+		btnMapa.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+	end
 
 	-- Cambiar cámara a modo scripteado
 	camera.CameraType = Enum.CameraType.Scriptable
 
 	-- Mostrar etiquetas de nodos
-    if NodeLabelManager then
-	    NodeLabelManager:show()
-    end
+	if NodeLabelManager then
+		NodeLabelManager:show()
+	end
 
 	-- Mostrar panel de misiones
-    if MissionsManager then
-	    MissionsManager:show()
-    end
+	if MissionsManager then
+		MissionsManager:show()
+	end
 
 	-- Transparentar techos
 	self:_setRoofsTransparency(0.95)
 
-    -- Poblar Etiquetas (Estilo Original)
-    self:_populateLabels()
+	-- Poblar Etiquetas (Estilo Original)
+	self:_populateLabels()
 
 	-- Iniciar loop de cámara
 	self:_startCameraLoop()
@@ -93,27 +94,27 @@ function MapManager:disable()
 	state.mapaActivo = false
 
 	-- Cambiar apariencia del botón
-    if btnMapa then
-        btnMapa.Text = "🗺️ MAPA"
-        btnMapa.BackgroundColor3 = Color3.fromRGB(52, 152, 219)
-    end
+	if btnMapa then
+		btnMapa.Text = "🗺️ MAPA"
+		btnMapa.BackgroundColor3 = Color3.fromRGB(52, 152, 219)
+	end
 
 	-- Cambiar cámara a modo normal (si no estamos en menú)
-    -- Si estamos en menú, VisibilityManager o la lógica de menú manejará la cámara
-    -- Pero para salir de modo mapa, volvemos a Custom a menos que estemos en menú
-    if not state.enMenu then
-	    camera.CameraType = Enum.CameraType.Custom
-    end
+	-- Si estamos en menú, VisibilityManager o la lógica de menú manejará la cámara
+	-- Pero para salir de modo mapa, volvemos a Custom a menos que estemos en menú
+	if not state.enMenu then
+		camera.CameraType = Enum.CameraType.Custom
+	end
 
 	-- Ocultar etiquetas
-    if NodeLabelManager then
-	    NodeLabelManager:hide()
-    end
+	if NodeLabelManager then
+		NodeLabelManager:hide()
+	end
 
 	-- Ocultar panel de misiones
-    if MissionsManager then
-	    MissionsManager:hide()
-    end
+	if MissionsManager then
+		MissionsManager:hide()
+	end
 
 	-- Restaurar techos
 	self:_restoreRoofs()
@@ -156,6 +157,11 @@ function MapManager:_startCameraLoop()
 
 		-- Actualizar posición de cámara
 		camera.CFrame = CFrame.new(centro + Vector3.new(0, state.zoomLevel, 0), centro)
+
+		-- ✅ ARREGLO: Actualizar posiciones de TODAS las etiquetas en cada frame
+		if NodeLabelManager then
+			NodeLabelManager:updateAllPositions()
+		end
 
 		-- Actualizar selectores y etiquetas
 		if postesFolder then
@@ -211,7 +217,7 @@ end
 
 --- Actualiza etiqueta de distancia de un nodo
 function MapManager:_updateNodeLabel(poste, centroCamara)
-    if not NodeLabelManager then return end
+	if not NodeLabelManager then return end
 	local obj = NodeLabelManager:getLabelForNode(poste)
 	if not obj then return end
 
@@ -298,31 +304,31 @@ end
 
 --- Poblar etiquetas inmediatamente (similar al script original)
 function MapManager:_populateLabels()
-    local nivelID = player:GetAttribute("CurrentLevelID") or 0
-    local config = LevelsConfig[nivelID] or LevelsConfig[0]
-    local nivelModel = self:_getLevelModel(nivelID, config)
-    
-    if not nivelModel then 
-        warn("⚠️ MapManager: No se encontró modelo de nivel para etiquetas")
-        return 
-    end
+	local nivelID = player:GetAttribute("CurrentLevelID") or 0
+	local config = LevelsConfig[nivelID] or LevelsConfig[0]
+	local nivelModel = self:_getLevelModel(nivelID, config)
 
-    local postesFolder = nivelModel:FindFirstChild("Objetos") and nivelModel.Objetos:FindFirstChild("Postes")
-    if not postesFolder then
-        warn("⚠️ MapManager: No se encontró carpeta de Postes")
-        return
-    end
+	if not nivelModel then 
+		warn("⚠️ MapManager: No se encontró modelo de nivel para etiquetas")
+		return 
+	end
 
-    print("ℹ️ MapManager: Poblando etiquetas para " .. #postesFolder:GetChildren() .. " postes")
+	local postesFolder = nivelModel:FindFirstChild("Objetos") and nivelModel.Objetos:FindFirstChild("Postes")
+	if not postesFolder then
+		warn("⚠️ MapManager: No se encontró carpeta de Postes")
+		return
+	end
 
-    for _, poste in ipairs(postesFolder:GetChildren()) do
-        if poste:IsA("Model") then
-             -- Crear etiqueta inmediatamente
-             if NodeLabelManager then
-                 NodeLabelManager:getLabelForNode(poste)
-             end
-        end
-    end
+	print("ℹ️ MapManager: Poblando etiquetas para " .. #postesFolder:GetChildren() .. " postes")
+
+	for _, poste in ipairs(postesFolder:GetChildren()) do
+		if poste:IsA("Model") then
+			-- Crear etiqueta inmediatamente
+			if NodeLabelManager then
+				NodeLabelManager:getLabelForNode(poste)
+			end
+		end
+	end
 end
 
 return MapManager

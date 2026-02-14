@@ -1,6 +1,6 @@
 -- ================================================================
--- ClienteUI.client.lua
--- Punto de entrada principal (VERSION MODULAR)
+-- ClienteUI.client.lua (VERSION MODULAR - CORREGIDA)
+-- Punto de entrada principal para la UI del cliente
 -- ================================================================
 
 local Players = game:GetService("Players")
@@ -38,7 +38,7 @@ local globalState = {
 -- ================================================================
 -- INICIALIZACIÓN
 -- ================================================================
-print("🚀 Cargando ClienteUI Modular...")
+print("🚀 Cargando ClienteUI Modular (CORREGIDO)...")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -46,7 +46,18 @@ local screenGui = playerGui:WaitForChild("GameUI")
 -- Minimap GUI (para control de visibilidad)
 local minimapGui = playerGui:WaitForChild("MinimapGUI")
 
--- 1. Inicializar Managers con Dependencias
+print("✅ Encontradas referencias de UI")
+
+-- ================================================================
+-- PASO 1: INICIALIZAR SCOREMANAGER PRIMERO
+-- ================================================================
+print("📊 Inicializando ScoreManager...")
+ScoreManager.initialize(screenGui)
+print("✅ ScoreManager inicializado")
+
+-- ================================================================
+-- PASO 2: Inicializar otros Managers con Dependencias
+-- ================================================================
 MapManager.initialize(globalState, screenGui, {
 	LevelsConfig = LevelsConfig,
 	NodeLabelManager = NodeLabelManager,
@@ -59,7 +70,7 @@ MissionsManager.initialize(globalState, screenGui, {
 
 -- Invertir la dependencia: MissionsManager necesita MapManager para cerrar mapa
 MissionsManager.toggle = function(self)
-    if not self.MapManager then self.MapManager = require(Services.MapManager) end
+	if not self.MapManager then self.MapManager = require(Services.MapManager) end
 	-- Cerrar mapa si está abierto
 	if globalState.mapaActivo then
 		self.MapManager:disable()
@@ -85,16 +96,39 @@ ButtonManager.initialize(screenGui, {
 	LevelsConfig = LevelsConfig
 })
 
-ScoreManager.initialize(screenGui)
+print("✅ Todos los managers inicializados")
 
--- 2. Iniciar Lógica
+-- ================================================================
+-- PASO 3: Iniciar Lógica de los Servicios
+-- ================================================================
 NodeLabelManager.initialize({
-    LevelsConfig = LevelsConfig
+	LevelsConfig = LevelsConfig
 })
+
+-- 🔥 CRÍTICO: Iniciar ScoreManager ANTES de los demás
+print("🔄 Iniciando ScoreManager...")
+ScoreManager:init()
+print("✅ ScoreManager iniciado y escuchando cambios")
+
+-- Iniciar otros servicios
 MapManager:toggle(false) -- Asegurar apagado
 VisibilityManager:init()
 EventManager:init()
 ButtonManager:init()
-ScoreManager:init()
 
-print("✅ ClienteUI Modular Inicializado Correctamente")
+print("✅ ClienteUI Modular Inicializado Correctamente (CORREGIDO)")
+print("   🎯 ScoreManager está escuchando cambios de leaderstats")
+print("   💰 Los puntos se actualizarán en tiempo real")
+print("   ⭐ Las estrellas se actualizarán en tiempo real")
+
+-- ================================================================
+-- DEBUGGING: Verificar que ScoreManager funciona
+-- ================================================================
+task.wait(2)
+
+-- Verificar que los listeners están activos
+print("\n📊 === ESTADO INICIAL DE SCOREMANAGER ===")
+print("Puntos actuales: " .. ScoreManager:getPoints())
+print("Estrellas actuales: " .. ScoreManager:getStars())
+print("Dinero actual: $" .. ScoreManager:getMoney())
+print("=====================================\n")

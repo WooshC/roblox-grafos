@@ -1,6 +1,7 @@
 -- ================================================================
--- ScoreManager.lua
+-- ScoreManager.lua (CORREGIDO)
 -- Gestiona actualización de puntaje, estrellas y dinero
+-- AHORA SE ACTUALIZA EN TIEMPO REAL
 -- ================================================================
 
 local ScoreManager = {}
@@ -14,6 +15,10 @@ local screenGui = nil
 local lblPuntaje = nil
 local puntajeLabel = nil
 local estrellaLabel = nil
+
+-- Variables de estado
+local puntosActuales = 0
+local estrellasActuales = 0
 
 -- ================================================================
 -- INICIALIZACIÓN
@@ -30,11 +35,14 @@ function ScoreManager.initialize(gui)
 		puntajeLabel = scoreFrame:FindFirstChild("PuntajeLabel")
 		estrellaLabel = scoreFrame:FindFirstChild("EstrellaLabel")
 	end
+
+	print("✅ ScoreManager: Inicializado")
 end
 
 --- Inicia listeners de cambios en stats
 function ScoreManager:init()
 	task.spawn(function()
+		-- Esperar a que el jugador tenga leaderstats
 		local stats = player:WaitForChild("leaderstats", 10)
 		if not stats then
 			warn("⚠️ ScoreManager: leaderstats no encontrado")
@@ -45,44 +53,62 @@ function ScoreManager:init()
 		local estrellas = stats:WaitForChild("Estrellas", 5)
 		local dinero = stats:FindFirstChild("Money") or stats:FindFirstChild("Dinero")
 
+		-- 🔥 CRÍTICO: Conectar a cambios de Puntos
 		if puntos then
-			puntos.Changed:Connect(function()
-				self:update()
+			-- Actualizar inicial
+			puntosActuales = puntos.Value
+			self:updateScore()
+
+			-- Conectar a cambios FUTUROS
+			puntos.Changed:Connect(function(newValue)
+				puntosActuales = newValue
+				print("💰 [ScoreManager] Puntos cambiaron a: " .. newValue)
+				self:updateScore()  -- 🔥 ACTUALIZAR INMEDIATAMENTE
 			end)
 		end
 
 		if estrellas then
-			estrellas.Changed:Connect(function()
-				self:update()
+			-- Actualizar inicial
+			estrellasActuales = estrellas.Value
+			self:updateScore()
+
+			-- Conectar a cambios
+			estrellas.Changed:Connect(function(newValue)
+				estrellasActuales = newValue
+				print("⭐ [ScoreManager] Estrellas cambiaron a: " .. newValue)
+				self:updateScore()
 			end)
 		end
 
 		if dinero then
 			dinero.Changed:Connect(function()
-				self:update()
+				self:updateScore()
 			end)
 		end
 
-		-- Primera actualización
-		self:update()
-		print("✅ ScoreManager: Listeners conectados")
+		print("✅ ScoreManager: Listeners conectados y activos")
 	end)
 end
 
---- Actualiza todos los labels de puntaje
-function ScoreManager:update()
+--- 🔥 FUNCIÓN CLAVE: Actualiza todos los labels inmediatamente
+function ScoreManager:updateScore()
 	local stats = player:FindFirstChild("leaderstats")
-	if not stats then return end
+	if not stats then 
+		print("⚠️ [ScoreManager] No hay leaderstats")
+		return 
+	end
 
 	local puntos = stats:FindFirstChild("Puntos")
 	local estrellas = stats:FindFirstChild("Estrellas")
 
-	-- Actualizar PuntajeLabel (en ScoreFrame si existe)
+	-- 1️⃣ Actualizar PuntajeLabel (en ScoreFrame si existe)
 	if puntos and puntajeLabel then
-		puntajeLabel.Text = puntos.Value .. " / 1200 pts"
+		local texto = puntos.Value .. " / 1200 pts"
+		puntajeLabel.Text = texto
+		print("🎯 [ScoreManager] PuntajeLabel actualizado: " .. texto)
 	end
 
-	-- Actualizar EstrellaLabel (en ScoreFrame si existe)
+	-- 2️⃣ Actualizar EstrellaLabel (en ScoreFrame si existe)
 	local eVal = 0
 	if estrellas and estrellaLabel then
 		eVal = estrellas.Value
@@ -97,12 +123,19 @@ function ScoreManager:update()
 		end
 
 		estrellaLabel.Text = textoEstrellas
+		print("⭐ [ScoreManager] EstrellaLabel actualizado: " .. textoEstrellas)
 	end
 
-	-- Actualizar LabelPuntaje (HUD principal)
+	-- 3️⃣ Actualizar LabelPuntaje (HUD principal - EL MÁS IMPORTANTE)
 	if lblPuntaje then
 		local pVal = puntos and puntos.Value or 0
-		lblPuntaje.Text = "⭐ " .. eVal .. " | pts " .. pVal .. " pts"
+		local nuevoTexto = "⭐ " .. eVal .. " | pts " .. pVal .. " pts"
+
+		-- Solo actualizar si el texto cambió (evita spam innecesario)
+		if lblPuntaje.Text ~= nuevoTexto then
+			lblPuntaje.Text = nuevoTexto
+			print("🔴 [ScoreManager] LabelPuntaje actualizado: " .. nuevoTexto)
+		end
 	end
 end
 
@@ -122,6 +155,15 @@ function ScoreManager:getStars()
 
 	local estrellas = stats:FindFirstChild("Estrellas")
 	return estrellas and estrellas.Value or 0
+end
+
+--- Obtiene valor actual de dinero
+function ScoreManager:getMoney()
+	local stats = player:FindFirstChild("leaderstats")
+	if not stats then return 0 end
+
+	local money = stats:FindFirstChild("Money")
+	return money and money.Value or 0
 end
 
 return ScoreManager

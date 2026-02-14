@@ -1,6 +1,7 @@
 -- ================================================================
--- NodeLabelManager.lua
+-- NodeLabelManager.lua (CORREGIDO)
 -- Gestiona etiquetas flotantes sobre los nodos (postes)
+-- ✅ ARREGLO: Las etiquetas ahora se actualizan en posición en tiempo real
 -- ================================================================
 
 local NodeLabelManager = {}
@@ -11,7 +12,7 @@ local AliasUtils = require(ReplicatedStorage:WaitForChild("Utilidades"):WaitForC
 if not AliasUtils then warn("❌ NodeLabelManager: AliasUtils es nil") end
 
 -- Estado
-local labels = {} -- { [poste] = { Ancla = part, Gui = billboard } }
+local labels = {} -- { [poste] = { Ancla = part, Gui = billboard, Poste = ref } }
 local visible = false
 local LevelsConfig = nil -- Will be injected
 
@@ -20,9 +21,9 @@ local LevelsConfig = nil -- Will be injected
 -- ================================================================
 
 function NodeLabelManager.initialize(deps)
-    if deps then
-        LevelsConfig = deps.LevelsConfig
-    end
+	if deps then
+		LevelsConfig = deps.LevelsConfig
+	end
 	print("✅ NodeLabelManager: Inicializado")
 end
 
@@ -52,12 +53,9 @@ function NodeLabelManager:getLabelForNode(poste)
 	ancla.Transparency = 1
 	ancla.Anchored = true
 	ancla.CanCollide = false
-
-    -- FIX: Posicionar ancla
-    local pos = poste:GetPivot().Position
-    ancla.Position = pos + Vector3.new(0, 8, 0)
-
 	ancla.Size = Vector3.new(1,1,1)
+	-- ✅ POSICIÓN INICIAL: Arriba del poste
+	ancla.Position = poste:GetPivot().Position + Vector3.new(0, 8, 0)
 	ancla.Parent = workspace
 
 	local bb = Instance.new("BillboardGui")
@@ -76,22 +74,35 @@ function NodeLabelManager:getLabelForNode(poste)
 	lblName.Font = Enum.Font.FredokaOne
 	lblName.TextSize = 25
 	lblName.Parent = bb
-	
+
 	-- Obtener ID de nivel del jugador para el alias
 	local player = game.Players.LocalPlayer
 	local levelId = player:GetAttribute("CurrentLevelID") or 0
-    local alias = AliasUtils.getNodeAlias(levelId, poste.Name)
+	local alias = AliasUtils.getNodeAlias(levelId, poste.Name)
 	lblName.Text = alias
 
-    print(string.format("🏷️ Etiqueta creada: %s -> %s (Nivel %d)", poste.Name, alias, levelId))
+	print(string.format("🏷️ Etiqueta creada: %s -> %s (Nivel %d) en posición: %s", poste.Name, alias, levelId, tostring(ancla.Position)))
 
 	labels[poste] = {
 		Ancla = ancla,
 		Gui = bb,
-		LblName = lblName
+		LblName = lblName,
+		Poste = poste  -- ✅ Guardar referencia al poste para actualizar posición
 	}
 
 	return labels[poste]
+end
+
+--- ✅ NUEVA FUNCIÓN: Actualizar posiciones de todas las etiquetas
+function NodeLabelManager:updateAllPositions()
+	if not visible then return end
+
+	for poste, labelObj in pairs(labels) do
+		if labelObj and labelObj.Ancla and poste and poste.Parent then
+			-- Actualizar posición del ancla al poste + offset arriba
+			labelObj.Ancla.Position = poste:GetPivot().Position + Vector3.new(0, 8, 0)
+		end
+	end
 end
 
 function NodeLabelManager:updateNodeDistance(poste, distanciaMetros)
@@ -100,7 +111,7 @@ function NodeLabelManager:updateNodeDistance(poste, distanciaMetros)
 
 	local bb = labelObj.Gui
 	local lblDist = bb:FindFirstChild("DistanciaLbl")
-	
+
 	if not lblDist then
 		lblDist = Instance.new("TextLabel")
 		lblDist.Name = "DistanciaLbl"
@@ -116,7 +127,7 @@ function NodeLabelManager:updateNodeDistance(poste, distanciaMetros)
 	-- Lógica de color según si es inicio o no (asumiendo que MapManager pasa info, 
 	-- pero aquí solo actualizamos texto por simplicidad)
 	lblDist.Text = distanciaMetros .. "m"
-	
+
 	-- Ocultar si está energizado (opcional, replicando lógica anterior)
 	if poste:GetAttribute("Energizado") == true then
 		lblDist.Visible = false
@@ -130,9 +141,9 @@ function NodeLabelManager:addMetaIndicator(poste, levelId)
 	local labelObj = self:getLabelForNode(poste)
 	if not labelObj then return end
 
-    if not LevelsConfig then 
-        LevelsConfig = require(ReplicatedStorage.LevelsConfig) -- Fallback
-    end 
+	if not LevelsConfig then 
+		LevelsConfig = require(ReplicatedStorage.LevelsConfig) -- Fallback
+	end 
 	local config = LevelsConfig[levelId]
 	if not config or poste.Name ~= config.NodoFin then return end
 
