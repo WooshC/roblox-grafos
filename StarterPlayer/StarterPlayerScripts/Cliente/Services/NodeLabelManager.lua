@@ -52,6 +52,11 @@ function NodeLabelManager:getLabelForNode(poste)
 	ancla.Transparency = 1
 	ancla.Anchored = true
 	ancla.CanCollide = false
+
+    -- FIX: Posicionar ancla
+    local pos = poste:GetPivot().Position
+    ancla.Position = pos + Vector3.new(0, 8, 0)
+
 	ancla.Size = Vector3.new(1,1,1)
 	ancla.Parent = workspace
 
