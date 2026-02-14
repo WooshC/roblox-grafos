@@ -82,8 +82,8 @@ end
 local GraphService = loadService("GraphService")
 local EnergyService = loadService("EnergyService")
 local LevelService = loadService("LevelService")
-local MissionService = loadService("MissionService")     -- Antes MisionManager
-local InventoryService = loadService("InventoryService") -- Antes InventoryManager
+local MissionService = loadService("MissionService")
+local InventoryService = loadService("InventoryService")
 local AlgorithmService = loadService("AlgorithmService")
 local UIService = loadService("UIService")
 local AudioService = loadService("AudioService")

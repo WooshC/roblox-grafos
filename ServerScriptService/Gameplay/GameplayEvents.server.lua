@@ -18,7 +18,7 @@ local EnergyService = _G.Services.Energy
 local UIService = _G.Services.UI
 local AudioService = _G.Services.Audio
 local RewardService = _G.Services.Reward
-local MisionManager = _G.Services.Misiones
+local MissionService = _G.Services.Mission
 local Enums = _G.Services.Enums
 
 -- Validar que servicios existen
@@ -124,7 +124,7 @@ local function pintarCablesSegunEnergia()
 		end
 	end
 
-	print("🎨 Cables pintados según energía")
+
 end
 
 -- Verificar conectividad y actualizar misiones
@@ -140,44 +140,23 @@ local function verificarYActualizarMisiones()
 	-- Obtener nodos energizados usando EnergyService
 	local energizados = EnergyService:calculateEnergy(startNode)
 
-	-- Construir estado del juego
-	local numNodosEnergizados = 0
-	for _, _ in pairs(energizados) do
-		numNodosEnergizados = numNodosEnergizados + 1
-	end
-
-	local estadoJuego = {
-		nodosVisitados = energizados,
-		numNodosConectados = numNodosEnergizados,
-		circuitoCerrado = energizados[config.NodoFin] == true,
-		dineroRestante = 0,
-		dineroInicial = config.DineroInicial,
-		numConexiones = 0,
-		zonasActivas = {}
-	}
-
-	-- Obtener dinero restante del jugador actual
-	local players = Players:GetPlayers()
-	if #players > 0 then
-		local player = players[1]
-		if player and player:FindFirstChild("leaderstats") then
-			local moneyValue = player.leaderstats:FindFirstChild("Money")
-			if moneyValue then
-				estadoJuego.dineroRestante = moneyValue.Value
-			end
-		end
-	end
-
-	-- Verificar todas las misiones usando MisionManager
-	if MisionManager then
-		local resultados = MisionManager.verificarTodasLasMisiones(config, estadoJuego)
-
-		-- Actualizar misiones para todos los jugadores
-		for misionID, completada in pairs(resultados) do
-			MisionManager.actualizarMisionGlobal(misionID, completada)
+	-- Verificar todas las misiones usando MissionService
+	if MissionService then
+		-- Recalcular numNodosEnergizados, ya que lo borramos antes
+		local numNodosEnergizados = 0
+		for _, _ in pairs(energizados) do
+			numNodosEnergizados = numNodosEnergizados + 1
 		end
 
-		print("📋 Misiones verificadas: " .. tostring(resultados))
+		-- Iterar sobre todos los jugadores para actualizar sus misiones individualmente
+		for _, player in ipairs(Players:GetPlayers()) do
+			-- Construir estado del juego usando MissionService
+			local estadoJuegoJugador = MissionService:buildGameState(player, energizados, numNodosEnergizados, energizados[config.NodoFin] == true, {})
+			
+			MissionService:checkMissions(player, estadoJuegoJugador)
+		end
+
+
 	end
 
 	-- Actualizar UI
@@ -253,9 +232,9 @@ end
 Players.PlayerAdded:Connect(function(player)
 	print("👤 Jugador conectado: " .. player.Name)
 
-	-- Inicializar en MisionManager
-	if MisionManager and MisionManager.inicializarJugador then
-		MisionManager.inicializarJugador(player)
+	-- Inicializar en MissionService
+	if MissionService and MissionService.initializePlayer then
+		MissionService:initializePlayer(player)
 	end
 
 	-- Inicializar UI para jugador
@@ -267,9 +246,9 @@ end)
 Players.PlayerRemoving:Connect(function(player)
 	print("👤 Jugador desconectado: " .. player.Name)
 
-	-- Limpiar en MisionManager
-	if MisionManager and MisionManager.limpiarJugador then
-		MisionManager.limpiarJugador(player)
+	-- Limpiar en MissionService
+	if MissionService and MissionService.clearPlayer then
+		MissionService:clearPlayer(player)
 	end
 end)
 
@@ -288,10 +267,7 @@ if LevelCompletedEvent then
 		if RewardService then
 			local recompensas = RewardService:giveCompletionRewards(player, nivelID)
 
-			print("✅ Recompensas dadas:")
-			print("   ⭐ Estrellas: " .. recompensas.stars)
-			print("   ⭐ XP: " .. recompensas.xp)
-			print("   💰 Dinero: $" .. recompensas.money)
+
 		end
 
 		-- Actualizar UI

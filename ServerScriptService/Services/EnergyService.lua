@@ -34,10 +34,7 @@ function EnergyService:calculateEnergy(sourceNode)
 	-- Usa BFS del GraphUtils
 	local energized = GraphUtils.bfs(sourceNode, graphService:getCables())
 
-	print("⚡ EnergyService: Nodos energizados desde " .. sourceNode.Name .. ":")
-	for nodeName, _ in pairs(energized) do
-		print("   • " .. nodeName)
-	end
+
 
 	return energized
 end
@@ -172,10 +169,7 @@ function EnergyService:findCriticalNodes(sourceNode)
 		end
 	end
 
-	print("🔴 EnergyService: Nodos críticos detectados:")
-	for _, node in pairs(critical) do
-		print("   • " .. node.Name)
-	end
+
 
 	return critical
 end
