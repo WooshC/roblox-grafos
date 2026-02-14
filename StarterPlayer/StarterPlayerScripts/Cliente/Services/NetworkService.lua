@@ -286,7 +286,7 @@ function NetworkService.subscribeToInventory(callback)
 end
 --- Subscribe to mission updates
 function NetworkService.subscribeToMissions(callback)
-    return NetworkService:onServerEvent("ActualizarMision", callback)
+	return NetworkService:onServerEvent("ActualizarMision", callback)
 end
 
 
