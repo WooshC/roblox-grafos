@@ -310,7 +310,7 @@ function RewardService:validateAndUnlockAchievements(player, nivelID)
 		local config = levelService:getLevelConfig()
 		local presupuesto = config.DineroInicial
 		local gastado = presupuesto - progress.dineroRestante -- Nota: progress debería tener dineroRestante o calcularlo
-		
+
 		-- Si no tenemos el dinero restante en progress, lo estimamos (esto es un fix rápido)
 		-- Idealmente LevelService provee esta info exacta
 		if not progress.dineroRestante and player.leaderstats.Money then

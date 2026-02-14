@@ -83,7 +83,7 @@ local Validators = {
 function MissionService:init()
 	-- Configurar eventos remotos
 	local Remotes = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Remotes")
-	
+
 	updateEvent = Remotes:FindFirstChild("ActualizarMision")
 	if not updateEvent then
 		updateEvent = Instance.new("RemoteEvent")
@@ -99,7 +99,7 @@ function MissionService:init()
 	Players.PlayerRemoving:Connect(function(player)
 		self:clearPlayer(player)
 	end)
-	
+
 	-- Inicializar jugadores actuales
 	for _, player in ipairs(Players:GetPlayers()) do
 		self:initializePlayer(player)
@@ -118,7 +118,7 @@ end
 
 function MissionService:initializePlayer(player)
 	if playerMissions[player.UserId] then return end
-	
+
 	-- Inicializar todas las posibles misiones como falsas
 	playerMissions[player.UserId] = {}
 	print("✅ MissionService: Jugador " .. player.Name .. " inicializado")
@@ -130,10 +130,10 @@ end
 
 function MissionService:resetMissions(player)
 	if not player then return end
-	
+
 	-- Reiniciar estado
 	playerMissions[player.UserId] = {}
-	
+
 	-- Notificar al cliente que todas las misiones se resetearon (podríamos enviar un evento de reset)
 	-- Por compatibilidad con el sistema anterior, actualizamos las primeras 8 a false
 	if updateEvent then
@@ -141,7 +141,7 @@ function MissionService:resetMissions(player)
 			updateEvent:FireClient(player, i, false)
 		end
 	end
-	
+
 	print("🔄 MissionService: Misiones reseteadas para " .. player.Name)
 end
 
@@ -152,24 +152,24 @@ end
 -- Verifica todas las misiones del nivel actual para un jugador dado el estado del juego
 function MissionService:checkMissions(player, gameState)
 	if not player or not levelService then return end
-	
+
 	local levelConfig = levelService:getLevelConfig()
 	if not levelConfig or not levelConfig.Misiones then return end
-	
+
 	local playerState = playerMissions[player.UserId]
 	if not playerState then
 		self:initializePlayer(player)
 		playerState = playerMissions[player.UserId]
 	end
-	
+
 	for _, missionConfig in ipairs(levelConfig.Misiones) do
 		local missionId = missionConfig.ID
-		
+
 		-- Si ya está completada, no hacer nada (o verificar si se puede 'perder' el estado)
 		-- Asumimos que una vez completada, se queda completada hasta el reset
 		if not playerState[missionId] then
 			local isCompleted = self:validateMission(missionConfig, gameState)
-			
+
 			if isCompleted then
 				self:completeMission(player, missionId)
 			end
@@ -181,20 +181,20 @@ end
 function MissionService:validateMission(missionConfig, gameState)
 	local tipo = missionConfig.Tipo
 	local validator = Validators[tipo]
-	
+
 	if not validator then
 		warn("⚠️ MissionService: Tipo de misión desconocido: " .. tostring(tipo))
 		return false
 	end
-	
+
 	local params = missionConfig.Parametros or {}
 	local success, result = pcall(validator, params, gameState)
-	
+
 	if not success then
 		warn("⚠️ MissionService: Error validando misión " .. tostring(missionConfig.ID) .. ": " .. tostring(result))
 		return false
 	end
-	
+
 	return result == true
 end
 
@@ -202,17 +202,17 @@ end
 function MissionService:completeMission(player, missionId)
 	local playerState = playerMissions[player.UserId]
 	if not playerState then return end
-	
+
 	if not playerState[missionId] then
 		playerState[missionId] = true
-		
+
 		-- Notificar al cliente
 		if updateEvent then
 			updateEvent:FireClient(player, missionId, true)
 		end
-		
+
 		print("🎉 MissionService: Jugador " .. player.Name .. " completó misión " .. missionId)
-		
+
 		-- TODO: Dar recompensas inmediatas si las hay configuradas en la misión
 	end
 end
@@ -239,19 +239,19 @@ function MissionService:buildGameState(player, visitados, connectedCount, circui
 		numConexiones = 0, -- TODO: Obtener del GraphService
 		zonasActivas = activeZones or {}
 	}
-	
+
 	if levelService then
 		local config = levelService:getLevelConfig()
 		gameState.dineroInicial = config and config.DineroInicial or 0
 	end
-	
+
 	if player and player:FindFirstChild("leaderstats") then
 		local money = player.leaderstats:FindFirstChild("Money")
 		if money then
 			gameState.dineroRestante = money.Value
 		end
 	end
-	
+
 	return gameState
 end
 

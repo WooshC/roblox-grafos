@@ -25,7 +25,7 @@ local levelService = nil
 
 function InventoryService:init()
 	local Remotes = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Remotes")
-	
+
 	-- Evento para enviar actualizaciones al cliente
 	updateEvent = Remotes:FindFirstChild("ActualizarInventario")
 	if not updateEvent then
@@ -33,7 +33,7 @@ function InventoryService:init()
 		updateEvent.Name = "ActualizarInventario"
 		updateEvent.Parent = Remotes
 	end
-	
+
 	-- Función remota para que el cliente consulte inventario completo
 	local getInventoryFunc = Remotes:FindFirstChild("GetInventory")
 	if not getInventoryFunc then
@@ -41,11 +41,11 @@ function InventoryService:init()
 		getInventoryFunc.Name = "GetInventory"
 		getInventoryFunc.Parent = Remotes
 	end
-	
+
 	getInventoryFunc.OnServerInvoke = function(player)
 		return self:getPlayerInventory(player)
 	end
-	
+
 	-- Función remota para verificar un item específico
 	local checkItemFunc = Remotes:FindFirstChild("VerificarInventario")
 	if checkItemFunc then
@@ -62,7 +62,7 @@ function InventoryService:init()
 	Players.PlayerRemoving:Connect(function(player)
 		self:clearPlayer(player)
 	end)
-	
+
 	-- Inicializar jugadores actuales
 	for _, player in ipairs(Players:GetPlayers()) do
 		self:initializePlayer(player)
@@ -82,7 +82,7 @@ end
 function InventoryService:initializePlayer(player)
 	if playerInventories[player.UserId] then return end
 	playerInventories[player.UserId] = {}
-	
+
 	-- TODO: Aquí cargaríamos datos de DataStore si existiera
 	print("✅ InventoryService: Inventario inicializado para " .. player.Name)
 end
@@ -96,14 +96,14 @@ function InventoryService:loadPlayerData(player, itemsList)
 	if not playerInventories[player.UserId] then
 		playerInventories[player.UserId] = {}
 	end
-	
+
 	local inventory = playerInventories[player.UserId]
 	if itemsList then
 		for _, itemId in ipairs(itemsList) do
 			inventory[itemId] = true
 		end
 	end
-	
+
 	self:syncToClient(player)
 end
 
@@ -114,23 +114,23 @@ end
 -- Añade un item al inventario
 function InventoryService:addItem(player, itemId)
 	if not player or not itemId then return end
-	
+
 	local inventory = playerInventories[player.UserId]
 	if not inventory then
 		self:initializePlayer(player)
 		inventory = playerInventories[player.UserId]
 	end
-	
+
 	if inventory[itemId] then return end -- Ya lo tiene
-	
+
 	-- Añadir item
 	inventory[itemId] = true
-	
+
 	-- Sincronizar con cliente
 	if updateEvent then
 		updateEvent:FireClient(player, itemId, true)
 	end
-	
+
 	-- Persistencia (Emitir evento interno para que DataManager lo guarde)
 	-- Usamos un BindableEvent para desacoplar
 	local Bindables = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Bindables")
@@ -138,7 +138,7 @@ function InventoryService:addItem(player, itemId)
 	if saveEvent then
 		saveEvent:Fire(player, itemId)
 	end
-	
+
 	print("🎒 InventoryService: " .. player.Name .. " recibió " .. itemId)
 end
 
@@ -147,14 +147,14 @@ function InventoryService:removeItem(player, itemId)
 	if not player then return end
 	local inventory = playerInventories[player.UserId]
 	if not inventory then return end
-	
+
 	if inventory[itemId] then
 		inventory[itemId] = nil
-		
+
 		if updateEvent then
 			updateEvent:FireClient(player, itemId, false)
 		end
-		
+
 		print("🎒 InventoryService: Item removido " .. itemId .. " de " .. player.Name)
 	end
 end
@@ -175,7 +175,7 @@ end
 function InventoryService:syncToClient(player)
 	local inventory = playerInventories[player.UserId] or {}
 	if not updateEvent then return end
-	
+
 	for itemId, _ in pairs(inventory) do
 		updateEvent:FireClient(player, itemId, true)
 	end
