@@ -14,9 +14,9 @@ LevelsConfig[0] = {
 	Algoritmo = "BFS",
 
 	Puntuacion = {
-		TresEstrellas = 100, 
-		DosEstrellas = 50,
-		RecompensaXP = 50 
+		TresEstrellas = 1000, 
+		DosEstrellas = 600,
+		RecompensaXP = 500 
 	},
 
 	NodoInicio = "PostePanel",
@@ -41,6 +41,7 @@ LevelsConfig[0] = {
 			ID = 1,
 			Texto = "Energiza la Toma de Corriente (toma_corriente)",
 			Tipo = "NODO_ENERGIZADO",
+			Puntos = 250,
 			Parametros = {
 				Nodo = "toma_corriente"
 			}
@@ -49,6 +50,7 @@ LevelsConfig[0] = {
 			ID = 2,
 			Texto = "Energiza al menos 3 nodos",
 			Tipo = "NODOS_MINIMOS",
+			Puntos = 250,
 			Parametros = {
 				Cantidad = 3
 			}
@@ -57,6 +59,7 @@ LevelsConfig[0] = {
 			ID = 3,
 			Texto = "¡Llega a la Torre de Control!",
 			Tipo = "NODO_ENERGIZADO",
+			Puntos = 250,
 			Parametros = {
 				Nodo = "PosteFinal"
 			}
@@ -65,6 +68,7 @@ LevelsConfig[0] = {
 			ID = 4,
 			Texto = "¡Energiza toda la red! (8/8 nodos)",
 			Tipo = "TODOS_LOS_NODOS",
+			Puntos = 250,
 			Parametros = {
 				Cantidad = 8
 			}

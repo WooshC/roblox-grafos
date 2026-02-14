@@ -213,7 +213,41 @@ function MissionService:completeMission(player, missionId)
 
 		print("🎉 MissionService: Jugador " .. player.Name .. " completó misión " .. missionId)
 
-		-- TODO: Dar recompensas inmediatas si las hay configuradas en la misión
+		-- ✅ AGREGAR PUNTOS AUTOMÁTICAMENTE DESDE LA MISIÓN
+		if levelService then
+			local config = levelService:getLevelConfig()
+			if config and config.Misiones then
+				-- Buscar la configuración de esta misión
+				for _, missionConfig in ipairs(config.Misiones) do
+					if missionConfig.ID == missionId then
+						-- Obtener puntos de la misión (si existen en config)
+						local puntosBonus = missionConfig.Puntos or 0
+						
+						if puntosBonus > 0 then
+							-- Sumar puntos al jugador
+							local leaderstats = player:FindFirstChild("leaderstats")
+							if leaderstats then
+								local puntos = leaderstats:FindFirstChild("Puntos")
+								if puntos then
+									puntos.Value = puntos.Value + puntosBonus
+									print("💰 MissionService: +" .. puntosBonus .. " pts a " .. player.Name .. 
+										" por misión " .. missionId .. " (Total: " .. puntos.Value .. ")")
+								else
+									warn("⚠️ MissionService: No hay IntValue 'Puntos' en leaderstats de " .. player.Name)
+								end
+							else
+								warn("⚠️ MissionService: No hay leaderstats para " .. player.Name)
+							end
+						else
+							print("ℹ️ MissionService: Misión " .. missionId .. " no tiene puntos configurados")
+						end
+						break
+					end
+				end
+			end
+		else
+			warn("⚠️ MissionService: levelService no está inicializado")
+		end
 	end
 end
 
