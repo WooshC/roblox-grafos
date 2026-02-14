@@ -69,12 +69,20 @@ end
 -- CARGA DE NIVELES
 -- ============================================
 
--- Busca el modelo del nivel en ServerStorage
+-- Busca el modelo del nivel en ReplicatedStorage (NUEVA UBICACIÓN)
 local function findLevelModelInStorage(modelName)
-	return ServerStorage:FindFirstChild(modelName)
+	-- Intentar buscar en carpeta "Niveles" si existe
+	local nivelesFolder = ReplicatedStorage:FindFirstChild("Niveles")
+	if nivelesFolder then
+		local modelo = nivelesFolder:FindFirstChild(modelName)
+		if modelo then return modelo end
+	end
+
+	-- Si no, buscar en la raíz de ReplicatedStorage
+	return ReplicatedStorage:FindFirstChild(modelName)
 end
 
--- Carga un nivel del ServerStorage al Workspace
+-- Carga un nivel del ReplicatedStorage al Workspace
 -- Parámetro: nivelID (number) - 0, 1, 2, etc.
 function LevelService:loadLevel(nivelID)
 	print("📦 LevelService: Cargando nivel " .. nivelID .. "...")
