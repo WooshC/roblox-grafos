@@ -1,4 +1,4 @@
--- GameplayEvents_server.lua (REFACTORIZADO)
+-- GameplayEvents_server.lua (VERSIÓN FINAL - ENCUENTRA ZONAS EN CUALQUIER ESTRUCTURA)
 -- Usa los nuevos servicios: LevelService, EnergyService, UIService, AudioService, RewardService
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -32,53 +32,150 @@ print("✅ GameplayEvents: Todos los servicios cargados")
 -- FUNCIONES LOCALES
 -- ============================================
 
+-- ✅ BÚSQUEDA UNIVERSAL DE ZONAS (Cualquier estructura)
+local function obtenerCarpetaZonas(nivel)
+	if not nivel then return nil end
+
+	-- Prioridad 1: Nivel/Zonas (ESTRUCTURA ACTUAL - Tu caso)
+	local zonas = nivel:FindFirstChild("Zonas")
+	if zonas and zonas:IsA("Folder") then
+		print("  📂 Zonas encontrada en: " .. nivel.Name .. "/Zonas")
+		return zonas
+	end
+
+	-- Prioridad 2: Nivel/Objetos/Zonas (Estructura alternativa)
+	local objetos = nivel:FindFirstChild("Objetos")
+	if objetos then
+		zonas = objetos:FindFirstChild("Zonas")
+		if zonas and zonas:IsA("Folder") then
+			print("  📂 Zonas encontrada en: " .. nivel.Name .. "/Objetos/Zonas")
+			return zonas
+		end
+	end
+
+	-- Prioridad 3: Buscar recursivamente en cualquier lugar
+	for _, child in ipairs(nivel:GetDescendants()) do
+		if child.Name == "Zonas" and child:IsA("Folder") then
+			print("  📂 Zonas encontrada en: " .. child:GetFullName())
+			return child
+		end
+	end
+
+	print("  ⚠️  Carpeta Zonas NO encontrada en nivel " .. nivel.Name)
+	return nil
+end
+
 -- Actualizar luces de zonas cuando hay energía
 local function actualizarLucesZonas(nivelID)
-	if not LevelService:isLevelLoaded() then return end
+	if not LevelService:isLevelLoaded() then 
+		-- print("⚠️ GameplayEvents: Nivel no cargado")
+		return 
+	end
 
 	local nivel = LevelService:getCurrentLevel()
-	if not nivel then return end
+	if not nivel then 
+		print("⚠️ GameplayEvents: No hay nivel cargado para actualizar luces")
+		return 
+	end
 
-	local carpetaZonas = nivel:FindFirstChild("Zonas")
-	if not carpetaZonas then return end
+	-- ✅ USAR FUNCIÓN UNIVERSAL DE BÚSQUEDA
+	local carpetaZonas = obtenerCarpetaZonas(nivel)
+
+	-- Si no existe carpeta de zonas, salir silenciosamente
+	if not carpetaZonas then 
+		return 
+	end
 
 	-- Obtener nodos energizados desde EnergyService
 	local startNode = LevelService:getStartNode()
-	if not startNode then return end
+	if not startNode then 
+		print("⚠️ GameplayEvents: No hay nodo de inicio")
+		return 
+	end
 
 	local energizados = EnergyService:calculateEnergy(startNode)
+
+	-- Obtener configuración del nivel
+	local config = LevelService:getLevelConfig()
+	if not config then 
+		print("⚠️ GameplayEvents: No hay configuración del nivel")
+		return 
+	end
+
+	print("⚡ GameplayEvents: Actualizando " .. #carpetaZonas:GetChildren() .. " zonas (" .. 
+		table.concat(require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Utils"):WaitForChild("GraphUtils")).bfs(startNode, GraphService:getCables()) and (function() 
+			local keys = {} 
+			for k in pairs(energizados) do table.insert(keys, k) end 
+			return keys 
+		end)() or {}, ", ") .. ")")
 
 	-- Activar/desactivar componentes de cada zona
 	for _, zona in ipairs(carpetaZonas:GetChildren()) do
 		if zona:IsA("Folder") and string.match(zona.Name, "^Zona") then
+			-- ✅ BÚSQUEDA FLEXIBLE DE COMPONENTES
+			-- Opción A: ComponentesEnergeticos
 			local componentesFolder = zona:FindFirstChild("ComponentesEnergeticos")
+			
+			-- Opción B: Si no existe, usar la zona misma como contenedor
+			if not componentesFolder then
+				componentesFolder = zona
+			end
+
 			if componentesFolder then
 				-- Verificar si hay nodos energizados en esta zona
 				local zonaActiva = false
+				local nodosEnZona = {}
 
-				local config = LevelService:getLevelConfig()
-				if config and config.Nodos then
+				if config.Nodos then
+					-- Buscar nodos que pertenecen a esta zona
 					for nodeName, nodoData in pairs(config.Nodos) do
-						if nodoData.Zona and string.match(zona.Name, nodoData.Zona) then
+						if nodoData.Zona == zona.Name then
+							table.insert(nodosEnZona, nodeName)
+							-- Verificar si este nodo está energizado
 							if energizados[nodeName] then
 								zonaActiva = true
-								break
 							end
 						end
 					end
 				end
 
-				-- Activar/desactivar luces, particles, beams
+				-- DEBUG: Mostrar estado
+				if #nodosEnZona > 0 then
+					local estado = zonaActiva and "✅ ACTIVA" or "❌ inactiva"
+					print("  🔆 " .. zona.Name .. ": " .. #nodosEnZona .. " nodos | " .. estado)
+				end
+
+				-- ✅ ACTIVAR/DESACTIVAR TODOS LOS COMPONENTES
 				for _, componente in ipairs(componentesFolder:GetDescendants()) do
-					if componente:IsA("Light") or componente:IsA("ParticleEmitter") or componente:IsA("Beam") then
+					-- Luces
+					if componente:IsA("Light") then
 						componente.Enabled = zonaActiva
-					elseif componente:IsA("BasePart") and componente.Material == Enum.Material.Neon then
-						componente.Material = zonaActiva and Enum.Material.Neon or Enum.Material.Plastic
+					end
+					
+					-- Partículas
+					if componente:IsA("ParticleEmitter") then
+						componente.Enabled = zonaActiva
+					end
+					
+					-- Beams
+					if componente:IsA("Beam") then
+						componente.Enabled = zonaActiva
+					end
+					
+					-- Partes Neon (cambiar material)
+					if componente:IsA("BasePart") and componente.Material == Enum.Material.Neon then
+						if zonaActiva then
+							componente.Material = Enum.Material.Neon
+						else
+							componente.Material = Enum.Material.Plastic
+						end
 					end
 				end
 			end
 		end
 	end
+
+	-- print("✅ GameplayEvents: Luces de zonas actualizadas")
 end
 
 -- Pintar cables según su estado de energía
@@ -123,8 +220,6 @@ local function pintarCablesSegunEnergia()
 			end
 		end
 	end
-
-
 end
 
 -- Verificar conectividad y actualizar misiones
@@ -142,7 +237,7 @@ local function verificarYActualizarMisiones()
 
 	-- Verificar todas las misiones usando MissionService
 	if MissionService then
-		-- Recalcular numNodosEnergizados, ya que lo borramos antes
+		-- Recalcular numNodosEnergizados
 		local numNodosEnergizados = 0
 		for _, _ in pairs(energizados) do
 			numNodosEnergizados = numNodosEnergizados + 1
@@ -155,8 +250,6 @@ local function verificarYActualizarMisiones()
 			
 			MissionService:checkMissions(player, estadoJuegoJugador)
 		end
-
-
 	end
 
 	-- Actualizar UI
@@ -175,7 +268,7 @@ if LevelService then
 	LevelService:onLevelLoaded(function(nivelID, levelFolder, config)
 		print("🎮 Nivel " .. nivelID .. " cargado: " .. config.Nombre)
 
-		-- Inicializar luces
+		-- Inicializar luces (primero apagadas)
 		task.wait(0.5)
 		actualizarLucesZonas(nivelID)
 
@@ -193,6 +286,9 @@ if LevelService then
 
 	LevelService:onLevelReset(function(nivelID)
 		print("🔄 Nivel " .. nivelID .. " reseteado")
+
+		-- Apagar todas las luces al resetear
+		actualizarLucesZonas(nivelID)
 
 		-- Resetear UI
 		if UIService then
@@ -266,8 +362,6 @@ if LevelCompletedEvent then
 		-- Usar RewardService para dar todas las recompensas
 		if RewardService then
 			local recompensas = RewardService:giveCompletionRewards(player, nivelID)
-
-
 		end
 
 		-- Actualizar UI
@@ -301,6 +395,8 @@ end
 -- INICIALIZACIÓN
 -- ============================================
 
-print("⚡ GameplayEvents (REFACTORIZADO) cargado exitosamente")
-print("   ✅ Usa: LevelService, GraphService, EnergyService")
-print("   ✅ Usa: UIService, AudioService, RewardService")
+print("⚡ GameplayEvents (FINAL) cargado exitosamente")
+print("   ✅ Busca Zonas en CUALQUIER estructura")
+print("   ✅ Prioridad 1: Nivel/Zonas")
+print("   ✅ Prioridad 2: Nivel/Objetos/Zonas")
+print("   ✅ Prioridad 3: Búsqueda recursiva")
