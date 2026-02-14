@@ -1,7 +1,22 @@
 local objeto = script.Parent
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
-local InventoryManager = require(ReplicatedStorage:WaitForChild("Utilidades"):WaitForChild("InventoryManager"))
+
+-- Esperar Inicialización de Servicios
+local function waitForService(serviceName)
+	local function getService()
+		return _G.Services and _G.Services[serviceName]
+	end
+	
+	local service = getService()
+	while not service do
+		task.wait(0.5)
+		service = getService()
+	end
+	return service
+end
+
+local InventoryService = waitForService("Inventory")
 
 -- === CONFIGURACIÓN MANUAL ===
 local ID_OBJETO = "Mapa"
@@ -62,7 +77,8 @@ local function alTocar(hit)
 	if player then
 		debounce = true
 		print("🎒 " .. player.Name .. " tocó y recogió: " .. ID_OBJETO)
-		InventoryManager.agregarObjeto(player, ID_OBJETO)
+		
+		InventoryService:addItem(player, ID_OBJETO)
 
 		local sonido = Instance.new("Sound")
 		sonido.SoundId = "rbxassetid://12221967"
@@ -120,4 +136,4 @@ if eventsFolder then
 	end
 end
 
-print("✅ Script MAPA (TOQUE + ANTI-TRAMPA) Actualizado V2")
+print("✅ Script MAPA (TOQUE + ANTI-TRAMPA) Actualizado V3 - Usa InventoryService")

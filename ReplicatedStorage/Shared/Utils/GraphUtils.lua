@@ -29,7 +29,18 @@ end
 -- Obtiene la carpeta de Postes del nivel actual
 function GraphUtils.getPostesFolder(levelFolder)
 	if not levelFolder then return nil end
-	return levelFolder:FindFirstChild("Postes")
+	
+	-- Intento 1 (Directo)
+	local p = levelFolder:FindFirstChild("Postes")
+	if p then return p end
+	
+	-- Intento 2 (Dentro de Objetos - Estructura estándar actual)
+	local objetos = levelFolder:FindFirstChild("Objetos")
+	if objetos then
+		return objetos:FindFirstChild("Postes")
+	end
+	
+	return nil
 end
 
 -- Obtiene todos los postes de un nivel
@@ -48,92 +59,58 @@ end
 function GraphUtils.getNodeByName(levelFolder, nodeName)
 	local postesFolder = GraphUtils.getPostesFolder(levelFolder)
 	if not postesFolder then return nil end
-
 	return postesFolder:FindFirstChild(nodeName)
 end
 
 -- ============================================
--- FUNCIONES DE POSICIÓN
+-- ALGORITMOS DE GRAFOS
 -- ============================================
 
--- Obtiene la posición de un nodo (con Attachment o sin)
-function GraphUtils.getNodePosition(node)
-	if not node then return Vector3.new(0, 0, 0) end
-
-	-- Intenta usar Attachment si existe
-	local attachment = node:FindFirstChild("Attachment")
-	if attachment then
-		return attachment.WorldPosition
-	end
-
-	-- Si no, usa la posición del nodo
-	return node.Position
-end
-
--- Calcula la distancia entre dos nodos
-function GraphUtils.getDistance(nodeA, nodeB)
-	local posA = GraphUtils.getNodePosition(nodeA)
-	local posB = GraphUtils.getNodePosition(nodeB)
-	return (posA - posB).Magnitude
-end
-
--- ============================================
--- FUNCIONES DE VALIDACIÓN
--- ============================================
-
--- Valida que dos nodos estén conectados (existe cable entre ellos)
-function GraphUtils.areConnected(nodeA, nodeB, cables)
-	if not nodeA or not nodeB then return false end
-
+-- Verifica si dos nodos están conectados (usando tabla de cables)
+function GraphUtils.areConnected(nodeA, nodeB, cablesTable)
 	local key = GraphUtils.getCableKey(nodeA, nodeB)
-	return cables[key] ~= nil
+	return cablesTable[key] ~= nil
 end
 
--- Valida que un nodo tenga al menos una conexión
-function GraphUtils.hasConnections(node, cables)
-	if not node then return false end
-
-	for key, cable in pairs(cables) do
-		if cable.nodeA == node or cable.nodeB == node then
-			return true
-		end
-	end
-
-	return false
-end
-
--- Obtiene todos los vecinos de un nodo
-function GraphUtils.getNeighbors(node, cables)
+-- Obtiene los vecinos de un nodo
+function GraphUtils.getNeighbors(node, cablesTable)
 	local neighbors = {}
-
-	for key, cable in pairs(cables) do
-		if cable.nodeA == node then
-			table.insert(neighbors, cable.nodeB)
-		elseif cable.nodeB == node then
-			table.insert(neighbors, cable.nodeA)
+	for key, data in pairs(cablesTable) do
+		if data.nodeA == node then
+			table.insert(neighbors, data.nodeB)
+		elseif data.nodeB == node then
+			table.insert(neighbors, data.nodeA)
 		end
 	end
-
 	return neighbors
 end
 
+-- Verifica si un nodo tiene conexiones
+function GraphUtils.hasConnections(node, cablesTable)
+	for key, data in pairs(cablesTable) do
+		if data.nodeA == node or data.nodeB == node then
+			return true
+		end
+	end
+	return false
+end
+
 -- ============================================
--- FUNCIONES DE BÚSQUEDA EN GRAFO
+-- ALGORITMOS DE BÚSQUEDA (BFS / DFS / Dijkstra)
 -- ============================================
 
--- BFS (Breadth-First Search) - Encuentra todos los nodos alcanzables desde un nodo inicial
-function GraphUtils.bfs(startNode, cables)
-	if not startNode then return {} end
-
+-- BFS: Búsqueda en Anchura
+-- Retorna: { [nombreNodo] = true } (nodos alcanzables)
+function GraphUtils.bfs(startNode, cablesTable)
 	local visited = {}
-	local queue = { startNode }
+	local queue = {startNode}
 	visited[startNode.Name] = true
 
 	while #queue > 0 do
 		local current = table.remove(queue, 1)
-		local neighbors = GraphUtils.getNeighbors(current, cables)
-
-		for _, neighbor in pairs(neighbors) do
+		
+		local neighbors = GraphUtils.getNeighbors(current, cablesTable)
+		for _, neighbor in ipairs(neighbors) do
 			if not visited[neighbor.Name] then
 				visited[neighbor.Name] = true
 				table.insert(queue, neighbor)
@@ -144,81 +121,56 @@ function GraphUtils.bfs(startNode, cables)
 	return visited
 end
 
--- DFS (Depth-First Search) - Alternativa a BFS
-function GraphUtils.dfs(startNode, cables)
-	if not startNode then return {} end
+-- DFS: Búsqueda en Profundidad
+-- Retorna: { [nombreNodo] = true }
+function GraphUtils.dfs(startNode, cablesTable, visited)
+	visited = visited or {}
+	visited[startNode.Name] = true
 
-	local visited = {}
-
-	local function explore(node)
-		visited[node.Name] = true
-		local neighbors = GraphUtils.getNeighbors(node, cables)
-
-		for _, neighbor in pairs(neighbors) do
-			if not visited[neighbor.Name] then
-				explore(neighbor)
-			end
+	local neighbors = GraphUtils.getNeighbors(startNode, cablesTable)
+	for _, neighbor in ipairs(neighbors) do
+		if not visited[neighbor.Name] then
+			GraphUtils.dfs(neighbor, cablesTable, visited)
 		end
 	end
 
-	explore(startNode)
 	return visited
 end
 
--- Dijkstra simplificado (todos los aristas tienen peso 1)
-function GraphUtils.dijkstra(startNode, cables)
-	if not startNode then return {} end
-
+-- Dijkstra: Distancia más corta
+-- Retorna: { [nombreNodo] = distancia }
+function GraphUtils.dijkstra(startNode, cablesTable)
 	local distances = {}
 	local unvisited = {}
 
 	-- Inicializar
+	-- (Nota: Necesitamos la lista de todos los nodos para inicializar distancias a infinito
+	--  pero aquí simplificamos asumiendo que solo visitamos lo alcanzable)
+	
 	distances[startNode.Name] = 0
+	local queue = {{node = startNode, dist = 0}}
 
-	-- Obtener todos los nodos del grafo
-	local allNodes = {}
-	local visited = {}
+	-- Usar una cola de prioridad simple
+	while #queue > 0 do
+		-- Ordenar por distancia (ineficiente para grafos grandes, pero ok aquí)
+		table.sort(queue, function(a, b) return a.dist < b.dist end)
+		local current = table.remove(queue, 1)
+		local u = current.node
+		local d = current.dist
 
-	local function gatherNodes(node)
-		if visited[node.Name] then return end
-		visited[node.Name] = true
-		table.insert(allNodes, node)
-		distances[node.Name] = math.huge
-		table.insert(unvisited, node)
-
-		local neighbors = GraphUtils.getNeighbors(node, cables)
-		for _, neighbor in pairs(neighbors) do
-			if not visited[neighbor.Name] then
-				gatherNodes(neighbor)
-			end
-		end
-	end
-
-	gatherNodes(startNode)
-	distances[startNode.Name] = 0
-
-	-- Dijkstra
-	while #unvisited > 0 do
-		-- Encontrar nodo no visitado con menor distancia
-		local minIdx = 1
-		local minDist = math.huge
-
-		for i, node in pairs(unvisited) do
-			if (distances[node.Name] or math.huge) < minDist then
-				minDist = distances[node.Name] or math.huge
-				minIdx = i
-			end
+		if d > (distances[u.Name] or math.huge) then
+			continue
 		end
 
-		if minDist == math.huge then break end
-
-		local current = table.remove(unvisited, minIdx)
-		local neighbors = GraphUtils.getNeighbors(current, cables)
-
-		for _, neighbor in pairs(neighbors) do
-			local newDist = (distances[current.Name] or math.huge) + 1
-			if newDist < (distances[neighbor.Name] or math.huge) then
-				distances[neighbor.Name] = newDist
+		local neighbors = GraphUtils.getNeighbors(u, cablesTable)
+		for _, v in ipairs(neighbors) do
+			-- Peso = 1 por defecto (o leer atributo Peso)
+			local weight = 1 
+			-- Podríamos leer weight de la conexión si existiera
+			
+			if (distances[u.Name] + weight) < (distances[v.Name] or math.huge) then
+				distances[v.Name] = distances[u.Name] + weight
+				table.insert(queue, {node = v, dist = distances[v.Name]})
 			end
 		end
 	end
@@ -226,30 +178,33 @@ function GraphUtils.dijkstra(startNode, cables)
 	return distances
 end
 
+
 -- ============================================
--- FUNCIONES DE MATRIZ DE ADYACENCIA
+-- MATRIZ DE ADYACENCIA
 -- ============================================
 
--- Genera la matriz de adyacencia para un grafo
-function GraphUtils.getAdjacencyMatrix(nodes, cables)
+function GraphUtils.getAdjacencyMatrix(nodesList, cablesTable)
 	local matrix = {}
-	local headers = {}
+	local size = #nodesList
 
-	-- Crear encabezados
-	for i, node in pairs(nodes) do
-		headers[i] = node.Name
-	end
-
-	-- Crear matriz
-	for i = 1, #nodes do
+	-- Inicializar matriz vacía
+	for i = 1, size do
 		matrix[i] = {}
-		for j = 1, #nodes do
-			local connected = GraphUtils.areConnected(nodes[i], nodes[j], cables)
-			matrix[i][j] = connected and 1 or 0
+		for j = 1, size do
+			matrix[i][j] = 0
 		end
 	end
 
-	return { headers = headers, matrix = matrix }
+	-- Llenar conexiones
+	for i, nodeA in ipairs(nodesList) do
+		for j, nodeB in ipairs(nodesList) do
+			if GraphUtils.areConnected(nodeA, nodeB, cablesTable) then
+				matrix[i][j] = 1
+			end
+		end
+	end
+
+	return matrix
 end
 
 return GraphUtils

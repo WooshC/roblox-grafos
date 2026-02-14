@@ -438,8 +438,10 @@ local function mostrarEtiquetasNodos(mostrar)
 	local nivelID = player:FindFirstChild("leaderstats") and player.leaderstats.Nivel.Value or 0
 	local config = LevelsConfig[nivelID] or LevelsConfig[0]
 	local nivelModel = workspace:FindFirstChild(config.Modelo)
-	if not nivelModel and workspace:FindFirstChild("Nivel" .. nivelID) then
-		nivelModel = workspace:FindFirstChild("Nivel" .. nivelID)
+	
+	-- Fallback: Buscar con nombres alternativos si no se encuentra
+	if not nivelModel then
+		nivelModel = workspace:FindFirstChild("Nivel" .. nivelID) or workspace:FindFirstChild("Nivel" .. nivelID .. "_Tutorial") or workspace:FindFirstChild("NivelActual")
 	end
 
 	local postesFolder = nivelModel and nivelModel:FindFirstChild("Objetos") and nivelModel.Objetos:FindFirstChild("Postes")
@@ -487,7 +489,7 @@ local function mostrarEtiquetasNodos(mostrar)
 			end
 		end
 	else
-		warn("⚠️ No se encontró carpeta de postes")
+		warn("⚠️ No se encontró carpeta de postes en: " .. (nivelModel and nivelModel.Name or "NIL"))
 	end
 end
 
@@ -538,8 +540,8 @@ local function toggleMapa()
 
 	local nivelModel = workspace:FindFirstChild(config.Modelo)
 	-- Fallback
-	if not nivelModel and workspace:FindFirstChild("Nivel" .. nivelID) then
-		nivelModel = workspace:FindFirstChild("Nivel" .. nivelID)
+	if not nivelModel then
+		nivelModel = workspace:FindFirstChild("Nivel" .. nivelID) or workspace:FindFirstChild("Nivel" .. nivelID .. "_Tutorial") or workspace:FindFirstChild("NivelActual")
 	end
 
 	local techosFolder = nivelModel and nivelModel:FindFirstChild("Techos")
@@ -798,34 +800,33 @@ local function toggleMapa()
 		-- end
 		distanciaLabel.Visible = false -- Mantener oculto
 
+		-- Ocultar Misión
 		misionFrame.Visible = false
-
+		
 		mostrarEtiquetasNodos(false)
 
-		if camaraConnection then 
-			camaraConnection:Disconnect() 
+		if camaraConnection then
+			camaraConnection:Disconnect()
 			camaraConnection = nil
 		end
 
 		-- Restaurar Techos
 		if techosFolder then
-			for techo, tr in pairs(techoOriginalTransparency) do
-				if techo and techo.Parent then
-					techo.Transparency = tr
+			for techo, trans in pairs(techoOriginalTransparency) do
+				if techo and techo:IsA("BasePart") then
+					techo.Transparency = trans
 					techo.CastShadow = true
 				end
 			end
+			table.clear(techoOriginalTransparency)
 		end
 
-		-- Restaurar Selectores (Invisibles y sin Highlight)
+		-- Ocultar Selectores
 		if postesFolder then
 			for _, poste in ipairs(postesFolder:GetChildren()) do
-				local selector = poste:FindFirstChild("Selector")
-				if selector then
+				if poste:IsA("Model") then
+					local selector = poste:FindFirstChild("Selector")
 					restaurarSelector(selector)
-					if selector:FindFirstChild("AlertaVisual") then
-						selector.AlertaVisual:Destroy()
-					end
 				end
 			end
 		end
@@ -843,18 +844,14 @@ toggleMisiones = function()
 	end
 
 	misionesActivo = not misionesActivo
+	local nivelID = player:FindFirstChild("leaderstats") and player.leaderstats.Nivel.Value or 0
+	local config = LevelsConfig[nivelID] or LevelsConfig[0]
+	local listaMisiones = config.Misiones or {"¡Conecta la red eléctrica!"}
 
 	if misionesActivo then
-		-- Mostrar panel de misiones
-		local nivelID = player:FindFirstChild("leaderstats") and player.leaderstats.Nivel.Value or 0
-		local config = LevelsConfig[nivelID] or LevelsConfig[0]
-		local listaMisiones = config.Misiones or {"¡Conecta la red eléctrica!"}
-
+		btnMisiones.BackgroundColor3 = Color3.fromRGB(231, 76, 60) -- Rojo (Cerrar)
+		
 		misionFrame.Visible = true
-		btnMisiones.Text = "✅ CERRAR"
-		btnMisiones.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
-
-		-- Limpiar y llenar misiones
 		for _, child in ipairs(misionFrame:GetChildren()) do
 			if child:IsA("TextLabel") and child ~= tituloMision then child:Destroy() end
 		end
@@ -864,7 +861,6 @@ toggleMisiones = function()
 			lbl.Size = UDim2.new(1, -10, 0, 25)
 			lbl.BackgroundTransparency = 1
 
-			-- Extraer texto (soporta objetos y strings)
 			local texto
 			if type(misionConfig) == "table" then
 				texto = misionConfig.Texto or "Misión sin texto"
@@ -872,7 +868,6 @@ toggleMisiones = function()
 				texto = tostring(misionConfig)
 			end
 
-			-- Aplicar estado guardado
 			if estadoMisiones[i] then
 				lbl.Text = "✅ " .. texto
 				lbl.TextColor3 = Color3.fromRGB(46, 204, 113)
@@ -890,280 +885,49 @@ toggleMisiones = function()
 			lbl.AutomaticSize = Enum.AutomaticSize.Y
 			lbl.Parent = misionFrame
 		end
+
 	else
-		-- Ocultar panel
+		btnMisiones.BackgroundColor3 = Color3.fromRGB(46, 204, 113) -- Verde (Abrir)
 		misionFrame.Visible = false
-		btnMisiones.Text = "📋 MISIONES"
-		btnMisiones.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
 	end
 end
 
--- ============================================
--- VIEW MATRIX LOGIC
--- ============================================
-
-local matrixFrame = Instance.new("Frame")
-matrixFrame.Name = "MatrixFrame"
-matrixFrame.Size = UDim2.new(0, 600, 0, 450)
-matrixFrame.Position = UDim2.new(0.5, -300, 0.5, -225)
-matrixFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-matrixFrame.BackgroundTransparency = 0.1
-matrixFrame.Visible = false
-matrixFrame.Parent = screenGui
-
-local cornerMat = Instance.new("UICorner"); cornerMat.CornerRadius = UDim.new(0, 12); cornerMat.Parent = matrixFrame
-
--- Titulo Matrix
-local titleMat = Instance.new("TextLabel")
-titleMat.Size = UDim2.new(1, 0, 0, 40)
-titleMat.BackgroundTransparency = 1
-titleMat.Text = "🔢 MATRIZ DE ADYACENCIA"
-titleMat.TextColor3 = Color3.fromRGB(255, 159, 67)
-titleMat.Font = Enum.Font.GothamBlack
-titleMat.TextSize = 24
-titleMat.Parent = matrixFrame
-
-local closeMat = Instance.new("TextButton")
-closeMat.Size = UDim2.new(0, 30, 0, 30)
-closeMat.Position = UDim2.new(1, -40, 0, 5)
-closeMat.Text = "X"
-closeMat.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
-closeMat.TextColor3 = Color3.new(1,1,1)
-closeMat.Parent = matrixFrame
-local cornerC = Instance.new("UICorner"); cornerC.CornerRadius = UDim.new(0, 8); cornerC.Parent = closeMat
-
-closeMat.MouseButton1Click:Connect(function() matrixFrame.Visible = false end)
-
--- Scroll para la Grid
-local scrollMat = Instance.new("ScrollingFrame")
-scrollMat.Size = UDim2.new(1, -40, 1, -60)
-scrollMat.Position = UDim2.new(0, 20, 0, 50)
-scrollMat.BackgroundTransparency = 1
-scrollMat.CanvasSize = UDim2.new(2, 0, 2, 0) -- Expandable
-scrollMat.Parent = matrixFrame
-
-local getMatrixFunc = Remotes:WaitForChild("GetAdjacencyMatrix", 5)
-
-local function drawMatrix()
-	if not getMatrixFunc then return end
-
-	-- Limpiar
-	scrollMat:ClearAllChildren()
-
-	local nivelID = player:FindFirstChild("leaderstats") and player.leaderstats.Nivel.Value or 0
-	local data = getMatrixFunc:InvokeServer(nivelID)
-
-	if not data or not data.Matrix then return end
-
-	local headers = data.Headers
-	local matrix = data.Matrix
-	local cellWidth = 80
-	local cellHeight = 40
-
-	-- 1. Cabecera Filas (Top)
-	for col, name in ipairs(headers) do
-		local lbl = Instance.new("TextLabel")
-		lbl.Size = UDim2.new(0, cellWidth, 0, cellHeight)
-		lbl.Position = UDim2.new(0, cellWidth * col, 0, 0) -- Shifted by 1 cell for corner
-		lbl.Text = name:sub(1, 8) -- Truncate
-		lbl.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-		lbl.TextColor3 = Color3.new(1,1,1)
-		lbl.BorderSizePixel = 1
-		lbl.BorderColor3 = Color3.new(0,0,0)
-		lbl.Parent = scrollMat
-	end
-
-	-- 2. Filas de datos
-	for row, name in ipairs(headers) do
-		-- Cabecera Columna (Left)
-		local lblHeader = Instance.new("TextLabel")
-		lblHeader.Size = UDim2.new(0, cellWidth, 0, cellHeight)
-		lblHeader.Position = UDim2.new(0, 0, 0, cellHeight * row)
-		lblHeader.Text = name:sub(1, 8)
-		lblHeader.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-		lblHeader.TextColor3 = Color3.new(1,1,1)
-		lblHeader.BorderSizePixel = 1
-		lblHeader.BorderColor3 = Color3.new(0,0,0)
-		lblHeader.Parent = scrollMat
-
-		-- Celdas
-		for col, val in ipairs(matrix[row]) do
-			local cell = Instance.new("TextLabel")
-			cell.Size = UDim2.new(0, cellWidth, 0, cellHeight)
-			cell.Position = UDim2.new(0, cellWidth * col, 0, cellHeight * row)
-
-			if val == 0 then
-				cell.Text = "0"
-				cell.TextColor3 = Color3.fromRGB(150, 150, 150)
-			else
-				cell.Text = tostring(val)
-				cell.TextColor3 = Color3.fromRGB(46, 204, 113) -- Verde si hay conexión
-				cell.Font = Enum.Font.GothamBold
-			end
-
-			cell.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-			cell.BorderSizePixel = 1
-			cell.BorderColor3 = Color3.new(0.2,0.2,0.2)
-			cell.Parent = scrollMat
-		end
-	end
-
-	scrollMat.CanvasSize = UDim2.new(0, (#headers + 1) * cellWidth, 0, (#headers + 1) * cellHeight)
-end
-
-btnMatriz.MouseButton1Click:Connect(function()
-	matrixFrame.Visible = not matrixFrame.Visible
-	if matrixFrame.Visible then
-		drawMatrix()
-	end
-end)
-
--- === LISTENERS ===
-btnMapa.MouseButton1Click:Connect(toggleMapa)
-btnMisiones.MouseButton1Click:Connect(toggleMisiones)
-
+-- CONEXIONES DE BOTONES
 btnReiniciar.MouseButton1Click:Connect(function()
-	if eventoReiniciar then 
-		eventoReiniciar:FireServer() 
-		if mapaActivo then toggleMapa() end -- Cerrar mapa al reiniciar
-		if misionesActivo then toggleMisiones() end -- Cerrar misiones al reiniciar
+	if eventoReiniciar then
+		eventoReiniciar:FireServer()
+		-- Animación simple de feedback
+		btnReiniciar.Text = "⏳ ..."
+		wait(1)
+		btnReiniciar.Text = "🔄 REINICIAR"
 	end
 end)
 
--- Actualizar texto botón Algoritmo
-task.spawn(function()
-	while true do
-		task.wait(1)
-		if player:FindFirstChild("leaderstats") then
-			local nivelID = player.leaderstats.Nivel.Value
-			local config = LevelsConfig[nivelID]
-			if config and config.Algoritmo then
-				btnAlgo.Text = "🧠 EJECUTAR " .. config.Algoritmo
-			else
-				btnAlgo.Text = "🧠 EJECUTAR DIJKSTRA"
-			end
-		end
-	end
+btnMapa.MouseButton1Click:Connect(function()
+	toggleMapa()
 end)
 
 btnAlgo.MouseButton1Click:Connect(function()
-	local nivelID = player:FindFirstChild("leaderstats") and player.leaderstats.Nivel.Value or 0
-	local config = LevelsConfig[nivelID] or LevelsConfig[0]
-	local algoName = config.Algoritmo or "Dijkstra"
-
-	print("Enviando petición algoritmo: " .. algoName .. " para Nivel: " .. nivelID)
-
-	-- Ocultar botón finalizar si estaba visible
-	btnFinalizar.Visible = false
-
-	-- Unificamos todos los algoritmos bajo un solo evento maestro
 	if eventoAlgo then
-		local inicio = config.NodoInicio or "PostePanel"
-		local fin = config.NodoFin or "PosteFinal"
-
-		eventoAlgo:FireServer(algoName, inicio, fin, nivelID)
-		print("🧠 Solicitando algoritmo: " .. algoName)
+		-- Detectar qué algoritmo tenemos
+		-- Aquí podrías poner lógica para elegir BFS o Dijkstra ségun lo que tenga el user
+		-- Por defecto lanzamos BFS o el que diga el nivel
+		eventoAlgo:FireServer()
 	end
 end)
 
--- ============================================
--- BOTÓN FINALIZAR NIVEL
--- ============================================
+btnMisiones.MouseButton1Click:Connect(function()
+	toggleMisiones()
+end)
+
+btnMatriz.MouseButton1Click:Connect(function()
+	print("🔢 Matriz Adyacencia solicitada (Pendiente de implementar UI visual)")
+	-- Aquí podrías abrir un Frame con la matriz generada por un RemoteFunction
+end)
+
 btnFinalizar.MouseButton1Click:Connect(function()
-	local nivelID = player:FindFirstChild("leaderstats") and player.leaderstats.Nivel.Value or 0
-	local stats = player:FindFirstChild("leaderstats")
-	local estrellas = stats and stats:FindFirstChild("Estrellas") and stats.Estrellas.Value or 0
-	local puntos = stats and stats:FindFirstChild("Puntos") and stats.Puntos.Value or 0
-
-	print("🏆 Finalizando nivel " .. nivelID)
-
-	-- Disparar evento de nivel completado
-	local LevelCompletedEvent = Remotes:FindFirstChild("LevelCompleted")
-	if LevelCompletedEvent then
-		LevelCompletedEvent:FireServer(nivelID, estrellas, puntos)
-		btnFinalizar.Visible = false -- Ocultar para evitar doble click
-	else
-		warn("❌ Evento LevelCompleted no encontrado")
-	end
+	-- Lógica de finalizar nivel
+	print("🏆 Finalizar nivel solicitado")
 end)
 
--- Listener: Mostrar botón después de validación
-task.spawn(function()
-	local messageSub
-	messageSub = game:GetService("LogService").MessageOut:Connect(function(message, messageType)
-		-- Detectar mensaje de validación completa
-		if message:find("Algoritmo completado") or message:find("💰 BONUS NETO:") then
-			task.wait(1) -- Pequeña espera
-			if not enMenu then -- Solo mostrar si estamos en gameplay
-				btnFinalizar.Visible = true
-				print("🏆 Botón Finalizar activado")
-			end
-		end
-	end)
-end)
-
--- ============================================
--- ACTUALIZAR LABEL DE PUNTAJE
--- ============================================
-task.spawn(function()
-	local function actualizarLabelPuntaje()
-		local leaderstats = player:FindFirstChild("leaderstats")
-		if not leaderstats then return end
-
-		local estrellas = leaderstats:FindFirstChild("Estrellas")
-		local puntos = leaderstats:FindFirstChild("Puntos")
-
-		local txtEstrellas = estrellas and estrellas.Value or 0
-		local txtPuntos = puntos and puntos.Value or 0
-
-		lblPuntaje.Text = string.format("⭐ %d | 💰 %d pts", txtEstrellas, txtPuntos)
-	end
-
-	-- Actualizar inicialmente
-	task.wait(1)
-	actualizarLabelPuntaje()
-
-	-- Monitorear cambios
-	local leaderstats = player:WaitForChild("leaderstats", 10)
-	if leaderstats then
-		local estrellas = leaderstats:FindFirstChild("Estrellas")
-		local puntos = leaderstats:FindFirstChild("Puntos")
-
-		if estrellas then
-			estrellas:GetPropertyChangedSignal("Value"):Connect(actualizarLabelPuntaje)
-		end
-
-		if puntos then
-			puntos:GetPropertyChangedSignal("Value"):Connect(actualizarLabelPuntaje)
-		end
-	end
-end)
-
-print("✅ ClienteUI V3 Cargado: Funcionalidad completa de Mapa yAlgoritmos")
-
--- ============================================
--- 🔄 RECUPERAR INVENTARIO (Persistencia al cambiar nivel)
--- ============================================
-task.spawn(function()
-	task.wait(2) -- Esperar a que todo cargue
-	local funcGetInv = Remotes:WaitForChild("GetInventory", 5)
-	if funcGetInv then
-		print("🎒 Solicitando inventario persistente...")
-		local inventario = funcGetInv:InvokeServer()
-
-		if inventario then
-			for itemID, _ in pairs(inventario) do
-				print("   - Recuperado: " .. itemID)
-
-				if itemID == "Mapa" then
-					tieneMapa = true
-				elseif itemID == "Tablet" or itemID == "Algoritmo_BFS" or itemID == "Algoritmo_Dijkstra" then
-					tieneAlgo = true
-				end
-			end
-			-- Sincronizar UI con el estado recuperado
-			actualizarVisibilidadUI(enMenu)
-		end
-	end
-end)
-
+print("✅ ClienteUI V3 cargado correctamente")

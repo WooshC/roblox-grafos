@@ -11,7 +11,7 @@ local Enums = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Enu
 
 -- Estado interno
 local levelService = nil
-local inventoryManager = nil
+local inventoryService = nil -- Referencia a servicio
 local audioService = nil
 local uiService = nil
 
@@ -88,7 +88,7 @@ end
 
 function RewardService:setDependencies(level, inventory, audio, ui)
 	levelService = level
-	inventoryManager = inventory
+	inventoryService = inventory
 	audioService = audio
 	uiService = ui
 	print("✅ RewardService: Dependencias inyectadas")
@@ -120,12 +120,12 @@ end
 function RewardService:giveXPForAction(player, accion, cantidad)
 	if not player then return 0 end
 
-	quantidade = cantidad or 10
+	local qty = cantidad or 10
 
-	self:addXP(player, cantidad)
-	print("⭐ RewardService: " .. cantidad .. " XP por " .. accion .. " a " .. player.Name)
+	self:addXP(player, qty)
+	print("⭐ RewardService: " .. qty .. " XP por " .. accion .. " a " .. player.Name)
 
-	return cantidad
+	return qty
 end
 
 -- Agrega XP al jugador
@@ -207,8 +207,6 @@ function RewardService:calculateStars(nivelID, pressupuestoUsado, tiempoTranscur
 
 	local config = levelService:getLevelConfig()
 	if not config or not config.Puntuacion then return 1 end
-
-	local score = config.Puntuacion.RecompensaXP or 100
 
 	-- Estrellas basadas en presupuesto
 	local thresholds = REWARD_CONFIG.STAR_THRESHOLDS[nivelID]
@@ -311,9 +309,15 @@ function RewardService:validateAndUnlockAchievements(player, nivelID)
 	if progress.completed then
 		local config = levelService:getLevelConfig()
 		local presupuesto = config.DineroInicial
-		local gastado = presupuesto - progress.dineroRestante
+		local gastado = presupuesto - progress.dineroRestante -- Nota: progress debería tener dineroRestante o calcularlo
+		
+		-- Si no tenemos el dinero restante en progress, lo estimamos (esto es un fix rápido)
+		-- Idealmente LevelService provee esta info exacta
+		if not progress.dineroRestante and player.leaderstats.Money then
+			gastado = presupuesto - player.leaderstats.Money.Value
+		end
 
-		if gastado < presupuesto * 0.5 then
+		if gastado and gastado < presupuesto * 0.5 then
 			self:unlockAchievement(player, "NO_WASTE")
 		end
 	end
@@ -335,10 +339,10 @@ end
 
 -- Desbloquea un objeto coleccionable
 function RewardService:unlockObject(player, objectID)
-	if not player or not inventoryManager then return false end
+	if not player or not inventoryService then return false end
 
-	-- Agregar al inventario
-	inventoryManager:agregarObjeto(player, objectID)
+	-- Agregar al inventario usando el SERVICIO
+	inventoryService:addItem(player, objectID)
 
 	print("🎁 RewardService: Objeto desbloqueado - " .. objectID .. " (" .. player.Name .. ")")
 
@@ -352,12 +356,12 @@ end
 
 -- Desbloquea objetos de un nivel
 function RewardService:unlockLevelObjects(player, nivelID)
-	if not player or not levelService or not inventoryManager then return end
+	if not player or not levelService or not inventoryService then return end
 
 	local config = levelService:getLevelConfig()
 	if config and config.Objetos then
 		for _, objeto in pairs(config.Objetos) do
-			inventoryManager:agregarObjeto(player, objeto.ID)
+			inventoryService:addItem(player, objeto.ID)
 		end
 	end
 

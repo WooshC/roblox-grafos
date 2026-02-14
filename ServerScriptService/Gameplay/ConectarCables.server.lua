@@ -429,6 +429,15 @@ end
 -- INICIALIZACIÓN
 -- ============================================
 
+-- Si el nivel ya está cargado al iniciar este script, registrar postes manualmente
+if LevelService and LevelService:isLevelLoaded() then
+	print("🔌 ConectarCables: Nivel ya cargado, registrando postes diferido...")
+	local postesFolder = LevelService:getPostes()
+	if postesFolder then
+		registrarPostes(postesFolder)
+	end
+end
+
 print("⚡ ConectarCables (REFACTORIZADO) cargado exitosamente")
 print("   ✅ Usa: LevelService, GraphService")
 print("   ✅ Usa: UIService, AudioService")

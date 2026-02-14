@@ -1,9 +1,25 @@
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local InventoryManager = require(ReplicatedStorage:WaitForChild("Utilidades"):WaitForChild("InventoryManager"))
+-- GestorEventos.server.lua
+-- Script Servidor para manejar eventos de objetos y diálogos
+-- Usa InventoryService en lugar de InventoryManager
 
--- 1. Inicializar Sistemas Base
-InventoryManager.init()
-print("✅ InventoryManager inicializado (desde GestorEventos)")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- Esperar Inicialización de Servicios
+local function waitForService(serviceName)
+	local attempts = 0
+	while not _G.Services or not _G.Services[serviceName] do
+		if attempts > 30 then 
+			warn("⚠️ GestorEventos: Esperando servicio " .. serviceName .. "...") 
+			attempts = 0
+		end
+		task.wait(0.5)
+		attempts = attempts + 1
+	end
+	return _G.Services[serviceName]
+end
+
+local InventoryService = waitForService("Inventory")
+print("✅ InventoryService enlazado (desde GestorEventos)")
 
 -- 2. Asegurar Estructura de Eventos (Estandarizada)
 local eventsFolder = ReplicatedStorage:WaitForChild("Events")

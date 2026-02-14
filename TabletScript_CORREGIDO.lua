@@ -1,7 +1,22 @@
 local objeto = script.Parent
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
-local InventoryManager = require(ReplicatedStorage:WaitForChild("Utilidades"):WaitForChild("InventoryManager"))
+
+-- Esperar Inicialización de Servicios
+local function waitForService(serviceName)
+	local function getService()
+		return _G.Services and _G.Services[serviceName]
+	end
+	
+	local service = getService()
+	while not service do
+		task.wait(0.5)
+		service = getService()
+	end
+	return service
+end
+
+local InventoryService = waitForService("Inventory")
 
 -- === CONFIGURACIÓN MANUAL ===
 local ID_OBJETO = "Tablet"
@@ -57,7 +72,8 @@ local function alTocar(hit)
 	if player then
 		debounce = true
 		print("🎒 " .. player.Name .. " tocó y recogió: " .. ID_OBJETO)
-		InventoryManager.agregarObjeto(player, ID_OBJETO)
+		
+		InventoryService:addItem(player, ID_OBJETO)
 
 		-- Efecto de sonido
 		local sonido = Instance.new("Sound")
@@ -96,4 +112,4 @@ if eventsFolder then
 	end
 end
 
-print("✅ Script TABLET (TOQUE) Corregido V2")
+print("✅ Script TABLET (TOQUE) Corregido V3 - Usa InventoryService")

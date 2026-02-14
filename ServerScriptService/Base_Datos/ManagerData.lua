@@ -9,8 +9,6 @@ local NivelUtils = require(ReplicatedStorage:WaitForChild("Utilidades"):WaitForC
 
 local MainStore = DataStoreService:GetDataStore("PlayerData_v4_Levels")
 
-local MainStore = DataStoreService:GetDataStore("PlayerData_v4_Levels")
-
 -- ============================================
 -- EVENTOS Y CARPETAS
 -- ============================================
@@ -110,7 +108,6 @@ end)
 -- ============================================
 
 local function loadData(player)
-	-- ... (lógica existente de carga) ...
 	local success, data = pcall(function()
 		return MainStore:GetAsync("User_" .. player.UserId)
 	end)
@@ -138,13 +135,24 @@ local function loadData(player)
 
 	SessionData[player.UserId] = data
 	
-	-- 🔥 SINCRONIZAR CON INVENTORY MANAGER (ReplicatedStorage)
+	-- 🔥 SINCRONIZAR CON INVENTORY SERVICE (ServerScriptService)
 	-- Le pasamos la lista guardada para que la use en tiempo real
-	local ReplicatedStorage = game:GetService("ReplicatedStorage")
-	local InventoryManager = require(ReplicatedStorage.Utilidades.InventoryManager)
-	if InventoryManager then
-		InventoryManager.cargarInventario(player, data.Inventory)
-	end
+	task.spawn(function()
+		-- Esperar a que el servicio esté disponible en _G
+		local attempts = 0
+		while (not _G.Services or not _G.Services.Inventory) and attempts < 10 do
+			task.wait(1)
+			attempts = attempts + 1
+		end
+		
+		local InventoryService = _G.Services and _G.Services.Inventory
+		if InventoryService then
+			InventoryService:loadPlayerData(player, data.Inventory)
+			print("✅ ManagerData: Inventario sincronizado con InventoryService")
+		else
+			warn("⚠️ ManagerData: No se pudo sincronizar inventario (Servicio no encontrado)")
+		end
+	end)
 	
 	return data
 end
@@ -207,11 +215,22 @@ end)
 
 function setupLevelForPlayer(player, levelId, config)
 	local character = player.Character or player.CharacterAdded:Wait()
-	local rootPart = character:WaitForChild("HumanoidRootPart")
+	local rootPart = character:WaitForChild("HumanoidRootPart", 5) -- Timeout de 5s
+	
+	if not rootPart then
+		warn("⚠️ ManagerData: No se encontró HumanoidRootPart para " .. player.Name)
+		return
+	end
 
 	-- Asegurar que leaderstats existan antes de entrar al nivel
 	setupLeaderstats(player)
 
+	-- Usar NivelUtils para buscar (ya que solo lee workspace, es seguro)
+	-- Aunque idealmente deberíamos pedirle a LevelService que cargue el nivel
+	-- Pero RequestPlayLevel ya llama a loadLevel en LevelService desde el cliente o Init?
+	-- Wait, Init.server.lua maneja RequestPlayLevel para cargar el nivel en el servidor.
+	-- Aquí solo manejamos teleport y stats.
+	
 	local nivelModel = NivelUtils.obtenerModeloNivel(levelId)
 	if not nivelModel then
 		warn("⚠️ Modelo de nivel no encontrado, esperando...")
@@ -251,7 +270,6 @@ function setupLevelForPlayer(player, levelId, config)
 		end
 
 		-- Forzar actualización de atributo para reactivar UI (minimapa, etc)
-		-- Incluso si es el mismo nivel, queremos disparar el evento Changed
 		player:SetAttribute("CurrentLevelID", -1)
 		task.wait() 
 		player:SetAttribute("CurrentLevelID", levelId)
