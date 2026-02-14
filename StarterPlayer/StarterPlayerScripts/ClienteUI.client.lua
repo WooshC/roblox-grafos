@@ -23,169 +23,45 @@ local eventoUpdateUI = Remotes:WaitForChild("ActualizarUI")
 -- Mantener compatibilidad con InventoryService directo
 local eventoInventario = Remotes:WaitForChild("ActualizarInventario", 5) 
 
+local etiquetasNodos = {} -- Inicialización de tabla para evitar error nil 
+local techoOriginalTransparency = {} -- Inicialización de tabla para techos
+local zoomLevel = 90 -- Nivel de zoom inicial
+local zoomBloqueado = true -- Bloqueo de zoom por defecto 
+
 -- ============================================
 -- 1. CONFIGURACIÓN DE UI E INICIALIZACIÓN
 -- ============================================
 
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "GameUI"
-screenGui.ResetOnSpawn = false
-screenGui.Parent = playerGui
+-- ============================================
+-- 1. CONFIGURACIÓN DE UI (EXISTENTE)
+-- ============================================
 
--- === COMPONENTES UI ===
-local function crearBoton(nombre, texto, color, posicion)
-	local boton = Instance.new("TextButton")
-	boton.Name = nombre
-	boton.Size = UDim2.new(0, 180, 0, 50)
-	boton.Position = posicion
-	boton.Text = texto
-	boton.BackgroundColor3 = color
-	boton.TextColor3 = Color3.new(1, 1, 1)
-	boton.Font = Enum.Font.FredokaOne
-	boton.TextSize = 20
-	boton.Parent = screenGui
+local screenGui = playerGui:WaitForChild("GameUI")
+screenGui.ResetOnSpawn = false 
 
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 12)
-	corner.Parent = boton
+-- Referencias a Botones
+local btnReiniciar = screenGui:WaitForChild("BtnReiniciar")
+local btnMapa = screenGui:WaitForChild("BtnMapa")
+local btnAlgo = screenGui:WaitForChild("BtnAlgo")
+local btnMisiones = screenGui:WaitForChild("BtnMisiones")
+local btnMatriz = screenGui:WaitForChild("BtnMatriz")
+local btnFinalizar = screenGui:WaitForChild("BtnFinalizar")
 
-	local stroke = Instance.new("UIStroke")
-	stroke.Thickness = 2
-	stroke.Color = Color3.new(0,0,0)
-	stroke.Transparency = 0.5
-	stroke.Parent = boton
-
-	return boton
-end
-
-local btnReiniciar = crearBoton("BtnReiniciar", "🔄 REINICIAR", Color3.fromRGB(231, 76, 60), UDim2.new(0.5, 10, 0.9, -60))
-local btnMapa = crearBoton("BtnMapa", "🗺️ MAPA", Color3.fromRGB(52, 152, 219), UDim2.new(0.5, -190, 0.9, -60))
-local btnAlgo = crearBoton("BtnAlgo", "🧠 ALGORITMO", Color3.fromRGB(155, 89, 182), UDim2.new(0.5, 210, 0.9, -60))
-local btnMisiones = crearBoton("BtnMisiones", "📋 MISIONES", Color3.fromRGB(46, 204, 113), UDim2.new(0.5, -390, 0.9, -60))
-local btnMatriz = crearBoton("BtnMatriz", "🔢 MATRIZ", Color3.fromRGB(255, 159, 67), UDim2.new(0.5, 410, 0.9, -60))
-local btnFinalizar = crearBoton("BtnFinalizar", "🏆 FINALIZAR NIVEL", Color3.fromRGB(46, 204, 113), UDim2.new(0.5, -95, 0.75, 0))
-
--- Label de Puntaje (siempre visible)
-local lblPuntaje = Instance.new("TextLabel")
-lblPuntaje.Name = "LabelPuntaje"
-lblPuntaje.Size = UDim2.new(0, 250, 0, 60)
-lblPuntaje.Position = UDim2.new(1, -270, 0, 20)
-lblPuntaje.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-lblPuntaje.BackgroundTransparency = 0.3
-lblPuntaje.Text = "⭐ 0 | 💰 0 pts"
-lblPuntaje.TextColor3 = Color3.new(1, 1, 1)
-lblPuntaje.Font = Enum.Font.FredokaOne
-lblPuntaje.TextSize = 24
-lblPuntaje.Parent = screenGui
-
-local cornerPuntaje = Instance.new("UICorner")
-cornerPuntaje.CornerRadius = UDim.new(0, 12)
-cornerPuntaje.Parent = lblPuntaje
-
-
--- (Existing lblPuntaje definition above)
+-- Label de Puntaje
+local lblPuntaje = screenGui:WaitForChild("LabelPuntaje")
 
 -- Panel de Distancia
-local distanciaLabel = Instance.new("TextLabel")
-distanciaLabel.Name = "DistanciaLabel"
-distanciaLabel.Size = UDim2.new(0, 200, 0, 30)
-distanciaLabel.Position = UDim2.new(0.5, -100, 0.5, 40)
-distanciaLabel.BackgroundTransparency = 1
-distanciaLabel.TextColor3 = Color3.new(1, 1, 1)
-distanciaLabel.TextStrokeTransparency = 0
-distanciaLabel.Font = Enum.Font.GothamBold
-distanciaLabel.TextSize = 20
-distanciaLabel.Text = ""
-distanciaLabel.Visible = false
-distanciaLabel.Parent = screenGui
+local distanciaLabel = screenGui:WaitForChild("DistanciaLabel")
 
 -- Panel de Misión
-local misionFrame = Instance.new("Frame")
-misionFrame.Name = "MisionFrame"
-misionFrame.Size = UDim2.new(0, 320, 0, 200) -- Más alto y ancho para acomodar texto largo
-misionFrame.Position = UDim2.new(0, 20, 0.5, -100) -- A la izquierda
-misionFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-misionFrame.BackgroundTransparency = 0.4
-misionFrame.Visible = false
-misionFrame.Parent = screenGui
+local misionFrame = screenGui:WaitForChild("MisionFrame")
+local btnCerrarMapa = misionFrame:WaitForChild("BtnCerrar")
+local tituloMision = misionFrame:WaitForChild("Titulo")
 
-local cornerM = Instance.new("UICorner"); cornerM.CornerRadius = UDim.new(0, 12); cornerM.Parent = misionFrame
-local listLayout = Instance.new("UIListLayout")
-listLayout.Parent = misionFrame
-listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-listLayout.Padding = UDim.new(0, 5)
-listLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
-
--- Botón Cerrar Mapa/Misiones
-local btnCerrarMapa = Instance.new("TextButton")
-btnCerrarMapa.Name = "BtnCerrar"
-btnCerrarMapa.Size = UDim2.new(0, 30, 0, 30)
-btnCerrarMapa.Position = UDim2.new(1, -35, 0, 5)
-btnCerrarMapa.Text = "✕"
-btnCerrarMapa.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
-btnCerrarMapa.TextColor3 = Color3.new(1, 1, 1)
-btnCerrarMapa.Font = Enum.Font.GothamBold
-btnCerrarMapa.TextSize = 20
-btnCerrarMapa.Parent = misionFrame
-
-local cornerBtn = Instance.new("UICorner")
-cornerBtn.CornerRadius = UDim.new(0, 8)
-cornerBtn.Parent = btnCerrarMapa
-
--- Titulo Misión
-local tituloMision = Instance.new("TextLabel")
-tituloMision.Name = "Titulo"
-tituloMision.Size = UDim2.new(1,0,0,30)
-tituloMision.BackgroundTransparency = 1
-tituloMision.Text = " 📋 OBJETIVOS"
-tituloMision.TextColor3 = Color3.new(1,0.8,0)
-tituloMision.Font = Enum.Font.GothamBlack
-tituloMision.TextSize = 20
-tituloMision.TextXAlignment = Enum.TextXAlignment.Left
-tituloMision.Parent = misionFrame
-
--- Panel de Puntaje y Estrellas (Centro de la pantalla)
-local scoreFrame = Instance.new("Frame")
-scoreFrame.Name = "ScoreFrame"
-scoreFrame.Size = UDim2.new(0, 250, 0, 120)
-scoreFrame.Position = UDim2.new(0.5, -125, 0.1, 0) -- Centro superior
-scoreFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-scoreFrame.BackgroundTransparency = 0.3
-scoreFrame.Visible = false
-scoreFrame.Parent = screenGui
-
-local cornerS = Instance.new("UICorner"); cornerS.CornerRadius = UDim.new(0, 16); cornerS.Parent = scoreFrame
-local strokeS = Instance.new("UIStroke")
-strokeS.Thickness = 3
-strokeS.Color = Color3.fromRGB(255, 215, 0) -- Dorado
-strokeS.Transparency = 0.3
-strokeS.Parent = scoreFrame
-
--- Etiqueta de Estrellas
-local estrellaLabel = Instance.new("TextLabel")
-estrellaLabel.Name = "EstrellaLabel"
-estrellaLabel.Size = UDim2.new(1, 0, 0.5, 0)
-estrellaLabel.Position = UDim2.new(0, 0, 0.1, 0)
-estrellaLabel.BackgroundTransparency = 1
-estrellaLabel.Text = "⭐⭐⭐"
-estrellaLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
-estrellaLabel.Font = Enum.Font.GothamBlack
-estrellaLabel.TextSize = 40
-estrellaLabel.TextStrokeTransparency = 0.5
-estrellaLabel.Parent = scoreFrame
-
--- Etiqueta de Puntaje
-local puntajeLabel = Instance.new("TextLabel")
-puntajeLabel.Name = "PuntajeLabel"
-puntajeLabel.Size = UDim2.new(1, 0, 0.35, 0)
-puntajeLabel.Position = UDim2.new(0, 0, 0.6, 0)
-puntajeLabel.BackgroundTransparency = 1
-puntajeLabel.Text = "0 / 1200 pts"
-puntajeLabel.TextColor3 = Color3.new(1, 1, 1)
-puntajeLabel.Font = Enum.Font.GothamBold
-puntajeLabel.TextSize = 24
-puntajeLabel.TextStrokeTransparency = 0.5
-puntajeLabel.Parent = scoreFrame
+-- Panel de Score
+local scoreFrame = screenGui:WaitForChild("ScoreFrame")
+local estrellaLabel = scoreFrame:WaitForChild("EstrellaLabel")
+local puntajeLabel = scoreFrame:WaitForChild("PuntajeLabel")
 
 
 -- Visibilidad inicial

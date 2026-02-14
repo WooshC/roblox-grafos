@@ -14,57 +14,17 @@ local LevelsConfig = require(ReplicatedStorage:WaitForChild("LevelsConfig"))
 local ZOOM = 140 
 local TAMANO_MAPA = 250
 
--- 1. CREAR GUI
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "MinimapGUI"
-screenGui.ResetOnSpawn = false
-screenGui.Enabled = false
-screenGui.Parent = player:WaitForChild("PlayerGui")
+-- 1. REFERENCIAR GUI EXISTENTE
+local screenGui = player:WaitForChild("PlayerGui"):WaitForChild("MinimapGUI")
+local viewport = screenGui:WaitForChild("MarcoMinimapa"):WaitForChild("Vista")
 
-local marco = Instance.new("Frame")
-marco.Name = "MarcoMinimapa"
-marco.Size = UDim2.new(0, TAMANO_MAPA, 0, TAMANO_MAPA)
-marco.Position = UDim2.new(1, -TAMANO_MAPA - 20, 1, -TAMANO_MAPA - 20)
-marco.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-marco.BorderSizePixel = 2
-marco.Parent = screenGui
-
-local viewport = Instance.new("ViewportFrame")
-viewport.Name = "Vista"
-viewport.Size = UDim2.new(1, -6, 1, -6)
-viewport.Position = UDim2.new(0.5, 0, 0.5, 0)
-viewport.AnchorPoint = Vector2.new(0.5, 0.5)
-viewport.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
-viewport.BackgroundTransparency = 0
-viewport.Ambient = Color3.fromRGB(255, 255, 255)
-viewport.LightColor = Color3.fromRGB(255, 255, 255)
-viewport.LightDirection = Vector3.new(0, -1, 0)
-viewport.Parent = marco
-
--- Cuadrado del jugador
-local cuadrado = Instance.new("Frame")
-cuadrado.Name = "Jugador"
-cuadrado.Size = UDim2.new(0, 15, 0, 15)
-cuadrado.Position = UDim2.new(0.5, 0, 0.5, 0)
-cuadrado.AnchorPoint = Vector2.new(0.5, 0.5)
-cuadrado.BackgroundColor3 = Color3.fromRGB(255, 255, 0)
-cuadrado.BorderSizePixel = 2
-cuadrado.BorderColor3 = Color3.fromRGB(0, 0, 0)
-cuadrado.ZIndex = 2
-cuadrado.Parent = marco
-
-local cornerCuadrado = Instance.new("UICorner")
-cornerCuadrado.CornerRadius = UDim.new(0.2, 0)
-cornerCuadrado.Parent = cuadrado
-
--- Cámara
+-- Configuración de Cámara
 local miniCamera = Instance.new("Camera")
 miniCamera.FieldOfView = 70
 viewport.CurrentCamera = miniCamera
 
--- WorldModel
-local worldModel = Instance.new("WorldModel")
-worldModel.Parent = viewport
+-- Referenciar WorldModel
+local worldModel = viewport:WaitForChild("WorldModel")
 
 -- Referencias
 local nivelActualID = nil
