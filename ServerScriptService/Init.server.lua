@@ -1,13 +1,11 @@
--- ServerScriptService/Init.server.lua
--- SCRIPT DE INICIALIZACIÓN - Carga todos los servicios en orden correcto
--- Este es el punto de entrada principal del servidor
+-- ServerScriptService/_InitFirst.server.lua
+-- Este script se ejecuta PRIMERO (por el prefijo _) y registra _G.Services
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
-local Players = game:GetService("Players")
 
 print("\n" .. string.rep("═", 60))
-print("🚀 INICIANDO SERVIDOR - Cargando Servicios")
+print("🚀 _InitFirst: Inicializando servicios globales")
 print(string.rep("═", 60) .. "\n")
 
 -- ============================================
@@ -25,13 +23,13 @@ local function loadSharedModules()
 		warn("❌ CRÍTICO: No se encontró ReplicatedStorage/Shared")
 		return false
 	end
-	
+
 	local enumsModule = shared:WaitForChild("Enums", 10)
 	if enumsModule then
 		Enums = require(enumsModule)
 		print("   ✅ Enums.lua cargado")
 	end
-	
+
 	local utils = shared:WaitForChild("Utils", 10)
 	if utils then
 		local graphUtilsModule = utils:WaitForChild("GraphUtils", 10)
@@ -40,12 +38,12 @@ local function loadSharedModules()
 			print("   ✅ GraphUtils.lua cargado")
 		end
 	end
-	
+
 	return true
 end
 
 if not loadSharedModules() then
-	error("❌ CRÍTICO: Falló cargar módulos compartidos. Deteniendo servidor.")
+	error("❌ CRÍTICO: Falló cargar módulos compartidos")
 end
 
 -- ============================================
@@ -54,7 +52,6 @@ end
 
 print("\n📦 Paso 2: Cargando servicios...")
 
-local Services = {}
 local servicesFolder = ServerScriptService:WaitForChild("Services", 10)
 
 if not servicesFolder then
@@ -66,120 +63,73 @@ local function loadService(name)
 	if module then
 		local success, result = pcall(require, module)
 		if success then
-			Services[name] = result
 			print("   ✅ " .. name .. " cargado")
 			return result
 		else
 			warn("   ❌ Error cargando " .. name .. ":", result)
 		end
 	else
-		warn("   ⚠️ " .. name .. " no encontrado (opcional)")
+		warn("   ⚠️ " .. name .. " no encontrado")
 	end
 	return nil
 end
 
--- Orden de carga sugerido (aunque require es sincrónico, definimos variables locales)
 local GraphService = loadService("GraphService")
 local EnergyService = loadService("EnergyService")
 local LevelService = loadService("LevelService")
-local MissionService = loadService("MissionService")     -- Antes MisionManager
-local InventoryService = loadService("InventoryService") -- Antes InventoryManager
+local MissionService = loadService("MissionService")
+local InventoryService = loadService("InventoryService")
 local AlgorithmService = loadService("AlgorithmService")
 local UIService = loadService("UIService")
 local AudioService = loadService("AudioService")
 local RewardService = loadService("RewardService")
 
 -- ============================================
--- PASO 3: Inicialización y Dependencias
+-- PASO 3: Inyectar dependencias
 -- ============================================
 
-print("\n📦 Paso 3: Inicializando y conectando dependencias...")
+print("\n📦 Paso 3: Inyectando dependencias...")
 
--- 1. Inicializar servicios básicos (que no dependen de otros para init)
 if MissionService then MissionService:init() end
 if InventoryService then InventoryService:init() end
 if AudioService then AudioService:init() end
 if UIService then UIService:init() end
 
--- 2. Inyectar dependencias
-
--- EnergyService -> GraphService
 if EnergyService then
 	EnergyService:setGraphService(GraphService)
 end
 
--- LevelService -> Graph, Energy, Mission, Inventory
 if LevelService then
 	LevelService:setDependencies(GraphService, EnergyService, MissionService, InventoryService)
 end
 
--- MissionService -> LevelService
 if MissionService then
 	MissionService:setDependencies(LevelService)
 end
 
--- InventoryService -> LevelService
 if InventoryService then
 	InventoryService:setDependencies(LevelService)
 end
 
--- AlgorithmService -> Graph, Level
 if AlgorithmService then
 	AlgorithmService:setGraphService(GraphService)
 	AlgorithmService:setLevelService(LevelService)
 end
 
--- UIService -> Level, Graph, Energy, Algorithm
 if UIService then
 	UIService:setDependencies(LevelService, GraphService, EnergyService, AlgorithmService)
 end
 
--- RewardService -> Level, Inventory, Audio, UI
 if RewardService then
-	RewardService:init() -- Init puede requerir eventos ya creados
+	RewardService:init()
 	RewardService:setDependencies(LevelService, InventoryService, AudioService, UIService)
 end
 
 -- ============================================
--- PASO 4: Configurando listeners globales
+-- PASO 4: Registrar en _G.Services (CRÍTICO)
 -- ============================================
 
-print("\n📦 Paso 4: Configurando listeners de eventos...")
-
-if LevelService then
-	-- Cuando se carga un nivel, inicializar GraphService y EnergyService
-	LevelService:onLevelLoaded(function(nivelID, levelFolder, config)
-		print("🎮 Init: Nivel " .. nivelID .. " cargado, reiniciando servicios de grafo...")
-		if GraphService then GraphService:init(levelFolder) end
-		if EnergyService then EnergyService:setGraphService(GraphService) end
-	end)
-
-	-- Cuando se descarga un nivel
-	LevelService:onLevelUnloaded(function()
-		print("🎮 Init: Nivel descargado, limpiando grafo...")
-		if GraphService then GraphService:clearAllCables() end
-	end)
-end
-
--- Listeners remotos para carga de nivel (Admin/Testing)
-local Remotes = ReplicatedStorage:WaitForChild("Events"):FindFirstChild("Remotes")
-if Remotes then
-	local requestPlay = Remotes:FindFirstChild("RequestPlayLevel")
-	if requestPlay then
-		requestPlay.OnServerEvent:Connect(function(player, nivelID)
-			print("🎮 Solicitud de nivel " .. nivelID .. " por " .. player.Name)
-			if LevelService then
-				LevelService:loadLevel(nivelID)
-			end
-		end)
-	end
-end
-
--- ============================================
--- PASO 5: Exportar a _G (Opcional)
--- ============================================
-
-print("\n📦 Paso 5: Registrando en _G.Services...")
+print("\n📦 Paso 4: Registrando _G.Services...")
 
 _G.Services = {
 	Graph = GraphService,
@@ -204,9 +154,27 @@ end
 
 
 -- ============================================
--- FIN
+-- PASO 5: Configurar listeners
 -- ============================================
 
+print("\n📦 Paso 5: Configurando listeners...")
+
+if LevelService then
+	LevelService:onLevelLoaded(function(nivelID, levelFolder, config)
+		print("🎮 Nivel " .. nivelID .. " cargado, reiniciando grafo...")
+		if GraphService then GraphService:init(levelFolder) end
+		if EnergyService then EnergyService:setGraphService(GraphService) end
+	end)
+
+	LevelService:onLevelUnloaded(function()
+		print("🎮 Nivel descargado, limpiando grafo...")
+		if GraphService then GraphService:clearAllCables() end
+	end)
+
+	-- Auto-detectar nivel en Workspace
+	LevelService:init()
+end
+
 print("\n" .. string.rep("═", 60))
-print("✅ SERVIDOR INICIALIZADO - ARQUITECTURA SERVICIOS UNIFICADA")
+print("✅ SERVICIOS GLOBALES LISTOS - Otros scripts pueden continuar")
 print(string.rep("═", 60) .. "\n")

@@ -14,26 +14,12 @@ local LevelCompletedEvent = remotesFolder:FindFirstChild("LevelCompleted")
 print("✅ Visualizador: Evento EjecutarAlgoritmo encontrado.")
 
 -- 2. Cargar Dependencias
-local Algoritmos = nil
-local moduloRef = nil
+-- 2. Cargar Dependencias
+local GraphAnimator = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Utils"):WaitForChild("GraphAnimator"))
+local LevelsConfig = require(ReplicatedStorage:WaitForChild("LevelsConfig"))
 
-if ReplicatedStorage:FindFirstChild("Algoritmos") then
-	moduloRef = ReplicatedStorage.Algoritmos
-elseif ReplicatedStorage:FindFirstChild("Utilidades") and ReplicatedStorage.Utilidades:FindFirstChild("Algoritmos") then
-	moduloRef = ReplicatedStorage.Utilidades.Algoritmos
-end
-
-if not moduloRef then
-	warn("❌ CRÍTICO: NO se encontró módulo 'Algoritmos'")
-else
-	local exitoLoad, resultado = pcall(require, moduloRef)
-	if exitoLoad then
-		Algoritmos = resultado
-		print("✅ Visualizador: Módulo Algoritmos cargado ÉXITOSAMENTE.")
-	else
-		warn("❌ Error: " .. tostring(resultado))
-	end
-end
+local Algoritmos = GraphAnimator -- Alias para compatibilidad parcial
+local exito = true
 
 -- ============================================
 -- ESTADO DEL VISUALIZADOR
@@ -424,11 +410,15 @@ evento.OnServerEvent:Connect(function(player, algoritmo, nodoInicio, nodoFin, ni
 
 	print("🧠 Ejecutando [" .. algoritmo .. "]: " .. nodoInicio .. " -> " .. nodoFin)
 
+	-- Obtener adyacencias del config (Bridge entre lógica juego y lógica visual)
+	local config = LevelsConfig[nivelID] or LevelsConfig[0]
+	local adyacencias = config.Adyacencias or {}
+
 	local resultado = nil
-	if algoritmo == "Dijkstra" and Algoritmos.DijkstraVisual then
-		resultado = Algoritmos.DijkstraVisual(nodoInicio, nodoFin, nivelID)
-	elseif algoritmo == "BFS" and Algoritmos.BFSVisual then
-		resultado = Algoritmos.BFSVisual(nodoInicio, nodoFin, nivelID)
+	if algoritmo == "Dijkstra" and GraphAnimator.DijkstraVisual then
+		resultado = GraphAnimator.DijkstraVisual(nodoInicio, nodoFin, adyacencias)
+	elseif algoritmo == "BFS" and GraphAnimator.BFSVisual then
+		resultado = GraphAnimator.BFSVisual(nodoInicio, nodoFin, adyacencias)
 	end
 
 	if not resultado then 

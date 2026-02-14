@@ -69,12 +69,27 @@ end
 -- CARGA DE NIVELES
 -- ============================================
 
--- Busca el modelo del nivel en ServerStorage
+-- Busca el modelo del nivel en ReplicatedStorage (NUEVA UBICACIÓN)
 local function findLevelModelInStorage(modelName)
-	return ServerStorage:FindFirstChild(modelName)
+	-- Intentar buscar en carpeta "Niveles" si existe
+	local nivelesFolder = ReplicatedStorage:FindFirstChild("Niveles")
+	if nivelesFolder then
+		local modelo = nivelesFolder:FindFirstChild(modelName)
+		if modelo then 
+			print("   ✅ Modelo encontrado en ReplicatedStorage/Niveles/" .. modelName)
+			return modelo 
+		end
+	end
+
+	-- Si no, buscar en la raíz de ReplicatedStorage
+	local modeloRaiz = ReplicatedStorage:FindFirstChild(modelName)
+	if modeloRaiz then
+		print("   ✅ Modelo encontrado en ReplicatedStorage/" .. modelName)
+	end
+	return modeloRaiz
 end
 
--- Carga un nivel del ServerStorage al Workspace
+-- Carga un nivel del ReplicatedStorage al Workspace
 -- Parámetro: nivelID (number) - 0, 1, 2, etc.
 function LevelService:loadLevel(nivelID)
 	print("📦 LevelService: Cargando nivel " .. nivelID .. "...")
@@ -104,23 +119,27 @@ function LevelService:loadLevel(nivelID)
 		print("   ℹ️ Nivel encontrado en Workspace. Usando instancia existente.")
 		nivelClonado = nivelEnWorkspace
 	else
-		-- Caso 2: Producción - Cargar desde ServerStorage
-		print("   📦 Buscando modelo '" .. nombreModelo .. "' en ServerStorage...")
+		-- Caso 2: Producción - Cargar desde ReplicatedStorage
+		print("   📦 Buscando modelo '" .. nombreModelo .. "' en ReplicatedStorage/Niveles...")
 		local modeloOriginal = findLevelModelInStorage(nombreModelo)
 		
 		-- Fallback para tutorial (nombres legacy)
 		if not modeloOriginal and nivelID == 0 then
+			print("   🔄 Intentando fallback: Nivel0_Tutorial...")
 			modeloOriginal = findLevelModelInStorage("Nivel0_Tutorial")
 		end
 		
 		if not modeloOriginal then
-			warn("❌ LevelService: CRÍTICO - Modelo '" .. nombreModelo .. "' no encontrado en ServerStorage")
+			warn("❌ LevelService: CRÍTICO - Modelo '" .. nombreModelo .. "' no encontrado en ReplicatedStorage/Niveles")
+			warn("   💡 Verifica que el modelo exista en ReplicatedStorage/Niveles/" .. nombreModelo)
 			return false
 		end
 		
+		print("   🔄 Clonando nivel al Workspace...")
 		nivelClonado = modeloOriginal:Clone()
 		nivelClonado.Name = "NivelActual" -- Estandarizar nombre
 		nivelClonado.Parent = Workspace
+		print("   ✅ Nivel clonado exitosamente")
 	end
 	
 	-- Guardar referencias
@@ -266,247 +285,75 @@ end
 
 -- Resetea el nivel actual (limpia cables, restaura posiciones)
 function LevelService:resetLevel()
-	if not currentLevel or not currentLevelID then
-		print("⚠️ LevelService: No hay nivel para resetear")
-		return false
+	if not currentLevel then 
+		warn("⚠️ No hay nivel activo para resetear")
+		return false 
 	end
 	
 	print("🔄 LevelService: Reseteando nivel " .. currentLevelID .. "...")
 	
-	-- Limpiar todos los cables
+	-- 1. Limpiar cables
 	if graphService then
 		graphService:clearAllCables()
+		print("   ✅ Cables limpiados")
 	end
 	
-	-- Restaurar posiciones de objetos coleccionables (si existen)
-	local objetosFolder = currentLevel:FindFirstChild("Objetos")
-	if objetosFolder then
-		local coleccionablesFolder = objetosFolder:FindFirstChild("Coleccionables")
-		if coleccionablesFolder then
-			for _, objeto in pairs(coleccionablesFolder:GetChildren()) do
-				if objeto:IsA("Model") then
-					-- Restaurar posición original
-					local originalPos = objeto:FindFirstChild("OriginalPosition")
-					if originalPos then
-						objeto:MoveTo(originalPos.Value)
-					end
-				end
-			end
-		end
+	-- 2. Restaurar energía
+	if energyService then
+		energyService:resetAll()
+		print("   ✅ Sistema de energía reseteado")
 	end
 	
-	-- Resetear misiones para todos los jugadores
-	for _, player in ipairs(Players:GetPlayers()) do
-		if missionService then
-			missionService:resetMissions(player)
-		end
+	-- 3. Resetear misiones
+	if missionService then
+		missionService:resetMissions()
+		print("   ✅ Misiones reseteadas")
 	end
 	
 	-- Emitir evento de reset
-	levelResetEvent:Fire(currentLevelID)
+	levelResetEvent:Fire(currentLevelID, currentLevel)
 	
-	print("✅ LevelService: Nivel " .. currentLevelID .. " reseteado")
-	
+	print("✅ LevelService: Nivel reseteado correctamente")
 	return true
 end
 
 -- ============================================
--- VALIDACIÓN DE NIVEL
--- ============================================
-
--- Valida si el nivel está completado (objetivo alcanzado)
-function LevelService:checkLevelCompletion()
-	if not currentLevel or not energyService then
-		return false
-	end
-	
-	return energyService:checkLevelCompletion(currentLevel)
-end
-
--- Obtiene el progreso del jugador en el nivel
-function LevelService:getLevelProgress()
-	if not currentLevel or not graphService then
-		return {
-			nodesConnected = 0,
-			totalNodes = levelConfig and levelConfig.NodosTotales or 0,
-			cablesPlaced = 0,
-			energized = {},
-			completed = false
-		}
-	end
-	
-	local cables = graphService:getCables()
-	local nodes = graphService:getNodes()
-	local energized = {}
-	
-	-- Calcular nodos energizados desde el inicio
-	local startNode = self:getStartNode()
-	if startNode and energyService then
-		energized = energyService:calculateEnergy(startNode)
-	end
-	
-	return {
-		nodesConnected = #nodes,
-		totalNodes = levelConfig and levelConfig.NodosTotales or 0,
-		cablesPlaced = #cables,
-		energized = energized,
-		completed = self:checkLevelCompletion()
-	}
-end
-
--- ============================================
--- VALIDACIÓN DE ADYACENCIAS
--- ============================================
-
--- Valida si dos nodos pueden conectarse según la configuración
-function LevelService:canConnect(nodoA, nodoB)
-	if not levelConfig or not levelConfig.Adyacencias then
-		return true  -- Si no hay restricciones, permite cualquier conexión
-	end
-	
-	local nombreA = nodoA.Name
-	local nombreB = nodoB.Name
-	
-	local adyacentes = levelConfig.Adyacencias[nombreA]
-	if not adyacentes then return false end
-	
-	for _, nombre in pairs(adyacentes) do
-		if nombre == nombreB then
-			return true
-		end
-	end
-	
-	return false
-end
-
--- ============================================
--- DINERO Y PRESUPUESTO
--- ============================================
-
--- Obtiene el presupuesto inicial del nivel
-function LevelService:getInitialBudget()
-	if levelConfig and levelConfig.DineroInicial then
-		return levelConfig.DineroInicial
-	end
-	return 0
-end
-
--- Obtiene el costo por metro de cable del nivel
-function LevelService:getCostPerMeter()
-	if levelConfig and levelConfig.CostoPorMetro then
-		return levelConfig.CostoPorMetro
-	end
-	return 0
-end
-
--- ============================================
--- MISIONES
--- ============================================
-
--- Obtiene las misiones del nivel actual
-function LevelService:getMisiones()
-	if levelConfig and levelConfig.Misiones then
-		return levelConfig.Misiones
-	end
-	return {}
-end
-
--- Valida si una misión está completada
-function LevelService:isMisionCompleted(player, misionID, estadoJuego)
-	if not missionService then return false end
-	return missionService:getMissionStatus(player, misionID)
-end
-
--- ============================================
--- OBJETOS COLECCIONABLES
--- ============================================
-
--- Obtiene los objetos coleccionables del nivel
-function LevelService:getColeccionables()
-	if not currentLevel then return {} end
-	
-	local objetosFolder = currentLevel:FindFirstChild("Objetos")
-	if not objetosFolder then return {} end
-	
-	local coleccionablesFolder = objetosFolder:FindFirstChild("Coleccionables")
-	if not coleccionablesFolder then return {} end
-	
-	local coleccionables = {}
-	for _, objeto in pairs(coleccionablesFolder:GetChildren()) do
-		table.insert(coleccionables, objeto)
-	end
-	
-	return coleccionables
-end
-
--- ============================================
--- ALGORITMO DEL NIVEL
--- ============================================
-
--- Obtiene el algoritmo que debe usar el nivel
-function LevelService:getAlgorithm()
-	if levelConfig and levelConfig.Algoritmo then
-		return levelConfig.Algoritmo
-	end
-	return "BFS"  -- Default
-end
-
--- ============================================
--- EVENTOS
+-- EVENTOS PÚBLICOS
 -- ============================================
 
 function LevelService:onLevelLoaded(callback)
-	levelLoadedEvent.Event:Connect(callback)
+	return levelLoadedEvent.Event:Connect(callback)
 end
 
 function LevelService:onLevelUnloaded(callback)
-	levelUnloadedEvent.Event:Connect(callback)
+	return levelUnloadedEvent.Event:Connect(callback)
 end
 
 function LevelService:onLevelReset(callback)
-	levelResetEvent.Event:Connect(callback)
+	return levelResetEvent.Event:Connect(callback)
 end
 
 -- ============================================
--- DEBUG
+-- UTILIDADES
 -- ============================================
 
-function LevelService:debug()
-	if not currentLevel then
-		print("❌ LevelService:debug() - No hay nivel cargado")
-		return
-	end
-	
-	print("\n📊 ===== DEBUG LevelService =====")
-	print("Nivel ID: " .. currentLevelID)
-	print("Nombre: " .. (levelConfig and levelConfig.Nombre or "N/A"))
-	
-	local progress = self:getLevelProgress()
-	print("\nProgreso:")
-	print("  Nodos conectados: " .. progress.nodesConnected .. "/" .. progress.totalNodes)
-	print("  Cables colocados: " .. progress.cablesPlaced)
-	print("  Completado: " .. (progress.completed and "✅ SÍ" or "❌ NO"))
-	
-	print("===== Fin DEBUG =====\n")
+-- Verifica si existe un nivel por ID
+function LevelService:levelExists(nivelID)
+	local LevelsConfig = require(ReplicatedStorage:WaitForChild("LevelsConfig"))
+	return LevelsConfig[nivelID] ~= nil
 end
 
--- ============================================
--- MÉTODOS DE UTILIDAD
--- ============================================
-
--- Obtiene todos los niveles disponibles
+-- Obtiene lista de todos los niveles disponibles
 function LevelService:getAllLevels()
 	local LevelsConfig = require(ReplicatedStorage:WaitForChild("LevelsConfig"))
 	local levels = {}
-	
-	for nivelID, config in pairs(LevelsConfig) do
+	for id, config in pairs(LevelsConfig) do
 		table.insert(levels, {
-			id = nivelID,
-			nombre = config.Nombre,
-			descripcion = config.DescripcionCorta
+			id = id,
+			nombre = config.Nombre or "Nivel " .. id,
+			modelo = config.Modelo
 		})
 	end
-	
 	return levels
 end
 

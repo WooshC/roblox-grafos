@@ -5,7 +5,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- Esperar inicialización de servicios
-task.wait(1)
+repeat task.wait(0.1) until _G.Services
 
 local GraphService = _G.Services.Graph
 local GraphUtils = _G.Services.GraphUtils
