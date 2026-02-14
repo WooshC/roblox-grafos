@@ -47,6 +47,24 @@ function LevelService:setDependencies(graph, energy, mission, inventory)
 	print("✅ LevelService: Dependencias inyectadas (Graph, Energy, Mission, Inventory)")
 end
 
+function LevelService:init()
+	print("🚀 LevelService: Iniciando auto-detección de niveles...")
+	local LevelsConfig = require(ReplicatedStorage:WaitForChild("LevelsConfig"))
+	
+	-- Auto-detectar nivel en Workspace (para Testing en Studio)
+	for id, config in pairs(LevelsConfig) do
+		local modelName = config.Modelo
+		-- Chequear nombre exacto o fallback común para Tutorial
+		if Workspace:FindFirstChild(modelName) or (id == 0 and Workspace:FindFirstChild("Nivel0_Tutorial")) then
+			print("   ℹ️ Nivel pre-existente detectado: " .. modelName .. " (ID: " .. id .. ")")
+			self:loadLevel(id)
+			return
+		end
+	end
+	
+	print("   ℹ️ Ningún nivel pre-cargado detectado.")
+end
+
 -- ============================================
 -- CARGA DE NIVELES
 -- ============================================
@@ -122,6 +140,11 @@ function LevelService:loadLevel(nivelID)
 		energyService:setGraphService(graphService)
 	end
 	
+	-- Actualizar atributo en todos los jugadores (para Minimap y UI)
+	for _, player in ipairs(Players:GetPlayers()) do
+		player:SetAttribute("CurrentLevelID", nivelID)
+	end
+
 	-- Emitir evento de carga
 	levelLoadedEvent:Fire(nivelID, currentLevel, levelConfig)
 	
@@ -154,6 +177,11 @@ function LevelService:unloadLevel()
 	levelConfig = nil
 	isLevelActive = false
 	
+	-- Limpiar atributo en jugadores
+	for _, player in ipairs(Players:GetPlayers()) do
+		player:SetAttribute("CurrentLevelID", -1) -- -1 indica sin nivel
+	end
+
 	-- Emitir evento de descarga
 	levelUnloadedEvent:Fire()
 	
@@ -481,5 +509,16 @@ function LevelService:getAllLevels()
 	
 	return levels
 end
+
+-- Listener para nuevos jugadores
+Players.PlayerAdded:Connect(function(player)
+	if isLevelActive and currentLevelID then
+		-- Sincronizar nivel actual al entrar
+		player:SetAttribute("CurrentLevelID", currentLevelID)
+		print("📦 LevelService: Sincronizando Nivel " .. currentLevelID .. " para nuevo jugador " .. player.Name)
+	else
+		player:SetAttribute("CurrentLevelID", -1)
+	end
+end)
 
 return LevelService

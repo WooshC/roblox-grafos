@@ -53,6 +53,11 @@ local COLORES = {
 
 -- Función Helper para encontrar la carpeta de postes
 local function obtenerCarpetaPostes(nivelIDOverride)
+	-- 0. PRIORIDAD: NivelActual (Instancia del LevelService)
+	if workspace:FindFirstChild("NivelActual") then
+		return workspace.NivelActual:FindFirstChild("Objetos") and workspace.NivelActual.Objetos:FindFirstChild("Postes")
+	end
+
 	if nivelIDOverride == 0 and workspace:FindFirstChild("Nivel0_Tutorial") then
 		return workspace.Nivel0_Tutorial:FindFirstChild("Objetos") and workspace.Nivel0_Tutorial.Objetos:FindFirstChild("Postes")
 	elseif nivelIDOverride == 1 and workspace:FindFirstChild("Nivel1") then
@@ -407,6 +412,15 @@ evento.OnServerEvent:Connect(function(player, algoritmo, nodoInicio, nodoFin, ni
 
 	ejecucionActual = ejecucionActual + 1
 	local miEjecucionID = ejecucionActual
+
+	-- Validar parámetros obligatorios
+	if not algoritmo or not nodoInicio or not nodoFin then
+		warn("❌ Visualizador: Parámetros incompletos recibidos del cliente.")
+		warn("   Algoritmo: " .. tostring(algoritmo))
+		warn("   Inicio: " .. tostring(nodoInicio))
+		warn("   Fin: " .. tostring(nodoFin))
+		return
+	end
 
 	print("🧠 Ejecutando [" .. algoritmo .. "]: " .. nodoInicio .. " -> " .. nodoFin)
 
