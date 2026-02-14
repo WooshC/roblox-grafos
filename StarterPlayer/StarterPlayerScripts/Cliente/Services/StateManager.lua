@@ -271,7 +271,7 @@ function StateManager:reset()
 
 	state = {
 		level = { id = 0, name = "", progress = 0, completed = false, startNode = nil, endNode = nil },
-		ui = { mapActive = false, missionsActive = false, zoomLevel = 85, selectedNode = nil },
+		ui = { mapActive = false, missionsActive = false, zoomLevel = 85, selectedNode = nil, inMenu = true },
 		nodes = {},
 		cables = {},
 		inventory = {},

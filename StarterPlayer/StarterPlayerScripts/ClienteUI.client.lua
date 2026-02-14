@@ -74,10 +74,10 @@ end)
 NetworkService.subscribeToInventory(function(itemID, hasItem)
 	print("🎒 Inventario: " .. itemID .. " = " .. tostring(hasItem))
 	if itemID == "Mapa" then
-		StateManager.set("hasMap", hasItem)
+		StateManager.set("inventory.hasMap", hasItem)
 	elseif itemID == "Tablet" or itemID == "Algoritmo_BFS" or itemID == "Algoritmo_Dijkstra" then
 		-- Simplificación: Si tiene cualquiera, tiene acceso a algoritmos
-		StateManager.set("hasAlgorithm", hasItem) 
+		StateManager.set("inventory.hasAlgorithm", hasItem) 
 	end
 end)
 
@@ -136,5 +136,22 @@ Players.LocalPlayer:GetAttributeChangedSignal("CurrentLevelID"):Connect(syncLeve
 task.wait(1) -- Pequeña espera para asegurar carga
 syncLevel()
 
+
+
+-- Tarea para actualizar estado del menú
+task.spawn(function()
+    local Camera = workspace.CurrentCamera
+    while task.wait(0.5) do
+        local inMenu = false
+        if Camera.CameraType == Enum.CameraType.Scriptable and not StateManager.get("ui.mapActive") then
+             inMenu = true
+        end
+        
+        -- Si estamos en menu, actualizar estado
+        if StateManager.get("ui.inMenu") ~= inMenu then
+             StateManager.set("ui.inMenu", inMenu)
+        end
+    end
+end)
 
 print("✅ ClienteUI Refactorizado Inicializado Correctamente")

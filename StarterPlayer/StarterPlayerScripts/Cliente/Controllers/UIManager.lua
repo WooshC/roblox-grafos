@@ -42,35 +42,60 @@ end
 
 function UIManager._subscribeToState()
     -- Actualizar visibilidad según estado
-    StateManager.subscribe("inMenu", UIManager._updateVisibility)
-    StateManager.subscribe("hasMap", function(has) 
-        UIManager.components.Mapa.Visible = has and not StateManager.get("inMenu")
+    StateManager.subscribe("ui.inMenu", UIManager._updateVisibility)
+    StateManager.subscribe("inventory.hasMap", function(has) 
+        UIManager.components.Mapa.Visible = has and not StateManager.get("ui.inMenu")
     end)
-    StateManager.subscribe("hasAlgorithm", function(has)
-        UIManager.components.Algo.Visible = has and not StateManager.get("inMenu")
+    StateManager.subscribe("inventory.hasAlgorithm", function(has)
+        UIManager.components.Algo.Visible = has and not StateManager.get("ui.inMenu")
     end)
-    StateManager.subscribe("mapActive", function(active)
+    StateManager.subscribe("ui.mapActive", function(active)
         UIManager.components.Mapa.Text = active and "CERRAR MAPA" or "🗺️ MAPA"
         UIManager.components.Mapa.BackgroundColor3 = active and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(52, 152, 219)
         
         -- Toggle paneles
         if active then
             UIComponents.ScorePanel.show(UIManager.screenGui)
-            UIComponents.MissionPanel.show(UIManager.screenGui, StateManager.missionStatus)
+            
+            local levelId = StateManager.get("level.id")
+            local LevelsConfig = require(game.ReplicatedStorage:WaitForChild("LevelsConfig"))
+            local config = LevelsConfig[levelId] or LevelsConfig[0]
+            local missionList = config.Misiones or {"¡Conecta la red eléctrica!"}
+            
+            UIComponents.MissionPanel.show(UIManager.screenGui, missionList, StateManager.get("missions"))
         else
             UIComponents.ScorePanel.hide()
             UIComponents.MissionPanel.hide()
         end
     end)
-    StateManager.subscribe("missionsActive", function(active)
+    StateManager.subscribe("ui.missionsActive", function(active)
         UIManager.components.Misiones.BackgroundColor3 = active and Color3.fromRGB(231, 76, 60) or Color3.fromRGB(46, 204, 113)
         if active then
-            UIComponents.MissionPanel.show(UIManager.screenGui, StateManager.missionStatus)
+            local levelId = StateManager.get("level.id")
+            local LevelsConfig = require(game.ReplicatedStorage:WaitForChild("LevelsConfig"))
+            local config = LevelsConfig[levelId] or LevelsConfig[0]
+            local missionList = config.Misiones or {"¡Conecta la red eléctrica!"}
+
+            UIComponents.MissionPanel.show(UIManager.screenGui, missionList, StateManager.get("missions"))
         else
             UIComponents.MissionPanel.hide()
         end
     end)
-end
+        else
+            UIComponents.MissionPanel.hide()
+        end
+    end)
+    StateManager.subscribe("missions", function(missions)
+        -- Si cambio una mision y el panel está visible, actualizar
+        if StateManager.get("ui.missionsActive") or StateManager.get("ui.mapActive") then
+             -- Podriamos optimizar pasando solo el indice cambiado, pero por ahora refrescamos lista
+            local levelId = StateManager.get("level.id")
+            local LevelsConfig = require(game.ReplicatedStorage:WaitForChild("LevelsConfig"))
+            local config = LevelsConfig[levelId] or LevelsConfig[0]
+            local missionList = config.Misiones or {"¡Conecta la red eléctrica!"}
+            UIComponents.MissionPanel.show(UIManager.screenGui, missionList, missions)
+        end
+    end)
 
 function UIManager._updateVisibility(inMenu)
     local gameplayElements = {"Reiniciar", "Mapa", "Algo", "Misiones", "Matriz", "Finalizar"}
@@ -82,9 +107,9 @@ function UIManager._updateVisibility(inMenu)
             else
                 -- Lógica específica por botón
                 if name == "Mapa" then
-                    btn.Visible = StateManager.get("hasMap")
+                    btn.Visible = StateManager.get("inventory.hasMap")
                 elseif name == "Algo" then
-                    btn.Visible = StateManager.get("hasAlgorithm")
+                    btn.Visible = StateManager.get("inventory.hasAlgorithm")
                 elseif name == "Finalizar" then
                     btn.Visible = false -- Se activa por evento
                 else
@@ -105,19 +130,19 @@ function UIManager._handleAction(action, btn)
         
     elseif action == "toggleMap" then
         -- Cerrar misiones si está abierto
-        if StateManager.get("missionsActive") then
-            StateManager.set("missionsActive", false)
+        if StateManager.get("ui.missionsActive") then
+            StateManager.set("ui.missionsActive", false)
         end
-        StateManager.set("mapActive", not StateManager.get("mapActive"))
+        StateManager.set("ui.mapActive", not StateManager.get("ui.mapActive"))
         
     elseif action == "toggleMissions" then
-        if StateManager.get("mapActive") then
-            StateManager.set("mapActive", false)
+        if StateManager.get("ui.mapActive") then
+            StateManager.set("ui.mapActive", false)
         end
-        StateManager.set("missionsActive", not StateManager.get("missionsActive"))
+        StateManager.set("ui.missionsActive", not StateManager.get("ui.missionsActive"))
         
     elseif action == "runAlgo" then
-        local levelId = StateManager.currentLevel
+        local levelId = StateManager.get("level.id")
         local LevelsConfig = require(game.ReplicatedStorage.LevelsConfig)
         local config = LevelsConfig[levelId]
         if config then

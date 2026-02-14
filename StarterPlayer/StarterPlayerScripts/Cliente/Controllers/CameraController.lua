@@ -12,16 +12,16 @@ local CameraController = {
 }
 
 function CameraController.init()
-    StateManager.subscribe("mapActive", CameraController._onToggle)
+    StateManager.subscribe("ui.mapActive", function(isActive)
+        if isActive then
+            CameraController._enable()
+        else
+            CameraController._disable()
+        end
+    end)
 end
 
-function CameraController._onToggle(isActive)
-    if isActive then
-        CameraController._enable()
-    else
-        CameraController._disable()
-    end
-end
+
 
 function CameraController._enable()
     local camera = CameraController.camera

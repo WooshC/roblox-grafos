@@ -9,8 +9,8 @@ local StateManager = require(script.Parent.Parent.Services.StateManager)
 local LevelsConfig = require(game.ReplicatedStorage:WaitForChild("LevelsConfig"))
 
 function VisualController.init()
-    StateManager.subscribe("mapActive", VisualController._onToggle)
-    StateManager.subscribe("energyUpdated", VisualController._updateEnergy)
+    StateManager.subscribe("ui.mapActive", VisualController._onToggle)
+    StateManager.subscribe("energizedNodes", VisualController._showSelectors)
 end
 
 function VisualController._onToggle(isActive)
@@ -155,7 +155,7 @@ function VisualController._hideSelectors()
 end
 
 function VisualController._updateEnergy(nodes)
-    if not StateManager.get("mapActive") then return end
+    if not StateManager.get("ui.mapActive") then return end
     -- Re-renderizar selectores con nuevo estado
     VisualController._showSelectors()
 end
