@@ -14,15 +14,18 @@ local playerGui = player:WaitForChild("PlayerGui")
 local LevelsConfig = require(ReplicatedStorage:WaitForChild("LevelsConfig"))
 
 -- Eventos Remotos
-local Remotes = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Remotes")
+-- Eventos Remotos (Estandarizado)
+local Events = ReplicatedStorage:WaitForChild("Events")
+local Remotes = Events:WaitForChild("Remotes")
 
+local eventoUpdateUI = Remotes:WaitForChild("ActualizarUI")
 
-local eventoReiniciar = Remotes:WaitForChild("ReiniciarNivel", 10)
-local eventoAlgo = Remotes:WaitForChild("EjecutarAlgoritmo", 10)
-local eventoInventario = Remotes:WaitForChild("ActualizarInventario", 10)
+-- Mantener compatibilidad con InventoryService directo
+local eventoInventario = Remotes:WaitForChild("ActualizarInventario", 5) 
 
--- CONFIGURACIÓN DE UI
-if playerGui:FindFirstChild("GameUI") then playerGui.GameUI:Destroy() end
+-- ============================================
+-- 1. CONFIGURACIÓN DE UI E INICIALIZACIÓN
+-- ============================================
 
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "GameUI"
@@ -79,83 +82,11 @@ local cornerPuntaje = Instance.new("UICorner")
 cornerPuntaje.CornerRadius = UDim.new(0, 12)
 cornerPuntaje.Parent = lblPuntaje
 
-local strokePuntaje = Instance.new("UIStroke")
-strokePuntaje.Thickness = 3
-strokePuntaje.Color = Color3.fromRGB(255, 215, 0)
-strokePuntaje.Parent = lblPuntaje
 
--- Visibilidad inicial
-btnMapa.Visible = false
-btnAlgo.Visible = false
-btnFinalizar.Visible = false -- Solo aparece después de validación
-lblPuntaje.Visible = false -- Se mostrará en gameplay
+-- (Existing lblPuntaje definition above)
 
--- ============================================
--- DETECTOR DE MENÚ (Ocultar UI en menú)
--- ============================================
-local mapaActivo = false 
-local misionesActivo = false 
-local tieneMapa = false -- NUEVO: Estado de posesión
-local tieneAlgo = false -- NUEVO: Estado de posesión
-
-local enMenu = true 
-local botonesGameplay = {btnReiniciar, btnMapa, btnAlgo, btnMisiones, btnMatriz, btnFinalizar, lblPuntaje}
-
-local function actualizarVisibilidadUI(estaEnMenu)
-	enMenu = estaEnMenu
-
-	-- Ocultar/Mostrar botones de gameplay
-	for _, btn in ipairs(botonesGameplay) do
-		if estaEnMenu then
-			btn.Visible = false
-		else
-			-- Restaurar visibilidad según su estado lógico Y posesión
-			if btn == btnFinalizar then
-				btn.Visible = false -- Se activa por evento separado
-			elseif btn == btnMapa then
-				btn.Visible = tieneMapa
-			elseif btn == btnAlgo then
-				btn.Visible = tieneAlgo
-			elseif btn == lblPuntaje then
-				btn.Visible = true
-			else
-				btn.Visible = true
-			end
-		end
-	end
-
-	-- Ocultar Money (leaderstat) en menú
-	local leaderstats = player:FindFirstChild("leaderstats")
-	if leaderstats then
-		local money = leaderstats:FindFirstChild("Money") or leaderstats:FindFirstChild("Dinero")
-		if money then
-			-- Roblox no permite ocultar leaderstats directamente, pero podemos ponerlo en 0 visualmente
-			-- O crear un overlay que lo tape
-			-- Por ahora solo registro que está en menú para otros scripts
-		end
-	end
-end
-
--- Escuchar cambios de cámara para detectar menú
-task.spawn(function()
-	while wait(0.5) do
-		local cam = workspace.CurrentCamera
-		if cam and cam.CameraType == Enum.CameraType.Scriptable then
-			-- Probablemente en menú, PERO verificar que no sea el mapa
-			if not enMenu and not mapaActivo then
-				actualizarVisibilidadUI(true)
-			end
-		elseif cam and cam.CameraType == Enum.CameraType.Custom then
-			-- En gameplay
-			if enMenu then
-				actualizarVisibilidadUI(false)
-			end
-		end
-	end
-end)
-
+-- Panel de Distancia
 local distanciaLabel = Instance.new("TextLabel")
-
 distanciaLabel.Name = "DistanciaLabel"
 distanciaLabel.Size = UDim2.new(0, 200, 0, 30)
 distanciaLabel.Position = UDim2.new(0.5, -100, 0.5, 40)
@@ -168,15 +99,7 @@ distanciaLabel.Text = ""
 distanciaLabel.Visible = false
 distanciaLabel.Parent = screenGui
 
--- === LÓGICA DE MAPA ===
--- mapaActivo y misionesActivo movidos arriba
-local camaraConnection = nil
-local techoOriginalTransparency = {}
-local zoomLevel = 80 -- Zoom FIJO (no se puede cambiar)
-local zoomBloqueado = true -- NUEVO: Bloquear zoom para evitar crashes
-local etiquetasNodos = {}
-
--- Panel de Misión mejorado (Definición Temprana)
+-- Panel de Misión
 local misionFrame = Instance.new("Frame")
 misionFrame.Name = "MisionFrame"
 misionFrame.Size = UDim2.new(0, 320, 0, 200) -- Más alto y ancho para acomodar texto largo
@@ -208,14 +131,6 @@ btnCerrarMapa.Parent = misionFrame
 local cornerBtn = Instance.new("UICorner")
 cornerBtn.CornerRadius = UDim.new(0, 8)
 cornerBtn.Parent = btnCerrarMapa
-
-btnCerrarMapa.MouseButton1Click:Connect(function()
-	if mapaActivo then
-		toggleMapa()
-	elseif misionesActivo then
-		toggleMisiones()
-	end
-end)
 
 -- Titulo Misión
 local tituloMision = Instance.new("TextLabel")
@@ -272,6 +187,24 @@ puntajeLabel.TextSize = 24
 puntajeLabel.TextStrokeTransparency = 0.5
 puntajeLabel.Parent = scoreFrame
 
+
+-- Visibilidad inicial
+btnMapa.Visible = false
+btnAlgo.Visible = false
+btnFinalizar.Visible = false -- Solo aparece después de validación
+lblPuntaje.Visible = false -- Se mostrará en gameplay
+
+-- ============================================
+-- 2. DETECTOR DE MENÚ (Ocultar UI en menú)
+-- ============================================
+local mapaActivo = false 
+local misionesActivo = false 
+local tieneMapa = false -- NUEVO: Estado de posesión
+local tieneAlgo = false -- NUEVO: Estado de posesión
+
+local enMenu = true 
+local botonesGameplay = {btnReiniciar, btnMapa, btnAlgo, btnMisiones, btnMatriz, btnFinalizar, lblPuntaje}
+
 -- Función para actualizar el panel de puntaje
 local function actualizarPanelPuntaje()
 	local stats = player:FindFirstChild("leaderstats")
@@ -308,7 +241,7 @@ local function actualizarPanelPuntaje()
 		local dVal = dinero and dinero.Value or 0
 		-- Mostramos Estrellas y Puntos (o Dinero si prefieres)
 		-- Asumimos Puntos ya que dice 'pts'
-		lblPuntaje.Text = "⭐ " .. eVal .. " | 💰 " .. pVal .. " pts"
+		lblPuntaje.Text = "⭐ " .. eVal .. " | pts " .. pVal .. " pts"
 	end
 end
 
@@ -336,50 +269,115 @@ task.spawn(function()
 	end
 end)
 
--- Evento Misión
-local eventoMision = Remotes:WaitForChild("ActualizarMision", 5) 
 
--- Estado de misiones (para persistir entre abrir/cerrar mapa)
-local estadoMisiones = {false, false, false, false, false, false, false, false}
+local function actualizarVisibilidadUI(estaEnMenu)
+	enMenu = estaEnMenu
 
-if eventoMision then
-	eventoMision.OnClientEvent:Connect(function(indiceMision, completada)
-		print("🎯 Cliente recibió actualización Misión " .. indiceMision .. ": " .. tostring(completada))
-
-		-- Actualizar estado local
-		estadoMisiones[indiceMision] = completada
-
-		-- Si el mapa está abierto, actualizar visualmente
-		if not misionFrame.Visible then 
-			print("⚠️ Mapa cerrado, guardando estado para cuando se abra")
-			return 
-		end
-
-		-- Buscar la etiqueta correspondiente
-		local labels = {}
-		for _, child in ipairs(misionFrame:GetChildren()) do
-			if child:IsA("TextLabel") and child.Name ~= "Titulo" then
-				table.insert(labels, child)
-			end
-		end
-
-		if labels[indiceMision] then
-			local lbl = labels[indiceMision]
-
-			-- Solo actualizar si no está ya marcada
-			if not string.find(lbl.Text, "✅") then
-				lbl.TextColor3 = Color3.fromRGB(46, 204, 113) -- Verde Éxito
-				lbl.TextTransparency = 0.3
-				lbl.Text = "✅ " .. lbl.Text
-				print("✅ Misión " .. indiceMision .. " marcada visualmente")
-			end
+	-- Ocultar/Mostrar botones de gameplay
+	for _, btn in ipairs(botonesGameplay) do
+		if estaEnMenu then
+			btn.Visible = false
 		else
-			warn("⚠️ No se encontró label para misión " .. indiceMision)
+			-- Restaurar visibilidad según su estado lógico Y posesión
+			if btn == btnFinalizar then
+				btn.Visible = false -- Se activa por evento separado
+			elseif btn == btnMapa then
+				btn.Visible = tieneMapa
+			elseif btn == btnAlgo then
+				btn.Visible = tieneAlgo
+			elseif btn == lblPuntaje then
+				btn.Visible = true
+			else
+				btn.Visible = true
+			end
+		end
+	end
+end
+
+-- ============================================
+-- 3. LISTENER UNIFICADO DE UI (UIService)
+-- ============================================
+
+if eventoUpdateUI then
+	eventoUpdateUI.OnClientEvent:Connect(function(data)
+		if not data or not data.Type then return end
+		
+		print("🎨 ClienteUI recibido: " .. data.Type)
+
+		if data.Type == "LevelReset" then
+			-- Reiniciar estado local
+			mapaActivo = false
+			misionesActivo = false
+			
+			-- Limpiar misiones visuales
+			estadoMisiones = {false, false, false, false, false, false, false, false}
+			
+			-- Ocultar paneles
+			misionFrame.Visible = false
+			scoreFrame.Visible = false
+			
+			-- Resetear visuales de postes (atributos locales)
+			for _, obj in ipairs(workspace:GetDescendants()) do
+				if obj:IsA("Model") and obj:GetAttribute("Energizado") then
+					obj:SetAttribute("Energizado", nil)
+				end
+			end
+			
+			print("🔄 ClienteUI: Reset completado")
+			
+		elseif data.Type == "Energy" then
+			-- Actualizar atributos visuales de postes
+			local energizedNodes = data.EnergizedNodes or {}
+			
+			-- Iterar por los nodos energizados y marcar
+			-- Nota: Esto asume que los modelos tienen el mismo nombre que los nodos
+			local nivelModel = workspace:FindFirstChild("NivelActual") 
+				or workspace:FindFirstChild("Nivel" .. (player:GetAttribute("CurrentLevelID") or 0))
+				
+			if nivelModel and nivelModel:FindFirstChild("Objetos") then
+				local postes = nivelModel.Objetos:FindFirstChild("Postes")
+				if postes then
+					for _, poste in ipairs(postes:GetChildren()) do
+						if energizedNodes[poste.Name] then
+							poste:SetAttribute("Energizado", true)
+						else
+							poste:SetAttribute("Energizado", nil)
+						end
+					end
+				end
+			end
+			
+		elseif data.Type == "Missions" then
+			-- Actualizar misiones
+			
+		elseif data.Type == "Algorithm" then
+			-- Estado de algoritmo
+			local algo = data.Algoritmo
+			local estado = data.Estado
+			
+			if estado == "started" then
+				-- Mostrar notificación nativa
+				game:GetService("StarterGui"):SetCore("SendNotification", {
+					Title = "Algoritmo";
+					Text = "Ejecutando " .. algo .. "...";
+					Duration = 3;
+				})
+			elseif estado == "completed" then
+				game:GetService("StarterGui"):SetCore("SendNotification", {
+					Title = "Algoritmo";
+					Text = algo .. " finalizado.";
+					Duration = 3;
+				})
+			end
 		end
 	end)
 end
 
--- Evento de Inventario (Desbloquear botones)
+-- ============================================
+-- 4. EVENTOS ESPECIALES / LEGACY
+-- ============================================
+
+-- Evento de Inventario (Directo de InventoryService)
 if eventoInventario then
 	eventoInventario.OnClientEvent:Connect(function(objetoID, tiene)
 		print("🎒 Cliente Inventario Update: " .. objetoID .. " = " .. tostring(tiene))
@@ -424,6 +422,75 @@ if eventoInventario then
 		end
 	end)
 end
+
+
+-- Escuchar cambios de cámara para detectar menú
+task.spawn(function()
+	while wait(0.5) do
+		local cam = workspace.CurrentCamera
+		if cam and cam.CameraType == Enum.CameraType.Scriptable then
+			-- Probablemente en menú, PERO verificar que no sea el mapa
+			if not enMenu and not mapaActivo then
+				actualizarVisibilidadUI(true)
+			end
+		elseif cam and cam.CameraType == Enum.CameraType.Custom then
+			-- En gameplay
+			if enMenu then
+				actualizarVisibilidadUI(false)
+			end
+		end
+	end
+end)
+
+
+-- (Bloques duplicados eliminados: DistanciaLabel, MisionFrame, ScoreFrame, Stats Listeners)
+
+
+-- Evento Misión
+local eventoMision = Remotes:WaitForChild("ActualizarMision", 5) 
+
+-- Estado de misiones (para persistir entre abrir/cerrar mapa)
+local estadoMisiones = {false, false, false, false, false, false, false, false}
+
+if eventoMision then
+	eventoMision.OnClientEvent:Connect(function(indiceMision, completada)
+		print("🎯 Cliente recibió actualización Misión " .. indiceMision .. ": " .. tostring(completada))
+
+		-- Actualizar estado local
+		estadoMisiones[indiceMision] = completada
+
+		-- Si el mapa está abierto, actualizar visualmente
+		if not misionFrame.Visible then 
+			print("⚠️ Mapa cerrado, guardando estado para cuando se abra")
+			return 
+		end
+
+		-- Buscar la etiqueta correspondiente
+		local labels = {}
+		for _, child in ipairs(misionFrame:GetChildren()) do
+			if child:IsA("TextLabel") and child.Name ~= "Titulo" then
+				table.insert(labels, child)
+			end
+		end
+
+		if labels[indiceMision] then
+			local lbl = labels[indiceMision]
+
+			-- Solo actualizar si no está ya marcada
+			if not string.find(lbl.Text, "✅") then
+				lbl.TextColor3 = Color3.fromRGB(46, 204, 113) -- Verde Éxito
+				lbl.TextTransparency = 0.3
+				lbl.Text = "✅ " .. lbl.Text
+				print("✅ Misión " .. indiceMision .. " marcada visualmente")
+			end
+		else
+			warn("⚠️ No se encontró label para misión " .. indiceMision)
+		end
+	end)
+end
+
+-- Bloque inventario legacy eliminado (Manejado arriba)
+
 
 local function mostrarEtiquetasNodos(mostrar)
 	if not mostrar then
@@ -905,8 +972,9 @@ end
 
 -- CONEXIONES DE BOTONES
 btnReiniciar.MouseButton1Click:Connect(function()
-	if eventoReiniciar then
-		eventoReiniciar:FireServer()
+	local evt = Remotes:FindFirstChild("ReiniciarNivel")
+	if evt then
+		evt:FireServer()
 		-- Animación simple de feedback
 		btnReiniciar.Text = "⏳ ..."
 		wait(1)
@@ -919,6 +987,7 @@ btnMapa.MouseButton1Click:Connect(function()
 end)
 
 btnAlgo.MouseButton1Click:Connect(function()
+	local eventoAlgo = Remotes:FindFirstChild("EjecutarAlgoritmo")
 	if eventoAlgo then
 		-- 1. Obtener Nivel Actual
 		local nivelID = player:GetAttribute("CurrentLevelID")
@@ -947,12 +1016,25 @@ btnAlgo.MouseButton1Click:Connect(function()
 
 		-- 4. Enviar al Servidor
 		eventoAlgo:FireServer(algoritmo, nodoInicio, nodoFin, nivelID)
+	else
+		warn("❌ No se encontró el evento EjecutarAlgoritmo")
 	end
 end)
 
 btnMisiones.MouseButton1Click:Connect(function()
 	toggleMisiones()
 end)
+
+if btnCerrarMapa then
+	btnCerrarMapa.MouseButton1Click:Connect(function()
+		if mapaActivo then
+			toggleMapa()
+		elseif misionesActivo then
+			toggleMisiones()
+		end
+	end)
+end
+
 
 btnMatriz.MouseButton1Click:Connect(function()
 	print("🔢 Matriz Adyacencia solicitada (Pendiente de implementar UI visual)")
