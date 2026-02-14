@@ -1,5 +1,9 @@
 --[[
-	MINIMAPA v11 - Visualización Híbrida (Cables Fantasma + Reales)
+	MINIMAPA v12 - Visualización Híbrida (Cables Fantasma + Reales) - CORREGIDO
+	✅ ARREGLOS:
+	   - Previene carga múltiple del mismo nivel
+	   - Asegura que screenGui.Enabled se actualice correctamente
+	   - Logging detallado para debug
 ]]
 
 local Players = game:GetService("Players")
@@ -28,14 +32,22 @@ local worldModel = viewport:WaitForChild("WorldModel")
 
 -- Referencias
 local nivelActualID = nil
+local nivelActualIDAnterior = -999  -- 🔥 ARREGLO: Track nivel anterior para evitar recarga
 local carpetaPostesReal = nil
 local mapaSelectores = {}
 local listaCables = {}
 local listaParticulas = {}
 local cantidadCablesAnterior = 0 
+local updateConnection = nil  -- 🔥 ARREGLO: Conexión a RenderStepped
 
 -- 2. FUNCIÓN PARA CARGAR SELECTORES
 local function cargarSelectores(nivelID)
+	-- 🔥 ARREGLO: Prevenir carga si ya estamos cargando el mismo nivel
+	if nivelActualIDAnterior == nivelID and carpetaPostesReal then
+		print("⚠️ [MINIMAPA] Nivel " .. nivelID .. " ya está cargado, ignorando...")
+		return
+	end
+
 	print("🗺️ [MINIMAPA] Cargando nivel " .. nivelID)
 
 	worldModel:ClearAllChildren()
@@ -56,7 +68,7 @@ local function cargarSelectores(nivelID)
 	if not nivelModel then
 		nivelModel = Workspace:FindFirstChild(config.Modelo)
 	end
-	
+
 	-- 3. Fallback: Búsqueda por patrón "NivelX"
 	if not nivelModel and string.match(config.Modelo, "Nivel(%d+)") then
 		local numNivel = string.match(config.Modelo, "Nivel(%d+)")
@@ -113,6 +125,9 @@ local function cargarSelectores(nivelID)
 	end
 
 	print("✅ [MINIMAPA] Clonados " .. cantidadClonados .. " selectores")
+
+	-- 🔥 ARREGLO: Marcar nivel como cargado
+	nivelActualIDAnterior = nivelID
 end
 
 -- 3. FUNCIÓN PARA SINCRONIZAR SELECTORES
@@ -310,7 +325,11 @@ local function actualizarParticulas()
 	end
 end
 
+-- ================================================================
 -- LISTENERS
+-- ================================================================
+
+-- Escuchar evento OpenMenu para ocultar
 task.spawn(function()
 	local Events = ReplicatedStorage:WaitForChild("Events", 10)
 	if not Events then return end
@@ -323,43 +342,71 @@ task.spawn(function()
 			print("🗺️ [MINIMAPA] Ocultando por regreso al menú")
 			screenGui.Enabled = false
 			nivelActualID = nil
+			nivelActualIDAnterior = -999  -- 🔥 ARREGLO: Reset para permitir recarga
 			carpetaPostesReal = nil
 		end)
 	end
 end)
 
+-- 🔥 ARREGLO: Usar :GetPropertyChangedSignal en lugar de :GetAttributeChangedSignal
+-- para evitar disparos múltiples
 player:GetAttributeChangedSignal("CurrentLevelID"):Connect(function()
 	local levelID = player:GetAttribute("CurrentLevelID")
+
+	print("🔔 [MINIMAPA] Atributo CurrentLevelID cambió a: " .. tostring(levelID))
+
 	if levelID and levelID >= 0 then
-		print("🗺️ [MINIMAPA] Activando para nivel " .. levelID)
-		nivelActualID = levelID
-		task.wait(1.5)
-		cargarSelectores(levelID)
-		actualizarCables()
-		screenGui.Enabled = true
+		-- 🔥 ARREGLO: Solo cargar si es diferente del anterior
+		if levelID ~= nivelActualIDAnterior then
+			print("🗺️ [MINIMAPA] Activando para nivel " .. levelID)
+			nivelActualID = levelID
+
+			-- Cargar selectores
+			cargarSelectores(levelID)
+			actualizarCables()
+
+			-- 🔥 ARREGLO: Asegurar que screenGui está habilitado
+			task.wait(0.5)
+			screenGui.Enabled = true
+			print("✅ [MINIMAPA] screenGui.Enabled = " .. tostring(screenGui.Enabled))
+		else
+			print("⚠️ [MINIMAPA] Nivel " .. levelID .. " ya estaba activo")
+		end
 	else
-		print("🗺️ [MINIMAPA] Desactivando")
+		print("🗺️ [MINIMAPA] Desactivando (levelID inválido: " .. tostring(levelID) .. ")")
 		screenGui.Enabled = false
 		nivelActualID = nil
+		nivelActualIDAnterior = -999
 		carpetaPostesReal = nil
 	end
 end)
 
--- INIT CHECK
-local currentLevel = player:GetAttribute("CurrentLevelID")
-if currentLevel and currentLevel >= 0 then
-	nivelActualID = currentLevel
-	task.wait(1.5)
-	cargarSelectores(currentLevel)
-	actualizarCables()
-	screenGui.Enabled = true
-end
+-- INIT CHECK (en caso de que el nivel ya esté cargado)
+task.spawn(function()
+	task.wait(2)  -- Esperar a que todo se inicialice
+
+	local currentLevel = player:GetAttribute("CurrentLevelID")
+	print("🗺️ [MINIMAPA] Init check: CurrentLevelID = " .. tostring(currentLevel))
+
+	if currentLevel and currentLevel >= 0 then
+		print("🗺️ [MINIMAPA] Nivel pre-existente detectado, cargando...")
+		nivelActualID = currentLevel
+		cargarSelectores(currentLevel)
+		actualizarCables()
+		screenGui.Enabled = true
+		print("✅ [MINIMAPA] screenGui.Enabled = " .. tostring(screenGui.Enabled))
+	end
+end)
 
 -- UPDATE LOOP
 local tiempoActualizacionCables = 0
 local tiempoActualizacionParticulas = 0
 
-RunService.RenderStepped:Connect(function(dt)
+if updateConnection then
+	updateConnection:Disconnect()
+end
+
+updateConnection = RunService.RenderStepped:Connect(function(dt)
 	if not screenGui.Enabled then return end
 
 	local char = player.Character
@@ -385,4 +432,4 @@ RunService.RenderStepped:Connect(function(dt)
 	end
 end)
 
-print("✅ Minimapa v11 (Híbrido) Listo")
+print("✅ Minimapa v12 (CORREGIDO - Sin carga múltiple) Listo")

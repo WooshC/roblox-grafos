@@ -47,7 +47,7 @@ function MissionsManager:show()
 	misionFrame.Visible = true
 	self:_populateMissions()
 
-	print("✅ MissionsManager: Panel mostrado")
+
 end
 
 --- Oculta panel de misiones
@@ -56,7 +56,7 @@ function MissionsManager:hide()
 
 	misionFrame.Visible = false
 
-	print("✅ MissionsManager: Panel ocultado")
+
 end
 
 --- Llena el panel con misiones del nivel actual
@@ -127,7 +127,7 @@ function MissionsManager:updateMissionStatus(indice, completada)
 		lbl.TextColor3 = Color3.fromRGB(46, 204, 113)
 		lbl.TextTransparency = 0.3
 		lbl.Text = "✅ " .. lbl.Text
-		print("✅ Misión " .. indice .. " marcada como completada")
+
 	end
 end
 
@@ -141,7 +141,7 @@ function MissionsManager:resetAll()
 	for i = 1, 8 do
 		estadoMisiones[i] = false
 	end
-	print("🔄 MissionsManager: Todas las misiones reseteadas")
+
 end
 
 return MissionsManager

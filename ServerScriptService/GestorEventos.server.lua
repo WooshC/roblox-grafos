@@ -38,6 +38,11 @@ local eventoRestaurar = bindablesFolder:WaitForChild("RestaurarObjetos")
 eventoAparecer.OnServerEvent:Connect(function(player, nivelID, objetoID)
 	print("📡 Puente: Recibido 'AparecerObjeto' desde Cliente para: " .. tostring(objetoID))
 	
+	-- Agregar al inventario usando el servicio centralizado
+	if InventoryService then
+		InventoryService:addItem(player, objetoID)
+	end
+	
 	-- Redirigir a los scripts individuales que escuchan DesbloquearObjeto
 	eventoDesbloquear:Fire(objetoID, nivelID)
 end)

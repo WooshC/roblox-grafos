@@ -86,7 +86,7 @@ function MapManager:enable()
 	-- Iniciar loop de cámara
 	self:_startCameraLoop()
 
-	print("✅ MapManager: Mapa activado")
+
 end
 
 --- Desactiva vista de mapa
@@ -128,7 +128,7 @@ function MapManager:disable()
 	-- Restaurar selectores
 	self:_restoreSelectors()
 
-	print("✅ MapManager: Mapa desactivado")
+
 end
 
 --- Inicia el loop de renderizado de la cámara
@@ -319,7 +319,7 @@ function MapManager:_populateLabels()
 		return
 	end
 
-	print("ℹ️ MapManager: Poblando etiquetas para " .. #postesFolder:GetChildren() .. " postes")
+
 
 	for _, poste in ipairs(postesFolder:GetChildren()) do
 		if poste:IsA("Model") then

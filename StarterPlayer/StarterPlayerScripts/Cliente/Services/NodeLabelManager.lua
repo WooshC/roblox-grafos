@@ -81,7 +81,7 @@ function NodeLabelManager:getLabelForNode(poste)
 	local alias = AliasUtils.getNodeAlias(levelId, poste.Name)
 	lblName.Text = alias
 
-	print(string.format("🏷️ Etiqueta creada: %s -> %s (Nivel %d) en posición: %s", poste.Name, alias, levelId, tostring(ancla.Position)))
+
 
 	labels[poste] = {
 		Ancla = ancla,
