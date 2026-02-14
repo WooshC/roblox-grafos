@@ -89,15 +89,22 @@ local function cargarSelectores(nivelID)
 		return
 	end
 
-	local nivelModel = Workspace:FindFirstChild(config.Modelo)
-	-- FALLBACK
+	-- 1. Prioridad: NivelActual (Instanciado por LevelService)
+	local nivelModel = Workspace:FindFirstChild("NivelActual")
+
+	-- 2. Fallback: Nombre del modelo en config (Testing/Legacy)
+	if not nivelModel then
+		nivelModel = Workspace:FindFirstChild(config.Modelo)
+	end
+	
+	-- 3. Fallback: Búsqueda por patrón "NivelX"
 	if not nivelModel and string.match(config.Modelo, "Nivel(%d+)") then
 		local numNivel = string.match(config.Modelo, "Nivel(%d+)")
 		nivelModel = Workspace:FindFirstChild("Nivel" .. numNivel)
 	end
 
 	if not nivelModel then
-		warn("⚠️ [MINIMAPA] Modelo no encontrado: " .. config.Modelo)
+		warn("⚠️ [MINIMAPA] Modelo no encontrado: NivelActual ni " .. config.Modelo)
 		return
 	end
 

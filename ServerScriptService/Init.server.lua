@@ -195,7 +195,13 @@ _G.Services = {
 	GraphUtils = GraphUtils
 }
 
-print("   ✅ Servicios disponibles en _G.Services")
+-- ============================================
+-- PASO 6: Auto-init de Nivel (si existe en Workspace)
+-- ============================================
+if LevelService then
+	LevelService:init()
+end
+
 
 -- ============================================
 -- FIN

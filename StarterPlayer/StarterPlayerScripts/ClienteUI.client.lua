@@ -437,11 +437,16 @@ local function mostrarEtiquetasNodos(mostrar)
 
 	local nivelID = player:FindFirstChild("leaderstats") and player.leaderstats.Nivel.Value or 0
 	local config = LevelsConfig[nivelID] or LevelsConfig[0]
-	local nivelModel = workspace:FindFirstChild(config.Modelo)
-	
-	-- Fallback: Buscar con nombres alternativos si no se encuentra
+	-- 1. Prioridad: NivelActual (Instanciado)
+	local nivelModel = workspace:FindFirstChild("NivelActual")
+
+	-- 2. Fallbacks
 	if not nivelModel then
-		nivelModel = workspace:FindFirstChild("Nivel" .. nivelID) or workspace:FindFirstChild("Nivel" .. nivelID .. "_Tutorial") or workspace:FindFirstChild("NivelActual")
+		nivelModel = workspace:FindFirstChild(config.Modelo)
+	end
+	
+	if not nivelModel then
+		nivelModel = workspace:FindFirstChild("Nivel" .. nivelID) or workspace:FindFirstChild("Nivel" .. nivelID .. "_Tutorial")
 	end
 
 	local postesFolder = nivelModel and nivelModel:FindFirstChild("Objetos") and nivelModel.Objetos:FindFirstChild("Postes")
@@ -538,10 +543,16 @@ local function toggleMapa()
 	local nombreFin = config.NodoFin
 	local listaMisiones = config.Misiones or {"¡Conecta la red eléctrica!"}
 
-	local nivelModel = workspace:FindFirstChild(config.Modelo)
-	-- Fallback
+	-- 1. Prioridad: NivelActual
+	local nivelModel = workspace:FindFirstChild("NivelActual")
+	
+	-- 2. Fallbacks
 	if not nivelModel then
-		nivelModel = workspace:FindFirstChild("Nivel" .. nivelID) or workspace:FindFirstChild("Nivel" .. nivelID .. "_Tutorial") or workspace:FindFirstChild("NivelActual")
+		nivelModel = workspace:FindFirstChild(config.Modelo)
+	end
+
+	if not nivelModel then
+		nivelModel = workspace:FindFirstChild("Nivel" .. nivelID) or workspace:FindFirstChild("Nivel" .. nivelID .. "_Tutorial")
 	end
 
 	local techosFolder = nivelModel and nivelModel:FindFirstChild("Techos")
@@ -909,10 +920,33 @@ end)
 
 btnAlgo.MouseButton1Click:Connect(function()
 	if eventoAlgo then
-		-- Detectar qué algoritmo tenemos
-		-- Aquí podrías poner lógica para elegir BFS o Dijkstra ségun lo que tenga el user
-		-- Por defecto lanzamos BFS o el que diga el nivel
-		eventoAlgo:FireServer()
+		-- 1. Obtener Nivel Actual
+		local nivelID = player:GetAttribute("CurrentLevelID")
+		if not nivelID or nivelID == -1 then
+			nivelID = player:FindFirstChild("leaderstats") and player.leaderstats.Nivel.Value or 0
+		end
+
+		-- 2. Obtener Configuración
+		local config = LevelsConfig[nivelID]
+		if not config then
+			warn("⚠️ No hay configuración para Nivel " .. tostring(nivelID))
+			return
+		end
+
+		-- 3. Obtener Parámetros
+		local algoritmo = config.Algoritmo or "BFS"
+		local nodoInicio = config.NodoInicio
+		local nodoFin = config.NodoFin
+
+		if not nodoInicio or not nodoFin then
+			warn("⚠️ Nivel " .. nivelID .. " no tiene NodoInicio o NodoFin definidos")
+			return
+		end
+
+		print("🧠 Cliente solicitando algoritmo: " .. algoritmo .. " (" .. nodoInicio .. " -> " .. nodoFin .. ")")
+
+		-- 4. Enviar al Servidor
+		eventoAlgo:FireServer(algoritmo, nodoInicio, nodoFin, nivelID)
 	end
 end)
 
