@@ -12,9 +12,6 @@ local remotes = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Remotes")
 local cableDragEvent = remotes:WaitForChild("CableDragEvent")
 local pulseEvent = remotes:WaitForChild("PulseEvent")
 local eventoReiniciar = remotes:WaitForChild("ReiniciarNivel")
-if eventoReiniciar then
-	print("✅ VisualEffects: Escuchando evento ReiniciarNivel")
-end
 
 -- ==========================================
 -- CABLE DRAGGING LOGIC
@@ -143,7 +140,6 @@ pulseEvent.OnClientEvent:Connect(function(accion, p1, p2, esBidireccional)
 	
 	if accion == "StartPulse" then
 		if pulsosActivos[clave] then 
-			print("⚠️ [VisualEffects] Ya existe pulso activo para: " .. clave)
 			return 
 		end
 		
@@ -164,13 +160,11 @@ pulseEvent.OnClientEvent:Connect(function(accion, p1, p2, esBidireccional)
 		-- ✅ 1. Particula A -> B (Cyan) - parenteada dentro de p1
 		local part1 = generarParticulaTrafico(pos1, pos2, Color3.fromRGB(0, 255, 255), 2.0, p1)
 		table.insert(particulas, part1)
-		print("✅ [VisualEffects] Creada partícula A->B en: " .. p1:GetFullName())
 		
 		-- ✅ 2. Particula B -> A (Gold) - parenteada dentro de p2 (si es bidireccional)
 		if esBidireccional then
 			local part2 = generarParticulaTrafico(pos2, pos1, Color3.fromRGB(255, 200, 0), 2.0, p2)
 			table.insert(particulas, part2)
-			print("✅ [VisualEffects] Creada partícula B->A en: " .. p2:GetFullName())
 		end
 		
 		pulsosActivos[clave] = particulas
@@ -181,7 +175,6 @@ pulseEvent.OnClientEvent:Connect(function(accion, p1, p2, esBidireccional)
 				p:Destroy()
 			end
 			pulsosActivos[clave] = nil
-			print("🗑️ [VisualEffects] Partículas eliminadas para: " .. clave)
 		end
 	end
 end)
@@ -191,13 +184,12 @@ if eventoReiniciar then
 	eventoReiniciar.OnClientEvent:Connect(function()
 		local count = 0
 		for clave, particulas in pairs(pulsosActivos) do
-			for _, p in ipairs(particulas) do
+		for _, p in ipairs(particulas) do
 				p:Destroy()
 				count = count + 1
 			end
 		end
 		table.clear(pulsosActivos)
-		print("✅ VisualEffects: " .. count .. " partículas limpiadas por reinicio")
 	end)
 end
 

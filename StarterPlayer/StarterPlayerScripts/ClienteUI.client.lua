@@ -70,7 +70,7 @@ MissionsManager.initialize(globalState, screenGui, {
 
 -- Invertir la dependencia: MissionsManager necesita MapManager para cerrar mapa
 MissionsManager.toggle = function(self)
-	if not self.MapManager then self.MapManager = require(Services.MapManager) end
+    if not self.MapManager then self.MapManager = require(Services.MapManager) end
 	-- Cerrar mapa si está abierto
 	if globalState.mapaActivo then
 		self.MapManager:disable()
@@ -102,7 +102,7 @@ print("✅ Todos los managers inicializados")
 -- PASO 3: Iniciar Lógica de los Servicios
 -- ================================================================
 NodeLabelManager.initialize({
-	LevelsConfig = LevelsConfig
+    LevelsConfig = LevelsConfig
 })
 
 -- 🔥 CRÍTICO: Iniciar ScoreManager ANTES de los demás
@@ -120,6 +120,22 @@ print("✅ ClienteUI Modular Inicializado Correctamente (CORREGIDO)")
 print("   🎯 ScoreManager está escuchando cambios de leaderstats")
 print("   💰 Los puntos se actualizarán en tiempo real")
 print("   ⭐ Las estrellas se actualizarán en tiempo real")
+
+-- ================================================================
+-- PASO 4: Cargar AlgorithmExecutor (Sistema de Algoritmos)
+-- ================================================================
+
+print("🧠 Cargando AlgorithmExecutor...")
+local success, result = pcall(function()
+	return require(script.Parent:WaitForChild("AlgorithmExecutor", 5))
+end)
+
+if success and result then
+	print("✅ AlgorithmExecutor cargado correctamente")
+	print("   🧠 Sistema de ejecución de algoritmos activo")
+else
+	warn("⚠️ AlgorithmExecutor no encontrado o error: " .. tostring(result))
+end
 
 -- ================================================================
 -- DEBUGGING: Verificar que ScoreManager funciona
