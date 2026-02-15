@@ -1,14 +1,14 @@
 local LevelsConfig = {}
 
--- ============================================
--- NIVEL 0: TUTORIAL BÁSICO
+--- ============================================
+-- NIVEL 0: LABORATORIO DE GRAFOS
 -- ============================================
 LevelsConfig[0] = {
-	Nombre = "Campo de Entrenamiento",
-	DescripcionCorta = "Aprende los conceptos básicos de conexión.",
-	ImageId = "rbxassetid://1234567890",
-	Modelo = "Nivel0_Tutorial", 
-	Descripcion = "Bienvenido a Villa Conexa. Tu misión es aprender a conectar los generadores con las torres usando cables. ¡No gastes todo tu presupuesto!",
+	Nombre = "Laboratorio de Grafos",
+	DescripcionCorta = "Aprende teoría de grafos a través de 4 zonas educativas.",
+	ImageId = "rbxassetid://87116895331866",
+	Modelo = "Nivel0", 
+	Descripcion = "Bienvenido al Laboratorio. Aprenderás sobre grafos desde lo básico hasta conceptos avanzados.",
 	DineroInicial = 0,
 	CostoPorMetro = 0,
 	Algoritmo = "BFS",
@@ -20,189 +20,269 @@ LevelsConfig[0] = {
 	},
 
 	NodoInicio = "PostePanel",
-	NodoFin = "PosteFinal",
-	NodosTotales = 8,
+	NodoFin = "PostePanel",
+	NodosTotales = 13,
 
+	-- ============================================
+	-- ZONA 1: NODO Y ARISTA (Fundamentos)
+	-- ZONA 2: GRADO DE NODO
+	-- ZONA 3: GRAFO DIRIGIDO
+	-- ZONA 4: CONECTIVIDAD
+	-- ============================================
 	Adyacencias = {
-		["PostePanel"] = {"Poste1","Poste5","toma_corriente"},
-		["Poste1"] = {"PostePanel", "Poste2","Poste4"},
-		["Poste2"] = {"Poste1", "Poste3"},
-		["Poste3"] = {"Poste2", "Poste4"},
-		["Poste4"] = {"Poste1", "PosteFinal","Poste3"},
-		["Poste5"] = {"PostePanel", "PosteFinal"},
-		["PosteFinal"] = {"Poste4","Poste5"},
+		-- ZONA 1: Nodos y Aristas (sin sufijo)
+		["Nodo1_z1"] = {"Nodo2_z1"},
+		["Nodo2_z1"] = {"Nodo1_z1"},
+
+		-- ZONA 2: Grado de Nodo (sufijo _z2)
+		["Nodo1_z2"] = {"Nodo2_z2", "Nodo3_z2"},
+		["Nodo2_z2"] = {"Nodo1_z2"},
+		["Nodo3_z2"] = {"Nodo1_z2"},
+
+		-- ZONA 3: Grafo Dirigido (sufijo _z3)
+		["Nodo1_z3"] = {"Nodo2_z3"},
+		["Nodo2_z3"] = {"Nodo3_z3"},
+		["Nodo3_z3"] = {},
+
+		-- ZONA 4: Conectividad (sufijo _z4)
+		["Nodo1_z4"] = {"Nodo2_z4", "Nodo3_z4"},
+		["Nodo2_z4"] = {"Nodo1_z4", "Nodo3_z4"},
+		["Nodo3_z4"] = {"Nodo1_z4", "Nodo2_z4"},
+
+		-- Panel y Bonus
+		["PostePanel"] = {"toma_corriente"},
+		["toma_corriente"] = {},
 	},
 
 	-- ============================================
-	-- MISIONES (CRÍTICO PARA PUNTAJE)
+	-- MISIONES POR ZONA
 	-- ============================================
 	Misiones = {
+		-- ZONA 1: Nodos y Aristas
 		{
 			ID = 1,
-			Texto = "Energiza la Toma de Corriente (toma_corriente)",
-			Tipo = "NODO_ENERGIZADO",
-			Puntos = 250,
+			Texto = "🟢 ZONA 1: Selecciona un nodo para ver su definición",
+			Tipo = "NODO_SELECCIONADO",
+			Puntos = 100,
 			Parametros = {
-				Nodo = "toma_corriente"
+				Nodo = "Nodo1"
 			}
 		},
 		{
 			ID = 2,
-			Texto = "Energiza al menos 3 nodos",
-			Tipo = "NODOS_MINIMOS",
-			Puntos = 250,
+			Texto = "🟢 ZONA 1: Conecta Nodo 1 con Nodo 2 (crea una arista)",
+			Tipo = "ARISTA_CREADA",
+			Puntos = 150,
 			Parametros = {
-				Cantidad = 3
+				NodoA = "Nodo1",
+				NodoB = "Nodo2"
 			}
 		},
+
+		-- ZONA 2: Grado de Nodo
 		{
 			ID = 3,
-			Texto = "¡Llega a la Torre de Control!",
-			Tipo = "NODO_ENERGIZADO",
-			Puntos = 250,
+			Texto = "🔵 ZONA 2: Haz que el nodo central tenga grado 1",
+			Tipo = "GRADO_NODO",
+			Puntos = 150,
 			Parametros = {
-				Nodo = "PosteFinal"
+				Nodo = "Nodo1_z2",
+				GradoRequerido = 1
 			}
 		},
 		{
 			ID = 4,
-			Texto = "¡Energiza toda la red! (8/8 nodos)",
-			Tipo = "TODOS_LOS_NODOS",
+			Texto = "🔵 ZONA 2: Aumenta el grado del nodo central a 2",
+			Tipo = "GRADO_NODO",
+			Puntos = 150,
+			Parametros = {
+				Nodo = "Nodo1_z2",
+				GradoRequerido = 2
+			}
+		},
+
+		-- ZONA 3: Grafo Dirigido
+		{
+			ID = 5,
+			Texto = "🟡 ZONA 3: Crea una arista dirigida (Nodo X → Nodo Y)",
+			Tipo = "ARISTA_DIRIGIDA",
+			Puntos = 150,
+			Parametros = {
+				NodoOrigen = "Nodo1_z3",
+				NodoDestino = "Nodo2_z3"
+			}
+		},
+		{
+			ID = 6,
+			Texto = "🟡 ZONA 3: Completa la cadena dirigida hasta Nodo Z",
+			Tipo = "ARISTA_DIRIGIDA",
+			Puntos = 150,
+			Parametros = {
+				NodoOrigen = "Nodo2_z3",
+				NodoDestino = "Nodo3_z3"
+			}
+		},
+
+		-- ZONA 4: Conectividad
+		{
+			ID = 7,
+			Texto = "🔴 ZONA 4: Construye un grafo conexo (todos los nodos alcanzables)",
+			Tipo = "GRAFO_CONEXO",
 			Puntos = 250,
 			Parametros = {
-				Cantidad = 8
+				Nodos = {"Nodo1_z4", "Nodo2_z4", "Nodo3_z4"}
+			}
+		},
+
+		-- BONUS
+		{
+			ID = 8,
+			Texto = "⭐ BONUS: Conecta la Tableta Especial con el Panel",
+			Tipo = "ARISTA_CREADA",
+			Puntos = 500,
+			Parametros = {
+				NodoA = "PostePanel",
+				NodoB = "toma_corriente"
 			}
 		}
 	},
 
 	Objetos = {
-		{ ID = "Mapa", Nombre = "Mapa de Villa Conexa", Descripcion = "Desbloquea la vista de mapa", Icono = "🗺️", Modelo = "MapaModel" },
-		{ ID = "Algoritmo_BFS", Nombre = "Manual de BFS", Descripcion = "Desbloquea el algoritmo BFS", Icono = "🧠", Modelo = "AlgoritmoBFS" },
-		{ ID = "Algoritmo_Dijkstra", Nombre = "Manual de Dijkstra", Descripcion = "Desbloquea el algoritmo Dijkstra", Icono = "⚡", Modelo = "AlgoritmoDijkstra" }
+		{ ID = "Tableta_Especial", Nombre = "Tableta Educativa", Descripcion = "Item especial del bonus", Icono = "📱", Modelo = "Tableta" },
+		{ ID = "Mapa", Nombre = "Mapa del Laboratorio", Descripcion = "Desbloquea la vista de mapa", Icono = "🗺️", Modelo = "MapaModel" },
+		{ ID = "Algoritmo_BFS", Nombre = "Manual de BFS", Descripcion = "Desbloquea el algoritmo BFS", Icono = "🧠", Modelo = "AlgoritmoBFS" }
 	},
 
 	-- ============================================
-	-- NODOS CON ALIASES INTEGRADOS
+	-- NODOS CON DESCRIPCIONES
 	-- ============================================
 	Nodos = {
-		PostePanel = { Zona = nil, Alias = "🔌 Generador" },
-		Poste1 = { Zona = "Zona_luz_1", Alias = "🏢 Torre 1" },
-		Poste2 = { Zona = "Zona_luz_1", Alias = "🏢 Torre 2" },
-		Poste3 = { Zona = "Zona_luz_1", Alias = "🏢 Torre 3" },
-		Poste4 = { Zona = "Zona_luz_1", Alias = "🏢 Torre 4" },
-		Poste5 = { Zona = "Zona_luz_1", Alias = "🏢 Torre 5" },
-		PosteFinal = { Zona = "Zona_luz_1", Alias = "🚩 Torre Control" },
-		toma_corriente = { Zona = "Zona_luz_2", Alias = "💡 Toma Corriente" }
-	},
+		-- ZONA 1: Nodos y Aristas
+		Nodo1 = { 
+			Zona = "Zona_Estacion_1", 
+			Alias = "🟢 Nodo 1",
+			Descripcion = "Un nodo es un punto en el grafo. Puede representar cualquier cosa: una ciudad, una persona, un concepto."
+		},
+		Nodo2 = { 
+			Zona = "Zona_Estacion_1", 
+			Alias = "🟢 Nodo 2",
+			Descripcion = "Otro nodo. La conexión entre dos nodos es una arista."
+		},
 
-	-- ============================================
-	-- RETROCOMPATIBILIDAD (Viejo formato)
-	-- ============================================
-	NombresPostes = {
-		["PostePanel"] = "Generador",
-		["PosteFinal"] = "Torre Control",
-		["Poste1"] = "Torre 1",
-		["Poste2"] = "Torre 2",
-		["Poste3"] = "Torre 3",
-		["Poste5"] = "Torre 5",
-		["toma_corriente"] = "Toma Corriente"
+		-- ZONA 2: Grado de Nodo
+		Nodo1_z2 = { 
+			Zona = "Zona_Estacion_2", 
+			Alias = "🔵 Centro",
+			Descripcion = "Este es el nodo central. Su GRADO es el número de aristas conectadas."
+		},
+		Nodo2_z2 = { 
+			Zona = "Zona_Estacion_2", 
+			Alias = "🔵 Vecino 1",
+			Descripcion = "Conecta este nodo al centro para aumentar el grado."
+		},
+		Nodo3_z2 = { 
+			Zona = "Zona_Estacion_2", 
+			Alias = "🔵 Vecino 2",
+			Descripcion = "Segundo vecino. Incrementará el grado a 2."
+		},
+
+		-- ZONA 3: Grafo Dirigido
+		Nodo1_z3 = { 
+			Zona = "Zona_Estacion_3", 
+			Alias = "🟡 Nodo X",
+			Descripcion = "Nodo origen. Las aristas dirigidas tienen DIRECCIÓN (una flecha)."
+		},
+		Nodo2_z3 = { 
+			Zona = "Zona_Estacion_3", 
+			Alias = "🟡 Nodo Y",
+			Descripcion = "Nodo intermedio. Recibe entrada de X, envía salida a Z."
+		},
+		Nodo3_z3 = { 
+			Zona = "Zona_Estacion_3", 
+			Alias = "🟡 Nodo Z",
+			Descripcion = "Nodo destino. Solo tiene entrada, no salida."
+		},
+
+		-- ZONA 4: Conectividad
+		Nodo1_z4 = { 
+			Zona = "Zona_Estacion_4", 
+			Alias = "🔴 Nodo 1",
+			Descripcion = "Parte del triángulo. Conecta a todos para formar un GRAFO CONEXO."
+		},
+		Nodo2_z4 = { 
+			Zona = "Zona_Estacion_4", 
+			Alias = "🔴 Nodo 2",
+			Descripcion = "Segundo vértice del triángulo."
+		},
+		Nodo3_z4 = { 
+			Zona = "Zona_Estacion_4", 
+			Alias = "🔴 Nodo 3",
+			Descripcion = "Tercer vértice. Todos deben ser alcanzables entre sí."
+		},
+
+		-- Panel y Bonus
+		PostePanel = { 
+			Zona = nil, 
+			Alias = "🔌 Panel Central",
+			Descripcion = "El panel principal del laboratorio."
+		},
+		toma_corriente = { 
+			Zona = nil, 
+			Alias = "⭐ Tableta Especial",
+			Descripcion = "BONUS: Conecta esta tableta especial para desbloquear un logro."
+		}
 	},
 
 	-- ============================================
 	-- CONFIGURACIÓN DE ZONAS
 	-- ============================================
 	Zonas = {
-		["Zona_luz_1"] = {
+		["Zona_Estacion_1"] = {
 			Modo = "ALL",
-			Descripcion = "Sector principal: Torre de Control"
+			Descripcion = "🟢 ZONA 1: Nodos y Aristas - Aprende qué son",
+			Color = Color3.fromRGB(65,105,225),
+			Concepto = "Fundamentos"
 		},
-		["Zona_luz_2"] = {
-			Modo = "ANY",
-			Descripcion = "Sector secundario: Puerta"
+		["Zona_Estacion_2"] = {
+			Modo = "ALL",
+			Descripcion = "🔵 ZONA 2: Grado de Nodo - Cuenta conexiones",
+			Color = Color3.fromRGB(34,139,34),
+			Concepto = "Propiedades Locales"
+		},
+		["Zona_Estacion_3"] = {
+			Modo = "ALL",
+			Descripcion = "🟡 ZONA 3: Grafos Dirigidos - Flechas direccionales",
+			Color = Color3.fromRGB(220,20,60),
+			Concepto = "Direccionalidad"
+		},
+		["Zona_Estacion_4"] = {
+			Modo = "ALL",
+			Descripcion = "🔴 ZONA 4: Conectividad - Grafos conexos",
+			Color = Color3.fromRGB(184,134,11),
+			Concepto = "Propiedades Globales"
 		}
-	}
-}
-
--- ==========================================
--- NIVEL 1: LA PRIMERA RED
--- ==========================================
-LevelsConfig[1] = {
-	Nombre = "La Primera Red",
-	DescripcionCorta = "Conecta el barrio residencial con bajo presupuesto.",
-	ImageId = "rbxassetid://1234567891",
-	Modelo = "Nivel1_Basico",
-	Descripcion = "Los residentes necesitan luz. Usa el algoritmo BFS para encontrar la ruta más corta y ahorrar dinero.",
-	DineroInicial = 5000,
-	CostoPorMetro = 20,
-	Algoritmo = "Dijkstra",
-	NodoInicio = "PostePanel",
-	NodoFin = "Poste6",
-
-	Puntuacion = {
-		TresEstrellas = 1200, 
-		DosEstrellas = 800,
-		RecompensaXP = 150
-	},
-
-	Adyacencias = {
-		["PostePanel"] = {"Poste1", "Poste2"},
-		["Poste1"] = {"PostePanel", "Poste2"},
-		["Poste2"] = {"PostePanel", "Poste1", "Poste6"},
-		["Poste6"] = {"Poste2"}
-	},
-
-	Misiones = {
-		{
-			ID = 1,
-			Texto = "Conecta al menos 2 nodos",
-			Tipo = "NODOS_MINIMOS",
-			Parametros = { Cantidad = 2 }
-		},
-		{
-			ID = 2,
-			Texto = "Llega al nodo final",
-			Tipo = "CIRCUITO_CERRADO",
-			Parametros = {}
-		},
-		{
-			ID = 3,
-			Texto = "Ahorra presupuesto: Mantén al menos $3000",
-			Tipo = "PRESUPUESTO_RESTANTE",
-			Parametros = { Cantidad = 3000 }
-		}
-	},
-
-	-- ============================================
-	-- NODOS CON ALIASES
-	-- ============================================
-	Nodos = {
-		PostePanel = { Zona = nil, Alias = "🔌 Generador Principal" },
-		Poste1 = { Zona = "Zona_Residencial", Alias = "🏠 Torre Residencial 1" },
-		Poste2 = { Zona = "Zona_Residencial", Alias = "🏠 Torre Residencial 2" },
-		Poste6 = { Zona = "Zona_Residencial", Alias = "🚩 Torre Distribuidora" }
 	},
 
 	-- ============================================
 	-- RETROCOMPATIBILIDAD
 	-- ============================================
 	NombresPostes = {
-		["PostePanel"] = "Generador Principal",
-		["Poste1"] = "Torre Residencial 1",
-		["Poste2"] = "Torre Residencial 2",
-		["Poste6"] = "Torre Distribuidora"
-	},
-
-	Zonas = {
-		["Zona_Residencial"] = {
-			Modo = "ALL",
-			Descripcion = "Zona de casas residenciales"
-		}
-	},
-
-	Objetos = {
-		{ ID = "Algoritmo_Dijkstra", Nombre = "Manual de Dijkstra", Descripcion = "Aprende a encontrar el camino más barato", Icono = "⚡", Modelo = "AlgoritmoDijkstra" }
+		["Nodo1"] = "Nodo 1",
+		["Nodo2"] = "Nodo 2",
+		["Nodo1_z2"] = "Centro",
+		["Nodo2_z2"] = "Vecino 1",
+		["Nodo3_z2"] = "Vecino 2",
+		["Nodo1_z3"] = "Nodo X",
+		["Nodo2_z3"] = "Nodo Y",
+		["Nodo3_z3"] = "Nodo Z",
+		["Nodo1_z4"] = "Nodo 1",
+		["Nodo2_z4"] = "Nodo 2",
+		["Nodo3_z4"] = "Nodo 3",
+		["PostePanel"] = "Panel Central",
+		["toma_corriente"] = "Tableta Especial"
 	}
 }
+
 
 -- ==========================================
 -- NIVEL 2: EXPANSIÓN URBANA
