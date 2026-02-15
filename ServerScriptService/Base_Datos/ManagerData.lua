@@ -44,9 +44,6 @@ local DEFAULT_DATA = {
 	Inventory = {} 
 }
 
--- ============================================
--- 🔧 NUEVA FUNCIÓN: INICIALIZACIÓN DE LEADERSTATS
--- ============================================
 local function setupLeaderstats(player)
 	local stats = player:FindFirstChild("leaderstats")
 	if not stats then
@@ -71,7 +68,7 @@ local function setupLeaderstats(player)
 		money.Parent = stats
 	end
 
-	-- ⭐ PUNTOS - Sistema de misiones (CRÍTICO)
+
 	if not stats:FindFirstChild("Puntos") then
 		local puntos = Instance.new("IntValue")
 		puntos.Name = "Puntos"
@@ -80,7 +77,7 @@ local function setupLeaderstats(player)
 		print("✅ IntValue 'Puntos' creado para " .. player.Name)
 	end
 
-	-- ⭐ ESTRELLAS - Basado en puntaje (CRÍTICO)
+
 	if not stats:FindFirstChild("Estrellas") then
 		local estrellas = Instance.new("IntValue")
 		estrellas.Name = "Estrellas"
@@ -135,10 +132,7 @@ local function loadData(player)
 
 	SessionData[player.UserId] = data
 	
-	-- 🔥 SINCRONIZAR CON INVENTORY SERVICE (ServerScriptService)
-	-- Le pasamos la lista guardada para que la use en tiempo real
 	task.spawn(function()
-		-- Esperar a que el servicio esté disponible en _G
 		local attempts = 0
 		while (not _G.Services or not _G.Services.Inventory) and attempts < 10 do
 			task.wait(1)
@@ -224,12 +218,6 @@ function setupLevelForPlayer(player, levelId, config)
 
 	-- Asegurar que leaderstats existan antes de entrar al nivel
 	setupLeaderstats(player)
-
-	-- Usar NivelUtils para buscar (ya que solo lee workspace, es seguro)
-	-- Aunque idealmente deberíamos pedirle a LevelService que cargue el nivel
-	-- Pero RequestPlayLevel ya llama a loadLevel en LevelService desde el cliente o Init?
-	-- Wait, Init.server.lua maneja RequestPlayLevel para cargar el nivel en el servidor.
-	-- Aquí solo manejamos teleport y stats.
 	
 	local nivelModel = NivelUtils.obtenerModeloNivel(levelId)
 	if not nivelModel then
@@ -330,15 +318,10 @@ end
 -- ============================================
 
 Players.PlayerAdded:Connect(function(player)
-	-- 🔧 PRIMERO: Inicializar leaderstats
 	setupLeaderstats(player)
-
-	-- SEGUNDO: Cargar datos de progreso
 	loadData(player)
-
 	print("👤 " .. player.Name .. " conectado - Datos y leaderstats listos")
 end)
-
 Players.PlayerRemoving:Connect(function(player)
 	saveData(player)
 	SessionData[player.UserId] = nil
