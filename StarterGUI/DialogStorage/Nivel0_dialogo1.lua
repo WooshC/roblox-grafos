@@ -2,6 +2,12 @@ local dialogueKitModule = require(script.Parent.Parent.DialogueKit)
 local dialoguePrompt = workspace:WaitForChild("Nivel0_Tutorial"):WaitForChild("DialoguePrompts"):WaitForChild("TestPrompt1").PromptPart.ProximityPrompt
 
 -- ============================================================================
+-- CONFIGURACIÓN DE APARIENCIA
+-- ============================================================================
+local SKIN_NAME = "Hotline" -- <--- CAMBIA ESTO PARA AJUSTAR LA SKIN (Ej: "Hotline", "Dark", "Light")
+
+
+-- ============================================================================
 -- 1. ZONA DE EDICIÓN FÁCIL
 -- Aquí defines tus diálogos usando la estructura simple.
 -- ============================================================================
@@ -237,9 +243,9 @@ local function GenerarEstructura(dialogosSimples)
 						-- Buscar el Frame de DialogueKit (que suele llamarse DialogueFrame o estar dentro)
 						if dialogueGui then
 							local targetImage = nil
-							-- Búsqueda rápida: Skins -> Hotline -> Content -> DialogueImage
+							-- Búsqueda rápida: Skins -> SKIN_NAME -> Content -> DialogueImage
 							local skinFolder = dialogueGui:FindFirstChild("Skins")
-							local activeSkin = skinFolder and skinFolder:FindFirstChild("Hotline")
+							local activeSkin = skinFolder and skinFolder:FindFirstChild(SKIN_NAME)
 							local content = activeSkin and activeSkin:FindFirstChild("Content")
 							targetImage = content and content:FindFirstChild("DialogueImage")
 
@@ -297,8 +303,8 @@ dialoguePrompt.Triggered:Connect(function(player)
 	-- Llamamos al módulo
 	dialogueKitModule.CreateDialogue({
 		InitialLayer = "Bienvenida", 
-		SkinName = "Hotline", 
-		Config = script:FindFirstChild("HotlineConfig") or script, 
+		SkinName = SKIN_NAME, 
+		Config = script:FindFirstChild(SKIN_NAME .. "Config") or script, 
 		Layers = layersComplejas
 	})
 end)
