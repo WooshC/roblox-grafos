@@ -120,6 +120,45 @@ local function clearEffects()
 	activeHighlights = {}
 end
 
+-- Crear arista visual falsa para demostración (ahora usa RopeConstraint como los cables reales)
+local function createFakeEdge(node1, node2, color)
+	if not node1 or not node2 then return end
+
+	-- Buscar Attachments o crear temporales
+	local att1 = node1:FindFirstChild("Attachment", true) 
+	local att2 = node2:FindFirstChild("Attachment", true)
+	
+	-- Si no hay attachments, usar centro de la parte
+	if not att1 then
+		att1 = Instance.new("Attachment")
+		att1.Name = "TempAtt1"
+		att1.Parent = node1:IsA("Model") and node1.PrimaryPart or node1
+		table.insert(activeHighlights, att1)
+	end
+	
+	if not att2 then
+		att2 = Instance.new("Attachment")
+		att2.Name = "TempAtt2"
+		att2.Parent = node2:IsA("Model") and node2.PrimaryPart or node2
+		table.insert(activeHighlights, att2)
+	end
+	
+	local dist = (att1.WorldPosition - att2.WorldPosition).Magnitude
+	
+	-- Crear RopeConstraint (Cable Visual)
+	local rope = Instance.new("RopeConstraint")
+	rope.Name = "FakeEdgeRope"
+	rope.Attachment0 = att1
+	rope.Attachment1 = att2
+	rope.Length = dist
+	rope.Visible = true
+	rope.Thickness = 0.3 -- Un poco más grueso para que se vea bien
+	rope.Color = BrickColor.new(color)
+	rope.Parent = workspace
+	
+	table.insert(activeHighlights, rope)
+end
+
 -- Toggle visibilidad del Techo (Part, Model o Folder)
 local function toggleTecho(visible)
 	local opacity = visible and 0 or 1
@@ -171,7 +210,60 @@ local DATA_DIALOGOS = {
 			-- Solo enfocar la cámara general
 			toggleTecho(false) -- Ocultar techo
 			local nodo1 = findNodePart("Nodo1_z1")
-			if nodo1 then focusCameraOn(nodo1, Vector3.new(15, 15, 15)) end
+			if nodo1 then focusCameraOn(nodo1, Vector3.new(22, 22, 22)) end --Posición de la camara
+		end,
+		Siguiente = "Concepto_Nodo" -- CAMBIADO: Ir a explicación de Nodo
+	},
+
+	["Concepto_Nodo"] = {
+		Actor = "Carlos",
+		Expresion = "Explicando",
+		Texto = {
+			"Antes de conectar nada, debes entender qué estás viendo.",
+			"Este punto que observas se llama NODO.",
+			"En teoría de grafos, un nodo representa un punto dentro de una red.",
+			"Puede ser una ciudad, una computadora, una estación... aquí representa una estación de energía."
+		},
+		Sonido = { "rbxassetid://0", "rbxassetid://0", "rbxassetid://0", "rbxassetid://0" },
+		Evento = function()
+			clearEffects()
+			local n1 = findNodePart("Nodo1_z1")
+			if n1 then
+				highlightObject(n1, Color3.fromRGB(0, 170, 255)) -- Azul conceptual
+				focusCameraOn(n1, Vector3.new(15, 18, 15))
+			end
+		end,
+		Siguiente = "Concepto_Arista"
+	},
+
+	["Concepto_Arista"] = {
+		Actor = "Carlos",
+		Expresion = "Didactico",
+		Texto = {
+			"Cuando conectas dos nodos, creas una ARISTA.",
+			"Una arista representa una relación o conexión entre dos puntos.",
+			"Sin aristas, los nodos están aislados. Mira esto..."
+		},
+		Sonido = { "rbxassetid://0", "rbxassetid://0", "rbxassetid://0" },
+		Evento = function()
+			clearEffects()
+			local n1 = findNodePart("Nodo1_z1")
+			local n2 = findNodePart("Nodo2_z1")
+
+			if n1 and n2 then
+				highlightObject(n1, Color3.fromRGB(0, 170, 255))
+				highlightObject(n2, Color3.fromRGB(0, 170, 255))
+				
+				-- Crear Arista Visual
+				createFakeEdge(n1, n2, Color3.fromRGB(255, 255, 0)) -- Amarillo
+				
+				-- Camara enfocando ambos
+				local midPoint = n1.Position:Lerp(n2.Position, 0.5)
+				local camPos = midPoint + Vector3.new(0, 25, 20)
+				local newCF = CFrame.new(camPos, midPoint)
+
+				TweenService:Create(camera, TweenInfo.new(1.5), {CFrame = newCF}):Play()
+			end
 		end,
 		Siguiente = "Explicacion_Objetivo"
 	},
@@ -182,17 +274,17 @@ local DATA_DIALOGOS = {
 		Texto = "Tu objetivo es simple: Conectar el Nodo 1 con el Nodo 2 para restablecer el flujo en este sector.",
 		Sonido = "rbxassetid://0",
 		Evento = function()
-			clearEffects()
+			clearEffects() -- Limpia la arista de ejemplo
 			local n1 = findNodePart("Nodo1_z1")
 			local n2 = findNodePart("Nodo2_z1")
 
-			if n1 then highlightObject(n1, Color3.fromRGB(0, 255, 0)) end -- Verde
-			if n2 then highlightObject(n2, Color3.fromRGB(255, 0, 0)) end -- Rojo
+			if n1 then highlightObject(n1, Color3.fromRGB(0, 255, 0)) end -- Verde (Origen)
+			if n2 then highlightObject(n2, Color3.fromRGB(255, 0, 0)) end -- Rojo (Destino)
 
 			-- Mover cámara entre los dos
 			if n1 and n2 then
 				local midPoint = n1.Position:Lerp(n2.Position, 0.5)
-				local camPos = midPoint + Vector3.new(0, 20, 10) -- Altura isométrica
+				local camPos = midPoint + Vector3.new(0, 30, 25) -- Altura y distancia aumentadas
 				local newCF = CFrame.new(camPos, midPoint)
 
 				TweenService:Create(camera, TweenInfo.new(1.5), {CFrame = newCF}):Play()
@@ -210,7 +302,7 @@ local DATA_DIALOGOS = {
 			-- Enfocar agresivamente en Nodo 1 primero
 			local n1 = findNodePart("Nodo1_z1")
 			if n1 then
-				focusCameraOn(n1, Vector3.new(5, 8, 5))
+				focusCameraOn(n1, Vector3.new(12, 15, 12)) -- Zoom menos agresivo (antes 5,8,5)
 				-- Parpadeo o highlight intenso (ya está verde, lo mantenemos)
 			end
 		end,
