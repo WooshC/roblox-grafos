@@ -4,22 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local dialogueKitModule = require(script.Parent.Parent.DialogueKit)
 local DialogueGenerator = require(script.Parent.DialogueGenerator)
 
--- Intentar cargar VisibilityManager
 local player = Players.LocalPlayer
-local PlayerScripts = player:WaitForChild("PlayerScripts")
-local VisibilityManager = nil
-
-task.spawn(function()
-	local success, result = pcall(function()
-		return require(PlayerScripts:WaitForChild("Cliente"):WaitForChild("Services"):WaitForChild("VisibilityManager"))
-	end)
-	if success then
-		VisibilityManager = result
-	else
-		warn("⚠️ Zona1_dialogo: No se pudo cargar VisibilityManager: " .. tostring(result))
-	end
-end)
-
 local camera = workspace.CurrentCamera
 local SKIN_NAME = "Hotline" 
 
@@ -33,38 +18,19 @@ local originalCameraType = nil
 
 -- Buscar nodo en el mapa (por nombre)
 local function findNodePart(nodeName)
-	-- Intentar buscar en todo el workspace recursivamente
-	-- Imprimiremos dónde estamos buscando para debug
-	print("🔍 Buscando nodo: " .. nodeName)
-	
+	-- Intentar buscar en la carpeta de Nivel cargado
 	for _, desc in ipairs(workspace:GetDescendants()) do
-		if desc.Name == nodeName then
-			-- Encontramos algo con el nombre, verificamos si es modelo o parte
-			if desc:IsA("Model") then
-				local part = desc.PrimaryPart or desc:FindFirstChild("Selector") or desc:FindFirstChildWhichIsA("BasePart")
-				if part then 
-					print("✅ Nodo encontrado (Model): " .. desc:GetFullName())
-					return part 
-				end
-			elseif desc:IsA("BasePart") then
-				print("✅ Nodo encontrado (Part): " .. desc:GetFullName())
-				return desc
-			end
+		-- Buscamos el "Selector" dentro del modelo del nodo, o el modelo mismo
+		if desc.Name == nodeName and desc:IsA("Model") then
+			return desc.PrimaryPart or desc:FindFirstChild("Selector") or desc:FindFirstChildWhichIsA("BasePart")
 		end
 	end
-	
-	warn("❌ NO SE ENCONTRÓ EL NODO: " .. nodeName)
 	return nil
 end
 
 -- Mover cámara a un objetivo
 local function focusCameraOn(targetPart, offset)
-	if not targetPart then 
-		warn("⚠️ focusCameraOn: targetPart es nil")
-		return 
-	end
-	
-	print("🎥 Enfocando cámara en: " .. targetPart.Name)
+	if not targetPart then return end
 	
 	-- Guardar estado original si es la primera vez
 	if camera.CameraType ~= Enum.CameraType.Scriptable then
@@ -84,12 +50,12 @@ end
 
 -- Restaurar cámara
 local function restoreCamera()
-	print("🎥 Restaurando cámara...")
 	if originalCameraType then
 		local tweenInfo = TweenInfo.new(1.0, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-		-- Intentar volver al personaje
+		-- Intentar volver a la posición original o al personaje
 		local targetCFrame = originalCameraCFrame
 		if player.Character and player.Character:FindFirstChild("Head") then
+			-- Resetear suavemente hacia la vista del personaje
 			targetCFrame = CFrame.new(player.Character.Head.Position + Vector3.new(0, 5, 10), player.Character.Head.Position)
 		end
 		
@@ -107,6 +73,7 @@ end
 local function highlightObject(target, color)
 	if not target then return end
 	
+	-- Si es un modelo, buscar su parte principal
 	local model = target:IsA("Model") and target or target.Parent
 	local part = target:IsA("BasePart") and target or (model and model.PrimaryPart)
 	
@@ -122,12 +89,16 @@ local function highlightObject(target, color)
 	h.Parent = model
 	table.insert(activeHighlights, h)
 
-	-- 2. Efecto Neon
+	-- 2. Efecto Neon (opcional)
 	if part then
+		-- Guardamos material original en atributo para restaurar luego si queremos
 		part:SetAttribute("OriginalMaterial", part.Material)
 		part:SetAttribute("OriginalColor", part.Color)
 		part.Material = Enum.Material.Neon
 		part.Color = color
+		
+		-- Agregar a lista de limpieza especial si es necesario, 
+		-- pero por simplicidad solo limpiamos el Highlight y revertimos manual.
 		table.insert(activeHighlights, {Part = part, Type = "Material"})
 	end
 end
@@ -138,6 +109,7 @@ local function clearEffects()
 		if typeof(item) == "Instance" then
 			item:Destroy()
 		elseif type(item) == "table" and item.Type == "Material" then
+			-- Restaurar material
 			local part = item.Part
 			if part then
 				part.Material = part:GetAttribute("OriginalMaterial") or Enum.Material.Plastic
@@ -162,10 +134,7 @@ local DATA_DIALOGOS = {
 		},
 		Sonido = { "rbxassetid://0", "rbxassetid://0" },
 		Evento = function()
-			-- Ocultar HUD
-			if VisibilityManager then VisibilityManager:setDialogueMode(true) end
-			
-			-- Enfocar cámara
+			-- Solo enfocar la cámara general
 			local nodo1 = findNodePart("Nodo1_z1")
 			if nodo1 then focusCameraOn(nodo1, Vector3.new(15, 15, 15)) end
 		end,
@@ -185,10 +154,12 @@ local DATA_DIALOGOS = {
 			if n1 then highlightObject(n1, Color3.fromRGB(0, 255, 0)) end -- Verde
 			if n2 then highlightObject(n2, Color3.fromRGB(255, 0, 0)) end -- Rojo
 			
+			-- Mover cámara entre los dos
 			if n1 and n2 then
 				local midPoint = n1.Position:Lerp(n2.Position, 0.5)
-				local camPos = midPoint + Vector3.new(0, 20, 10) 
+				local camPos = midPoint + Vector3.new(0, 20, 10) -- Altura isométrica
 				local newCF = CFrame.new(camPos, midPoint)
+				
 				TweenService:Create(camera, TweenInfo.new(1.5), {CFrame = newCF}):Play()
 			end
 		end,
@@ -201,9 +172,11 @@ local DATA_DIALOGOS = {
 		Texto = "Haz Click en el 'Nodo 1' (Verde) y luego en el 'Nodo 2' para crear una ARISTA (Cable).",
 		Sonido = "rbxassetid://0",
 		Evento = function()
+			-- Enfocar agresivamente en Nodo 1 primero
 			local n1 = findNodePart("Nodo1_z1")
 			if n1 then
 				focusCameraOn(n1, Vector3.new(5, 8, 5))
+				-- Parpadeo o highlight intenso (ya está verde, lo mantenemos)
 			end
 		end,
 		Siguiente = "Despedida"
@@ -217,8 +190,6 @@ local DATA_DIALOGOS = {
 		Evento = function()
 			clearEffects()
 			restoreCamera()
-			-- Mostrar HUD
-			if VisibilityManager then VisibilityManager:setDialogueMode(false) end
 		end,
 		Siguiente = "FIN"
 	}
@@ -235,6 +206,7 @@ local function checkZone(newZone)
 	if yaSeMostro then return end
 	
 	if newZone == ZONA_OBJETIVO then
+		-- Doble chequeo: solo si hay personaje vivo
 		if not player.Character then return end
 		
 		yaSeMostro = true
