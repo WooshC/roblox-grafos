@@ -1,0 +1,634 @@
+--[[
+	╔═══════════════════════════════════════════════════════════════╗
+	║          EXPLORADOR DE GRAFOS - GUI UNIFICADA                ║
+	║          Script Refactorizado y Mejorado                      ║
+	║          Modo Visual | Matriz | Análisis                     ║
+	╚═══════════════════════════════════════════════════════════════╝
+	Este es un script temporal para crear la GUI 
+]]
+
+local function crearGUIExplorador()
+	-- ═══════════════════════════════════════════════════════════════
+	-- SERVICIOS
+	-- ═══════════════════════════════════════════════════════════════
+	local ServicioTween = game:GetService("TweenService")
+	local ServicioGui = game:GetService("StarterGui")
+	local ServicioAlmacenamiento = game:GetService("ReplicatedStorage")
+	local ServicioJugadores = game:GetService("Players")
+	local jugadorLocal = ServicioJugadores.LocalPlayer
+
+	-- ═══════════════════════════════════════════════════════════════
+	-- TEMA Y CONFIGURACIÓN
+	-- ═══════════════════════════════════════════════════════════════
+	local Tema = {
+		Colores = {
+			Fondo = Color3.fromRGB(20, 22, 28),
+			Superficie = Color3.fromRGB(30, 33, 42),
+			Overlay = Color3.fromRGB(12, 13, 17),
+			Visual = Color3.fromRGB(65, 180, 137),
+			Matriz = Color3.fromRGB(100, 160, 215),
+			Analisis = Color3.fromRGB(215, 140, 60),
+			Exito = Color3.fromRGB(76, 175, 80),
+			Advertencia = Color3.fromRGB(255, 193, 7),
+			Peligro = Color3.fromRGB(229, 57, 53),
+			Informacion = Color3.fromRGB(33, 150, 243),
+			TextoPrimario = Color3.fromRGB(240, 245, 250),
+			TextoSecundario = Color3.fromRGB(176, 190, 197),
+			TextoMuteo = Color3.fromRGB(120, 135, 150),
+			Cuadricula = Color3.fromRGB(45, 52, 65),
+		},
+		Fuente = {
+			Pantalla = Enum.Font.GothamBold,
+			Negrita = Enum.Font.GothamBold,
+			Regular = Enum.Font.Gotham,
+			Mono = Enum.Font.Code,
+		},
+		Alfa = {
+			Solido = 0,
+			Sutil = 0.15,
+			Moderado = 0.3,
+			Alto = 0.5,
+			Pesado = 0.7,
+		},
+		RadioEsquina = 8,
+		VelAnimacion = 0.2,
+	}
+
+	-- ═══════════════════════════════════════════════════════════════
+	-- FACTORY DE COMPONENTES
+	-- ═══════════════════════════════════════════════════════════════
+	local FabricaComponentes = {}
+
+	function FabricaComponentes.Marco(nombre, padre, tamanio, posicion, transparente, colorFondo)
+		local marco = Instance.new("Frame")
+		marco.Name = nombre
+		marco.Size = tamanio
+		marco.Position = posicion or UDim2.new(0, 0, 0, 0)
+		marco.BackgroundColor3 = colorFondo or (transparente and Color3.new(0, 0, 0) or Tema.Colores.Superficie)
+		marco.BackgroundTransparency = transparente and Tema.Alfa.Pesado or Tema.Alfa.Sutil
+		marco.BorderSizePixel = 0
+		marco.Parent = padre
+
+		local esquina = Instance.new("UICorner")
+		esquina.CornerRadius = UDim.new(0, Tema.RadioEsquina)
+		esquina.Parent = marco
+
+		return marco
+	end
+
+	function FabricaComponentes.Etiqueta(nombre, padre, texto, color, tamanioFuente, fuente)
+		local etiqueta = Instance.new("TextLabel")
+		etiqueta.Name = nombre
+		etiqueta.Text = texto
+		etiqueta.BackgroundTransparency = 1
+		etiqueta.TextColor3 = color or Tema.Colores.TextoPrimario
+		etiqueta.Font = fuente or Tema.Fuente.Regular
+		etiqueta.TextSize = tamanioFuente or 14
+		etiqueta.Parent = padre
+		return etiqueta
+	end
+
+	function FabricaComponentes.Boton(nombre, padre, texto, tamanio, color)
+		local boton = Instance.new("TextButton")
+		boton.Name = nombre
+		boton.Text = texto
+		boton.Size = tamanio or UDim2.new(0, 120, 0, 40)
+		boton.BackgroundColor3 = color or Tema.Colores.Matriz
+		boton.BackgroundTransparency = Tema.Alfa.Sutil
+		boton.TextColor3 = Tema.Colores.TextoPrimario
+		boton.Font = Tema.Fuente.Negrita
+		boton.TextSize = 12
+		boton.AutoButtonColor = false
+		boton.Parent = padre
+
+		local esquina = Instance.new("UICorner")
+		esquina.CornerRadius = UDim.new(0, 6)
+		esquina.Parent = boton
+
+		local colorOriginal = boton.BackgroundColor3
+		local transpOriginal = boton.BackgroundTransparency
+
+		-- ✨ Animación al pasar el mouse
+		boton.MouseEnter:Connect(function()
+			local animacion = ServicioTween:Create(
+				boton,
+				TweenInfo.new(Tema.VelAnimacion, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{BackgroundTransparency = transpOriginal - 0.1}
+			)
+			animacion:Play()
+		end)
+
+		boton.MouseLeave:Connect(function()
+			local animacion = ServicioTween:Create(
+				boton,
+				TweenInfo.new(Tema.VelAnimacion, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{BackgroundTransparency = transpOriginal}
+			)
+			animacion:Play()
+		end)
+
+		return boton
+	end
+
+	function FabricaComponentes.BotonCerrar(nombre, padre, color)
+		local boton = Instance.new("TextButton")
+		boton.Name = nombre
+		boton.Text = "✕"
+		boton.Size = UDim2.new(0, 35, 0, 35)
+		boton.BackgroundColor3 = color or Tema.Colores.Peligro
+		boton.BackgroundTransparency = Tema.Alfa.Sutil
+		boton.TextColor3 = Tema.Colores.TextoPrimario
+		boton.Font = Tema.Fuente.Negrita
+		boton.TextSize = 20
+		boton.AutoButtonColor = false
+		boton.Parent = padre
+
+		local esquina = Instance.new("UICorner")
+		esquina.CornerRadius = UDim.new(0, 6)
+		esquina.Parent = boton
+
+		boton.MouseEnter:Connect(function()
+			local animacion = ServicioTween:Create(
+				boton,
+				TweenInfo.new(Tema.VelAnimacion, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{BackgroundTransparency = Tema.Alfa.Sutil - 0.15}
+			)
+			animacion:Play()
+		end)
+
+		boton.MouseLeave:Connect(function()
+			local animacion = ServicioTween:Create(
+				boton,
+				TweenInfo.new(Tema.VelAnimacion, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{BackgroundTransparency = Tema.Alfa.Sutil}
+			)
+			animacion:Play()
+		end)
+
+		return boton
+	end
+
+	-- ═══════════════════════════════════════════════════════════════
+	-- INICIALIZACIÓN DE GUI PRINCIPAL
+	-- ═══════════════════════════════════════════════════════════════
+	if ServicioGui:FindFirstChild("GUIExplorador") then
+		ServicioGui.GUIExplorador:Destroy()
+	end
+
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "GUIExplorador"
+	gui.ResetOnSpawn = false
+	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	gui.Parent = ServicioGui
+	gui.Enabled = false
+
+	-- ═══════════════════════════════════════════════════════════════
+	-- BARRA SUPERIOR (TOP BAR)
+	-- ═══════════════════════════════════════════════════════════════
+	local barraSuperior = FabricaComponentes.Marco("BarraSuperior", gui, UDim2.new(1, -40, 0, 60), UDim2.new(0, 20, 0, 15))
+
+	local distribucionBarraSuperior = Instance.new("UIListLayout")
+	distribucionBarraSuperior.FillDirection = Enum.FillDirection.Horizontal
+	distribucionBarraSuperior.HorizontalAlignment = Enum.HorizontalAlignment.Left
+	distribucionBarraSuperior.VerticalAlignment = Enum.VerticalAlignment.Center
+	distribucionBarraSuperior.Padding = UDim.new(0, 16)
+	distribucionBarraSuperior.Parent = barraSuperior
+
+	local etiquetaTitulo = FabricaComponentes.Etiqueta("Titulo", barraSuperior, "📊 Explorador de Grafos", Tema.Colores.TextoPrimario, 20, Tema.Fuente.Pantalla)
+	etiquetaTitulo.Size = UDim2.new(0.3, 0, 1, 0)
+
+	-- ═══════════════════════════════════════════════════════════════
+	-- PANEL DE PUNTUACIÓN
+	-- ═══════════════════════════════════════════════════════════════
+	local panelPuntuacion = FabricaComponentes.Marco("PanelPuntuacion", barraSuperior, UDim2.new(0.35, 0, 1, 0), UDim2.new(0.65, 0, 0, 0))
+
+	local distribucionPuntuacion = Instance.new("UIListLayout")
+	distribucionPuntuacion.FillDirection = Enum.FillDirection.Horizontal
+	distribucionPuntuacion.HorizontalAlignment = Enum.HorizontalAlignment.Right
+	distribucionPuntuacion.VerticalAlignment = Enum.VerticalAlignment.Center
+	distribucionPuntuacion.Padding = UDim.new(0, 20)
+	distribucionPuntuacion.Parent = panelPuntuacion
+
+	-- Contenedor de Estrellas
+	local contenedorEstrellas = Instance.new("Frame")
+	contenedorEstrellas.Name = "ContenedorEstrellas"
+	contenedorEstrellas.Size = UDim2.new(0, 120, 1, 0)
+	contenedorEstrellas.BackgroundTransparency = 1
+	contenedorEstrellas.Parent = panelPuntuacion
+
+	local etiquetaEstrellas = FabricaComponentes.Etiqueta("Etiqueta", contenedorEstrellas, "⭐ ESTRELLAS", Tema.Colores.Advertencia, 11, Tema.Fuente.Negrita)
+	etiquetaEstrellas.Size = UDim2.new(1, 0, 0.4, 0)
+	etiquetaEstrellas.TextXAlignment = Enum.TextXAlignment.Center
+
+	local valorEstrellas = FabricaComponentes.Etiqueta("Valor", contenedorEstrellas, "0/3", Tema.Colores.Advertencia, 16, Tema.Fuente.Negrita)
+	valorEstrellas.Size = UDim2.new(1, 0, 0.6, 0)
+	valorEstrellas.Position = UDim2.new(0, 0, 0.4, 0)
+	valorEstrellas.TextXAlignment = Enum.TextXAlignment.Center
+
+	-- Contenedor de Puntos
+	local contenedorPuntos = Instance.new("Frame")
+	contenedorPuntos.Name = "ContenedorPuntos"
+	contenedorPuntos.Size = UDim2.new(0, 140, 1, 0)
+	contenedorPuntos.BackgroundTransparency = 1
+	contenedorPuntos.Parent = panelPuntuacion
+
+	local etiquetaPuntos = FabricaComponentes.Etiqueta("Etiqueta", contenedorPuntos, "🏆 PUNTOS", Tema.Colores.Informacion, 11, Tema.Fuente.Negrita)
+	etiquetaPuntos.Size = UDim2.new(1, 0, 0.4, 0)
+	etiquetaPuntos.TextXAlignment = Enum.TextXAlignment.Center
+
+	local valorPuntos = FabricaComponentes.Etiqueta("Valor", contenedorPuntos, "0", Tema.Colores.Informacion, 16, Tema.Fuente.Negrita)
+	valorPuntos.Size = UDim2.new(1, 0, 0.6, 0)
+	valorPuntos.Position = UDim2.new(0, 0, 0.4, 0)
+	valorPuntos.TextXAlignment = Enum.TextXAlignment.Center
+
+	-- ═══════════════════════════════════════════════════════════════
+	-- BARRA DE BOTONES PRINCIPALES
+	-- ═══════════════════════════════════════════════════════════════
+	-- Se mueve debajo de la barra superior (Y = 85)
+	local barraBotonesMain = FabricaComponentes.Marco("BarraBotonesMain", gui, UDim2.new(0, 500, 0, 60), UDim2.new(0.5, -250, 0, 85))
+
+	local distribucionBotonesMain = Instance.new("UIListLayout")
+	distribucionBotonesMain.FillDirection = Enum.FillDirection.Horizontal
+	distribucionBotonesMain.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	distribucionBotonesMain.VerticalAlignment = Enum.VerticalAlignment.Center
+	distribucionBotonesMain.Padding = UDim.new(0, 8)
+	distribucionBotonesMain.Parent = barraBotonesMain
+
+	local btnAlgoritmo = FabricaComponentes.Boton("BtnAlgoritmo", barraBotonesMain, "🎯 Algoritmo", UDim2.new(0, 115, 0, 45), Tema.Colores.Analisis)
+	local btnMapa = FabricaComponentes.Boton("BtnMapa", barraBotonesMain, "🗺️ Mapa", UDim2.new(0, 90, 0, 45), Tema.Colores.Visual)
+	local btnMatriz = FabricaComponentes.Boton("BtnMatriz", barraBotonesMain, "📋 Matriz", UDim2.new(0, 100, 0, 45), Tema.Colores.Matriz)
+	local btnMisiones = FabricaComponentes.Boton("BtnMisiones", barraBotonesMain, "📌 Misiones", UDim2.new(0, 115, 0, 45), Tema.Colores.Informacion)
+
+	-- ═══════════════════════════════════════════════════════════════
+	-- BARRA DE BOTONES SECUNDARIOS (INTEGRADA EN BARRA SUPERIOR)
+	-- ═══════════════════════════════════════════════════════════════
+	-- Se integra dentro de barraSuperior, la posición es controlada por UIListLayout
+	local barraBotonesSecundarios = FabricaComponentes.Marco("BarraBotonesSecundarios", barraSuperior, UDim2.new(0, 250, 1, 0), UDim2.new(0, 0, 0, 0))
+	barraBotonesSecundarios.BackgroundTransparency = 1 -- Hacer transparente para integrarse mejor
+
+	local distribucionBotonesSecundarios = Instance.new("UIListLayout")
+	distribucionBotonesSecundarios.FillDirection = Enum.FillDirection.Horizontal
+	distribucionBotonesSecundarios.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	distribucionBotonesSecundarios.VerticalAlignment = Enum.VerticalAlignment.Center
+	distribucionBotonesSecundarios.Padding = UDim.new(0, 8)
+	distribucionBotonesSecundarios.Parent = barraBotonesSecundarios
+
+	local btnReiniciar = FabricaComponentes.Boton("BtnReiniciar", barraBotonesSecundarios, "🔄 Reiniciar", UDim2.new(0, 110, 0, 45), Tema.Colores.Advertencia)
+	local btnFinalizar = FabricaComponentes.Boton("BtnFinalizar", barraBotonesSecundarios, "✓ Finalizar", UDim2.new(0, 110, 0, 45), Tema.Colores.Exito)
+	btnFinalizar.Visible = false
+
+	-- ═══════════════════════════════════════════════════════════════
+	-- SELECTOR DE MODOS
+	-- ═══════════════════════════════════════════════════════════════
+	local selectorModos = FabricaComponentes.Marco("SelectorModos", gui, UDim2.new(0, 420, 0, 60), UDim2.new(0, 20, 1, -80))
+
+	local distribucionModos = Instance.new("UIListLayout")
+	distribucionModos.FillDirection = Enum.FillDirection.Horizontal
+	distribucionModos.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	distribucionModos.VerticalAlignment = Enum.VerticalAlignment.Center
+	distribucionModos.Padding = UDim.new(0, 8)
+	distribucionModos.Parent = selectorModos
+
+	local modos = {
+		{Nombre = "Visual", Icono = "👁️", Color = Tema.Colores.Visual},
+		{Nombre = "Matriz", Icono = "📊", Color = Tema.Colores.Matriz},
+		{Nombre = "Analisis", Icono = "🔍", Color = Tema.Colores.Analisis},
+	}
+
+	local botonesModosRef = {}
+	for _, modo in ipairs(modos) do
+		local btn = FabricaComponentes.Boton(modo.Nombre .. "Btn", selectorModos, modo.Icono .. " " .. modo.Nombre, UDim2.new(0, 130, 0, 45), modo.Color)
+		botonesModosRef[modo.Nombre] = btn
+	end
+
+	-- ═══════════════════════════════════════════════════════════════
+	-- CONTENEDOR DEL MINIMAPA
+	-- ═══════════════════════════════════════════════════════════════
+	local contenedorMiniMapa = FabricaComponentes.Marco("ContenedorMiniMapa", gui, UDim2.new(0, 250, 0, 250), UDim2.new(1, -270, 1, -270))
+
+	-- Título del Minimapa
+	local etiquetaMiniMapa = FabricaComponentes.Etiqueta("Titulo", contenedorMiniMapa, "🗺️ MAPA EN VIVO - VISUALIZACIÓN DE GRAFOS", Tema.Colores.Visual, 12, Tema.Fuente.Negrita)
+	etiquetaMiniMapa.Size = UDim2.new(1, -20, 0, 25)
+	etiquetaMiniMapa.Position = UDim2.new(0, 10, 0, 5)
+	etiquetaMiniMapa.TextXAlignment = Enum.TextXAlignment.Left
+	etiquetaMiniMapa.TextScaled = true
+
+	-- Marco del Viewport
+	local visor = Instance.new("ViewportFrame")
+	visor.Name = "Visor"
+	visor.Size = UDim2.new(1, -20, 1, -40)
+	visor.Position = UDim2.new(0, 10, 0, 35)
+	visor.BackgroundColor3 = Tema.Colores.Overlay
+	visor.BorderSizePixel = 0
+	visor.Parent = contenedorMiniMapa
+
+	local esquinaVisor = Instance.new("UICorner")
+	esquinaVisor.CornerRadius = UDim.new(0, 6)
+	esquinaVisor.Parent = visor
+
+	-- Información del Grafo
+	local panelInfoGrafo = FabricaComponentes.Marco("PanelInfoGrafo", contenedorMiniMapa, UDim2.new(1, -20, 0, 60), UDim2.new(0, 10, 0, 275), true)
+	panelInfoGrafo.Visible = false
+
+	local etiquetaInfoGrafo = FabricaComponentes.Etiqueta("EtiquetaInfoGrafo", panelInfoGrafo, "Información del Grafo", Tema.Colores.TextoPrimario, 11, Tema.Fuente.Negrita)
+	etiquetaInfoGrafo.Size = UDim2.new(1, -10, 0, 15)
+	etiquetaInfoGrafo.Position = UDim2.new(0, 5, 0, 2)
+	etiquetaInfoGrafo.TextXAlignment = Enum.TextXAlignment.Left
+
+	local estadisticasGrafo = FabricaComponentes.Etiqueta("EstadisticasGrafo", panelInfoGrafo, "Nodos: 5 | Aristas: 7 | Tipo: Dirigido", Tema.Colores.TextoSecundario, 10, Tema.Fuente.Mono)
+	estadisticasGrafo.Size = UDim2.new(1, -10, 0, 12)
+	estadisticasGrafo.Position = UDim2.new(0, 5, 0, 18)
+	estadisticasGrafo.TextXAlignment = Enum.TextXAlignment.Left
+
+	local descripcionGrafo = FabricaComponentes.Etiqueta("DescripcionGrafo", panelInfoGrafo, "Estado: Esperando inicio...", Tema.Colores.TextoMuteo, 9, Tema.Fuente.Mono)
+	descripcionGrafo.Size = UDim2.new(1, -10, 0.7, -35)
+	descripcionGrafo.Position = UDim2.new(0, 5, 0, 32)
+	descripcionGrafo.TextXAlignment = Enum.TextXAlignment.Left
+	descripcionGrafo.TextYAlignment = Enum.TextYAlignment.Top
+	descripcionGrafo.TextWrapped = true
+
+	-- ═══════════════════════════════════════════════════════════════
+	-- PANEL DE MATRIZ DE ADYACENCIA
+	-- ═══════════════════════════════════════════════════════════════
+	local panelMatrizAdyacencia = FabricaComponentes.Marco("PanelMatrizAdyacencia", gui, UDim2.new(0, 340, 0.7, 0), UDim2.new(1, -350, 0.08, 0))
+	panelMatrizAdyacencia.Visible = false
+
+	local etiquetaMatriz = FabricaComponentes.Etiqueta("Titulo", panelMatrizAdyacencia, "📋 MATRIZ DE ADYACENCIA", Tema.Colores.TextoPrimario, 16, Tema.Fuente.Negrita)
+	etiquetaMatriz.Size = UDim2.new(1, -20, 0, 35)
+	etiquetaMatriz.Position = UDim2.new(0, 10, 0, 10)
+	etiquetaMatriz.TextXAlignment = Enum.TextXAlignment.Left
+
+	-- Info del Nodo Seleccionado
+	local marcoInfoNodo = FabricaComponentes.Marco("MarcoInfoNodo", panelMatrizAdyacencia, UDim2.new(0.95, 0, 0, 90), UDim2.new(0.025, 0, 0, 55), true)
+
+	local nombreNodoSeleccionado = FabricaComponentes.Etiqueta("NombreNodo", marcoInfoNodo, "Nodo: --", Tema.Colores.Matriz, 13, Tema.Fuente.Negrita)
+	nombreNodoSeleccionado.Size = UDim2.new(1, -20, 0, 25)
+	nombreNodoSeleccionado.Position = UDim2.new(0, 10, 0, 5)
+	nombreNodoSeleccionado.TextXAlignment = Enum.TextXAlignment.Left
+
+	local estadisticasNodo = FabricaComponentes.Etiqueta("EstadisticasNodo", marcoInfoNodo, "Grado: 0 | Entrada: 0 | Salida: 0", Tema.Colores.TextoMuteo, 11, Tema.Fuente.Mono)
+	estadisticasNodo.Size = UDim2.new(1, -20, 0, 20)
+	estadisticasNodo.Position = UDim2.new(0, 10, 0, 30)
+	estadisticasNodo.TextXAlignment = Enum.TextXAlignment.Left
+
+	-- Grid de la Matriz
+	local cuadriculaMatriz = Instance.new("ScrollingFrame")
+	cuadriculaMatriz.Name = "CuadriculaMatriz"
+	cuadriculaMatriz.Size = UDim2.new(0.95, 0, 0.6, 0)
+	cuadriculaMatriz.Position = UDim2.new(0.025, 0, 0, 160)
+	cuadriculaMatriz.BackgroundTransparency = 1
+	cuadriculaMatriz.ScrollBarThickness = 3
+	cuadriculaMatriz.Parent = panelMatrizAdyacencia
+
+	local distribucionCuadricula = Instance.new("UIGridLayout")
+	distribucionCuadricula.CellSize = UDim2.new(0, 40, 0, 40)
+	distribucionCuadricula.CellPadding = UDim2.new(0, 1, 0, 1)
+	distribucionCuadricula.FillDirection = Enum.FillDirection.Horizontal
+	distribucionCuadricula.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	distribucionCuadricula.Parent = cuadriculaMatriz
+
+	-- Generar celdas de la matriz
+	for i = 1, 25 do
+		local celda = FabricaComponentes.Etiqueta("Celda" .. i, cuadriculaMatriz, tostring(math.random(0, 1)), Tema.Colores.TextoPrimario, 14, Tema.Fuente.Mono)
+		celda.Size = UDim2.new(0, 40, 0, 40)
+		celda.BackgroundColor3 = (celda.Text == "1") and Tema.Colores.Exito or Tema.Colores.Cuadricula
+		celda.BackgroundTransparency = 0
+		celda.TextScaled = true
+
+		local esquinaCelda = Instance.new("UICorner")
+		esquinaCelda.CornerRadius = UDim.new(0, 4)
+		esquinaCelda.Parent = celda
+	end
+
+	-- ═══════════════════════════════════════════════════════════════
+	-- PANEL DE MISIONES
+	-- ═══════════════════════════════════════════════════════════════
+	local misionFrame = FabricaComponentes.Marco("MisionFrame", gui, UDim2.new(0, 250, 0, 350), UDim2.new(0, 20, 0.2, 0))
+	misionFrame.Visible = false
+	misionFrame.ZIndex = 5
+
+	local distribucionMisiones = Instance.new("UIListLayout")
+	distribucionMisiones.SortOrder = Enum.SortOrder.LayoutOrder
+	distribucionMisiones.Padding = UDim.new(0, 5)
+	distribucionMisiones.Parent = misionFrame
+
+	local tituloMisiones = FabricaComponentes.Etiqueta("Titulo", misionFrame, "📋 MISIONES", Tema.Colores.TextoPrimario, 14, Tema.Fuente.Negrita)
+	tituloMisiones.Size = UDim2.new(1, 0, 0, 30)
+	tituloMisiones.LayoutOrder = 0
+	tituloMisiones.ZIndex = 6
+
+	local btnCerrarMisiones = FabricaComponentes.BotonCerrar("BtnCerrar", tituloMisiones, Tema.Colores.Peligro)
+	btnCerrarMisiones.Size = UDim2.new(0, 25, 0, 25)
+	btnCerrarMisiones.Position = UDim2.new(1, -30, 0, 2)
+	btnCerrarMisiones.ZIndex = 7
+
+	btnCerrarMisiones.MouseButton1Click:Connect(function()
+		misionFrame.Visible = false
+	end)
+
+	-- ═══════════════════════════════════════════════════════════════
+	-- OVERLAY Y PANEL DE ANÁLISIS
+	-- ═══════════════════════════════════════════════════════════════
+	local overlayAnalisis = FabricaComponentes.Marco("OverlayAnalisis", gui, UDim2.new(1, 0, 1, 0), UDim2.new(0, 0, 0, 0), true)
+	overlayAnalisis.BackgroundTransparency = Tema.Alfa.Pesado
+	overlayAnalisis.Visible = false
+	overlayAnalisis.ZIndex = 10
+
+	local panelAnalisis = FabricaComponentes.Marco("PanelAnalisis", overlayAnalisis, UDim2.new(0, 750, 0, 580), UDim2.new(0.5, -375, 0.5, -290))
+	panelAnalisis.BackgroundColor3 = Tema.Colores.Superficie
+	panelAnalisis.BackgroundTransparency = Tema.Alfa.Sutil
+	panelAnalisis.ZIndex = 11
+
+	-- BOTÓN DE CERRAR
+	local botonCerrarAnalisis = FabricaComponentes.BotonCerrar("BotonCerrar", panelAnalisis, Tema.Colores.Peligro)
+	botonCerrarAnalisis.Position = UDim2.new(1, -45, 0, 10)
+	botonCerrarAnalisis.ZIndex = 12
+
+	-- ✨ Conectar el botón de cierre
+	botonCerrarAnalisis.MouseButton1Click:Connect(function()
+		local animacion = ServicioTween:Create(
+			overlayAnalisis,
+			TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+			{BackgroundTransparency = Tema.Alfa.Pesado + 0.2}
+		)
+		animacion:Play()
+		animacion.Completed:Connect(function()
+			overlayAnalisis.Visible = false
+		end)
+	end)
+
+	-- Encabezado del Análisis
+	local encabezadoAnalisis = FabricaComponentes.Marco("EncabezadoAnalisis", panelAnalisis, UDim2.new(1, 0, 0, 70), UDim2.new(0, 0, 0, 0))
+	encabezadoAnalisis.BackgroundColor3 = Tema.Colores.Analisis
+	encabezadoAnalisis.BackgroundTransparency = Tema.Alfa.Sutil
+
+	local etiquetaEncabezado = FabricaComponentes.Etiqueta("Titulo", encabezadoAnalisis, "🎯 EJECUCIÓN: BFS", Tema.Colores.TextoPrimario, 24, Tema.Fuente.Pantalla)
+	etiquetaEncabezado.Size = UDim2.new(1, -50, 1, 0)
+	etiquetaEncabezado.Position = UDim2.new(0, 15, 0, 0)
+
+	-- Información del Paso
+	local infoPaso = FabricaComponentes.Etiqueta("InfoPaso", panelAnalisis, "Paso 1: Iniciando búsqueda desde Inicio", Tema.Colores.TextoSecundario, 13)
+	infoPaso.Size = UDim2.new(1, -30, 0, 35)
+	infoPaso.Position = UDim2.new(0, 15, 0, 80)
+	infoPaso.TextXAlignment = Enum.TextXAlignment.Left
+
+	-- Panel de Datos
+	local panelDatos = FabricaComponentes.Marco("PanelDatos", panelAnalisis, UDim2.new(0.95, 0, 0.35, 0), UDim2.new(0.5, 0, 0.35, 0), true)
+
+	local etiquetaDatos = FabricaComponentes.Etiqueta("Titulo", panelDatos, "📊 ESTADO ACTUAL", Tema.Colores.TextoPrimario, 12, Tema.Fuente.Negrita)
+	etiquetaDatos.Size = UDim2.new(1, -20, 0, 20)
+	etiquetaDatos.Position = UDim2.new(0, 10, 0, 5)
+
+	local textoEstado = FabricaComponentes.Etiqueta("Texto", panelDatos,
+		"COLA: [Nodo2, Nodo3, Nodo4]\nVISITADOS: {Nodo1}\nDISTANCIAS: Nodo1(0), Nodo2(1), Nodo3(1)",
+		Tema.Colores.Informacion, 11, Tema.Fuente.Mono)
+	textoEstado.Size = UDim2.new(1, -20, 1, -30)
+	textoEstado.Position = UDim2.new(0, 10, 0, 25)
+	textoEstado.TextXAlignment = Enum.TextXAlignment.Left
+	textoEstado.TextYAlignment = Enum.TextYAlignment.Top
+	textoEstado.TextWrapped = true
+
+	-- Controles de Análisis
+	local controlesAnalisis = Instance.new("Frame")
+	controlesAnalisis.Name = "ControlesAnalisis"
+	controlesAnalisis.Size = UDim2.new(1, 0, 0, 70)
+	controlesAnalisis.Position = UDim2.new(0, 0, 1, -70)
+	controlesAnalisis.BackgroundTransparency = 1
+	controlesAnalisis.Parent = panelAnalisis
+
+	local distribucionControles = Instance.new("UIListLayout")
+	distribucionControles.FillDirection = Enum.FillDirection.Horizontal
+	distribucionControles.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	distribucionControles.Padding = UDim.new(0, 15)
+	distribucionControles.Parent = controlesAnalisis
+
+	local botonAnterior = FabricaComponentes.Boton("BotonAnterior", controlesAnalisis, "⬅ Anterior", UDim2.new(0, 130, 0, 40), Tema.Colores.Advertencia)
+	local botonSiguiente = FabricaComponentes.Boton("BotonSiguiente", controlesAnalisis, "Siguiente ➡", UDim2.new(0, 130, 0, 40), Tema.Colores.Analisis)
+	local botonSalirAnalisis = FabricaComponentes.Boton("BotonSalir", controlesAnalisis, "Salir", UDim2.new(0, 100, 0, 40), Tema.Colores.Peligro)
+
+	-- ✨ Botón Salir del Análisis
+	botonSalirAnalisis.MouseButton1Click:Connect(function()
+		local animacion = ServicioTween:Create(
+			overlayAnalisis,
+			TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+			{BackgroundTransparency = Tema.Alfa.Pesado + 0.2}
+		)
+		animacion:Play()
+		animacion.Completed:Connect(function()
+			overlayAnalisis.Visible = false
+		end)
+	end)
+
+	-- ═══════════════════════════════════════════════════════════════
+	-- GESTOR DE MODOS
+	-- ═══════════════════════════════════════════════════════════════
+	local GestorModos = {}
+	local modoActual = "VISUAL"
+
+	function GestorModos:CambiarModo(modo)
+		-- Ocultar todos los elementos
+		contenedorMiniMapa.Visible = false
+		panelMatrizAdyacencia.Visible = false
+		overlayAnalisis.Visible = false
+		btnMisiones.Visible = false
+		misionFrame.Visible = false
+		btnAlgoritmo.Visible = false
+		btnMapa.Visible = false
+
+		-- Mostrar según el modo
+		if modo == "VISUAL" then
+			contenedorMiniMapa.Visible = true
+			btnMisiones.Visible = true
+			btnAlgoritmo.Visible = true
+			btnMapa.Visible = true
+			modoActual = "VISUAL"
+			print("✅ MODO VISUAL ACTIVADO")
+
+		elseif modo == "MATRIZ" then
+			panelMatrizAdyacencia.Visible = true
+			btnAlgoritmo.Visible = true
+			modoActual = "MATRIZ"
+			print("✅ MODO MATRIZ ACTIVADO")
+
+		elseif modo == "ANALISIS" then
+			overlayAnalisis.Visible = true
+			modoActual = "ANALISIS"
+			print("✅ MODO ANÁLISIS ACTIVADO")
+		end
+	end
+
+	-- ═══════════════════════════════════════════════════════════════
+	-- CONECTAR BOTONES DE MODOS
+	-- ═══════════════════════════════════════════════════════════════
+	if botonesModosRef.Visual then
+		botonesModosRef.Visual.MouseButton1Click:Connect(function()
+			GestorModos:CambiarModo("VISUAL")
+		end)
+	end
+
+	if botonesModosRef.Matriz then
+		botonesModosRef.Matriz.MouseButton1Click:Connect(function()
+			GestorModos:CambiarModo("MATRIZ")
+		end)
+	end
+
+	if botonesModosRef.Analisis then
+		botonesModosRef.Analisis.MouseButton1Click:Connect(function()
+			GestorModos:CambiarModo("ANALISIS")
+		end)
+	end
+
+	-- Toggle Misiones
+	btnMisiones.MouseButton1Click:Connect(function()
+		misionFrame.Visible = not misionFrame.Visible
+	end)
+
+	-- ═══════════════════════════════════════════════════════════════
+	-- REFERENCIAS DE LA UI
+	-- ═══════════════════════════════════════════════════════════════
+	local ReferenciasUI = {
+		GUI = gui,
+		Marcos = {
+			BarraSuperior = barraSuperior,
+			SelectorModos = selectorModos,
+			ContenedorMiniMapa = contenedorMiniMapa,
+			PanelMatrizAdyacencia = panelMatrizAdyacencia,
+			OverlayAnalisis = overlayAnalisis,
+			PanelPuntuacion = panelPuntuacion,
+			MisionFrame = misionFrame,
+		},
+		Botones = {
+			BtnAlgoritmo = btnAlgoritmo,
+			BtnMapa = btnMapa,
+			BtnMatriz = btnMatriz,
+			BtnMisiones = btnMisiones,
+			BtnReiniciar = btnReiniciar,
+			BtnFinalizar = btnFinalizar,
+		},
+		Etiquetas = {
+			ValorEstrellas = valorEstrellas,
+			ValorPuntos = valorPuntos,
+			NombreNodoSeleccionado = nombreNodoSeleccionado,
+			EstadisticasNodo = estadisticasNodo,
+			EstadisticasGrafo = estadisticasGrafo,
+			DescripcionGrafo = descripcionGrafo,
+		},
+		Elementos = {
+			CuadriculaMatriz = cuadriculaMatriz,
+			Visor = visor,
+		},
+		Tema = Tema,
+		GestorModos = GestorModos,
+	}
+
+	print("╔════════════════════════════════════════════════╗")
+	print("║  ✅ GUI EXPLORADOR CREADA EXITOSAMENTE       ║")
+	print("║  Modos disponibles: VISUAL, MATRIZ, ANÁLISIS  ║")
+	print("╚════════════════════════════════════════════════╝")
+
+	_G.GUIExplorador = ReferenciasUI
+
+	return ReferenciasUI
+end
+
+return crearGUIExplorador()
