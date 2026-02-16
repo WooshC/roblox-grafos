@@ -1,19 +1,18 @@
 -- ================================================================
 -- StarterGUI/DialogStorage/Zona1_dialogo.lua
--- PURO CONFIG - Toda la lógica visual en VisualEffectsService
+-- Instrucción simple: 4 pasos de explicación visual (sin click)
 -- ================================================================
 
 local dialogueKitModule = require(script.Parent.Parent.DialogueKit)
 local DialogueGenerator = require(script.Parent.DialogueGenerator)
 
--- 🔥 IMPORTAR el servicio visual
 local VisualEffectsService = require(
 	game:GetService("StarterPlayer"):WaitForChild("StarterPlayerScripts")
 		:WaitForChild("Cliente"):WaitForChild("Services"):WaitForChild("VisualEffectsService")
 )
 
 -- ================================================================
--- CONFIGURACIÓN DE LA ZONA
+-- CONFIGURACIÓN
 -- ================================================================
 
 local CONFIG = {
@@ -27,7 +26,8 @@ local CONFIG = {
 		azul = Color3.fromRGB(0, 170, 255),
 		verde = Color3.fromRGB(0, 255, 0),
 		rojo = Color3.fromRGB(255, 0, 0),
-		amarillo = Color3.fromRGB(255, 255, 0)
+		amarillo = Color3.fromRGB(255, 255, 0),
+		verde_debil = Color3.fromRGB(100, 200, 100)
 	},
 	CAMARA = {
 		offset_inicio = Vector3.new(22, 22, 22),
@@ -40,7 +40,7 @@ local CONFIG = {
 }
 
 -- ================================================================
--- DATOS DE DIÁLOGOS (PURO CONFIG)
+-- DIÁLOGOS
 -- ================================================================
 
 local DATA_DIALOGOS = {
@@ -140,16 +140,108 @@ local DATA_DIALOGOS = {
 		Siguiente = "Instruccion_Tecnica"
 	},
 
+	-- ================================================================
+	-- INSTRUCCIÓN EN 4 PASOS: Solo explicación visual
+	-- El jugador OBSERVA cómo se conectan los nodos
+	-- ================================================================
+
 	["Instruccion_Tecnica"] = {
 		Actor = "Sistema",
 		Expresion = "Arista",
-		Texto = "Haz Click en el 'Nodo 1' (Verde) y luego en el 'Nodo 2' para crear una ARISTA (Cable).",
+		Texto = "Te mostraré cómo conectar nodos. Presta atención...",
+		Sonido = "rbxassetid://0",
+		Evento = function()
+			VisualEffectsService:clearEffects()
+
+			local n1 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo1)
+			if n1 then
+				VisualEffectsService:highlightObject(n1, CONFIG.COLORES.verde)
+				VisualEffectsService:focusCameraOn(n1, CONFIG.CAMARA.offset_zoom)
+			end
+		end,
+		Siguiente = "Instruccion_Paso2"
+	},
+
+	["Instruccion_Paso2"] = {
+		Actor = "Sistema",
+		Expresion = "Arista",
+		Texto = "Primero: haz click en el Nodo 1 (Verde). Este es el ORIGEN.",
 		Sonido = "rbxassetid://0",
 		Evento = function()
 			local n1 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo1)
 			if n1 then
-				VisualEffectsService:focusCameraOn(n1, CONFIG.CAMARA.offset_zoom)
+				VisualEffectsService:blink(n1, 30, 1)
 			end
+		end,
+		Siguiente = "Instruccion_Paso3"
+	},
+
+	["Instruccion_Paso3"] = {
+		Actor = "Sistema",
+		Expresion = "Arista",
+		Texto = "Segundo: haz click en el Nodo 2 (Rojo). Este es el DESTINO.",
+		Sonido = "rbxassetid://0",
+		Evento = function()
+			VisualEffectsService:clearEffects()
+
+			local n1 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo1)
+			local n2 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo2)
+
+			if n1 and n2 then
+				VisualEffectsService:highlightObject(n1, CONFIG.COLORES.verde_debil)
+				VisualEffectsService:highlightObject(n2, CONFIG.COLORES.rojo)
+				VisualEffectsService:focusCameraOn(n2, CONFIG.CAMARA.offset_zoom)
+				VisualEffectsService:blink(n2, 30, 1)
+			end
+		end,
+		Siguiente = "Instruccion_Paso4"
+	},
+
+	["Instruccion_Paso4"] = {
+		Actor = "Sistema",
+		Expresion = "Arista",
+		Texto = "Y así se crea la ARISTA entre ambos. ¡Mira!",
+		Sonido = "rbxassetid://0",
+		Evento = function()
+			VisualEffectsService:clearEffects()
+
+			local n1 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo1)
+			local n2 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo2)
+
+			if n1 and n2 then
+				VisualEffectsService:highlightObject(n1, CONFIG.COLORES.verde)
+				VisualEffectsService:highlightObject(n2, CONFIG.COLORES.verde)
+				VisualEffectsService:createFakeEdge(n1, n2, CONFIG.COLORES.amarillo)
+
+				local midPoint = n1.Position:Lerp(n2.Position, 0.5)
+				local camPos = midPoint + CONFIG.CAMARA.offset_arista
+				local newCF = CFrame.new(camPos, midPoint)
+
+				local camera = workspace.CurrentCamera
+				local tweenInfo = TweenInfo.new(CONFIG.CAMARA.duracion, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+				game:GetService("TweenService"):Create(camera, tweenInfo, {CFrame = newCF}):Play()
+
+				VisualEffectsService:blink(n1, 30, 1.5)
+				task.wait(0.2)
+				VisualEffectsService:blink(n2, 30, 1.5)
+			end
+		end,
+		Siguiente = "Instruccion_Confirmacion"
+	},
+
+	["Instruccion_Confirmacion"] = {
+		Actor = "Sistema",
+		Expresion = "Arista",
+		Texto = "¿Entendiste? Ahora es tu turno. Conecta el Nodo 1 con el Nodo 2.",
+		Sonido = "rbxassetid://0",
+		Evento = function()
+			VisualEffectsService:clearEffects()
+
+			local n1 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo1)
+			local n2 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo2)
+
+			if n1 then VisualEffectsService:highlightObject(n1, CONFIG.COLORES.verde) end
+			if n2 then VisualEffectsService:highlightObject(n2, CONFIG.COLORES.rojo) end
 		end,
 		Siguiente = "Despedida"
 	},
@@ -157,7 +249,7 @@ local DATA_DIALOGOS = {
 	["Despedida"] = {
 		Actor = "Carlos",
 		Expresion = "Sonriente",
-		Texto = "Si lo haces bien, verás como la energía fluye. ¡Adelante!",
+		Texto = "¡Adelante! Conecta los nodos y verás la energía fluir.",
 		Sonido = "rbxassetid://0",
 		Evento = function()
 			VisualEffectsService:clearEffects()
@@ -169,7 +261,7 @@ local DATA_DIALOGOS = {
 }
 
 -- ================================================================
--- LÓGICA DE ACTIVACIÓN (IGUAL PARA TODAS LAS ZONAS)
+-- LÓGICA DE ACTIVACIÓN
 -- ================================================================
 
 local yaSeMostro = false
@@ -182,7 +274,7 @@ local function checkZone(newZone)
 		if not player.Character then return end
 
 		yaSeMostro = true
-		print("✅ " .. CONFIG.ZONA_OBJETIVO .. " detectada - Iniciando Diálogo")
+		print("✅ " .. CONFIG.ZONA_OBJETIVO .. " detectada")
 
 		local layersComplejas = DialogueGenerator.GenerarEstructura(DATA_DIALOGOS, CONFIG.SKIN_NAME)
 
@@ -206,4 +298,4 @@ task.delay(1, function()
 	if zona then checkZone(zona) end
 end)
 
-print("✅ Zona1_dialogo cargado (MODULAR)")
+print("✅ Zona1_dialogo cargado")

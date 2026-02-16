@@ -267,4 +267,52 @@ function VisualEffectsService:findNodeByName(nodeName)
 	return findNodePart(nodeName)
 end
 
+--- Hacer que un nodo parpadee (cambio de material)
+-- @param node (Instance) el nodo a parpadear
+-- @param duration (number) duración total en segundos
+-- @param frequency (number, opcional) parpadeos por segundo (default: 2)
+function VisualEffectsService:blink(node, duration, frequency)
+	if not node then return end
+
+	duration = duration or 3
+	frequency = frequency or 2
+	local interval = 1 / frequency
+
+	task.spawn(function()
+		local isVisible = true
+		local elapsed = 0
+
+		while elapsed < duration do
+			task.wait(interval)
+			elapsed = elapsed + interval
+
+			-- Cambiar material para efecto parpadeo
+			local parts = node:GetDescendants()
+			if node:IsA("BasePart") then
+				table.insert(parts, node)
+			end
+
+			for _, part in ipairs(parts) do
+				if part:IsA("BasePart") then
+					part.Material = isVisible and Enum.Material.Neon or Enum.Material.Plastic
+				end
+			end
+
+			isVisible = not isVisible
+		end
+
+		-- Restaurar a Neon al terminar
+		local parts = node:GetDescendants()
+		if node:IsA("BasePart") then
+			table.insert(parts, node)
+		end
+
+		for _, part in ipairs(parts) do
+			if part:IsA("BasePart") then
+				part.Material = Enum.Material.Neon
+			end
+		end
+	end)
+end
+
 return VisualEffectsService
