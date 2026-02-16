@@ -11,6 +11,8 @@ local GraphService = _G.Services.Graph
 local GraphUtils = _G.Services.GraphUtils
 local LevelService = _G.Services.Level
 
+local NivelUtils = require(ReplicatedStorage:WaitForChild("Utilidades"):WaitForChild("NivelUtils"))
+
 local eventsFolder = ReplicatedStorage:WaitForChild("Events")
 local remotesFolder = eventsFolder:WaitForChild("Remotes")
 
@@ -46,8 +48,8 @@ local function calcularDistancia(nodeA, nodeB)
 end
 
 -- Función principal invocada por cliente
-local function getAdjacencyMatrix(player)
-	print("📊 GraphTheoryService: Petición de matriz de " .. player.Name)
+local function getAdjacencyMatrix(player, zonaID)
+	print("📊 GraphTheoryService: Petición de matriz de " .. player.Name .. (zonaID and (" (Zona: " .. zonaID .. ")") or " (Global)"))
 	
 	if not GraphService or not GraphUtils or not LevelService then
 		warn("❌ GraphTheoryService: Servicios no disponibles")
@@ -59,20 +61,42 @@ local function getAdjacencyMatrix(player)
 		warn("❌ GraphTheoryService: No hay nivel cargado")
 		return {Headers={}, Matrix={}}
 	end
+
+	local nivelID = LevelService:getCurrentLevelID()
 	
 	-- 1. Obtener Nodos (Postes)
-	local nodes = GraphService:getNodes()
+	local allNodes = GraphService:getNodes()
 	
-	if #nodes == 0 then
+	if #allNodes == 0 then
 		warn("❌ GraphTheoryService: No hay nodos en el nivel")
 		return {Headers={}, Matrix={}}
 	end
 	
-	-- Clonar y ordenar alfabéticamente para consistencia visual en la matriz
-	local sortedNodes = {}
-	for _, node in ipairs(nodes) do
-		table.insert(sortedNodes, node)
+	-- FILTRADO POR ZONA
+	local filteredNodes = {}
+	if zonaID and zonaID ~= "" then
+		for _, node in ipairs(allNodes) do
+			local nodeZone = NivelUtils.getNodeZone(nivelID, node.Name)
+			-- Incluir si la zona coincide O si es un nodo compartido (si la lógica lo requiere)
+			-- Por ahora: estricto
+			if nodeZone == zonaID then
+				table.insert(filteredNodes, node)
+			end
+		end
+		-- Si no hay nodos en la zona, devolver vacío o fallback?
+		if #filteredNodes == 0 then
+			print("⚠️ GraphTheoryService: No hay nodos en la zona " .. zonaID)
+			return {Headers={}, Matrix={}}
+		end
+	else
+		-- Sin filtro (Global)
+		for _, node in ipairs(allNodes) do
+			table.insert(filteredNodes, node)
+		end
 	end
+
+	-- Clonar y ordenar alfabéticamente para consistencia visual en la matriz
+	local sortedNodes = filteredNodes
 	table.sort(sortedNodes, function(a, b) return a.Name < b.Name end)
 	
 	-- 2. Construir Matriz
@@ -108,15 +132,6 @@ local function getAdjacencyMatrix(player)
 	
 	print("📊 GraphTheoryService: Matriz enviada a " .. player.Name)
 	print("   Nodos: " .. #headers)
-	print("   Conexiones detectadas: " .. (function()
-		local count = 0
-		for i = 1, n do
-			for j = 1, n do
-				if matrix[i][j] > 0 then count = count + 1 end
-			end
-		end
-		return count
-	end)())
 	
 	return {
 		Headers = headers,

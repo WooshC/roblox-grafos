@@ -164,36 +164,38 @@ function MissionsManager:_showZoneSummary(nivelID, config)
 	local zonas = NivelUtils.getZoneList(nivelID)
 	
 	for _, zona in ipairs(zonas) do
-		local misiones = NivelUtils.getMissionsByZone(nivelID, zona.ID)
-		local completadas = 0
-		
-		for _, m in ipairs(misiones) do
-			if estadoMisiones[m.ID] then
-				completadas = completadas + 1
+		if not zona.Oculta then -- 🔥 NUEVO: Ocultar zonas no deseadas en resumen
+			local misiones = NivelUtils.getMissionsByZone(nivelID, zona.ID)
+			local completadas = 0
+			
+			for _, m in ipairs(misiones) do
+				if estadoMisiones[m.ID] then
+					completadas = completadas + 1
+				end
 			end
+			
+			-- Crear label de resumen
+			local lbl = Instance.new("TextLabel")
+			lbl.Size = UDim2.new(1, -10, 0, 30)
+			lbl.BackgroundTransparency = 0.7
+			lbl.BackgroundColor3 = completadas == #misiones 
+				and Color3.fromRGB(46, 204, 113) 
+				or Color3.fromRGB(52, 73, 94)
+			
+			local icon = completadas == #misiones and "✅" or "📍"
+			lbl.Text = string.format("%s %s (%d/%d)", icon, zona.Descripcion or zona.ID, completadas, #misiones)
+			
+			lbl.TextColor3 = Color3.new(1, 1, 1)
+			lbl.Font = Enum.Font.GothamMedium
+			lbl.TextSize = 14
+			lbl.TextXAlignment = Enum.TextXAlignment.Left
+			lbl.Parent = misionFrame
+			
+			-- Esquinas redondeadas
+			local corner = Instance.new("UICorner")
+			corner.CornerRadius = UDim.new(0, 6)
+			corner.Parent = lbl
 		end
-		
-		-- Crear label de resumen
-		local lbl = Instance.new("TextLabel")
-		lbl.Size = UDim2.new(1, -10, 0, 30)
-		lbl.BackgroundTransparency = 0.7
-		lbl.BackgroundColor3 = completadas == #misiones 
-			and Color3.fromRGB(46, 204, 113) 
-			or Color3.fromRGB(52, 73, 94)
-		
-		local icon = completadas == #misiones and "✅" or "📍"
-		lbl.Text = string.format("%s %s (%d/%d)", icon, zona.Descripcion or zona.ID, completadas, #misiones)
-		
-		lbl.TextColor3 = Color3.new(1, 1, 1)
-		lbl.Font = Enum.Font.GothamMedium
-		lbl.TextSize = 14
-		lbl.TextXAlignment = Enum.TextXAlignment.Left
-		lbl.Parent = misionFrame
-		
-		-- Esquinas redondeadas
-		local corner = Instance.new("UICorner")
-		corner.CornerRadius = UDim.new(0, 6)
-		corner.Parent = lbl
 	end
 	
 	-- Misiones bonus (sin zona)

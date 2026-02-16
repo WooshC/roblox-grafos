@@ -178,8 +178,11 @@ function ButtonManager:init()
 			btnMatriz.BackgroundColor3 = Color3.fromRGB(127, 140, 141)
 
 			-- Invocar servidor
+			local player = Players.LocalPlayer
+			local zonaID = player:GetAttribute("CurrentZone")
+			
 			local success, resultado = pcall(function()
-				return getMatrixFunc:InvokeServer()
+				return getMatrixFunc:InvokeServer(zonaID)
 			end)
 
 			-- Restaurar botón
@@ -191,7 +194,7 @@ function ButtonManager:init()
 				print("   Nodos:", table.concat(resultado.Headers, ", "))
 
 				-- MOSTRAR MATRIZ EN UI
-				mostrarMatrizUI(resultado)
+				mostrarMatrizUI(resultado, zonaID)
 			else
 				warn("❌ Error obteniendo matriz:", resultado)
 			end
@@ -213,7 +216,7 @@ end
 -- ============================================
 -- FUNCIÓN: MOSTRAR MATRIZ EN UI
 -- ============================================
-function mostrarMatrizUI(data)
+function mostrarMatrizUI(data, zonaID)
 	-- Buscar o crear GUI de matriz
 	local player = Players.LocalPlayer
 	local playerGui = player:WaitForChild("PlayerGui")
@@ -249,7 +252,7 @@ function mostrarMatrizUI(data)
 	titulo.Size = UDim2.new(1, 0, 0, 50)
 	titulo.Position = UDim2.new(0, 0, 0, 0)
 	titulo.BackgroundTransparency = 1
-	titulo.Text = "📊 MATRIZ DE ADYACENCIA"
+	titulo.Text = "📊 MATRIZ (" .. (zonaID and zonaID ~= "" and zonaID or "Global") .. ")"
 	titulo.TextColor3 = Color3.fromRGB(255, 215, 0)
 	titulo.Font = Enum.Font.FredokaOne
 	titulo.TextSize = 24

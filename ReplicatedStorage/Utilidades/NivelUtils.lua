@@ -127,7 +127,8 @@ function NivelUtils.getZoneList(nivelID)
 			Color = zonaData.Color,
 			Concepto = zonaData.Concepto,
 			Modo = zonaData.Modo or "ANY",
-			NodosRequeridos = zonaData.NodosRequeridos or {}
+			NodosRequeridos = zonaData.NodosRequeridos or {},
+			Oculta = zonaData.Oculta -- Nueva propiedad para ocultar en UI
 		})
 	end
 	table.sort(zonas, function(a, b) return a.ID < b.ID end)

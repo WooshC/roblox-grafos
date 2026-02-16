@@ -1,3 +1,6 @@
+-- ReplicatedStorage/LevelsConfig.lua
+-- ✅ CORREGIDO: Nombres de nodos usan doble guión bajo (__z1) para coincidir con el modelo
+
 local LevelsConfig = {}
 
 --- ============================================
@@ -26,14 +29,16 @@ LevelsConfig[0] = {
 	NodoFin = "PostePanel",
 	NodosTotales = 13,
 
-	-- CORREGIDO: Zona 1 usa _z1 para coincidir con Nodos
+	-- Nombres originales con un solo guión bajo (_z1)
 	Adyacencias = {
 		["Nodo1_z1"] = {"Nodo2_z1"},
 		["Nodo2_z1"] = {"Nodo1_z1"},
 
-		["Nodo1_z2"] = {"Nodo2_z2", "Nodo3_z2"},
+		["Nodo1_z2"] = {"Nodo2_z2", "Nodo3_z2","Nodo4_z2"},
 		["Nodo2_z2"] = {"Nodo1_z2"},
 		["Nodo3_z2"] = {"Nodo1_z2"},
+		["Nodo4_z2"] = {"Nodo1_z2"},
+
 
 		["Nodo1_z3"] = {"Nodo2_z3"},
 		["Nodo2_z3"] = {"Nodo3_z3"},
@@ -42,12 +47,13 @@ LevelsConfig[0] = {
 		["Nodo1_z4"] = {"Nodo2_z4", "Nodo3_z4"},
 		["Nodo2_z4"] = {"Nodo1_z4", "Nodo3_z4"},
 		["Nodo3_z4"] = {"Nodo1_z4", "Nodo2_z4"},
+		["Nodo4_z4"] = {"Nodo3_z4", "Nodo2_z4"},
 
 		["PostePanel"] = {"toma_corriente"},
-		["toma_corriente"] = {},
+		["toma_corriente"] = {"PostePanel"},
 	},
 
-	-- Cada misión tiene Zona para filtrar en la GUI
+	-- Misiones con nombres correctos
 	Misiones = {
 		{
 			ID = 1, Zona = "Zona_Estacion_1",
@@ -105,19 +111,21 @@ LevelsConfig[0] = {
 		{ ID = "Algoritmo_BFS", Nombre = "Manual de BFS", Descripcion = "Desbloquea el algoritmo BFS", Icono = "🧠", Modelo = "AlgoritmoBFS" }
 	},
 
-	-- CORREGIDO: Zona 1 usa _z1
+	-- Nodos con un solo guión bajo
 	Nodos = {
-		Nodo1_z1 = { Zona = "Zona_Estacion_1", Alias = "🟢 Nodo 1", Descripcion = "Un nodo es un punto en el grafo." },
-		Nodo2_z1 = { Zona = "Zona_Estacion_1", Alias = "🟢 Nodo 2", Descripcion = "La conexión entre dos nodos es una arista." },
-		Nodo1_z2 = { Zona = "Zona_Estacion_2", Alias = "🔵 Centro", Descripcion = "Nodo central. Su GRADO es el número de aristas conectadas." },
-		Nodo2_z2 = { Zona = "Zona_Estacion_2", Alias = "🔵 Vecino 1", Descripcion = "Conecta al centro para aumentar el grado." },
-		Nodo3_z2 = { Zona = "Zona_Estacion_2", Alias = "🔵 Vecino 2", Descripcion = "Segundo vecino. Incrementará el grado a 2." },
-		Nodo1_z3 = { Zona = "Zona_Estacion_3", Alias = "🟡 Nodo X", Descripcion = "Nodo origen. Aristas dirigidas tienen DIRECCIÓN." },
-		Nodo2_z3 = { Zona = "Zona_Estacion_3", Alias = "🟡 Nodo Y", Descripcion = "Nodo intermedio. Recibe de X, envía a Z." },
-		Nodo3_z3 = { Zona = "Zona_Estacion_3", Alias = "🟡 Nodo Z", Descripcion = "Nodo destino. Solo tiene entrada." },
-		Nodo1_z4 = { Zona = "Zona_Estacion_4", Alias = "🔴 Nodo 1", Descripcion = "Conecta a todos para un GRAFO CONEXO." },
-		Nodo2_z4 = { Zona = "Zona_Estacion_4", Alias = "🔴 Nodo 2", Descripcion = "Segundo vértice." },
-		Nodo3_z4 = { Zona = "Zona_Estacion_4", Alias = "🔴 Nodo 3", Descripcion = "Todos deben ser alcanzables entre sí." },
+		["Nodo1_z1"] = { Zona = "Zona_Estacion_1", Alias = "🟢 Nodo 1", Descripcion = "Un nodo es un punto en el grafo." },
+		["Nodo2_z1"] = { Zona = "Zona_Estacion_1", Alias = "🟢 Nodo 2", Descripcion = "La conexión entre dos nodos es una arista." },
+		["Nodo1_z2"] = { Zona = "Zona_Estacion_2", Alias = "🔵 Centro", Descripcion = "Nodo central. Su GRADO es el número de aristas conectadas." },
+		["Nodo2_z2"] = { Zona = "Zona_Estacion_2", Alias = "🔵 Vecino 1", Descripcion = "Conecta al centro para aumentar el grado." },
+		["Nodo3_z2"] = { Zona = "Zona_Estacion_2", Alias = "🔵 Vecino 2", Descripcion = "Segundo vecino. Incrementará el grado a 2." },
+		["Nodo1_z3"] = { Zona = "Zona_Estacion_3", Alias = "🟡 Nodo X", Descripcion = "Nodo origen. Aristas dirigidas tienen DIRECCIÓN." },
+		["Nodo2_z3"] = { Zona = "Zona_Estacion_3", Alias = "🟡 Nodo Y", Descripcion = "Nodo intermedio. Recibe de X, envía a Z." },
+		["Nodo3_z3"] = { Zona = "Zona_Estacion_3", Alias = "🟡 Nodo Z", Descripcion = "Nodo destino. Solo tiene entrada." },
+		["Nodo4_z3"] = { Zona = "Zona_Estacion_3", Alias = "🟡 Nodo W", Descripcion = "Nodo Aislado. No tiene vecinos." },
+		["Nodo1_z4"] = { Zona = "Zona_Estacion_4", Alias = "🔴 Nodo 1", Descripcion = "Conecta a todos para un GRAFO CONEXO." },
+		["Nodo2_z4"] = { Zona = "Zona_Estacion_4", Alias = "🔴 Nodo 2", Descripcion = "Segundo vértice." },
+		["Nodo3_z4"] = { Zona = "Zona_Estacion_4", Alias = "🔴 Nodo 3", Descripcion = "Todos deben ser alcanzables entre sí." },
+		["Nodo4_z4"] = { Zona = "Zona_Estacion_4", Alias = "🔴 Nodo 4", Descripcion = "Todos deben ser alcanzables entre sí." },
 		PostePanel = { Zona = nil, Alias = "🔌 Panel Central", Descripcion = "Panel principal del laboratorio." },
 		toma_corriente = { Zona = nil, Alias = "⭐ Tableta Especial", Descripcion = "BONUS: Conecta esta tableta." }
 	},
@@ -142,12 +150,14 @@ LevelsConfig[0] = {
 			Modo = "ALL", Descripcion = "🔴 ZONA 4: Conectividad",
 			Color = Color3.fromRGB(184, 134, 11), Concepto = "Propiedades Globales",
 			NodosRequeridos = {"Nodo1_z4", "Nodo2_z4", "Nodo3_z4"}
-		}
+		},
+		["Zona_luz_1"] = { Modo = "ALL", Descripcion = "Sector principal: Torre de Control", NodosRequeridos = {"toma_corriente"}, Oculta = true },
+		["Zona_luz_2"] = { Modo = "ANY", Descripcion = "Sector secundario: Puerta", NodosRequeridos = {"toma_corriente"}, Oculta = true }
 	},
 
 	NombresPostes = {
 		["Nodo1_z1"] = "Nodo 1", ["Nodo2_z1"] = "Nodo 2",
-		["Nodo1_z2"] = "Centro", ["Nodo2_z2"] = "Vecino 1", ["Nodo3_z2"] = "Vecino 2",
+		["Nodo1_z2"] = "Centro", ["Nodo2_z2"] = "Vecino 1", ["Nodo3_z2"] = "Vecino 2",["Nodo4_z2"] = "Vecino 3",
 		["Nodo1_z3"] = "Nodo X", ["Nodo2_z3"] = "Nodo Y", ["Nodo3_z3"] = "Nodo Z",
 		["Nodo1_z4"] = "Nodo 1", ["Nodo2_z4"] = "Nodo 2", ["Nodo3_z4"] = "Nodo 3",
 		["PostePanel"] = "Panel Central", ["toma_corriente"] = "Tableta Especial"
