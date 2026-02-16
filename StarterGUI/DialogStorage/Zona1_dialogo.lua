@@ -1,201 +1,47 @@
-local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+-- ================================================================
+-- StarterGUI/DialogStorage/Zona1_dialogo.lua
+-- PURO CONFIG - Toda la lógica visual en VisualEffectsService
+-- ================================================================
+
 local dialogueKitModule = require(script.Parent.Parent.DialogueKit)
 local DialogueGenerator = require(script.Parent.DialogueGenerator)
 
-local player = Players.LocalPlayer
-local camera = workspace.CurrentCamera
-local SKIN_NAME = "Hotline" 
+-- 🔥 IMPORTAR el servicio visual
+local VisualEffectsService = require(
+	game:GetService("StarterPlayer"):WaitForChild("StarterPlayerScripts")
+		:WaitForChild("Cliente"):WaitForChild("Services"):WaitForChild("VisualEffectsService")
+)
 
--- ============================================================================
--- 1. UTILIDADES VISUALES (CÁMARA Y HIGHLIGHTS)
--- ============================================================================
+-- ================================================================
+-- CONFIGURACIÓN DE LA ZONA
+-- ================================================================
 
-local activeHighlights = {}
-local originalCameraCFrame = nil
-local originalCameraType = nil
+local CONFIG = {
+	ZONA_OBJETIVO = "Zona_Estacion_1",
+	SKIN_NAME = "Hotline",
+	NODOS = {
+		nodo1 = "Nodo1_z1",
+		nodo2 = "Nodo2_z1"
+	},
+	COLORES = {
+		azul = Color3.fromRGB(0, 170, 255),
+		verde = Color3.fromRGB(0, 255, 0),
+		rojo = Color3.fromRGB(255, 0, 0),
+		amarillo = Color3.fromRGB(255, 255, 0)
+	},
+	CAMARA = {
+		offset_inicio = Vector3.new(22, 22, 22),
+		offset_nodo = Vector3.new(15, 18, 15),
+		offset_arista = Vector3.new(0, 25, 20),
+		offset_objetivo = Vector3.new(0, 30, 25),
+		offset_zoom = Vector3.new(12, 15, 12),
+		duracion = 1.5
+	}
+}
 
--- Buscar nodo en el mapa (por nombre)
-local function findNodePart(nodeName)
-	-- Intentar buscar en la carpeta de Nivel cargado
-	for _, desc in ipairs(workspace:GetDescendants()) do
-		-- Buscamos el "Selector" dentro del modelo del nodo, o el modelo mismo
-		if desc.Name == nodeName and desc:IsA("Model") then
-			return desc.PrimaryPart or desc:FindFirstChild("Selector") or desc:FindFirstChildWhichIsA("BasePart")
-		end
-	end
-	return nil
-end
-
--- Mover cámara a un objetivo
-local function focusCameraOn(targetPart, offset)
-	if not targetPart then return end
-
-	-- Guardar estado original si es la primera vez
-	if camera.CameraType ~= Enum.CameraType.Scriptable then
-		originalCameraCFrame = camera.CFrame
-		originalCameraType = camera.CameraType
-		camera.CameraType = Enum.CameraType.Scriptable
-	end
-
-	local targetPos = targetPart.Position
-	local camPos = targetPos + (offset or Vector3.new(10, 10, 10))
-	local newCFrame = CFrame.new(camPos, targetPos)
-
-	local tweenInfo = TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-	local tween = TweenService:Create(camera, tweenInfo, {CFrame = newCFrame})
-	tween:Play()
-end
-
--- Restaurar cámara
-local function restoreCamera()
-	if originalCameraType then
-		local tweenInfo = TweenInfo.new(1.0, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-		-- Intentar volver a la posición original o al personaje
-		local targetCFrame = originalCameraCFrame
-		if player.Character and player.Character:FindFirstChild("Head") then
-			-- Resetear suavemente hacia la vista del personaje
-			targetCFrame = CFrame.new(player.Character.Head.Position + Vector3.new(0, 5, 10), player.Character.Head.Position)
-		end
-
-		local tween = TweenService:Create(camera, tweenInfo, {CFrame = targetCFrame})
-		tween:Play()
-
-		task.delay(1.0, function()
-			camera.CameraType = originalCameraType or Enum.CameraType.Custom
-			originalCameraType = nil
-		end)
-	end
-end
-
--- Resaltar objeto
-local function highlightObject(target, color)
-	if not target then return end
-
-	-- Si es un modelo, buscar su parte principal
-	local model = target:IsA("Model") and target or target.Parent
-	local part = target:IsA("BasePart") and target or (model and model.PrimaryPart)
-
-	if not model then return end
-
-	-- 1. Crear Highlight
-	local h = Instance.new("Highlight")
-	h.Adornee = model
-	h.FillColor = color
-	h.OutlineColor = Color3.new(1, 1, 1)
-	h.FillTransparency = 0.5
-	h.OutlineTransparency = 0
-	h.Parent = model
-	table.insert(activeHighlights, h)
-
-	-- 2. Efecto Neon (opcional)
-	if part then
-		-- Guardamos material original en atributo para restaurar luego si queremos
-		part:SetAttribute("OriginalMaterial", part.Material)
-		part:SetAttribute("OriginalColor", part.Color)
-		part.Material = Enum.Material.Neon
-		part.Color = color
-
-		-- Agregar a lista de limpieza especial si es necesario, 
-		-- pero por simplicidad solo limpiamos el Highlight y revertimos manual.
-		table.insert(activeHighlights, {Part = part, Type = "Material"})
-	end
-end
-
--- Limpiar efecto
-local function clearEffects()
-	for _, item in ipairs(activeHighlights) do
-		if typeof(item) == "Instance" then
-			item:Destroy()
-		elseif type(item) == "table" and item.Type == "Material" then
-			-- Restaurar material
-			local part = item.Part
-			if part then
-				part.Material = part:GetAttribute("OriginalMaterial") or Enum.Material.Plastic
-				part.Color = part:GetAttribute("OriginalColor") or Color3.new(1, 1, 1)
-			end
-		end
-	end
-	activeHighlights = {}
-end
-
--- Crear arista visual falsa para demostración (ahora usa RopeConstraint como los cables reales)
-local function createFakeEdge(node1, node2, color)
-	if not node1 or not node2 then return end
-
-	-- Buscar Attachments o crear temporales
-	local att1 = node1:FindFirstChild("Attachment", true) 
-	local att2 = node2:FindFirstChild("Attachment", true)
-	
-	-- Si no hay attachments, usar centro de la parte
-	if not att1 then
-		att1 = Instance.new("Attachment")
-		att1.Name = "TempAtt1"
-		att1.Parent = node1:IsA("Model") and node1.PrimaryPart or node1
-		table.insert(activeHighlights, att1)
-	end
-	
-	if not att2 then
-		att2 = Instance.new("Attachment")
-		att2.Name = "TempAtt2"
-		att2.Parent = node2:IsA("Model") and node2.PrimaryPart or node2
-		table.insert(activeHighlights, att2)
-	end
-	
-	local dist = (att1.WorldPosition - att2.WorldPosition).Magnitude
-	
-	-- Crear RopeConstraint (Cable Visual)
-	local rope = Instance.new("RopeConstraint")
-	rope.Name = "FakeEdgeRope"
-	rope.Attachment0 = att1
-	rope.Attachment1 = att2
-	rope.Length = dist
-	rope.Visible = true
-	rope.Thickness = 0.3 -- Un poco más grueso para que se vea bien
-	rope.Color = BrickColor.new(color)
-	rope.Parent = workspace
-	
-	table.insert(activeHighlights, rope)
-end
-
--- Toggle visibilidad del Techo (Part, Model o Folder)
-local function toggleTecho(visible)
-	local opacity = visible and 0 or 1
-	local active = visible
-
-	-- Buscar objeto "Techo" SOLAMENTE en NivelActual
-	local nivelActual = workspace:FindFirstChild("NivelActual")
-	if nivelActual then
-		local techoObj = nivelActual:FindFirstChild("Techo", true)
-		
-		if techoObj then
-			local parts = {}
-			-- Si el objeto mismo es una parte
-			if techoObj:IsA("BasePart") then
-				table.insert(parts, techoObj)
-			end
-			-- Y sus descendientes
-			for _, p in ipairs(techoObj:GetDescendants()) do
-				if p:IsA("BasePart") then
-					table.insert(parts, p)
-				end
-			end
-			
-			for _, part in ipairs(parts) do
-				part.Transparency = opacity
-				part.CanCollide = active
-				part.CastShadow = active
-				part.CanQuery = active
-				part.CanTouch = active
-			end
-		end
-	end
-end
-
--- ============================================================================
--- 2. ZONA DE EDICIÓN DE DIÁLOGOS
--- ============================================================================
+-- ================================================================
+-- DATOS DE DIÁLOGOS (PURO CONFIG)
+-- ================================================================
 
 local DATA_DIALOGOS = {
 	["Inicio"] = {
@@ -207,12 +53,13 @@ local DATA_DIALOGOS = {
 		},
 		Sonido = { "rbxassetid://0", "rbxassetid://0" },
 		Evento = function()
-			-- Solo enfocar la cámara general
-			toggleTecho(false) -- Ocultar techo
-			local nodo1 = findNodePart("Nodo1_z1")
-			if nodo1 then focusCameraOn(nodo1, Vector3.new(22, 22, 22)) end --Posición de la camara
+			VisualEffectsService:toggleTecho(false)
+			local nodo1 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo1)
+			if nodo1 then
+				VisualEffectsService:focusCameraOn(nodo1, CONFIG.CAMARA.offset_inicio)
+			end
 		end,
-		Siguiente = "Concepto_Nodo" -- CAMBIADO: Ir a explicación de Nodo
+		Siguiente = "Concepto_Nodo"
 	},
 
 	["Concepto_Nodo"] = {
@@ -226,11 +73,11 @@ local DATA_DIALOGOS = {
 		},
 		Sonido = { "rbxassetid://0", "rbxassetid://0", "rbxassetid://0", "rbxassetid://0" },
 		Evento = function()
-			clearEffects()
-			local n1 = findNodePart("Nodo1_z1")
+			VisualEffectsService:clearEffects()
+			local n1 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo1)
 			if n1 then
-				highlightObject(n1, Color3.fromRGB(0, 170, 255)) -- Azul conceptual
-				focusCameraOn(n1, Vector3.new(15, 18, 15))
+				VisualEffectsService:highlightObject(n1, CONFIG.COLORES.azul)
+				VisualEffectsService:focusCameraOn(n1, CONFIG.CAMARA.offset_nodo)
 			end
 		end,
 		Siguiente = "Concepto_Arista"
@@ -246,23 +93,22 @@ local DATA_DIALOGOS = {
 		},
 		Sonido = { "rbxassetid://0", "rbxassetid://0", "rbxassetid://0" },
 		Evento = function()
-			clearEffects()
-			local n1 = findNodePart("Nodo1_z1")
-			local n2 = findNodePart("Nodo2_z1")
+			VisualEffectsService:clearEffects()
+			local n1 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo1)
+			local n2 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo2)
 
 			if n1 and n2 then
-				highlightObject(n1, Color3.fromRGB(0, 170, 255))
-				highlightObject(n2, Color3.fromRGB(0, 170, 255))
-				
-				-- Crear Arista Visual
-				createFakeEdge(n1, n2, Color3.fromRGB(255, 255, 0)) -- Amarillo
-				
-				-- Camara enfocando ambos
+				VisualEffectsService:highlightObject(n1, CONFIG.COLORES.azul)
+				VisualEffectsService:highlightObject(n2, CONFIG.COLORES.azul)
+				VisualEffectsService:createFakeEdge(n1, n2, CONFIG.COLORES.amarillo)
+
 				local midPoint = n1.Position:Lerp(n2.Position, 0.5)
-				local camPos = midPoint + Vector3.new(0, 25, 20)
+				local camPos = midPoint + CONFIG.CAMARA.offset_arista
 				local newCF = CFrame.new(camPos, midPoint)
 
-				TweenService:Create(camera, TweenInfo.new(1.5), {CFrame = newCF}):Play()
+				local camera = workspace.CurrentCamera
+				local tweenInfo = TweenInfo.new(CONFIG.CAMARA.duracion, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+				game:GetService("TweenService"):Create(camera, tweenInfo, {CFrame = newCF}):Play()
 			end
 		end,
 		Siguiente = "Explicacion_Objetivo"
@@ -274,20 +120,21 @@ local DATA_DIALOGOS = {
 		Texto = "Tu objetivo es simple: Conectar el Nodo 1 con el Nodo 2 para restablecer el flujo en este sector.",
 		Sonido = "rbxassetid://0",
 		Evento = function()
-			clearEffects() -- Limpia la arista de ejemplo
-			local n1 = findNodePart("Nodo1_z1")
-			local n2 = findNodePart("Nodo2_z1")
+			VisualEffectsService:clearEffects()
+			local n1 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo1)
+			local n2 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo2)
 
-			if n1 then highlightObject(n1, Color3.fromRGB(0, 255, 0)) end -- Verde (Origen)
-			if n2 then highlightObject(n2, Color3.fromRGB(255, 0, 0)) end -- Rojo (Destino)
+			if n1 then VisualEffectsService:highlightObject(n1, CONFIG.COLORES.verde) end
+			if n2 then VisualEffectsService:highlightObject(n2, CONFIG.COLORES.rojo) end
 
-			-- Mover cámara entre los dos
 			if n1 and n2 then
 				local midPoint = n1.Position:Lerp(n2.Position, 0.5)
-				local camPos = midPoint + Vector3.new(0, 30, 25) -- Altura y distancia aumentadas
+				local camPos = midPoint + CONFIG.CAMARA.offset_objetivo
 				local newCF = CFrame.new(camPos, midPoint)
 
-				TweenService:Create(camera, TweenInfo.new(1.5), {CFrame = newCF}):Play()
+				local camera = workspace.CurrentCamera
+				local tweenInfo = TweenInfo.new(CONFIG.CAMARA.duracion, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+				game:GetService("TweenService"):Create(camera, tweenInfo, {CFrame = newCF}):Play()
 			end
 		end,
 		Siguiente = "Instruccion_Tecnica"
@@ -299,11 +146,9 @@ local DATA_DIALOGOS = {
 		Texto = "Haz Click en el 'Nodo 1' (Verde) y luego en el 'Nodo 2' para crear una ARISTA (Cable).",
 		Sonido = "rbxassetid://0",
 		Evento = function()
-			-- Enfocar agresivamente en Nodo 1 primero
-			local n1 = findNodePart("Nodo1_z1")
+			local n1 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo1)
 			if n1 then
-				focusCameraOn(n1, Vector3.new(12, 15, 12)) -- Zoom menos agresivo (antes 5,8,5)
-				-- Parpadeo o highlight intenso (ya está verde, lo mantenemos)
+				VisualEffectsService:focusCameraOn(n1, CONFIG.CAMARA.offset_zoom)
 			end
 		end,
 		Siguiente = "Despedida"
@@ -315,51 +160,50 @@ local DATA_DIALOGOS = {
 		Texto = "Si lo haces bien, verás como la energía fluye. ¡Adelante!",
 		Sonido = "rbxassetid://0",
 		Evento = function()
-			clearEffects()
-			toggleTecho(true) -- Mostrar techo
-			restoreCamera()
+			VisualEffectsService:clearEffects()
+			VisualEffectsService:toggleTecho(true)
+			VisualEffectsService:restoreCamera()
 		end,
 		Siguiente = "FIN"
 	}
 }
 
--- ============================================================================
--- 3. LÓGICA DE ACTIVACIÓN (ZONA ID)
--- ============================================================================
+-- ================================================================
+-- LÓGICA DE ACTIVACIÓN (IGUAL PARA TODAS LAS ZONAS)
+-- ================================================================
 
-local ZONA_OBJETIVO = "Zona_Estacion_1"
 local yaSeMostro = false
 
 local function checkZone(newZone)
 	if yaSeMostro then return end
 
-	if newZone == ZONA_OBJETIVO then
-		-- Doble chequeo: solo si hay personaje vivo
+	if newZone == CONFIG.ZONA_OBJETIVO then
+		local player = game.Players.LocalPlayer
 		if not player.Character then return end
 
 		yaSeMostro = true
-		print("✅ Zona 1 detectada (Sistema de Zonas) - Iniciando Diálogo Interactivo")
+		print("✅ " .. CONFIG.ZONA_OBJETIVO .. " detectada - Iniciando Diálogo")
 
-		-- Generar y lanzar diálogo
-		local layersComplejas = DialogueGenerator.GenerarEstructura(DATA_DIALOGOS, SKIN_NAME)
+		local layersComplejas = DialogueGenerator.GenerarEstructura(DATA_DIALOGOS, CONFIG.SKIN_NAME)
 
 		dialogueKitModule.CreateDialogue({
 			InitialLayer = "Inicio", 
-			SkinName = SKIN_NAME, 
-			Config = script:FindFirstChild(SKIN_NAME .. "Config") or script, 
+			SkinName = CONFIG.SKIN_NAME, 
+			Config = script:FindFirstChild(CONFIG.SKIN_NAME .. "Config") or script, 
 			Layers = layersComplejas
 		})
 	end
 end
 
--- Listener para cambios de zona
+local player = game.Players.LocalPlayer
 player:GetAttributeChangedSignal("CurrentZone"):Connect(function()
 	local zona = player:GetAttribute("CurrentZone")
 	checkZone(zona)
 end)
 
--- Chequear estado inicial
 task.delay(1, function()
 	local zona = player:GetAttribute("CurrentZone")
 	if zona then checkZone(zona) end
 end)
+
+print("✅ Zona1_dialogo cargado (MODULAR)")
