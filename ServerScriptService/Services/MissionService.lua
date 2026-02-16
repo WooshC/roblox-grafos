@@ -176,6 +176,10 @@ function MissionService:resetMissions(player)
 	if not player then return end
 	playerMissions[player.UserId] = {}
 	playerSelections[player.UserId] = {}
+	
+	-- Resetear estado de victoria
+	player:SetAttribute("VictoryProcessed", nil)
+	player:SetAttribute("NivelCompletable", false)
 
 	if updateEvent then
 		-- Enviar reset de todas las misiones posibles
@@ -375,7 +379,51 @@ function MissionService:checkVictoryCondition(player)
 	if victoria then
 		-- Notificar (el botón finalizar aparece automáticamente)
 		player:SetAttribute("NivelCompletable", true)
-		print("🏆 MissionService: " .. player.Name .. " cumple condición de victoria (" .. condicion .. ")")
+		
+		-- 🔥 AUTOMÁTICO: Si es la primera vez que detectamos victoria en este run
+		if not player:GetAttribute("VictoryProcessed") then
+			player:SetAttribute("VictoryProcessed", true)
+			print("🏆 MissionService: " .. player.Name .. " completó nivel AUTOMÁTICAMENTE (" .. condicion .. ")")
+			
+			-- Ejecutar lógica de finalización (Rewards, Audio, UI)
+			local RewardService = _G.Services and _G.Services.Reward
+			local AudioService = _G.Services and _G.Services.Audio
+			local UIService = _G.Services and _G.Services.UI
+			
+			local nivelID = levelService:getCurrentLevelID()
+			
+			-- Obtener stats actuales
+			local stats = player:FindFirstChild("leaderstats")
+			local puntos = stats and stats:FindFirstChild("Puntos") and stats.Puntos.Value or 0
+			local estrellas = stats and stats:FindFirstChild("Estrellas") and stats.Estrellas.Value or 0
+			
+			-- Dar recompensas
+			if RewardService then RewardService:giveCompletionRewards(player, nivelID) end
+			
+			-- 🔥 GUARDAR PROGRESO (Sobrescribe HighScore con el actual)
+			if _G.CompleteLevel then
+				_G.CompleteLevel(player, estrellas, puntos)
+				print("💾 Progreso guardado: " .. puntos .. " pts | " .. estrellas .. "⭐")
+			else
+				warn("⚠️ _G.CompleteLevel no encontrado, no se guardó el progreso")
+			end
+			
+			-- Feedback visual/auditivo en server (opcional, el cliente también lo hará)
+			if UIService then UIService:notifyLevelComplete() end
+			if AudioService then AudioService:playVictoryMusic() end
+			
+			-- 🔥 DISPARAR EVENTO AL CLIENTE (Para abrir menú)
+			local Remotes = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Remotes")
+			local LevelCompletedEvent = Remotes:FindFirstChild("LevelCompleted")
+			
+			if LevelCompletedEvent then
+				LevelCompletedEvent:FireClient(player, nivelID, estrellas, puntos)
+				print("✅ LevelCompletedEvent disparado al cliente")
+			else
+				warn("⚠️ LevelCompletedEvent no encontrado en Remotes")
+			end
+		end
+		
 	else
 		player:SetAttribute("NivelCompletable", false)
 	end

@@ -47,10 +47,12 @@ if not GetProgressFunc or not RequestPlayEvent then return end
 -- Estado Local
 local NivelSeleccionado = nil
 local DatosJugador = nil 
+local ResultsLastRun = nil -- 🔥 Almacena resultados del último intento 
 
 -- Colores
 local ColorDesbloqueado = Color3.fromRGB(44, 62, 80)
 local ColorBloqueado = Color3.fromRGB(149, 165, 166)
+local ColorHighlight = Color3.fromRGB(241, 196, 15) -- Amarillo para destacar último run
 
 -- ============================================
 -- FUNCIONES DE UI
@@ -83,6 +85,13 @@ local function ActualizarPanelInfo(levelID)
 	local data = DatosJugador and DatosJugador.Levels[tostring(levelID)]
 	local estrellas = data and data.Stars or 0
 	local score = data and data.HighScore or 0
+	
+	-- 🔥 SI ES EL NIVEL RECIÉN COMPLETADO, MOSTRAR RESULTADOS DEL INTENTO
+	if ResultsLastRun and ResultsLastRun.LevelID == levelID then
+		estrellas = ResultsLastRun.Stars
+		score = ResultsLastRun.Score
+		print("🌟 Mostrando resultados del intento actual: " .. score .. " pts")
+	end
 	
 	if PuntajeTexto then PuntajeTexto.Text = "Récord: " .. score end
 	
@@ -249,7 +258,14 @@ end
 local LevelCompletedEvent = Remotes:WaitForChild("LevelCompleted", 5)
 if LevelCompletedEvent then
 	LevelCompletedEvent.OnClientEvent:Connect(function(nivelID, estrellas, puntos)
-		print("🏆 ¡Nivel " .. nivelID .. " Completado! " .. estrellas .. " Estrellas")
+		print("🏆 ¡Nivel " .. nivelID .. " Completado! " .. estrellas .. " Estrellas | " .. puntos .. " Pts")
+		
+		-- 🔥 GUARDAR RESULTADOS LOCALMENTE
+		ResultsLastRun = {
+			LevelID = nivelID,
+			Stars = estrellas,
+			Score = puntos
+		}
 		
 		task.wait(2) -- Esperar celebración en juego (si la hay)
 		
@@ -296,6 +312,16 @@ task.spawn(function()
 			task.wait(0.3) -- Esperar a que cámara se mueva
 			BloquearPanel()
 			CargarBotonesNiveles()
+			
+			-- 🔥 SI VENIMOS DE UN NIVEL, MOSTRAR SU INFO
+			if ResultsLastRun then
+				task.wait(0.1)
+				ActualizarPanelInfo(ResultsLastRun.LevelID)
+				
+				-- Limpiar para la próxima (opcional, o dejarlo un rato)
+				-- ResultsLastRun = nil 
+			end
+			
 			print("✅ Niveles actualizados")
 		end)
 		print("✅ LevelSelector: Escuchando evento OpenMenu")

@@ -79,12 +79,12 @@ end
 --- Establece la zona actual y recarga misiones
 function MissionsManager:setZone(zonaID)
 	zonaActual = zonaID
-	
+
 	-- Si el panel está visible, actualizar
 	if misionFrame and misionFrame.Visible then
 		self:_populateMissions()
 	end
-	
+
 	print("🗺️ MissionsManager: Zona cambiada a " .. tostring(zonaID))
 end
 
@@ -94,9 +94,9 @@ function MissionsManager:setViewMode(mode)
 		warn("⚠️ Modo inválido: " .. tostring(mode))
 		return
 	end
-	
+
 	modoVista = mode
-	
+
 	if misionFrame and misionFrame.Visible then
 		self:_populateMissions()
 	end
@@ -112,7 +112,7 @@ function MissionsManager:_populateMissions()
 
 	local nivelID = player:GetAttribute("CurrentLevelID") or 0
 	local config = LevelsConfig[nivelID] or LevelsConfig[0]
-	
+
 	-- Limpiar labels antiguos
 	for _, child in ipairs(misionFrame:GetChildren()) do
 		if child:IsA("TextLabel") and child ~= tituloMision then
@@ -122,26 +122,26 @@ function MissionsManager:_populateMissions()
 
 	-- 🔥 FILTRAR MISIONES SEGÚN MODO
 	local listaMisiones = {}
-	
+
 	if modoVista == "zona" and zonaActual and zonaActual ~= "" then
 		-- MODO ZONA: Mostrar solo misiones de la zona actual
 		listaMisiones = NivelUtils.getMissionsByZone(nivelID, zonaActual)
-		
+
 		-- Actualizar título
 		if tituloMision then
 			local zonaConfig = NivelUtils.getZoneConfig(nivelID, zonaActual)
 			tituloMision.Text = zonaConfig and zonaConfig.Descripcion or zonaActual
 		end
-		
+
 	elseif modoVista == "zona" and (not zonaActual or zonaActual == "") then
 		-- FUERA DE ZONA: Mostrar resumen de todas las zonas
 		self:_showZoneSummary(nivelID, config)
 		return
-		
+
 	else
 		-- MODO GENERAL: Mostrar todas las misiones
 		listaMisiones = config.Misiones or {}
-		
+
 		if tituloMision then
 			tituloMision.Text = "📋 MISIONES"
 		end
@@ -151,7 +151,7 @@ function MissionsManager:_populateMissions()
 	for i, misionConfig in ipairs(listaMisiones) do
 		self:_createMissionLabel(misionConfig, i)
 	end
-	
+
 	print("📋 MissionsManager: " .. #listaMisiones .. " misiones mostradas (modo: " .. modoVista .. ")")
 end
 
@@ -160,20 +160,20 @@ function MissionsManager:_showZoneSummary(nivelID, config)
 	if tituloMision then
 		tituloMision.Text = "🗺️ VISTA GENERAL"
 	end
-	
+
 	local zonas = NivelUtils.getZoneList(nivelID)
-	
+
 	for _, zona in ipairs(zonas) do
 		if not zona.Oculta then -- 🔥 NUEVO: Ocultar zonas no deseadas en resumen
 			local misiones = NivelUtils.getMissionsByZone(nivelID, zona.ID)
 			local completadas = 0
-			
+
 			for _, m in ipairs(misiones) do
 				if estadoMisiones[m.ID] then
 					completadas = completadas + 1
 				end
 			end
-			
+
 			-- Crear label de resumen
 			local lbl = Instance.new("TextLabel")
 			lbl.Size = UDim2.new(1, -10, 0, 30)
@@ -181,23 +181,23 @@ function MissionsManager:_showZoneSummary(nivelID, config)
 			lbl.BackgroundColor3 = completadas == #misiones 
 				and Color3.fromRGB(46, 204, 113) 
 				or Color3.fromRGB(52, 73, 94)
-			
+
 			local icon = completadas == #misiones and "✅" or "📍"
 			lbl.Text = string.format("%s %s (%d/%d)", icon, zona.Descripcion or zona.ID, completadas, #misiones)
-			
+
 			lbl.TextColor3 = Color3.new(1, 1, 1)
 			lbl.Font = Enum.Font.GothamMedium
 			lbl.TextSize = 14
 			lbl.TextXAlignment = Enum.TextXAlignment.Left
 			lbl.Parent = misionFrame
-			
+
 			-- Esquinas redondeadas
 			local corner = Instance.new("UICorner")
 			corner.CornerRadius = UDim.new(0, 6)
 			corner.Parent = lbl
 		end
 	end
-	
+
 	-- Misiones bonus (sin zona)
 	local bonus = NivelUtils.getGlobalMissions(nivelID)
 	if #bonus > 0 then
@@ -210,7 +210,7 @@ function MissionsManager:_showZoneSummary(nivelID, config)
 		sepLabel.TextSize = 16
 		sepLabel.TextXAlignment = Enum.TextXAlignment.Left
 		sepLabel.Parent = misionFrame
-		
+
 		for _, mision in ipairs(bonus) do
 			self:_createMissionLabel(mision, mision.ID)
 		end

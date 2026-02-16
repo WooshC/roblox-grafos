@@ -232,12 +232,16 @@ if LevelCompletedEvent then
 		if UIService then UIService:notifyLevelComplete() end
 		if AudioService then AudioService:playVictoryMusic() end
 
-		task.wait(2)
+		-- Notificar al cliente (Menú / Victoria)
+		if LevelCompletedEvent then
+			LevelCompletedEvent:FireClient(player, nivelID, estrellas, puntos)
+		end
+		
+		-- Intentar avisar a otros scripts del server (opcional)
 		local Bindables = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Bindables")
 		local OpenMenuEvent = Bindables:FindFirstChild("OpenMenu")
 		if OpenMenuEvent then
 			OpenMenuEvent:Fire()
-			LevelCompletedEvent:FireClient(player, nivelID, estrellas, puntos)
 		end
 	end)
 end
