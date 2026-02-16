@@ -205,9 +205,9 @@ local function createUnifiedGUI()
 	modeLayout.Parent = modeSelector
 
 	local modes = {
-		{Name = "Visual", Color = Theme.Colors.Visual},
-		{Name = "Matriz", Color = Theme.Colors.Matrix},
-		{Name = "Analisis", Color = Theme.Colors.Analysis},
+		{Name = "Modo Visual", Color = Theme.Colors.Visual},
+		{Name = "Modo Matriz", Color = Theme.Colors.Matrix},
+		{Name = "Modo Analisis", Color = Theme.Colors.Analysis},
 	}
 
 	local modeButtons = {}

@@ -16,14 +16,24 @@ local eventoReiniciar = remotes:WaitForChild("ReiniciarNivel")
 -- ==========================================
 -- CABLE DRAGGING LOGIC
 -- ==========================================
--- ==========================================
--- CABLE DRAGGING LOGIC
--- ==========================================
 local hazActual = nil
 local attJugadorActual = nil
 local highlights = {} -- Lista de Highlights activos
 
+local originalProperties = {} -- Restaurar propiedades originales
+
 local function clearHighlights()
+	-- Restaurar propiedades de las partes modificadas
+	for part, props in pairs(originalProperties) do
+		if part and part.Parent then
+			part.Color = props.Color
+			part.Material = props.Material
+			part.Transparency = props.Transparency
+		end
+	end
+	originalProperties = {}
+
+	-- Eliminar Highlights
 	for _, h in pairs(highlights) do
 		if h then h:Destroy() end
 	end
@@ -36,14 +46,35 @@ local function highlightNeighbors(neighbors)
 	
 	for _, node in ipairs(neighbors) do
 		if node and node:IsA("Model") then
-			local h = Instance.new("Highlight")
-			h.Name = "NeighborHighlight"
-			h.FillColor = Color3.fromRGB(0, 255, 0) -- Verde para indicar válido
-			h.OutlineColor = Color3.fromRGB(255, 255, 255)
-			h.FillTransparency = 0.5
-			h.OutlineTransparency = 0
-			h.Parent = node
-			table.insert(highlights, h)
+			-- ✅ Usar recursivo true por si acaso, aunque el screenshot muestra hijo directo
+			local selector = node:FindFirstChild("Selector", true)
+			
+			if selector and selector:IsA("BasePart") then
+				-- 1. Guardar propiedades originales
+				originalProperties[selector] = {
+					Color = selector.Color,
+					Material = selector.Material,
+					Transparency = selector.Transparency
+				}
+				
+				-- 2. Cambiar apariencia física (Neon Amarillo)
+				selector.Color = Color3.fromRGB(255, 255, 0)
+				selector.Material = Enum.Material.Neon
+				selector.Transparency = 0
+				
+				-- 3. Agregar Highlight (Outline)
+				local h = Instance.new("Highlight")
+				h.Name = "NeighborHighlight"
+				h.Adornee = selector -- ✅ CLAVE: Usar Adornee explícitamente
+				h.FillColor = Color3.fromRGB(255, 255, 0)
+				h.OutlineColor = Color3.fromRGB(255, 255, 255)
+				h.FillTransparency = 0.5
+				h.OutlineTransparency = 0
+				h.Parent = node -- Parentear al Modelo contenedor, no a la parte
+				table.insert(highlights, h)
+			else
+				warn("⚠️ [VisualEffects] Selector NO encontrado en " .. node.Name)
+			end
 		end
 	end
 end
