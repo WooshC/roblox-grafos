@@ -219,14 +219,39 @@ function setupLevelForPlayer(player, levelId, config)
 	-- Asegurar que leaderstats existan antes de entrar al nivel
 	setupLeaderstats(player)
 	
-	local nivelModel = NivelUtils.obtenerModeloNivel(levelId)
-	if not nivelModel then
-		warn("⚠️ Modelo de nivel no encontrado, esperando...")
-		task.wait(1)
+	local nivelModel = nil
+
+	-- 1. Intentar con NivelUtils
+	if NivelUtils and NivelUtils.obtenerModeloNivel then
 		nivelModel = NivelUtils.obtenerModeloNivel(levelId)
 	end
 
-	local targetPosition = NivelUtils.obtenerPosicionSpawn(levelId)
+	-- 2. Fallback: Buscar en Workspace directamente
+	if not nivelModel then
+		nivelModel = Workspace:FindFirstChild("Nivel" .. levelId) or
+					Workspace:FindFirstChild("Nivel" .. levelId .. "_Tutorial") or
+					Workspace:FindFirstChild("NivelActual")
+	end
+
+	-- 3. Verificar si se encontró
+	if not nivelModel then
+		warn("⚠️ ManagerData: Modelo de nivel no encontrado para ID: " .. levelId)
+	end
+
+	local targetPosition = nil
+
+	-- 4. Intentar obtener spawn con utilidades
+	if NivelUtils and NivelUtils.obtenerPosicionSpawn then
+		targetPosition = NivelUtils.obtenerPosicionSpawn(levelId)
+	end
+
+	-- 5. Fallback manual para spawn
+	if not targetPosition and nivelModel then
+		local spawn = nivelModel:FindFirstChild("SpawnLocation") or nivelModel:FindFirstChild("Spawn")
+		if spawn then
+			targetPosition = spawn.Position + Vector3.new(0, 5, 0)
+		end
+	end
 	if targetPosition then
 		task.wait(0.5) 
 		rootPart.CFrame = CFrame.new(targetPosition)
