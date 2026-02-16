@@ -1,6 +1,5 @@
--- ServerScriptService/Services/MissionService.lua
--- REFACTORIZADO: Validadores universales para todos los niveles
--- Soporta: zonas, grado, aristas dirigidas, conectividad, selección
+-- ServerScriptService/Services/MissionService.lua (CORREGIDO)
+-- FIX: Ahora actualiza estrellas cuando se completan misiones
 
 local MissionService = {}
 MissionService.__index = MissionService
@@ -53,8 +52,7 @@ Validators.GRADO_NODO = function(params, estado)
 	return (grados[nodo] or 0) >= requerido
 end
 
--- Existe cable entre NodoOrigen y NodoDestino (para aristas dirigidas
--- la validación de dirección ya la hace Adyacencias al conectar)
+-- Existe cable entre NodoOrigen y NodoDestino (para aristas dirigidas)
 Validators.ARISTA_DIRIGIDA = function(params, estado)
 	local origen = params.NodoOrigen
 	local destino = params.NodoDestino
@@ -451,7 +449,7 @@ function MissionService:getZoneProgress(player, zonaID)
 end
 
 -- ============================================
--- COMPLETAR MISIÓN
+-- COMPLETAR MISIÓN (CORREGIDO)
 -- ============================================
 
 function MissionService:completeMission(player, missionId)
@@ -467,23 +465,49 @@ function MissionService:completeMission(player, missionId)
 
 	print("🎉 Misión " .. missionId .. " completada por " .. player.Name)
 
-	-- Sumar puntos
+	-- 🔥 OBTENER CONFIG Y SUMAR PUNTOS
 	if levelService then
 		local config = levelService:getLevelConfig()
 		if config and config.Misiones then
 			for _, mc in ipairs(config.Misiones) do
 				if mc.ID == missionId and (mc.Puntos or 0) > 0 then
 					local ls = player:FindFirstChild("leaderstats")
-					local puntos = ls and ls:FindFirstChild("Puntos")
-					if puntos then
-						puntos.Value = puntos.Value + mc.Puntos
-						print("💰 +" .. mc.Puntos .. " pts (Total: " .. puntos.Value .. ")")
+					if ls then
+						local puntos = ls:FindFirstChild("Puntos")
+						if puntos then
+							puntos.Value = puntos.Value + mc.Puntos
+							print("💰 +" .. mc.Puntos .. " pts (Total: " .. puntos.Value .. ")")
+							
+							-- 🔥 NUEVA: Calcular y actualizar estrellas automáticamente
+							local estrellas = ls:FindFirstChild("Estrellas")
+							if estrellas then
+								local nuevasEstrellas = self:_calcularEstrellas(puntos.Value, levelService:getCurrentLevelID())
+								if nuevasEstrellas ~= estrellas.Value then
+									estrellas.Value = nuevasEstrellas
+									print("⭐ Estrellas actualizadas a: " .. nuevasEstrellas)
+								end
+							end
+						end
 					end
 					break
 				end
 			end
 		end
 	end
+end
+
+-- 🔥 NUEVA FUNCIÓN: Calcular estrellas
+function MissionService:_calcularEstrellas(puntos, nivelID)
+	local config = LevelsConfig[nivelID]
+	if not config or not config.Puntuacion then
+		return 0
+	end
+
+	local p = config.Puntuacion
+	if puntos >= (p.TresEstrellas or math.huge) then return 3 end
+	if puntos >= (p.DosEstrellas or math.huge) then return 2 end
+	if puntos > 0 then return 1 end
+	return 0
 end
 
 function MissionService:getMissionStatus(player, missionId)

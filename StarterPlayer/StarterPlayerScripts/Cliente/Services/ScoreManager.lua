@@ -20,6 +20,10 @@ local lblPuntaje = nil
 local puntajeLabel = nil
 local estrellaLabel = nil
 
+-- Referencias para la NUEVA GUI (GUIExplorador)
+local lblPuntosNew = nil
+local lblEstrellasNew = nil
+
 -- Variables de estado
 local puntosActuales = 0
 local estrellasActuales = 0
@@ -40,7 +44,36 @@ function ScoreManager.initialize(gui)
 		estrellaLabel = scoreFrame:FindFirstChild("EstrellaLabel")
 	end
 
+	-- Intentar buscar referencias de la NUEVA GUI si se pasó esa
+	if gui.Name == "GUIExplorador" then
+		ScoreManager:setupNewReferences(gui)
+	end
+
 	print("✅ ScoreManager: Inicializado")
+end
+
+--- Configura referencias para la nueva estructura de GUI
+function ScoreManager:setupNewReferences(gui)
+	local barra = gui:WaitForChild("BarraSuperior", 5)
+	if not barra then return end
+
+	local panel = barra:WaitForChild("PanelPuntuacion", 5)
+	if not panel then return end
+
+	local contPuntos = panel:FindFirstChild("ContenedorPuntos")
+	if contPuntos then
+		lblPuntosNew = contPuntos:FindFirstChild("Valor")
+	end
+
+	local contEstrellas = panel:FindFirstChild("ContenedorEstrellas")
+	if contEstrellas then
+		lblEstrellasNew = contEstrellas:FindFirstChild("Valor")
+	end
+
+	if lblPuntosNew or lblEstrellasNew then
+		print("✅ ScoreManager: Referencias de NUEVA GUI conectadas")
+		self:updateScore()
+	end
 end
 
 --- ✅ NUEVA FUNCIÓN: Calcular estrellas basado en puntos y nivel
@@ -52,7 +85,7 @@ local function calcularEstrellas(puntos, nivelID)
 	end
 
 	local thresholds = config.Puntuacion
-	
+
 	-- Lógica: Comparar puntos con thresholds
 	if puntos >= (thresholds.TresEstrellas or 1000) then
 		return 3
@@ -68,6 +101,18 @@ end
 --- Inicia listeners de cambios en stats
 function ScoreManager:init()
 	task.spawn(function()
+		-- Buscar GUIExplorador automáticamente si no se ha configurado
+		if not lblPuntosNew then
+			local playerGui = player:WaitForChild("PlayerGui", 10)
+			if playerGui then
+				local newGui = playerGui:WaitForChild("GUIExplorador", 5)
+				if newGui then
+					self:setupNewReferences(newGui)
+				end
+			end
+		end
+
+		-- Esperar a que el jugador tenga leaderstats
 		-- Esperar a que el jugador tenga leaderstats
 		local stats = player:WaitForChild("leaderstats", 10)
 		if not stats then
@@ -89,21 +134,21 @@ function ScoreManager:init()
 			puntos.Changed:Connect(function(newValue)
 				puntosActuales = newValue
 				print("💰 [ScoreManager] Puntos cambiaron a: " .. newValue)
-				
+
 				-- ✅ CÁLCULO AUTOMÁTICO DE ESTRELLAS
 				local nivelID = player:GetAttribute("CurrentLevelID") or 0
 				local nuevasEstrellas = calcularEstrellas(newValue, nivelID)
-				
+
 				-- Actualizar leaderstats.Estrellas si cambió
 				if estrellas and nuevasEstrellas ~= estrellas.Value then
 					estrellas.Value = nuevasEstrellas
 					print("⭐ [ScoreManager] Estrellas actualizadas a: " .. nuevasEstrellas .. 
 						" (puntos: " .. newValue .. ", nivel: " .. nivelID .. ")")
-					
+
 					-- ✅ FIX DE TIMING: Esperar un frame para que se propague el cambio
 					task.wait()
 				end
-				
+
 				self:updateScore()  -- 🔥 ACTUALIZAR DESPUÉS de cambiar estrellas
 			end)
 		end
@@ -156,7 +201,7 @@ function ScoreManager:updateScore()
 	if estrellas then
 		eVal = estrellas.Value  -- ✅ Leer valor ACTUAL de leaderstats
 	end
-	
+
 	if estrellaLabel then
 		local textoEstrellas = ""
 
@@ -185,6 +230,18 @@ function ScoreManager:updateScore()
 		else
 			print("ℹ️ [ScoreManager] LabelPuntaje igual, no necesita cambio")
 		end
+	end
+
+	-- 4️⃣ Actualizar NUEVA GUI (GUIExplorador)
+	if lblPuntosNew then
+		local pVal = puntos and puntos.Value or 0
+		lblPuntosNew.Text = tostring(pVal)
+	end
+
+	if lblEstrellasNew then
+		local eVal = 0
+		if estrellas then eVal = estrellas.Value end
+		lblEstrellasNew.Text = eVal .. "/3"
 	end
 end
 

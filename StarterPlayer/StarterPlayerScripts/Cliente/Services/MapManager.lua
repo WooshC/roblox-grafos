@@ -1,334 +1,299 @@
--- ================================================================
--- MapManager.lua (CORREGIDO)
--- Gestiona activación/desactivación de vista de mapa
--- ✅ ARREGLO: Llama updateAllPositions() en el loop de renderizado
--- ================================================================
+-- StarterPlayer/StarterPlayerScripts/Cliente/Services/MissionsManager.lua (CORREGIDO)
+-- FIX: Implementado toggle() para abrir/cerrar panel de misiones
 
-local MapManager = {}
-MapManager.__index = MapManager
+local MissionsManager = {}
+MissionsManager.__index = MissionsManager
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- Dependencias
 local LevelsConfig = nil
-local NodeLabelManager = nil
-local MissionsManager = nil
+local NivelUtils = require(ReplicatedStorage:WaitForChild("Utilidades"):WaitForChild("NivelUtils"))
 local player = Players.LocalPlayer
-local camera = workspace.CurrentCamera
 
 -- Estado
 local state = nil
-local screenGui = nil
-local btnMapa = nil
-local camaraConnection = nil
-local techoOriginalTransparency = {}
+local misionFrame = nil
+local tituloMision = nil
+local estadoMisiones = {false, false, false, false, false, false, false, false}
+local zonaActual = nil  -- 🔥 Zona actual del jugador
+local modoVista = "zona"  -- 🔥 "zona" o "general"
+local panelVisible = false  -- 🔥 NUEVO: Track si el panel está visible
 
 -- ================================================================
 -- INICIALIZACIÓN
 -- ================================================================
 
---- Inyecta dependencias y referencias
-function MapManager.initialize(globalState, screenGui_ref, deps)
+--- Inyecta dependencias y referencias de UI
+function MissionsManager.initialize(globalState, screenGui, deps)
 	state = globalState
-	screenGui = screenGui_ref
-	btnMapa = screenGui:WaitForChild("BtnMapa", 5)
 	LevelsConfig = deps.LevelsConfig
-	NodeLabelManager = deps.NodeLabelManager
-	MissionsManager = deps.MissionsManager
 
-	print("✅ MapManager: Inicializado")
+	misionFrame = screenGui:WaitForChild("MisionFrame", 5)
+	tituloMision = misionFrame and misionFrame:FindFirstChild("Titulo")
+
+	-- 🔥 NUEVO: Listener para cambios de zona del jugador
+	player:GetAttributeChangedSignal("CurrentZone"):Connect(function()
+		local newZone = player:GetAttribute("CurrentZone")
+		MissionsManager:setZone(newZone)
+	end)
+
+	print("✅ MissionsManager: Inicializado con soporte de zonas")
 end
 
---- Activa/desactiva el mapa
-function MapManager:toggle(forceState)
+--- 🔥 FIX: Activa/desactiva panel de misiones
+function MissionsManager:toggle(forceState)
 	if forceState ~= nil then
-		if forceState then self:enable() else self:disable() end
+		if forceState then self:show() else self:hide() end
 		return
 	end
 
-	if state.mapaActivo then
-		self:disable()
+	if panelVisible then
+		self:hide()
 	else
-		self:enable()
+		self:show()
 	end
 end
 
---- Activa vista de mapa
-function MapManager:enable()
-	state.mapaActivo = true
-
-	-- Cambiar apariencia del botón
-	if btnMapa then
-		btnMapa.Text = "CERRAR MAPA"
-		btnMapa.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
-	end
-
-	-- Cambiar cámara a modo scripteado
-	camera.CameraType = Enum.CameraType.Scriptable
-
-	-- Mostrar etiquetas de nodos
-	if NodeLabelManager then
-		NodeLabelManager:show()
-	end
-
-	-- Mostrar panel de misiones
-	if MissionsManager then
-		MissionsManager:show()
-	end
-
-	-- Transparentar techos
-	self:_setRoofsTransparency(0.95)
-
-	-- Poblar Etiquetas (Estilo Original)
-	self:_populateLabels()
-
-	-- Iniciar loop de cámara
-	self:_startCameraLoop()
-
-
-end
-
---- Desactiva vista de mapa
-function MapManager:disable()
-	state.mapaActivo = false
-
-	-- Cambiar apariencia del botón
-	if btnMapa then
-		btnMapa.Text = "🗺️ MAPA"
-		btnMapa.BackgroundColor3 = Color3.fromRGB(52, 152, 219)
-	end
-
-	-- Cambiar cámara a modo normal (si no estamos en menú)
-	-- Si estamos en menú, VisibilityManager o la lógica de menú manejará la cámara
-	-- Pero para salir de modo mapa, volvemos a Custom a menos que estemos en menú
-	if not state.enMenu then
-		camera.CameraType = Enum.CameraType.Custom
-	end
-
-	-- Ocultar etiquetas
-	if NodeLabelManager then
-		NodeLabelManager:hide()
-	end
-
-	-- Ocultar panel de misiones
-	if MissionsManager then
-		MissionsManager:hide()
-	end
-
-	-- Restaurar techos
-	self:_restoreRoofs()
-
-	-- Detener loop de cámara
-	if camaraConnection then
-		camaraConnection:Disconnect()
-		camaraConnection = nil
-	end
-
-	-- Restaurar selectores
-	self:_restoreSelectors()
-
-
-end
-
---- Inicia el loop de renderizado de la cámara
-function MapManager:_startCameraLoop()
-	local char = player.Character
-	local root = char and char:FindFirstChild("HumanoidRootPart")
-
-	local nivelID = player:GetAttribute("CurrentLevelID") or 0
-	local config = LevelsConfig[nivelID] or LevelsConfig[0]
-	local nombreInicio = config.NodoInicio
-	local nombreFin = config.NodoFin
-
-	local nivelModel = self:_getLevelModel(nivelID, config)
-	if not nivelModel then return end
-
-	local postesFolder = nivelModel:FindFirstChild("Objetos") and nivelModel.Objetos:FindFirstChild("Postes")
-
-	if camaraConnection then
-		camaraConnection:Disconnect()
-	end
-
-	camaraConnection = RunService.RenderStepped:Connect(function()
-		if not root or not player.Character then return end
-
-		local centro = root.Position
-
-		-- Actualizar posición de cámara
-		camera.CFrame = CFrame.new(centro + Vector3.new(0, state.zoomLevel, 0), centro)
-
-		-- ✅ ARREGLO: Actualizar posiciones de TODAS las etiquetas en cada frame
-		if NodeLabelManager then
-			NodeLabelManager:updateAllPositions()
-		end
-
-		-- Actualizar selectores y etiquetas
-		if postesFolder then
-			for _, poste in ipairs(postesFolder:GetChildren()) do
-				if poste:IsA("Model") then
-					self:_updateNodeSelector(poste, nombreInicio, nombreFin)
-					self:_updateNodeLabel(poste, centro)
-				end
-			end
-		end
-	end)
-end
-
---- Actualiza apariencia del selector de un nodo
-function MapManager:_updateNodeSelector(poste, nombreInicio, nombreFin)
-	local selector = poste:FindFirstChild("Selector")
-	if not selector or not selector:IsA("BasePart") then return end
-
-	selector.Transparency = 0
-
-	local energizado = poste:GetAttribute("Energizado")
-	local esInicio = (poste.Name == nombreInicio)
-	local esFin = (poste.Name == nombreFin)
-
-	if esInicio then
-		-- Nodo de inicio: Azul Neon
-		selector.Color = Color3.fromRGB(52, 152, 219)
-		selector.Material = Enum.Material.Neon
-	elseif energizado ~= true then
-		-- No energizado: Rojo Neon + grande
-		selector.Color = Color3.fromRGB(231, 76, 60)
-		selector.Material = Enum.Material.Neon
-
-		if not selector:GetAttribute("OriginalSize") then
-			selector:SetAttribute("OriginalSize", selector.Size)
-		end
-
-		local origSize = selector:GetAttribute("OriginalSize")
-		if origSize then
-			selector.Size = origSize * 1.3
-		end
-	else
-		-- Energizado: Verde Plastic
-		selector.Color = Color3.fromRGB(46, 204, 113)
-		selector.Material = Enum.Material.Plastic
-
-		local origSize = selector:GetAttribute("OriginalSize")
-		if origSize then
-			selector.Size = origSize
-		end
-	end
-end
-
---- Actualiza etiqueta de distancia de un nodo
-function MapManager:_updateNodeLabel(poste, centroCamara)
-	if not NodeLabelManager then return end
-	local obj = NodeLabelManager:getLabelForNode(poste)
-	if not obj then return end
-
-	local distancia = math.floor((poste:GetPivot().Position - centroCamara).Magnitude / 5)
-
-	-- Actualizar distancia
-	NodeLabelManager:updateNodeDistance(poste, distancia)
-
-	-- Añadir indicador META si es necesario
-	local nivelID = player:GetAttribute("CurrentLevelID") or 0
-	NodeLabelManager:addMetaIndicator(poste, nivelID)
-end
-
---- Establece transparencia de techos
-function MapManager:_setRoofsTransparency(alpha)
-	local nivelModel = self:_getLevelModel(player:GetAttribute("CurrentLevelID") or 0, nil)
-	if not nivelModel then return end
-
-	local techosFolder = nivelModel:FindFirstChild("Techos")
-	if not techosFolder then return end
-
-	table.clear(techoOriginalTransparency)
-
-	for _, techo in ipairs(techosFolder:GetChildren()) do
-		if techo:IsA("BasePart") then
-			techoOriginalTransparency[techo] = techo.Transparency
-			techo.Transparency = alpha
-			techo.CastShadow = false
-		end
-	end
-end
-
---- Restaura transparencia original de techos
-function MapManager:_restoreRoofs()
-	for techo, trans in pairs(techoOriginalTransparency) do
-		if techo and techo:IsA("BasePart") then
-			techo.Transparency = trans
-			techo.CastShadow = true
-		end
-	end
-	table.clear(techoOriginalTransparency)
-end
-
---- Restaura selectores a estado invisible
-function MapManager:_restoreSelectors()
-	local nivelModel = self:_getLevelModel(player:GetAttribute("CurrentLevelID") or 0, nil)
-	if not nivelModel then return end
-
-	local postesFolder = nivelModel:FindFirstChild("Objetos") and nivelModel.Objetos:FindFirstChild("Postes")
-	if not postesFolder then return end
-
-	for _, poste in ipairs(postesFolder:GetChildren()) do
-		if poste:IsA("Model") then
-			local selector = poste:FindFirstChild("Selector")
-			if selector and selector:IsA("BasePart") then
-				selector.Transparency = 1
-				selector.Color = Color3.fromRGB(196, 196, 196)
-				selector.Material = Enum.Material.Plastic
-
-				local origSize = selector:GetAttribute("OriginalSize")
-				if origSize then
-					selector.Size = origSize
-				end
-			end
-		end
-	end
-end
-
---- Obtiene modelo del nivel
-function MapManager:_getLevelModel(nivelID, config)
-	local nivelModel = workspace:FindFirstChild("NivelActual")
-	if nivelModel then return nivelModel end
-
-	if config then
-		nivelModel = workspace:FindFirstChild(config.Modelo)
-		if nivelModel then return nivelModel end
-	end
-
-	nivelModel = workspace:FindFirstChild("Nivel" .. nivelID)
-	if nivelModel then return nivelModel end
-
-	return workspace:FindFirstChild("Nivel" .. nivelID .. "_Tutorial")
-end
-
---- Poblar etiquetas inmediatamente (similar al script original)
-function MapManager:_populateLabels()
-	local nivelID = player:GetAttribute("CurrentLevelID") or 0
-	local config = LevelsConfig[nivelID] or LevelsConfig[0]
-	local nivelModel = self:_getLevelModel(nivelID, config)
-
-	if not nivelModel then 
-		warn("⚠️ MapManager: No se encontró modelo de nivel para etiquetas")
+--- Muestra panel de misiones
+function MissionsManager:show()
+	if not misionFrame then 
+		warn("❌ MissionsManager: misionFrame no encontrado")
 		return 
 	end
 
-	local postesFolder = nivelModel:FindFirstChild("Objetos") and nivelModel.Objetos:FindFirstChild("Postes")
-	if not postesFolder then
-		warn("⚠️ MapManager: No se encontró carpeta de Postes")
+	misionFrame.Visible = true
+	panelVisible = true
+	self:_populateMissions()
+	
+	print("📋 MissionsManager: Panel abierto")
+end
+
+--- Oculta panel de misiones
+function MissionsManager:hide()
+	if not misionFrame then return end
+
+	misionFrame.Visible = false
+	panelVisible = false
+	
+	print("📋 MissionsManager: Panel cerrado")
+end
+
+-- ================================================================
+-- GESTIÓN DE ZONAS
+-- ================================================================
+
+--- Establece la zona actual y recarga misiones
+function MissionsManager:setZone(zonaID)
+	zonaActual = zonaID
+	
+	-- Si el panel está visible, actualizar
+	if panelVisible then
+		self:_populateMissions()
+	end
+	
+	print("🗺️ MissionsManager: Zona cambiada a " .. tostring(zonaID))
+end
+
+--- Cambia entre vista por zona o vista general
+function MissionsManager:setViewMode(mode)
+	if mode ~= "zona" and mode ~= "general" then
+		warn("⚠️ Modo inválido: " .. tostring(mode))
 		return
 	end
+	
+	modoVista = mode
+	
+	if panelVisible then
+		self:_populateMissions()
+	end
+end
 
+-- ================================================================
+-- POBLACIÓN DE MISIONES (ACTUALIZADO)
+-- ================================================================
 
+--- Llena el panel con misiones filtradas
+function MissionsManager:_populateMissions()
+	if not misionFrame then return end
 
-	for _, poste in ipairs(postesFolder:GetChildren()) do
-		if poste:IsA("Model") then
-			-- Crear etiqueta inmediatamente
-			if NodeLabelManager then
-				NodeLabelManager:getLabelForNode(poste)
+	local nivelID = player:GetAttribute("CurrentLevelID") or 0
+	local config = LevelsConfig[nivelID] or LevelsConfig[0]
+	
+	-- Limpiar labels antiguos
+	for _, child in ipairs(misionFrame:GetChildren()) do
+		if child:IsA("TextLabel") and child ~= tituloMision then
+			child:Destroy()
+		end
+	end
+
+	-- 🔥 FILTRAR MISIONES SEGÚN MODO
+	local listaMisiones = {}
+	
+	if modoVista == "zona" and zonaActual and zonaActual ~= "" then
+		-- MODO ZONA: Mostrar solo misiones de la zona actual
+		listaMisiones = NivelUtils.getMissionsByZone(nivelID, zonaActual)
+		
+		-- Actualizar título
+		if tituloMision then
+			local zonaConfig = NivelUtils.getZoneConfig(nivelID, zonaActual)
+			tituloMision.Text = zonaConfig and zonaConfig.Descripcion or zonaActual
+		end
+		
+	elseif modoVista == "zona" and (not zonaActual or zonaActual == "") then
+		-- FUERA DE ZONA: Mostrar resumen de todas las zonas
+		self:_showZoneSummary(nivelID, config)
+		return
+		
+	else
+		-- MODO GENERAL: Mostrar todas las misiones
+		listaMisiones = config.Misiones or {}
+		
+		if tituloMision then
+			tituloMision.Text = "📋 MISIONES"
+		end
+	end
+
+	-- Crear labels para cada misión
+	for i, misionConfig in ipairs(listaMisiones) do
+		self:_createMissionLabel(misionConfig, i)
+	end
+	
+	print("📋 MissionsManager: " .. #listaMisiones .. " misiones mostradas (modo: " .. modoVista .. ")")
+end
+
+--- 🔥 NUEVO: Muestra resumen de zonas cuando está fuera
+function MissionsManager:_showZoneSummary(nivelID, config)
+	if tituloMision then
+		tituloMision.Text = "🗺️ VISTA GENERAL"
+	end
+	
+	local zonas = NivelUtils.getZoneList(nivelID)
+	
+	for _, zona in ipairs(zonas) do
+		local misiones = NivelUtils.getMissionsByZone(nivelID, zona.ID)
+		local completadas = 0
+		
+		for _, m in ipairs(misiones) do
+			if estadoMisiones[m.ID] then
+				completadas = completadas + 1
 			end
+		end
+		
+		-- Crear label de resumen
+		local lbl = Instance.new("TextLabel")
+		lbl.Size = UDim2.new(1, -10, 0, 30)
+		lbl.BackgroundTransparency = 0.7
+		lbl.BackgroundColor3 = completadas == #misiones 
+			and Color3.fromRGB(46, 204, 113) 
+			or Color3.fromRGB(52, 73, 94)
+		
+		local icon = completadas == #misiones and "✅" or "📍"
+		lbl.Text = string.format("%s %s (%d/%d)", icon, zona.Descripcion or zona.ID, completadas, #misiones)
+		
+		lbl.TextColor3 = Color3.new(1, 1, 1)
+		lbl.Font = Enum.Font.GothamMedium
+		lbl.TextSize = 14
+		lbl.TextXAlignment = Enum.TextXAlignment.Left
+		lbl.Parent = misionFrame
+		
+		-- Esquinas redondeadas
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 6)
+		corner.Parent = lbl
+	end
+	
+	-- Misiones bonus (sin zona)
+	local bonus = NivelUtils.getGlobalMissions(nivelID)
+	if #bonus > 0 then
+		local sepLabel = Instance.new("TextLabel")
+		sepLabel.Size = UDim2.new(1, 0, 0, 25)
+		sepLabel.BackgroundTransparency = 1
+		sepLabel.Text = "⭐ BONUS"
+		sepLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
+		sepLabel.Font = Enum.Font.GothamBold
+		sepLabel.TextSize = 16
+		sepLabel.TextXAlignment = Enum.TextXAlignment.Left
+		sepLabel.Parent = misionFrame
+		
+		for _, mision in ipairs(bonus) do
+			self:_createMissionLabel(mision, mision.ID)
 		end
 	end
 end
 
-return MapManager
+--- Crea un label para una misión
+function MissionsManager:_createMissionLabel(misionConfig, indice)
+	local lbl = Instance.new("TextLabel")
+	lbl.Size = UDim2.new(1, -10, 0, 25)
+	lbl.BackgroundTransparency = 1
+
+	-- Extraer texto de la misión
+	local texto = type(misionConfig) == "table" 
+		and (misionConfig.Texto or "Misión sin texto") 
+		or tostring(misionConfig)
+
+	-- Aplicar estado guardado
+	if estadoMisiones[indice] or (type(misionConfig) == "table" and estadoMisiones[misionConfig.ID]) then
+		lbl.Text = "✅ " .. texto
+		lbl.TextColor3 = Color3.fromRGB(46, 204, 113)
+		lbl.TextTransparency = 0.3
+	else
+		lbl.Text = "  " .. texto
+		lbl.TextColor3 = Color3.new(1, 1, 1)
+		lbl.TextTransparency = 0
+	end
+
+	lbl.Font = Enum.Font.GothamMedium
+	lbl.TextSize = 14
+	lbl.TextXAlignment = Enum.TextXAlignment.Left
+	lbl.TextWrapped = true
+	lbl.AutomaticSize = Enum.AutomaticSize.Y
+	lbl.Parent = misionFrame
+end
+
+-- ================================================================
+-- ACTUALIZACIÓN DE ESTADO
+-- ================================================================
+
+--- Actualiza estado de una misión específica
+function MissionsManager:updateMissionStatus(indice, completada)
+	estadoMisiones[indice] = completada
+
+	if not panelVisible then
+		return
+	end
+
+	-- Buscar label correspondiente
+	local labels = {}
+	for _, child in ipairs(misionFrame:GetChildren()) do
+		if child:IsA("TextLabel") and child ~= tituloMision then
+			table.insert(labels, child)
+		end
+	end
+
+	local lbl = labels[indice]
+	if lbl and not string.find(lbl.Text, "✅") then
+		lbl.TextColor3 = Color3.fromRGB(46, 204, 113)
+		lbl.TextTransparency = 0.3
+		lbl.Text = "✅ " .. lbl.Text
+		print("✅ Misión " .. indice .. " marcada como completada en UI")
+	end
+end
+
+--- Obtiene estado de misión
+function MissionsManager:getMissionStatus(indice)
+	return estadoMisiones[indice] or false
+end
+
+--- Resetea todas las misiones
+function MissionsManager:resetAll()
+	for i = 1, 8 do
+		estadoMisiones[i] = false
+	end
+	zonaActual = nil
+	panelVisible = false
+end
+
+return MissionsManager

@@ -45,7 +45,16 @@ end
 
 --- Activa/desactiva panel de misiones
 function MissionsManager:toggle()
-	warn("MissionsManager: toggle() should be overwritten by ClienteUI")
+	if not misionFrame then 
+		warn("❌ MissionsManager: MisionFrame no referencia")
+		return 
+	end
+
+	if misionFrame.Visible then
+		self:hide()
+	else
+		self:show()
+	end
 end
 
 --- Muestra panel de misiones

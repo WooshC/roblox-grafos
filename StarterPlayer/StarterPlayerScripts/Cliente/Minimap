@@ -46,32 +46,6 @@ print("✅ [MinimapIntegrado] ContenedorMiniMapa encontrado")
 
 local vista = contenedorMiniMapa:FindFirstChild("Vista")
 
--- Si Vista existe pero no es ViewportFrame, debemos reemplazarla
-if vista and not vista:IsA("ViewportFrame") then
-	print("⚠️ [MinimapIntegrado] Vista existe pero no es ViewportFrame, reemplazando...")
-	vista:Destroy()
-	vista = nil
-end
-
--- Crear ViewportFrame si no existe
-if not vista then
-	print("🔨 [MinimapIntegrado] Creando ViewportFrame...")
-	vista = Instance.new("ViewportFrame")
-	vista.Name = "Vista"
-	vista.Size = UDim2.new(1, -20, 1, -40)
-	vista.Position = UDim2.new(0, 10, 0, 35)
-	vista.BackgroundColor3 = Color3.fromRGB(30, 33, 42)
-	vista.BackgroundTransparency = 0.3
-	vista.BorderSizePixel = 0
-	vista.Parent = contenedorMiniMapa
-
-	local esquina = Instance.new("UICorner")
-	esquina.CornerRadius = UDim.new(0, 8)
-	esquina.Parent = vista
-
-	print("✅ [MinimapIntegrado] ViewportFrame creado")
-end
-
 -- ================================================================
 -- OBTENER O CREAR WORLDMODEL
 -- ================================================================
@@ -79,13 +53,10 @@ end
 local worldModel = vista:FindFirstChild("WorldModel")
 
 if not worldModel then
-	print("🔨 [MinimapIntegrado] Creando WorldModel...")
+	-- Create WorldModel if missing
 	worldModel = Instance.new("WorldModel")
 	worldModel.Name = "WorldModel"
 	worldModel.Parent = vista
-	print("✅ [MinimapIntegrado] WorldModel creado")
-else
-	print("✅ [MinimapIntegrado] WorldModel encontrado")
 end
 
 -- ================================================================
@@ -95,20 +66,18 @@ end
 local miniCamera = vista.CurrentCamera
 
 if not miniCamera then
-	print("🔨 [MinimapIntegrado] Creando cámara del viewport...")
+	-- Create Camera if missing
 	miniCamera = Instance.new("Camera")
 	miniCamera.FieldOfView = 70
+	miniCamera.Parent = vista
 	vista.CurrentCamera = miniCamera
-	print("✅ [MinimapIntegrado] Cámara creada")
-else
-	print("✅ [MinimapIntegrado] Cámara ya existe")
 end
 
 -- ================================================================
 -- CONFIGURACIÓN
 -- ================================================================
 
-local ZOOM = 140
+local ZOOM = 160
 local TAMANO_MAPA = 250
 
 -- Estado

@@ -658,10 +658,7 @@ local function crearGUIExplorador()
 		end)
 	end
 
-	-- Toggle Misiones
-	btnMisiones.MouseButton1Click:Connect(function()
-		misionFrame.Visible = not misionFrame.Visible
-	end)
+
 
 	-- ═══════════════════════════════════════════════════════════════
 	-- REFERENCIAS DE LA UI

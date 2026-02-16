@@ -37,6 +37,44 @@ if not gui then
 end
 
 -- ================================================================
+-- PASO 1.5: Inicializar Servicios (Managers)
+-- ================================================================
+local Cliente = script.Parent:WaitForChild("Cliente")
+local Services = Cliente:WaitForChild("Services")
+
+local ButtonManager = require(Services:WaitForChild("ButtonManager"))
+local MissionsManager = require(Services:WaitForChild("MissionsManager"))
+local MapManager = require(Services:WaitForChild("MapManager"))
+local NodeLabelManager = require(Services:WaitForChild("NodeLabelManager"))
+local LevelsConfig = require(ReplicatedStorage:WaitForChild("LevelsConfig"))
+
+print("⚙️ GUIExplorador: Inicializando servicios...")
+
+-- Estado global compartido
+local globalState = {
+	mapaActivo = false,
+	enMenu = false,
+	zoomLevel = 60
+}
+
+-- Dependencias
+local deps = {
+	LevelsConfig = LevelsConfig,
+	NodeLabelManager = NodeLabelManager,
+	MissionsManager = MissionsManager,
+	MapManager = MapManager
+}
+
+-- Inicializar managers
+NodeLabelManager.initialize(deps)
+MissionsManager.initialize(globalState, gui, deps)
+MapManager.initialize(globalState, gui, deps)
+ButtonManager.initialize(gui, deps)
+ButtonManager:init() -- Conectar listeners
+
+print("✅ GUIExplorador: Servicios inicializados y conectados")
+
+-- ================================================================
 -- PASO 2: Habilitar la GUI cuando el nivel está listo
 -- ================================================================
 
