@@ -27,10 +27,11 @@ local soundPlayedEvent = Instance.new("BindableEvent")
 -- ============================================
 
 local DEFAULT_SOUNDS = {
-	CableConnect = "rbxassetid://8089220692",
-	CableSnap = "rbxassetid://125043525599051",
+	CableConnect = "rbxassetid://77515099019542",
+	CableSnap = "rbxassetid://131799331821436",
+	ConnectionFailed = "rbxassetid://128503882926000",
 	Click = "rbxassetid://4678184518", -- Sonido genérico de click (ejemplo)
-	Error = "rbxassetid://4836125431", -- Sonido genérico de error (ejemplo)
+	Error = "rbxassetid://128503882926000", -- Sonido genérico de error (ejemplo)
 	Success = "rbxassetid://4836124505" -- Sonido genérico de éxito (ejemplo)
 }
 

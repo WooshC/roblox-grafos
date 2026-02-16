@@ -22,6 +22,7 @@ end
 local selecciones = {}
 local SOUND_CONNECT_NAME = "CableConnect"
 local SOUND_CLICK_NAME = "CableSnap"
+local SOUND_FAILED_NAME = "ConnectionFailed"
 
 local Remotes = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Remotes")
 local cableDragEvent = Remotes:WaitForChild("CableDragEvent")
@@ -83,6 +84,26 @@ local function desconectarPostes(poste1, poste2, player)
 		connections2[poste1.Name]:Destroy()
 	end
 
+	-- Buscar y eliminar el cable visual (RopeConstraint)
+	local nivel = LevelService:getCurrentLevel()
+	if nivel then
+		local objetos = nivel:FindFirstChild("Objetos")
+		if objetos then
+			local postesFolder = objetos:FindFirstChild("Postes")
+			if postesFolder then
+				local carpetaConexiones = postesFolder:FindFirstChild("Conexiones")
+				if carpetaConexiones then
+					local cableName1 = "Cable_" .. poste1.Name .. "_" .. poste2.Name
+					local cableName2 = "Cable_" .. poste2.Name .. "_" .. poste1.Name
+					local cable = carpetaConexiones:FindFirstChild(cableName1) or carpetaConexiones:FindFirstChild(cableName2)
+					if cable then
+						cable:Destroy()
+					end
+				end
+			end
+		end
+	end
+
 	GraphService:disconnectNodes(poste1, poste2)
 	reproducirSonido(SOUND_CLICK_NAME, poste1)
 
@@ -116,7 +137,7 @@ local function conectarPostes(poste1, poste2, att1, att2, player)
 
 	-- Validar adyacencia
 	if not LevelService:canConnect(poste1, poste2) then
-		if AudioService then AudioService:playError() end
+		reproducirSonido(SOUND_FAILED_NAME, poste2) -- Sonido de fallo al intentar conectar
 		if UIService then
 			UIService:notifyError(player, "Conexión Inválida", "Estos postes no pueden conectarse")
 		end
@@ -157,7 +178,7 @@ local function conectarPostes(poste1, poste2, att1, att2, player)
 		if not money then return end
 
 		if money.Value < costoTotal then
-			if AudioService then AudioService:playError() end
+			reproducirSonido(SOUND_FAILED_NAME, poste2)
 			if UIService then
 				UIService:notifyError(player, "Fondos Insuficientes", "Necesitas $" .. costoTotal)
 			end
@@ -176,6 +197,15 @@ local function conectarPostes(poste1, poste2, att1, att2, player)
 	rope.Visible = true
 	rope.Thickness = Enums.Cable.NormalThickness
 	rope.Color = BrickColor.new("Black")
+
+	-- ClickDetector para el cable
+	local cableClickDetector = Instance.new("ClickDetector")
+	cableClickDetector.MaxActivationDistance = 20
+	cableClickDetector.Parent = rope
+
+	cableClickDetector.MouseClick:Connect(function(player)
+		desconectarPostes(poste1, poste2, player)
+	end)
 
 	local nivel = LevelService:getCurrentLevel()
 	if nivel then
