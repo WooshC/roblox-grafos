@@ -331,7 +331,27 @@ local function onClick(selector, player)
 
 		local att = getAttachment(selector)
 		if att then
-			cableDragEvent:FireClient(player, "Start", att)
+			-- Calcular vecinos válidos para resaltar
+			local neighbors = {}
+			if LevelService then
+				local config = LevelService:getLevelConfig()
+				if config and config.Adyacencias then
+					local ady = config.Adyacencias[poste.Name]
+					if ady then
+						local postesFolder = LevelService:getPostes()
+						if postesFolder then
+							for _, neighborName in ipairs(ady) do
+								local neighbor = postesFolder:FindFirstChild(neighborName)
+								if neighbor then
+									table.insert(neighbors, neighbor)
+								end
+							end
+						end
+					end
+				end
+			end
+			
+			cableDragEvent:FireClient(player, "Start", att, neighbors)
 		end
 		return
 	end

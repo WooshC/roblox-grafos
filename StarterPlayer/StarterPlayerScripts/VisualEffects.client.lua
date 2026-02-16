@@ -16,17 +16,47 @@ local eventoReiniciar = remotes:WaitForChild("ReiniciarNivel")
 -- ==========================================
 -- CABLE DRAGGING LOGIC
 -- ==========================================
+-- ==========================================
+-- CABLE DRAGGING LOGIC
+-- ==========================================
 local hazActual = nil
 local attJugadorActual = nil
+local highlights = {} -- Lista de Highlights activos
+
+local function clearHighlights()
+	for _, h in pairs(highlights) do
+		if h then h:Destroy() end
+	end
+	highlights = {}
+end
+
+local function highlightNeighbors(neighbors)
+	clearHighlights()
+	if not neighbors then return end
+	
+	for _, node in ipairs(neighbors) do
+		if node and node:IsA("Model") then
+			local h = Instance.new("Highlight")
+			h.Name = "NeighborHighlight"
+			h.FillColor = Color3.fromRGB(0, 255, 0) -- Verde para indicar válido
+			h.OutlineColor = Color3.fromRGB(255, 255, 255)
+			h.FillTransparency = 0.5
+			h.OutlineTransparency = 0
+			h.Parent = node
+			table.insert(highlights, h)
+		end
+	end
+end
 
 local function limpiarCable()
 	if hazActual then hazActual:Destroy() end
 	if attJugadorActual then attJugadorActual:Destroy() end
 	hazActual = nil
 	attJugadorActual = nil
+	clearHighlights()
 end
 
-cableDragEvent.OnClientEvent:Connect(function(action, attStart)
+cableDragEvent.OnClientEvent:Connect(function(action, attStart, neighbors)
 	if action == "Start" and attStart then
 		limpiarCable()
 		
@@ -51,6 +81,11 @@ cableDragEvent.OnClientEvent:Connect(function(action, attStart)
 		hazActual.CurveSize0 = 1
 		hazActual.CurveSize1 = 1
 		hazActual.Parent = char
+		
+		-- Resaltar vecinos
+		if neighbors then
+			highlightNeighbors(neighbors)
+		end
 		
 	elseif action == "Stop" then
 		limpiarCable()
