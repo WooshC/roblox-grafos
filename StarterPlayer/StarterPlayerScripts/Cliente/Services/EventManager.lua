@@ -1,5 +1,5 @@
 -- ================================================================
--- EventManager.lua
+-- EventManager.lua (ACTUALIZADO CON SOPORTE DE ZONAS)
 -- Conecta listeners a eventos remotos del servidor
 -- ================================================================
 
@@ -21,6 +21,7 @@ local state = nil
 local eventoUpdateUI = nil
 local eventoInventario = nil
 local eventoMision = nil
+local eventoZone = nil  -- 🔥 NUEVO
 
 -- ================================================================
 -- INICIALIZACIÓN
@@ -35,12 +36,23 @@ function EventManager.initialize(globalState, deps)
 	-- Obtener referencias a eventos
 	local Events = ReplicatedStorage:WaitForChild("Events", 5)
 	local Remotes = Events:WaitForChild("Remotes", 5)
+	local Bindables = Events:WaitForChild("Bindables", 5)
 
 	eventoUpdateUI = Remotes:FindFirstChild("ActualizarUI")
 	eventoInventario = Remotes:FindFirstChild("ActualizarInventario")
 	eventoMision = Remotes:FindFirstChild("ActualizarMision")
+	eventoZone = Remotes:FindFirstChild("ZoneChanged")  -- 🔥 NUEVO
 
-	print("✅ EventManager: Inicializado")
+	-- 🔥 NUEVO: Listener local de zona (desde ZoneDetector)
+	local localZoneChanged = Bindables:FindFirstChild("LocalZoneChanged")
+	if localZoneChanged then
+		localZoneChanged.Event:Connect(function(newZone, oldZone)
+			EventManager:_onZoneChanged(newZone, oldZone)
+		end)
+		print("✅ EventManager: Conectado a LocalZoneChanged")
+	end
+
+	print("✅ EventManager: Inicializado con soporte de zonas")
 end
 
 --- Conecta todos los listeners de eventos
@@ -48,6 +60,7 @@ function EventManager:init()
 	self:_connectUIUpdates()
 	self:_connectInventory()
 	self:_connectMissions()
+	-- _onZoneChanged ya está conectado en initialize
 
 	print("✅ EventManager: Listeners conectados")
 end
@@ -103,19 +116,40 @@ function EventManager:_connectMissions()
 	end)
 end
 
+-- ================================================================
+-- 🔥 NUEVO: MANEJO DE CAMBIOS DE ZONA
+-- ================================================================
+
+--- Maneja cambio de zona del jugador
+function EventManager:_onZoneChanged(newZone, oldZone)
+	print("🗺️ EventManager: Cambio de zona detectado")
+	print("   Anterior: " .. tostring(oldZone))
+	print("   Nueva: " .. tostring(newZone))
+	
+	-- Actualizar MissionsManager con la nueva zona
+	if MissionsManager then
+		MissionsManager:setZone(newZone)
+	end
+	
+	-- Si el panel de misiones está visible, refrescar
+	-- (MissionsManager ya lo maneja internamente, pero podríamos
+	-- hacer efectos visuales adicionales aquí si queremos)
+end
+
+-- ================================================================
+-- EVENTOS EXISTENTES (SIN CAMBIOS)
+-- ================================================================
+
 --- Maneja reset de nivel
 function EventManager:_onLevelReset()
 	print("🔄 EventManager: Reset recibido")
 
-	-- Resetear estado visual
 	MissionsManager:resetAll()
 
-	-- Cerrar mapa si está abierto
 	if state.mapaActivo then
 		MapManager:disable()
 	end
 
-	-- Limpiar atributos de postes
 	for _, obj in ipairs(workspace:GetDescendants()) do
 		if obj:IsA("Model") and obj:GetAttribute("Energizado") then
 			obj:SetAttribute("Energizado", nil)
@@ -127,7 +161,6 @@ end
 function EventManager:_onEnergyUpdate(data)
 	local energizedNodes = data.EnergizedNodes or {}
 
-	-- Buscar nivel actual
 	local nivelID = player:GetAttribute("CurrentLevelID") or 0
 	local nivelModel = workspace:FindFirstChild("NivelActual")
 	if not nivelModel then

@@ -1,6 +1,7 @@
 -- ServerScriptService/Services/LevelService.lua
 -- SERVICIO CENTRALIZADO para gestión de niveles
 -- Maneja carga, descarga, inicialización y reset de niveles
+-- ✅ CORREGIDO: Eliminada llamada a función inexistente limpiarCache()
 
 local LevelService = {}
 LevelService.__index = LevelService
@@ -128,8 +129,7 @@ function LevelService:loadLevel(nivelID)
 	currentLevelID = nivelID
 	isLevelActive = true
 
-	-- Limpiar cache de utilidades para evitar referencias viejas
-	NivelUtils.limpiarCache()
+	-- ✅ CORREGIDO: Eliminada llamada a NivelUtils.limpiarCache() que no existe
 
 	-- Inicializar servicios con el nuevo nivel
 	if graphService then
