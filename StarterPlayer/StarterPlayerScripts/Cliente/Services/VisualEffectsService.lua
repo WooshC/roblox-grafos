@@ -14,6 +14,7 @@ local workspace = game.Workspace
 -- ================================================================
 
 local activeHighlights = {}
+local activeBlinkThreads = {} -- Almacena threads de parpadeo activos { [node] = thread }
 local originalCameraCFrame = nil
 local originalCameraType = nil
 
@@ -39,6 +40,20 @@ end
 --- Obtener player
 local function getPlayer()
 	return game.Players.LocalPlayer
+end
+
+--- Restaurar material de un nodo
+local function restoreNodeMaterial(node)
+	if not node then return end
+	local parts = node:GetDescendants()
+	if node:IsA("BasePart") then
+		table.insert(parts, node)
+	end
+	for _, part in ipairs(parts) do
+		if part:IsA("BasePart") then
+			part.Material = Enum.Material.Neon -- Restaurar a Neon por defecto
+		end
+	end
 end
 
 -- ================================================================
@@ -130,6 +145,7 @@ end
 
 --- Limpiar todos los efectos
 function VisualEffectsService:clearEffects()
+	-- 1. Limpiar Highlights y Materiales
 	for _, item in ipairs(activeHighlights) do
 		if typeof(item) == "Instance" then
 			item:Destroy()
@@ -142,33 +158,74 @@ function VisualEffectsService:clearEffects()
 		end
 	end
 	activeHighlights = {}
+
+	-- 2. Detener Parpadeos
+	for node, thread in pairs(activeBlinkThreads) do
+		if thread then task.cancel(thread) end
+		restoreNodeMaterial(node)
+	end
+	activeBlinkThreads = {}
 end
 
+--- Mostrar etiqueta sobre un nodo
+function VisualEffectsService:showNodeLabel(node, text)
+	if not node then return end
+	
+	local part = node:IsA("Model") and node.PrimaryPart or node
+	if not part then return end
+
+	local bb = Instance.new("BillboardGui")
+	bb.Name = "NodeLabel"
+	bb.Size = UDim2.new(0, 150, 0, 50)
+	bb.StudsOffset = Vector3.new(0, 4, 0)
+	bb.AlwaysOnTop = true
+	bb.Parent = part
+	
+	local lbl = Instance.new("TextLabel")
+	lbl.Size = UDim2.new(1, 0, 1, 0)
+	lbl.BackgroundTransparency = 1
+	lbl.Text = text
+	lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+	lbl.TextStrokeTransparency = 0
+	lbl.TextStrokeColor3 = Color3.new(0, 0, 0)
+	lbl.Font = Enum.Font.FredokaOne
+	lbl.TextSize = 20
+	lbl.Parent = bb
+
+	table.insert(activeHighlights, bb)
+	
+	-- Efecto de aparición
+	bb.Size = UDim2.new(0, 0, 0, 0)
+	local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+	TweenService:Create(bb, tweenInfo, {Size = UDim2.new(0, 150, 0, 50)}):Play()
+end
+
+--- Crear arista visual con cable, parpadeo y etiqueta
 --- Crear arista visual con cable, parpadeo y etiqueta
 function VisualEffectsService:createFakeEdge(node1, node2, color)
 	if not node1 or not node2 then return end
 
-	-- Buscar Attachments o crear temporales
-	local att1 = node1:FindFirstChild("Attachment", true) 
-	local att2 = node2:FindFirstChild("Attachment", true)
+	-- Buscar Attachments o crear temporales en la posición central
+	local function getOrCreateAtt(node, name)
+		-- Intentar usar un attachment existente si está bien ubicado, o crear uno nuevo en el centro
+		local part = node:IsA("Model") and node.PrimaryPart or node
+		
+		local existing = part:FindFirstChild(name)
+		if existing then return existing end
 
-	if not att1 then
-		att1 = Instance.new("Attachment")
-		att1.Name = "TempAtt1"
-		att1.Parent = node1:IsA("Model") and node1.PrimaryPart or node1
-		table.insert(activeHighlights, att1)
+		local att = Instance.new("Attachment")
+		att.Name = name
+		att.Parent = part
+		table.insert(activeHighlights, att)
+		return att
 	end
 
-	if not att2 then
-		att2 = Instance.new("Attachment")
-		att2.Name = "TempAtt2"
-		att2.Parent = node2:IsA("Model") and node2.PrimaryPart or node2
-		table.insert(activeHighlights, att2)
-	end
+	local att1 = getOrCreateAtt(node1, "TempAtt1")
+	local att2 = getOrCreateAtt(node2, "TempAtt2")
 
 	local dist = (att1.WorldPosition - att2.WorldPosition).Magnitude
 
-	-- Crear RopeConstraint (Cable Visual)
+	-- Crear RopeConstraint (Cable Visual) - Restaurado
 	local rope = Instance.new("RopeConstraint")
 	rope.Name = "FakeEdgeRope"
 	rope.Attachment0 = att1
@@ -181,7 +238,7 @@ function VisualEffectsService:createFakeEdge(node1, node2, color)
 
 	table.insert(activeHighlights, rope)
 
-	-- EFECTO DE PARPADEO
+	-- EFECTO DE PARPADEO DEL CABLE (Restaurado para Rope)
 	task.spawn(function()
 		local t = 0
 		while rope and rope.Parent do
@@ -196,6 +253,7 @@ function VisualEffectsService:createFakeEdge(node1, node2, color)
 			task.wait(0.05)
 		end
 	end)
+	-- No necesitamos trackear este thread explícitamente porque el loop termina si beam.Parent es nil
 
 	-- ETIQUETA "ARISTA"
 	local midPoint = (att1.WorldPosition + att2.WorldPosition) / 2
@@ -274,11 +332,18 @@ end
 function VisualEffectsService:blink(node, duration, frequency)
 	if not node then return end
 
+	-- Detener parpadeo previo si existe
+	if activeBlinkThreads[node] then
+		task.cancel(activeBlinkThreads[node])
+		activeBlinkThreads[node] = nil
+		restoreNodeMaterial(node)
+	end
+
 	duration = duration or 3
 	frequency = frequency or 2
 	local interval = 1 / frequency
 
-	task.spawn(function()
+	activeBlinkThreads[node] = task.spawn(function()
 		local isVisible = true
 		local elapsed = 0
 
@@ -302,16 +367,8 @@ function VisualEffectsService:blink(node, duration, frequency)
 		end
 
 		-- Restaurar a Neon al terminar
-		local parts = node:GetDescendants()
-		if node:IsA("BasePart") then
-			table.insert(parts, node)
-		end
-
-		for _, part in ipairs(parts) do
-			if part:IsA("BasePart") then
-				part.Material = Enum.Material.Neon
-			end
-		end
+		restoreNodeMaterial(node)
+		activeBlinkThreads[node] = nil
 	end)
 end
 

@@ -1483,25 +1483,60 @@ function displayContent()
 	local typewriterEnabled = config and config:FindFirstChild("Typewriter") and config.Typewriter.Value
 
 	if dialogueSound then
+		print("🔊 [DialogueKit] Attempting to play sound for content index:", currentContentIndex)
+		print("🔊 [DialogueKit] Sound ID from data:", dialogueSound)
+
 		if activeDialogueSound then
 			activeDialogueSound:Stop()
 			activeDialogueSound:Destroy()
 			activeDialogueSound = nil
 		end
 
-		local dialogueSoundService = game:GetService("SoundService"):FindFirstChild("DialogueKit")
-		if dialogueSoundService and dialogueSoundService:FindFirstChild("DialogueSound") then
-			activeDialogueSound = dialogueSoundService.DialogueSound:Clone()
-			activeDialogueSound.SoundId = "rbxassetid://" .. dialogueSound
-			activeDialogueSound.Parent = skins[currentSkin]
-			activeDialogueSound:Play()
+		local soundService = game:GetService("SoundService")
+		local dialogueSoundService = soundService:FindFirstChild("DialogueKit")
+		
+		-- On-demand creation if missing
+		if not dialogueSoundService then
+			dialogueSoundService = Instance.new("Folder")
+			dialogueSoundService.Name = "DialogueKit"
+			dialogueSoundService.Parent = soundService
+		end
 
-			activeDialogueSound.Ended:Connect(function()
-				if activeDialogueSound then
-					activeDialogueSound:Destroy()
-					activeDialogueSound = nil
+		if dialogueSoundService then
+			local templateSound = dialogueSoundService:FindFirstChild("DialogueSound")
+			if not templateSound then
+				templateSound = Instance.new("Sound")
+				templateSound.Name = "DialogueSound"
+				templateSound.SoundId = "rbxassetid://12221967" -- Valid obscure sound to prevent errors
+				templateSound.Volume = 0.5
+				templateSound.Parent = dialogueSoundService
+			end
+			
+			if templateSound then
+				activeDialogueSound = templateSound:Clone()
+				
+				if tostring(dialogueSound):match("^rbxassetid://") then
+					activeDialogueSound.SoundId = dialogueSound
+				else
+					activeDialogueSound.SoundId = "rbxassetid://" .. dialogueSound
 				end
-			end)
+				
+				local skin = skins[currentSkin]
+				if skin then
+					activeDialogueSound.Parent = skin
+				else
+					activeDialogueSound.Parent = script.Parent -- Fallback
+				end
+				
+				activeDialogueSound:Play()
+				
+				activeDialogueSound.Ended:Connect(function()
+					if activeDialogueSound then
+						activeDialogueSound:Destroy()
+						activeDialogueSound = nil
+					end
+				end)
+			end
 		end
 	end
 

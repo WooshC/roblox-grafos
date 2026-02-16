@@ -1,8 +1,3 @@
--- ================================================================
--- StarterGUI/DialogStorage/Zona1_dialogo.lua
--- Instrucción simple: 4 pasos de explicación visual (sin click)
--- ================================================================
-
 local dialogueKitModule = require(script.Parent.Parent.DialogueKit)
 local DialogueGenerator = require(script.Parent.DialogueGenerator)
 
@@ -10,6 +5,7 @@ local VisualEffectsService = require(
 	game:GetService("StarterPlayer"):WaitForChild("StarterPlayerScripts")
 		:WaitForChild("Cliente"):WaitForChild("Services"):WaitForChild("VisualEffectsService")
 )
+local LevelsConfig = require(game:GetService("ReplicatedStorage"):WaitForChild("LevelsConfig"))
 
 -- ================================================================
 -- CONFIGURACIÓN
@@ -40,18 +36,26 @@ local CONFIG = {
 }
 
 -- ================================================================
+-- VARIABLES DINÁMICAS
+-- ================================================================
+
+local alias1 = LevelsConfig[0].Nodos[CONFIG.NODOS.nodo1].Alias
+local alias2 = LevelsConfig[0].Nodos[CONFIG.NODOS.nodo2].Alias
+
+-- ================================================================
 -- DIÁLOGOS
 -- ================================================================
 
 local DATA_DIALOGOS = {
+
 	["Inicio"] = {
 		Actor = "Carlos",
 		Expresion = "Serio",
 		Texto = {
-			"Bien, has llegado a la Zona 1. Aquí pondremos en práctica la teoría.",
-			"Escucha con atención, porque no repetiré esto dos veces."
+			"Bienvenido a la Zona 1.",
+			"Aquí aprenderás qué es un nodo y qué es una conexión."
 		},
-		Sonido = { "rbxassetid://0", "rbxassetid://0" },
+		Sonido = { "rbxassetid://133631096743397", "rbxassetid://82943328777335" },
 		Evento = function()
 			VisualEffectsService:toggleTecho(false)
 			local nodo1 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo1)
@@ -64,34 +68,68 @@ local DATA_DIALOGOS = {
 
 	["Concepto_Nodo"] = {
 		Actor = "Carlos",
-		Expresion = "Explicando",
+		Expresion = "Feliz",
 		Texto = {
-			"Antes de conectar nada, debes entender qué estás viendo.",
-			"Este punto que observas se llama NODO.",
-			"En teoría de grafos, un nodo representa un punto dentro de una red.",
-			"Puede ser una ciudad, una computadora, una estación... aquí representa una estación de energía."
+			"Observa este punto frente a ti.",
+			"Eso es un NODO.",
+			"En teoría de grafos, un nodo representa un elemento dentro de una red.",
+			"Un nodo puede representar cualquier cosa: una persona, una ciudad, una computadora…",
+			"Lo importante es que es un punto que puede conectarse con otros."
 		},
-		Sonido = { "rbxassetid://0", "rbxassetid://0", "rbxassetid://0", "rbxassetid://0" },
+		Sonido = { "rbxassetid://0", "rbxassetid://0" },
 		Evento = function()
 			VisualEffectsService:clearEffects()
 			local n1 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo1)
 			if n1 then
 				VisualEffectsService:highlightObject(n1, CONFIG.COLORES.azul)
+				VisualEffectsService:showNodeLabel(n1, alias1)
 				VisualEffectsService:focusCameraOn(n1, CONFIG.CAMARA.offset_nodo)
+			end
+		end,
+		Siguiente = "Nodo_Aislado"
+	},
+
+	["Nodo_Aislado"] = {
+		Actor = "Carlos",
+		Expresion = "Presentacion",
+		Texto = {
+			"Un nodo sin conexiones está aislado.",
+			"No forma parte de una red."
+		},
+		Sonido = { "rbxassetid://0", "rbxassetid://0" },
+		Evento = function()
+			VisualEffectsService:clearEffects()
+			local n1 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo1)
+			local n2 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo2)
+
+			if n1 and n2 then
+				VisualEffectsService:highlightObject(n1, CONFIG.COLORES.rojo)
+				VisualEffectsService:highlightObject(n2, CONFIG.COLORES.rojo)
+
+				VisualEffectsService:showNodeLabel(n1, alias1)
+				VisualEffectsService:showNodeLabel(n2, alias2)
+
+				local midPoint = n1.Position:Lerp(n2.Position, 0.5)
+				local camPos = midPoint + CONFIG.CAMARA.offset_arista
+				local newCF = CFrame.new(camPos, midPoint)
+
+				local camera = workspace.CurrentCamera
+				local tweenInfo = TweenInfo.new(CONFIG.CAMARA.duracion, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+				game:GetService("TweenService"):Create(camera, tweenInfo, {CFrame = newCF}):Play()
 			end
 		end,
 		Siguiente = "Concepto_Arista"
 	},
 
+
 	["Concepto_Arista"] = {
 		Actor = "Carlos",
-		Expresion = "Didactico",
+		Expresion = "Serio",
 		Texto = {
 			"Cuando conectas dos nodos, creas una ARISTA.",
-			"Una arista representa una relación o conexión entre dos puntos.",
-			"Sin aristas, los nodos están aislados. Mira esto..."
+			"La arista representa una relación entre ellos."
 		},
-		Sonido = { "rbxassetid://0", "rbxassetid://0", "rbxassetid://0" },
+		Sonido = { "rbxassetid://0", "rbxassetid://0" },
 		Evento = function()
 			VisualEffectsService:clearEffects()
 			local n1 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo1)
@@ -100,6 +138,10 @@ local DATA_DIALOGOS = {
 			if n1 and n2 then
 				VisualEffectsService:highlightObject(n1, CONFIG.COLORES.azul)
 				VisualEffectsService:highlightObject(n2, CONFIG.COLORES.azul)
+
+				VisualEffectsService:showNodeLabel(n1, alias1)
+				VisualEffectsService:showNodeLabel(n2, alias2)
+
 				VisualEffectsService:createFakeEdge(n1, n2, CONFIG.COLORES.amarillo)
 
 				local midPoint = n1.Position:Lerp(n2.Position, 0.5)
@@ -111,106 +153,69 @@ local DATA_DIALOGOS = {
 				game:GetService("TweenService"):Create(camera, tweenInfo, {CFrame = newCF}):Play()
 			end
 		end,
-		Siguiente = "Explicacion_Objetivo"
+		Siguiente = "Instrucciones_1"
 	},
 
-	["Explicacion_Objetivo"] = {
-		Actor = "Carlos",
-		Expresion = "Presentacion",
-		Texto = "Tu objetivo es simple: Conectar el Nodo 1 con el Nodo 2 para restablecer el flujo en este sector.",
-		Sonido = "rbxassetid://0",
-		Evento = function()
-			VisualEffectsService:clearEffects()
-			local n1 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo1)
-			local n2 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo2)
-
-			if n1 then VisualEffectsService:highlightObject(n1, CONFIG.COLORES.verde) end
-			if n2 then VisualEffectsService:highlightObject(n2, CONFIG.COLORES.rojo) end
-
-			if n1 and n2 then
-				local midPoint = n1.Position:Lerp(n2.Position, 0.5)
-				local camPos = midPoint + CONFIG.CAMARA.offset_objetivo
-				local newCF = CFrame.new(camPos, midPoint)
-
-				local camera = workspace.CurrentCamera
-				local tweenInfo = TweenInfo.new(CONFIG.CAMARA.duracion, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-				game:GetService("TweenService"):Create(camera, tweenInfo, {CFrame = newCF}):Play()
-			end
-		end,
-		Siguiente = "Instruccion_Tecnica"
-	},
-
-	-- ================================================================
-	-- INSTRUCCIÓN EN 4 PASOS: Solo explicación visual
-	-- El jugador OBSERVA cómo se conectan los nodos
-	-- ================================================================
-
-	["Instruccion_Tecnica"] = {
+	["Instrucciones_1"] = {
 		Actor = "Sistema",
-		Expresion = "Arista",
-		Texto = "Te mostraré cómo conectar nodos. Presta atención...",
+		Expresion = "Serio",
+		Texto = "Selecciona un nodo de origen (" .. alias1 .. ").",
 		Sonido = "rbxassetid://0",
 		Evento = function()
 			VisualEffectsService:clearEffects()
-
 			local n1 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo1)
 			if n1 then
 				VisualEffectsService:highlightObject(n1, CONFIG.COLORES.verde)
+				VisualEffectsService:showNodeLabel(n1, alias1)
 				VisualEffectsService:focusCameraOn(n1, CONFIG.CAMARA.offset_zoom)
-			end
-		end,
-		Siguiente = "Instruccion_Paso2"
-	},
-
-	["Instruccion_Paso2"] = {
-		Actor = "Sistema",
-		Expresion = "Arista",
-		Texto = "Primero: haz click en el Nodo 1 (Verde). Este es el ORIGEN.",
-		Sonido = "rbxassetid://0",
-		Evento = function()
-			local n1 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo1)
-			if n1 then
 				VisualEffectsService:blink(n1, 30, 1)
 			end
 		end,
-		Siguiente = "Instruccion_Paso3"
+		Siguiente = "Instrucciones_2"
 	},
 
-	["Instruccion_Paso3"] = {
+	["Instrucciones_2"] = {
 		Actor = "Sistema",
-		Expresion = "Arista",
-		Texto = "Segundo: haz click en el Nodo 2 (Rojo). Este es el DESTINO.",
+		Expresion = "Serio",
+		Texto = "Luego selecciona el nodo destino (" .. alias2 .. ").",
 		Sonido = "rbxassetid://0",
 		Evento = function()
 			VisualEffectsService:clearEffects()
-
 			local n1 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo1)
 			local n2 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo2)
+
 
 			if n1 and n2 then
 				VisualEffectsService:highlightObject(n1, CONFIG.COLORES.verde_debil)
 				VisualEffectsService:highlightObject(n2, CONFIG.COLORES.rojo)
+
+				VisualEffectsService:showNodeLabel(n1, LevelsConfig[0].Nodos[CONFIG.NODOS.nodo1].Alias)
+				VisualEffectsService:showNodeLabel(n2, LevelsConfig[0].Nodos[CONFIG.NODOS.nodo2].Alias)
+
 				VisualEffectsService:focusCameraOn(n2, CONFIG.CAMARA.offset_zoom)
 				VisualEffectsService:blink(n2, 30, 1)
 			end
 		end,
-		Siguiente = "Instruccion_Paso4"
+		Siguiente = "Instrucciones_3"
 	},
 
-	["Instruccion_Paso4"] = {
+	["Instrucciones_3"] = {
 		Actor = "Sistema",
-		Expresion = "Arista",
-		Texto = "Y así se crea la ARISTA entre ambos. ¡Mira!",
+		Expresion = "Feliz",
+		Texto = "Así crearás una conexión.",
 		Sonido = "rbxassetid://0",
 		Evento = function()
 			VisualEffectsService:clearEffects()
-
 			local n1 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo1)
 			local n2 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo2)
 
 			if n1 and n2 then
 				VisualEffectsService:highlightObject(n1, CONFIG.COLORES.verde)
 				VisualEffectsService:highlightObject(n2, CONFIG.COLORES.verde)
+
+				VisualEffectsService:showNodeLabel(n1, LevelsConfig[0].Nodos[CONFIG.NODOS.nodo1].Alias)
+				VisualEffectsService:showNodeLabel(n2, LevelsConfig[0].Nodos[CONFIG.NODOS.nodo2].Alias)
+
 				VisualEffectsService:createFakeEdge(n1, n2, CONFIG.COLORES.amarillo)
 
 				local midPoint = n1.Position:Lerp(n2.Position, 0.5)
@@ -226,31 +231,17 @@ local DATA_DIALOGOS = {
 				VisualEffectsService:blink(n2, 30, 1.5)
 			end
 		end,
-		Siguiente = "Instruccion_Confirmacion"
+		Siguiente = "Confirmacion"
 	},
 
-	["Instruccion_Confirmacion"] = {
-		Actor = "Sistema",
-		Expresion = "Arista",
-		Texto = "¿Entendiste? Ahora es tu turno. Conecta el Nodo 1 con el Nodo 2.",
-		Sonido = "rbxassetid://0",
-		Evento = function()
-			VisualEffectsService:clearEffects()
-
-			local n1 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo1)
-			local n2 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo2)
-
-			if n1 then VisualEffectsService:highlightObject(n1, CONFIG.COLORES.verde) end
-			if n2 then VisualEffectsService:highlightObject(n2, CONFIG.COLORES.rojo) end
-		end,
-		Siguiente = "Despedida"
-	},
-
-	["Despedida"] = {
+	["Confirmacion"] = {
 		Actor = "Carlos",
-		Expresion = "Sonriente",
-		Texto = "¡Adelante! Conecta los nodos y verás la energía fluir.",
-		Sonido = "rbxassetid://0",
+		Expresion = "Serio",
+		Texto = {
+			"Ahora es tu turno.",
+			"Conecta los nodos."
+		},
+		Sonido = { "rbxassetid://0", "rbxassetid://0" },
 		Evento = function()
 			VisualEffectsService:clearEffects()
 			VisualEffectsService:toggleTecho(true)
