@@ -197,50 +197,130 @@ local function crearGUIExplorador()
 	local etiquetaTitulo = FabricaComponentes.Etiqueta("Titulo", barraSuperior, "📊 Explorador de Grafos", Tema.Colores.TextoPrimario, 20, Tema.Fuente.Pantalla)
 	etiquetaTitulo.Size = UDim2.new(0.3, 0, 1, 0)
 
+		-- ═══════════════════════════════════════════════════════════════
+	-- PANEL DE PUNTUACIÓN (VERSIÓN MEJORADA)
 	-- ═══════════════════════════════════════════════════════════════
-	-- PANEL DE PUNTUACIÓN
-	-- ═══════════════════════════════════════════════════════════════
-	local panelPuntuacion = FabricaComponentes.Marco("PanelPuntuacion", barraSuperior, UDim2.new(0.35, 0, 1, 0), UDim2.new(0.65, 0, 0, 0))
+	local panelPuntuacion = FabricaComponentes.Marco("PanelPuntuacion", barraSuperior, UDim2.new(0.4, 0, 1, 0), UDim2.new(0.5, 0, 0, 0))
+	
+	-- Separador visual
+	local separador = Instance.new("Frame")
+	separador.Name = "Separador"
+	separador.Size = UDim2.new(0, 2, 0.6, 0)
+	separador.Position = UDim2.new(0, 10, 0.2, 0)
+	separador.BackgroundColor3 = Tema.Colores.Matriz
+	separador.BackgroundTransparency = 0.5
+	separador.BorderSizePixel = 0
+	separador.Parent = panelPuntuacion
 
 	local distribucionPuntuacion = Instance.new("UIListLayout")
 	distribucionPuntuacion.FillDirection = Enum.FillDirection.Horizontal
-	distribucionPuntuacion.HorizontalAlignment = Enum.HorizontalAlignment.Right
+	distribucionPuntuacion.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	distribucionPuntuacion.VerticalAlignment = Enum.VerticalAlignment.Center
-	distribucionPuntuacion.Padding = UDim.new(0, 20)
+	distribucionPuntuacion.Padding = UDim.new(0, 30)
 	distribucionPuntuacion.Parent = panelPuntuacion
 
-	-- Contenedor de Estrellas
+	-- ═══════════════════════════════════════════════════════════════
+	-- CONTENEDOR DE ESTRELLAS (MEJORADO)
+	-- ═══════════════════════════════════════════════════════════════
 	local contenedorEstrellas = Instance.new("Frame")
 	contenedorEstrellas.Name = "ContenedorEstrellas"
-	contenedorEstrellas.Size = UDim2.new(0, 120, 1, 0)
+	contenedorEstrellas.Size = UDim2.new(0, 140, 1, 0)
 	contenedorEstrellas.BackgroundTransparency = 1
 	contenedorEstrellas.Parent = panelPuntuacion
 
-	local etiquetaEstrellas = FabricaComponentes.Etiqueta("Etiqueta", contenedorEstrellas, "⭐ ESTRELLAS", Tema.Colores.Advertencia, 11, Tema.Fuente.Negrita)
-	etiquetaEstrellas.Size = UDim2.new(1, 0, 0.4, 0)
+	-- Marco decorativo para estrellas
+	local marcoEstrellas = Instance.new("Frame")
+	marcoEstrellas.Name = "MarcoEstrellas"
+	marcoEstrellas.Size = UDim2.new(1, -10, 0.85, 0)
+	marcoEstrellas.Position = UDim2.new(0, 5, 0.075, 0)
+	marcoEstrellas.BackgroundColor3 = Tema.Colores.Overlay
+	marcoEstrellas.BackgroundTransparency = 0.5
+	marcoEstrellas.BorderSizePixel = 0
+	marcoEstrellas.Parent = contenedorEstrellas
+
+	local esquinaMarcoEst = Instance.new("UICorner")
+	esquinaMarcoEst.CornerRadius = UDim.new(0, 8)
+	esquinaMarcoEst.Parent = marcoEstrellas
+
+	local etiquetaEstrellas = FabricaComponentes.Etiqueta("Etiqueta", marcoEstrellas, "⭐ ESTRELLAS", Tema.Colores.Advertencia, 11, Tema.Fuente.Negrita)
+	etiquetaEstrellas.Size = UDim2.new(1, 0, 0.35, 0)
 	etiquetaEstrellas.TextXAlignment = Enum.TextXAlignment.Center
+	etiquetaEstrellas.BackgroundTransparency = 1
 
-	local valorEstrellas = FabricaComponentes.Etiqueta("Valor", contenedorEstrellas, "0/3", Tema.Colores.Advertencia, 16, Tema.Fuente.Negrita)
-	valorEstrellas.Size = UDim2.new(1, 0, 0.6, 0)
-	valorEstrellas.Position = UDim2.new(0, 0, 0.4, 0)
+	local valorEstrellas = FabricaComponentes.Etiqueta("Valor", marcoEstrellas, "☆☆☆", Tema.Colores.Advertencia, 18, Tema.Fuente.Negrita)
+	valorEstrellas.Size = UDim2.new(1, 0, 0.65, 0)
+	valorEstrellas.Position = UDim2.new(0, 0, 0.35, 0)
 	valorEstrellas.TextXAlignment = Enum.TextXAlignment.Center
+	valorEstrellas.BackgroundTransparency = 1
 
-	-- Contenedor de Puntos
+	-- ═══════════════════════════════════════════════════════════════
+	-- CONTENEDOR DE PUNTOS (MEJORADO)
+	-- ═══════════════════════════════════════════════════════════════
 	local contenedorPuntos = Instance.new("Frame")
 	contenedorPuntos.Name = "ContenedorPuntos"
-	contenedorPuntos.Size = UDim2.new(0, 140, 1, 0)
+	contenedorPuntos.Size = UDim2.new(0, 160, 1, 0)
 	contenedorPuntos.BackgroundTransparency = 1
 	contenedorPuntos.Parent = panelPuntuacion
 
-	local etiquetaPuntos = FabricaComponentes.Etiqueta("Etiqueta", contenedorPuntos, "🏆 PUNTOS", Tema.Colores.Informacion, 11, Tema.Fuente.Negrita)
-	etiquetaPuntos.Size = UDim2.new(1, 0, 0.4, 0)
+	-- Marco decorativo para puntos
+	local marcoPuntos = Instance.new("Frame")
+	marcoPuntos.Name = "MarcoPuntos"
+	marcoPuntos.Size = UDim2.new(1, -10, 0.85, 0)
+	marcoPuntos.Position = UDim2.new(0, 5, 0.075, 0)
+	marcoPuntos.BackgroundColor3 = Tema.Colores.Overlay
+	marcoPuntos.BackgroundTransparency = 0.5
+	marcoPuntos.BorderSizePixel = 0
+	marcoPuntos.Parent = contenedorPuntos
+
+	local esquinaMarcoP = Instance.new("UICorner")
+	esquinaMarcoP.CornerRadius = UDim.new(0, 8)
+	esquinaMarcoP.Parent = marcoPuntos
+
+	local etiquetaPuntos = FabricaComponentes.Etiqueta("Etiqueta", marcoPuntos, "🏆 PUNTOS", Tema.Colores.Informacion, 11, Tema.Fuente.Negrita)
+	etiquetaPuntos.Size = UDim2.new(1, 0, 0.35, 0)
 	etiquetaPuntos.TextXAlignment = Enum.TextXAlignment.Center
+	etiquetaPuntos.BackgroundTransparency = 1
 
-	local valorPuntos = FabricaComponentes.Etiqueta("Valor", contenedorPuntos, "0", Tema.Colores.Informacion, 16, Tema.Fuente.Negrita)
-	valorPuntos.Size = UDim2.new(1, 0, 0.6, 0)
-	valorPuntos.Position = UDim2.new(0, 0, 0.4, 0)
+	local valorPuntos = FabricaComponentes.Etiqueta("Valor", marcoPuntos, "0", Tema.Colores.Informacion, 20, Tema.Fuente.Negrita)
+	valorPuntos.Size = UDim2.new(1, 0, 0.65, 0)
+	valorPuntos.Position = UDim2.new(0, 0, 0.35, 0)
 	valorPuntos.TextXAlignment = Enum.TextXAlignment.Center
+	valorPuntos.BackgroundTransparency = 1
 
+	-- ═══════════════════════════════════════════════════════════════
+	-- CONTENEDOR DE DINERO (NUEVO)
+	-- ═══════════════════════════════════════════════════════════════
+	local contenedorDinero = Instance.new("Frame")
+	contenedorDinero.Name = "ContenedorDinero"
+	contenedorDinero.Size = UDim2.new(0, 140, 1, 0)
+	contenedorDinero.BackgroundTransparency = 1
+	contenedorDinero.Parent = panelPuntuacion
+
+	-- Marco decorativo para dinero
+	local marcoDinero = Instance.new("Frame")
+	marcoDinero.Name = "MarcoDinero"
+	marcoDinero.Size = UDim2.new(1, -10, 0.85, 0)
+	marcoDinero.Position = UDim2.new(0, 5, 0.075, 0)
+	marcoDinero.BackgroundColor3 = Tema.Colores.Overlay
+	marcoDinero.BackgroundTransparency = 0.5
+	marcoDinero.BorderSizePixel = 0
+	marcoDinero.Parent = contenedorDinero
+
+	local esquinaMarcoD = Instance.new("UICorner")
+	esquinaMarcoD.CornerRadius = UDim.new(0, 8)
+	esquinaMarcoD.Parent = marcoDinero
+
+	local etiquetaDinero = FabricaComponentes.Etiqueta("Etiqueta", marcoDinero, "💰 DINERO", Tema.Colores.Exito, 11, Tema.Fuente.Negrita)
+	etiquetaDinero.Size = UDim2.new(1, 0, 0.35, 0)
+	etiquetaDinero.TextXAlignment = Enum.TextXAlignment.Center
+	etiquetaDinero.BackgroundTransparency = 1
+
+	local valorDinero = FabricaComponentes.Etiqueta("Valor", marcoDinero, "$0", Tema.Colores.Exito, 18, Tema.Fuente.Negrita)
+	valorDinero.Size = UDim2.new(1, 0, 0.65, 0)
+	valorDinero.Position = UDim2.new(0, 0, 0.35, 0)
+	valorDinero.TextXAlignment = Enum.TextXAlignment.Center
+	valorDinero.BackgroundTransparency = 1
+	
 	-- ═══════════════════════════════════════════════════════════════
 	-- BARRA DE BOTONES PRINCIPALES
 	-- ═══════════════════════════════════════════════════════════════
