@@ -1,10 +1,174 @@
 local dialogueKitModule = require(script.Parent.Parent.DialogueKit)
-local dialoguePrompt = workspace:WaitForChild("Nivel0_Tutorial"):WaitForChild("DialoguePrompts"):WaitForChild("TestPrompt1").PromptPart.ProximityPrompt
+local DialogueGenerator = require(script.Parent.DialogueGenerator)
+local dialoguePrompt = workspace:WaitForChild("NivelActual"):WaitForChild("DialoguePrompts"):WaitForChild("TestPrompt1").PromptPart.ProximityPrompt
 
 -- ============================================================================
 -- CONFIGURACIÓN DE APARIENCIA
 -- ============================================================================
-local SKIN_NAME = "Hotline" -- <--- CAMBIA ESTO PARA AJUSTAR LA SKIN (Ej: "Hotline", "Dark", "Light")
+local SKIN_NAME = "Hotline" 
+
+-- ============================================================================
+-- 1. ZONA DE EDICIÓN FÁCIL
+-- ============================================================================
+
+local DATA_DIALOGOS = {
+	-- 1. INTRODUCCIÓN Y CONTEXTO
+	["Bienvenida"] = {
+		Actor = "Carlos",
+		Expresion = "Serio", 
+		Texto = "¡Por fin llegas! Disculpa el caos... la energia de la ciudad esta fallando. ¿Tú eres el nuevo aprendiz, verdad? ¿Cómo te llamas?",
+		Sonido = "rbxassetid://0",
+		Opciones = {
+			{ Texto = "Soy Tocino, vengo a ayudar.", Siguiente = "Saludo_Tocino" }
+		}
+	},
+
+	["Saludo_Tocino"] = {
+		Actor = "Carlos",
+		Expresion = "Presentacion", 
+		Texto = "Así que tú eres Tocino. Bienvenido a 'Redes y Caminos'. Soy Carlos. Me alegra ver que alguien respondió al llamado.",
+		Sonido = "rbxassetid://0",
+		Siguiente = "Explicacion_Problema"
+	},
+
+	["Explicacion_Problema"] = {
+		Actor = "Carlos",
+		Expresion = "Enojado", 
+		Texto = {
+			"Villa Conexa es un desastre. Cortes de luz, tráfico colapsado, rutas que no llevan a ningún lado...",
+			"Todo es culpa del Alcalde. Lleva años aprobando 'soluciones rápidas' y baratas para aparentar progreso."
+		},
+		Sonido = { "rbxassetid://0", "rbxassetid://0" },
+		Siguiente = "La_Mision"
+	},
+
+	["La_Mision"] = {
+		Actor = "Carlos",
+		Expresion = "Serio",
+		Texto = {
+			"El Alcalde nos contrató creyendo que pondremos otro parche temporal por poco dinero. Pero se equivoca.",
+			"Tú y yo no vamos a improvisar. Vamos a reestructurar todo el pueblo usando Lógica y Planificación."
+		},
+		Sonido = { "rbxassetid://0", "rbxassetid://0" },
+		Siguiente = "Rol_Tocino"
+	},
+
+	["Rol_Tocino"] = {
+		Actor = "Carlos",
+		Expresion = "Serio",
+		Texto = "Sé que no tienes experiencia, Tocino, y es probable que cometas errores al principio. Es parte del proceso.",
+		Sonido = "rbxassetid://0",
+		Siguiente = "Conceptos_Nodos" 
+	},
+
+	-- 2. ENSEÑANZA (TUTORIAL)
+	["Conceptos_Nodos"] = {
+		Actor = "Carlos",
+		Expresion = "Sonriente", 
+		Texto = "Empecemos. Para arreglar el caos, debes entender las partes de la red.",
+		Sonido = "rbxassetid://0",
+		Siguiente = "Explicacion_Generador"
+	},
+
+	["Explicacion_Generador"] = {
+		Actor = "Sistema",
+		Expresion = "Generador",
+		Texto = "Todo comienza aquí: el **GENERADOR**. Es la fuente de energía de cada nivel.",
+		Sonido = "rbxassetid://0",
+		Siguiente = "Explicacion_Nodos"
+	},
+
+	["Explicacion_Nodos"] = {
+		Actor = "Sistema",
+		Expresion = "Nodo",
+		Texto = "La energía debe viajar a través de los postes. En nuestro esquema, los llamamos **NODOS**. Son los puntos de conexión.",
+		Sonido = "rbxassetid://0",
+		Siguiente = "Explicacion_Aristas"
+	},
+
+	["Explicacion_Aristas"] = {
+		Actor = "Sistema",
+		Expresion = "Arista",
+		Texto = "Para unir los nodos usamos cables, que llamamos **ARISTAS**. Sin ellas, la energía no fluye.",
+		Sonido = "rbxassetid://0",
+		Siguiente = "Explicacion_Conexion"
+	},
+
+	["Explicacion_Conexion"] = {
+		Actor = "Sistema",
+		Expresion = "Arista_conectada",
+		Texto = "Al unir el **Generador** con un nodo, verás un pulso de energía azul. ¡Eso significa que la corriente está viajando por la **ARISTA**!",
+		Sonido = "rbxassetid://0",
+		Siguiente = "Explicacion_Energia"
+	},
+
+	["Explicacion_Energia"] = {
+		Actor = "Sistema",
+		Expresion = "Arista_energizada",
+		Texto = "Si lo haces bien, la energía fluirá y el cable se iluminará. Esa es la señal de éxito.",
+		Sonido = "rbxassetid://0",
+		Siguiente = "Explicacion_Objetivo"
+	},
+
+	["Explicacion_Objetivo"] = {
+		Actor = "Sistema",
+		Expresion = "NodoPrincipal",
+		Texto = "Tu misión final es llevar la energía desde el Generador hasta el **NODO PRINCIPAL** (Transformador). ¡Búscalo y enciéndelo!",
+		Sonido = "rbxassetid://0",
+		Siguiente = "Entrega_Mapa"
+	},
+
+	["Entrega_Mapa"] = {
+		Actor = "Carlos",
+		Expresion = "Serio",
+		Texto = "Para que no te pierdas, aquí tienes un **MAPA** de la zona. Úsalo para ver la red desde arriba.",
+		Sonido = "rbxassetid://0",
+		Siguiente = "Pista_Manual"
+	},
+
+	["Pista_Manual"] = {
+		Actor = "Carlos",
+		Expresion = "Serio",
+		Texto = "Ah, y vas a necesitar el **MANUAL DE ALGORITMOS**. Creo que deje la tablet cerca del Generador, en la bodega.",
+		Sonido = "rbxassetid://0",
+		Siguiente = "Invitacion_Practica"
+	},
+
+	["Invitacion_Practica"] = {
+		Actor = "Carlos",
+		Expresion = "Serio",
+		Texto = "Suficiente teoría. Ve a la mesa, recoge el mapa y conecta el Generador. ¡Manos a la obra!",
+		Sonido = "rbxassetid://0",
+		Opciones = {
+			{ Texto = "¡Entendido, gracias!", Siguiente = "Confirmacion_Final" }
+		}
+	},
+
+	["Confirmacion_Final"] = {
+		Actor = "Carlos",
+		Expresion = "Sonriente",
+		Texto = "¡Confío en ti. Suerte!",
+		Sonido = "rbxassetid://0",
+		Siguiente = "FIN"
+	}
+}
+
+-- ============================================================================
+-- 3. EJECUCIÓN
+-- ============================================================================
+
+dialoguePrompt.Triggered:Connect(function(player)
+	-- Generamos la tabla compleja usando el módulo
+	local layersComplejas = DialogueGenerator.GenerarEstructura(DATA_DIALOGOS, SKIN_NAME)
+
+	-- Llamamos al módulo
+	dialogueKitModule.CreateDialogue({
+		InitialLayer = "Bienvenida", 
+		SkinName = SKIN_NAME, 
+		Config = script:FindFirstChild(SKIN_NAME .. "Config") or script, 
+		Layers = layersComplejas
+	})
+end)
 
 
 -- ============================================================================
@@ -205,7 +369,7 @@ local function GenerarEstructura(dialogosSimples)
 		-- INYECCIÓN: Si es el nodo "Confirmacion_Final", hacer aparecer el objeto MAPA (Al dar click en Gracias)
 		if id == "Confirmacion_Final" then
 			if not nuevaLayer.Exec then nuevaLayer.Exec = {} end
-			
+
 			nuevaLayer.Exec.SpawnObject = {
 				Function = function()
 					print("⚡ EJECUTANDO SpawnObject desde Confirmacion_Final...")
@@ -214,7 +378,7 @@ local function GenerarEstructura(dialogosSimples)
 					local events = ReplicatedStorage:WaitForChild("Events", 5)
 					local remotes = events and events:WaitForChild("Remotes", 5)
 					local event = remotes and remotes:WaitForChild("AparecerObjeto", 5)
-					
+
 					if event then
 						event:FireServer(0, "Mapa")
 						print("✅ Solicitud de Mapa ENVIADA (Botón presionado)")
@@ -231,7 +395,7 @@ local function GenerarEstructura(dialogosSimples)
 		-- (Restaurado: Las imágenes funcionan con esto)
 		if imagen ~= "" then
 			if not nuevaLayer.Exec then nuevaLayer.Exec = {} end
-			
+
 			nuevaLayer.Exec.UpdateImage = {
 				-- Buscamos el ImageLabel en PlayerGui -> Dialogue -> [Skin] -> Content -> DialogueImage
 				Function = function()

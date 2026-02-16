@@ -10,6 +10,7 @@ local RunService = game:GetService("RunService")
 
 -- Estado
 local state = nil
+local enDialogo = false
 
 -- Referencias de UI
 local btnReiniciar = nil
@@ -73,23 +74,32 @@ function VisibilityManager:init()
 	end)
 end
 
+--- Establece si el jugador está en un diálogo
+function VisibilityManager:setDialogueMode(active)
+	enDialogo = active
+	self:updateGameplayUI(state.enMenu)
+end
+
 --- Actualiza visibilidad de botones según estado
 function VisibilityManager:updateGameplayUI(estaEnMenu)
 	state.enMenu = estaEnMenu
 
+	-- Si está en diálogo, forzar ocultar todo (similar a menú)
+	local ocultarTodo = estaEnMenu or enDialogo
+
 	-- Minimap HUD visibility
 	if minimapGui then
-		minimapGui.Enabled = not estaEnMenu
+		minimapGui.Enabled = not ocultarTodo
 	end
 
 	for _, btn in ipairs(botonesGameplay) do
 		if not btn then continue end
 
-		if estaEnMenu then
-			-- Ocultar todo en menú
+		if ocultarTodo then
+			-- Ocultar todo en menú o diálogo
 			btn.Visible = false
 		else
-			-- En gameplay, mostrar según condiciones
+			-- En gameplay normal, mostrar según condiciones
 			if btn == btnFinalizar then
 				btn.Visible = false -- Se activa por evento
 			elseif btn == btnMapa then
