@@ -20,8 +20,8 @@ if not LevelService or not GraphService then
 end
 
 local selecciones = {}
-local SOUND_CONNECT_ID = "rbxassetid://8089220692"
-local SOUND_CLICK_ID = "rbxassetid://125043525599051"
+local SOUND_CONNECT_NAME = "CableConnect"
+local SOUND_CLICK_NAME = "CableSnap"
 
 local Remotes = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Remotes")
 local cableDragEvent = Remotes:WaitForChild("CableDragEvent")
@@ -39,16 +39,9 @@ local function getAttachment(selector)
 	return selector:FindFirstChild("Attachment")
 end
 
-local function reproducirSonido(id, parent)
+local function reproducirSonido(soundName, parent)
 	if AudioService then
-		AudioService:playSound(id, "sfx", {volume = 0.5})
-	else
-		local sound = Instance.new("Sound")
-		sound.SoundId = id
-		sound.Volume = 0.5
-		sound.Parent = parent
-		sound:Play()
-		game.Debris:AddItem(sound, 2)
+		AudioService:playSound(soundName, "sfx", {volume = 0.5})
 	end
 end
 
@@ -91,7 +84,7 @@ local function desconectarPostes(poste1, poste2, player)
 	end
 
 	GraphService:disconnectNodes(poste1, poste2)
-	reproducirSonido(SOUND_CLICK_ID, poste1)
+	reproducirSonido(SOUND_CLICK_NAME, poste1)
 
 	if pulseEvent then
 		pulseEvent:FireAllClients("StopPulse", poste1, poste2)
@@ -260,7 +253,7 @@ local function conectarPostes(poste1, poste2, att1, att2, player)
 	end
 
 	-- Sonido
-	reproducirSonido(SOUND_CONNECT_ID, att2)
+	reproducirSonido(SOUND_CONNECT_NAME, att2)
 	if AudioService then AudioService:playCableConnected() end
 
 	-- Guardar datos en postes
@@ -303,7 +296,7 @@ local function onClick(selector, player)
 	-- Primer click
 	if not seleccionActual then
 		selecciones[player] = selector
-		reproducirSonido(SOUND_CLICK_ID, selector)
+		reproducirSonido(SOUND_CLICK_NAME, selector)
 		if AudioService then AudioService:playClick() end
 
 		local att = getAttachment(selector)

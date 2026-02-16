@@ -26,6 +26,14 @@ local soundPlayedEvent = Instance.new("BindableEvent")
 -- INICIALIZACIÓN
 -- ============================================
 
+local DEFAULT_SOUNDS = {
+	CableConnect = "rbxassetid://8089220692",
+	CableSnap = "rbxassetid://125043525599051",
+	Click = "rbxassetid://4678184518", -- Sonido genérico de click (ejemplo)
+	Error = "rbxassetid://4836125431", -- Sonido genérico de error (ejemplo)
+	Success = "rbxassetid://4836124505" -- Sonido genérico de éxito (ejemplo)
+}
+
 function AudioService:init()
 	-- Crear o buscar carpeta de sonidos en ReplicatedStorage
 	local audioFolder = ReplicatedStorage:FindFirstChild("Audio")
@@ -34,12 +42,23 @@ function AudioService:init()
 		audioFolder.Name = "Audio"
 		audioFolder.Parent = ReplicatedStorage
 		print("⚠️ AudioService: Carpeta Audio creada en ReplicatedStorage")
-		print("   Añade archivos de sonido allí")
 	else
 		print("✅ AudioService: Carpeta Audio encontrada")
 	end
 
 	soundsFolder = audioFolder
+
+	-- Verificar y crear sonidos por defecto
+	for name, id in pairs(DEFAULT_SOUNDS) do
+		if not soundsFolder:FindFirstChild(name) then
+			local sound = Instance.new("Sound")
+			sound.Name = name
+			sound.SoundId = id
+			sound.Parent = soundsFolder
+			print("➕ AudioService: Sonido '" .. name .. "' creado (" .. id .. ")")
+		end
+	end
+
 	print("✅ AudioService inicializado")
 end
 
