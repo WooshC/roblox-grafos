@@ -41,7 +41,7 @@ function DialogueGenerator.GenerarEstructura(dialogosSimples, skinName)
 		-- 1. Resolver Imagen y Sonido
 		local imagen = ""
 		local sonidoId = nil
-		
+
 		local actorData = ASSETS_ACTORES[nodo.Actor]
 		if actorData then
 			imagen = actorData[nodo.Expresion] or ""
@@ -65,7 +65,7 @@ function DialogueGenerator.GenerarEstructura(dialogosSimples, skinName)
 
 		-- 3. Configurar Sonidos para cada fragmento de texto
 		local sonidos = {}
-		
+
 		if type(nodo.Sonido) == "table" then
 			-- Caso: Lista de audios (Narración específica por segmento)
 			sonidos = nodo.Sonido
@@ -76,7 +76,7 @@ function DialogueGenerator.GenerarEstructura(dialogosSimples, skinName)
 			if not sonidoDefault and actorData then
 				sonidoDefault = actorData.Sonido
 			end
-			
+
 			for _ = 1, #textos do 
 				table.insert(sonidos, sonidoDefault) 
 			end
@@ -95,7 +95,7 @@ function DialogueGenerator.GenerarEstructura(dialogosSimples, skinName)
 		-- INYECCIÓN GENÉRICA: Soporte para 'Evento' definido en el nodo
 		if nodo.Evento and type(nodo.Evento) == "function" then
 			if not nuevaLayer.Exec then nuevaLayer.Exec = {} end
-			
+
 			nuevaLayer.Exec.CustomEvent = {
 				Function = nodo.Evento,
 				ExecTime = "Before",
@@ -107,7 +107,7 @@ function DialogueGenerator.GenerarEstructura(dialogosSimples, skinName)
 		-- Mantenemos esto aquí por compatibilidad, o se podría mover a un callback externo
 		if id == "Confirmacion_Final" then
 			if not nuevaLayer.Exec then nuevaLayer.Exec = {} end
-			
+
 			nuevaLayer.Exec.SpawnObject = {
 				Function = function()
 					print("⚡ EJECUTANDO SpawnObject desde Confirmacion_Final...")
@@ -115,7 +115,7 @@ function DialogueGenerator.GenerarEstructura(dialogosSimples, skinName)
 					local events = ReplicatedStorage:WaitForChild("Events", 5)
 					local remotes = events and events:WaitForChild("Remotes", 5)
 					local event = remotes and remotes:WaitForChild("AparecerObjeto", 5)
-					
+
 					if event then
 						event:FireServer(0, "Mapa")
 						print("✅ Solicitud de Mapa ENVIADA")
@@ -129,7 +129,7 @@ function DialogueGenerator.GenerarEstructura(dialogosSimples, skinName)
 		-- WORKAROUND: Inyectar función Exec para forzar cambio de imagen
 		if imagen ~= "" then
 			if not nuevaLayer.Exec then nuevaLayer.Exec = {} end
-			
+
 			nuevaLayer.Exec.UpdateImage = {
 				Function = function()
 					local Players = game:GetService("Players")

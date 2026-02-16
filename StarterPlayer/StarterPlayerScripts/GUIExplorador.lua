@@ -1,5 +1,5 @@
 -- ================================================================
--- GUIExplorador.client.lua
+-- GUIExplorador.client.lua (COMPLETO CON DialogueVisibilityManager)
 -- Script cliente que habilita y gestiona la GUI del Explorador
 -- ================================================================
 
@@ -34,6 +34,18 @@ end
 
 if not gui then
 	error("❌ CRÍTICO: No se pudo crear o encontrar GUIExplorador")
+end
+
+-- ================================================================
+-- 🔥 CARGAR Y INICIALIZAR DialogueVisibilityManager
+-- ================================================================
+
+local DialogueVisibilityManager = require(ReplicatedStorage:WaitForChild("DialogueVisibilityManager", 5))
+if DialogueVisibilityManager then
+	DialogueVisibilityManager.initialize()
+	print("✅ GUIExplorador: DialogueVisibilityManager integrado")
+else
+	warn("⚠️ GUIExplorador: DialogueVisibilityManager no encontrado")
 end
 
 -- ================================================================

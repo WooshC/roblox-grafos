@@ -22,6 +22,22 @@ local backgroundSoundInstance = nil
 local healthChangedConnection = nil
 local activeDialogueSound = nil
 
+
+local DialogueVisibilityManager = nil
+
+-- Intentar cargar el módulo
+local success, loaded = pcall(function()
+	return require(game:GetService("ReplicatedStorage"):WaitForChild("DialogueVisibilityManager", 3))
+end)
+
+if success and loaded then
+	DialogueVisibilityManager = loaded
+	print("✅ [DialogueKit] DialogueVisibilityManager cargado correctamente")
+else
+	warn("⚠️ [DialogueKit] DialogueVisibilityManager no disponible")
+end
+
+
 function parseNodeDialogue(nodeProjectName)
 	local replicatedStorage = game:GetService("ReplicatedStorage")
 	local dialogueNodeFolder = replicatedStorage:FindFirstChild("Dialogue_node")
@@ -1692,6 +1708,10 @@ function closeDialogue()
 		return
 	end
 
+	if DialogueVisibilityManager then
+		DialogueVisibilityManager:onDialogueEnd()
+	end
+
 	if typewriterThread then
 		isTyping = false
 		task.cancel(typewriterThread)
@@ -1717,7 +1737,6 @@ function closeDialogue()
 	end
 
 	teardownInputHandling()
-
 	local continueButton = skins[currentSkin].Continue.ContinueButton
 	continueButton.Active = false
 	hideContinueButton()
@@ -1982,6 +2001,19 @@ function module.CreateDialogue(dialogueData)
 			end
 		end
 	end
+	
+	if DialogueVisibilityManager then
+		DialogueVisibilityManager:onDialogueStart()
+	end
+
+	currentDialogue = dialogueData
+	currentLayer = dialogueData.InitialLayer
+	currentContentIndex = 1
+	currentSkin = dialogueData.SkinName
+
+	local skin = skins[currentSkin]
+
+	skin.Visible = true
 
 	currentDialogue = dialogueData
 	currentLayer = dialogueData.InitialLayer
@@ -2062,5 +2094,9 @@ end
 initializeSkins()
 
 print("Initialized Dialogue Kit V"..script.Parent.Version.Value.." by Asadrith")
+
+if DialogueVisibilityManager then
+	DialogueVisibilityManager.initialize()
+end
 
 return module

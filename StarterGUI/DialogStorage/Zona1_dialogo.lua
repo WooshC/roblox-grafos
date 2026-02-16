@@ -31,7 +31,7 @@ end
 -- Mover cámara a un objetivo
 local function focusCameraOn(targetPart, offset)
 	if not targetPart then return end
-	
+
 	-- Guardar estado original si es la primera vez
 	if camera.CameraType ~= Enum.CameraType.Scriptable then
 		originalCameraCFrame = camera.CFrame
@@ -58,10 +58,10 @@ local function restoreCamera()
 			-- Resetear suavemente hacia la vista del personaje
 			targetCFrame = CFrame.new(player.Character.Head.Position + Vector3.new(0, 5, 10), player.Character.Head.Position)
 		end
-		
+
 		local tween = TweenService:Create(camera, tweenInfo, {CFrame = targetCFrame})
 		tween:Play()
-		
+
 		task.delay(1.0, function()
 			camera.CameraType = originalCameraType or Enum.CameraType.Custom
 			originalCameraType = nil
@@ -72,11 +72,11 @@ end
 -- Resaltar objeto
 local function highlightObject(target, color)
 	if not target then return end
-	
+
 	-- Si es un modelo, buscar su parte principal
 	local model = target:IsA("Model") and target or target.Parent
 	local part = target:IsA("BasePart") and target or (model and model.PrimaryPart)
-	
+
 	if not model then return end
 
 	-- 1. Crear Highlight
@@ -96,7 +96,7 @@ local function highlightObject(target, color)
 		part:SetAttribute("OriginalColor", part.Color)
 		part.Material = Enum.Material.Neon
 		part.Color = color
-		
+
 		-- Agregar a lista de limpieza especial si es necesario, 
 		-- pero por simplicidad solo limpiamos el Highlight y revertimos manual.
 		table.insert(activeHighlights, {Part = part, Type = "Material"})
@@ -150,16 +150,16 @@ local DATA_DIALOGOS = {
 			clearEffects()
 			local n1 = findNodePart("Nodo1_z1")
 			local n2 = findNodePart("Nodo2_z1")
-			
+
 			if n1 then highlightObject(n1, Color3.fromRGB(0, 255, 0)) end -- Verde
 			if n2 then highlightObject(n2, Color3.fromRGB(255, 0, 0)) end -- Rojo
-			
+
 			-- Mover cámara entre los dos
 			if n1 and n2 then
 				local midPoint = n1.Position:Lerp(n2.Position, 0.5)
 				local camPos = midPoint + Vector3.new(0, 20, 10) -- Altura isométrica
 				local newCF = CFrame.new(camPos, midPoint)
-				
+
 				TweenService:Create(camera, TweenInfo.new(1.5), {CFrame = newCF}):Play()
 			end
 		end,
@@ -204,17 +204,17 @@ local yaSeMostro = false
 
 local function checkZone(newZone)
 	if yaSeMostro then return end
-	
+
 	if newZone == ZONA_OBJETIVO then
 		-- Doble chequeo: solo si hay personaje vivo
 		if not player.Character then return end
-		
+
 		yaSeMostro = true
 		print("✅ Zona 1 detectada (Sistema de Zonas) - Iniciando Diálogo Interactivo")
-		
+
 		-- Generar y lanzar diálogo
 		local layersComplejas = DialogueGenerator.GenerarEstructura(DATA_DIALOGOS, SKIN_NAME)
-		
+
 		dialogueKitModule.CreateDialogue({
 			InitialLayer = "Inicio", 
 			SkinName = SKIN_NAME, 
