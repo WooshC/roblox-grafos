@@ -75,9 +75,9 @@ LevelsConfig[0] = {
 		},
 		{
 			ID = 4, Zona = "Zona_Estacion_2",
-			Texto = "Conecta ambos vecinos al centro (grado 2)",
-			Tipo = "GRADO_NODO", Puntos = 150,
-			Parametros = { Nodo = "Nodo1_z2", GradoRequerido = 2 }
+			Texto = "Conecta los tres vecinos al centro (grado 3)",
+			Tipo = "GRADO_NODO", Puntos = 300,
+			Parametros = { Nodo = "Nodo1_z2", GradoRequerido = 3 }
 		},
 		{
 			ID = 5, Zona = "Zona_Estacion_3",
