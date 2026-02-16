@@ -113,9 +113,9 @@ if LevelService then
 	LevelService:setDependencies(GraphService, EnergyService, MissionService, InventoryService)
 end
 
--- MissionService -> LevelService
+-- MissionService -> LevelService, GraphService
 if MissionService then
-	MissionService:setDependencies(LevelService)
+	MissionService:setDependencies(LevelService, GraphService)
 end
 
 -- InventoryService -> LevelService

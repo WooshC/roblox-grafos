@@ -155,6 +155,15 @@ end
 function MissionService:setDependencies(levelSvc, graphSvc)
 	levelService = levelSvc
 	graphService = graphSvc
+
+	-- Suscribirse a cambios en el grafo
+	if graphService then
+		graphService:onConnectionChanged(function(action, nodeA, nodeB)
+			if action == "connected" or action == "disconnected" then
+				self:onConnectionChanged()
+			end
+		end)
+	end
 end
 
 -- ============================================
@@ -325,23 +334,30 @@ function MissionService:checkMissions(player, gameStateOverride)
 
 	for _, missionConfig in ipairs(config.Misiones) do
 		local missionId = missionConfig.ID
+		local tipo = missionConfig.Tipo
+		local validator = Validators[tipo]
+		local params = missionConfig.Parametros or {}
 
-		if not playerState[missionId] then
-			local tipo = missionConfig.Tipo
-			local validator = Validators[tipo]
-
-			if not validator then
-				warn("⚠️ MissionService: Tipo desconocido: " .. tostring(tipo))
-			else
-				local params = missionConfig.Parametros or {}
-				local ok, result = pcall(validator, params, estado)
-
-				if ok and result == true then
-					self:completeMission(player, missionId)
-				elseif not ok then
-					warn("⚠️ MissionService: Error en misión " .. missionId .. ": " .. tostring(result))
+		if validator then
+			local ok, result = pcall(validator, params, estado)
+			
+			if ok then
+				if result == true then
+					-- Si la condición se cumple y no estaba completada, completarla
+					if not playerState[missionId] then
+						self:completeMission(player, missionId)
+					end
+				else
+					-- Si la condición NO se cumple pero estaba marcada como completada, REVOCARLA
+					if playerState[missionId] then
+						self:failMission(player, missionId)
+					end
 				end
+			else
+				warn("⚠️ MissionService: Error en misión " .. missionId .. ": " .. tostring(result))
 			end
+		else
+			warn("⚠️ MissionService: Tipo desconocido: " .. tostring(tipo))
 		end
 	end
 
@@ -544,9 +560,56 @@ function MissionService:completeMission(player, missionId)
 	end
 end
 
+-- REVOCAR MISIÓN (Cuando deja de cumplirse)
+function MissionService:failMission(player, missionId)
+	local playerState = playerMissions[player.UserId]
+	if not playerState then return end
+	
+	-- Solo revocar si estaba completada
+	if not playerState[missionId] then return end
+
+	playerState[missionId] = false -- Marcar como no completada
+
+	if updateEvent then
+		updateEvent:FireClient(player, missionId, false)
+	end
+
+	print("❌ Misión " .. missionId .. " revocada para " .. player.Name)
+
+	-- 🔥 RESTAR PUNTOS
+	if levelService then
+		local config = levelService:getLevelConfig()
+		if config and config.Misiones then
+			for _, mc in ipairs(config.Misiones) do
+				if mc.ID == missionId and (mc.Puntos or 0) > 0 then
+					local ls = player:FindFirstChild("leaderstats")
+					if ls then
+						local puntos = ls:FindFirstChild("Puntos")
+						if puntos then
+							puntos.Value = math.max(0, puntos.Value - mc.Puntos)
+							print("💸 -" .. mc.Puntos .. " pts (Total: " .. puntos.Value .. ")")
+							
+							-- 🔥 RECALCULAR ESTRELLAS
+							local estrellas = ls:FindFirstChild("Estrellas")
+							if estrellas then
+								local nuevasEstrellas = self:_calcularEstrellas(puntos.Value, levelService:getCurrentLevelID())
+								if nuevasEstrellas ~= estrellas.Value then
+									estrellas.Value = nuevasEstrellas
+									print("⭐ Estrellas actualizadas a: " .. nuevasEstrellas)
+								end
+							end
+						end
+					end
+					break
+				end
+			end
+		end
+	end
+end
+
 -- 🔥 NUEVA FUNCIÓN: Calcular estrellas
 function MissionService:_calcularEstrellas(puntos, nivelID)
-	local config = LevelsConfig[nivelID]
+	local config = LevelsConfig[nivelID] or (levelService and levelService:getLevelConfig())
 	if not config or not config.Puntuacion then
 		return 0
 	end
