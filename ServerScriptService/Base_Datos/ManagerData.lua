@@ -174,40 +174,10 @@ local function saveData(player)
 end
 
 -- ============================================
--- API PARA EL CLIENTE (REMOTES)
--- ============================================
-
-GetProgressFunc.OnServerInvoke = function(player)
-	local data = SessionData[player.UserId]
-	if not data then 
-		data = loadData(player) 
-	end
-	return data
-end
-
-RequestPlayEvent.OnServerEvent:Connect(function(player, levelId)
-	local sID = tostring(levelId)
-	local data = SessionData[player.UserId]
-
-	if not data then return end
-
-	local levelData = data.Levels[sID]
-
-	if levelData and levelData.Unlocked then
-		local config = LevelsConfig[tonumber(levelId)]
-		if config then
-			setupLevelForPlayer(player, tonumber(levelId), config)
-		end
-	else
-		warn("⛔ " .. player.Name .. " intentó acceder a Nivel BLOQUEADO: " .. sID)
-	end
-end)
-
--- ============================================
 -- LÓGICA DE JUEGO Y TELETRANSPORTE
 -- ============================================
 
-function setupLevelForPlayer(player, levelId, config)
+local function setupLevelForPlayer(player, levelId, config)
 	local character = player.Character or player.CharacterAdded:Wait()
 	local rootPart = character:WaitForChild("HumanoidRootPart", 5) -- Timeout de 5s
 	
@@ -292,6 +262,36 @@ function setupLevelForPlayer(player, levelId, config)
 		warn("❌ No se encontró Spawn para Nivel " .. levelId)
 	end
 end
+
+-- ============================================
+-- API PARA EL CLIENTE (REMOTES)
+-- ============================================
+
+GetProgressFunc.OnServerInvoke = function(player)
+	local data = SessionData[player.UserId]
+	if not data then 
+		data = loadData(player) 
+	end
+	return data
+end
+
+RequestPlayEvent.OnServerEvent:Connect(function(player, levelId)
+	local sID = tostring(levelId)
+	local data = SessionData[player.UserId]
+
+	if not data then return end
+
+	local levelData = data.Levels[sID]
+
+	if levelData and levelData.Unlocked then
+		local config = LevelsConfig[tonumber(levelId)]
+		if config then
+			setupLevelForPlayer(player, tonumber(levelId), config)
+		end
+	else
+		warn("⛔ " .. player.Name .. " intentó acceder a Nivel BLOQUEADO: " .. sID)
+	end
+end)
 
 -- ============================================
 -- FUNCIONES EXPORTADAS (GLOBALES)
