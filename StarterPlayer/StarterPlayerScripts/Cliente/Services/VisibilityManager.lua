@@ -52,8 +52,9 @@ function VisibilityManager.initialize(globalState, screenGui, minimapGuiRef)
 	print("✅ VisibilityManager: Inicializado")
 end
 
---- Inicia detector de cambio de menú
+--- Inicia detector de cambio de menú y visibilidad del techo
 function VisibilityManager:init()
+	-- Loop de monitoreo de cámara (Menú/Gameplay)
 	task.spawn(function()
 		while task.wait(0.5) do
 			local cam = workspace.CurrentCamera
@@ -70,6 +71,16 @@ function VisibilityManager:init()
 					end
 				end
 			end
+		end
+	end)
+
+	-- Loop de monitoreo para el techo (Mapa Activo/Inactivo)
+	-- Se usa Heartbeat para respuesta rápida al abrir/cerrar mapa
+	local lastMapState = false
+	RunService.Heartbeat:Connect(function()
+		if state.mapaActivo ~= lastMapState then
+			lastMapState = state.mapaActivo
+			self:updateTechoVisibility()
 		end
 	end)
 end
@@ -133,6 +144,50 @@ function VisibilityManager:getButton(btnName)
 	if btnName == "Finalizar" then return btnFinalizar end
 	if btnName == "Puntaje" then return lblPuntaje end
 	return nil
+end
+
+--- Toggles Techo visibility in NivelActual
+function VisibilityManager:toggleTecho(visible)
+	local opacity = visible and 0 or 1
+	local active = visible
+	
+	-- Buscar objeto "Techo" SOLAMENTE en NivelActual
+	local nivelActual = workspace:FindFirstChild("NivelActual")
+	if nivelActual then
+		local techoObj = nivelActual:FindFirstChild("Techo", true) -- Puede ser Part, Model o Folder
+		
+		if techoObj then
+			local parts = {}
+			
+			-- Si el objeto mismo es una parte
+			if techoObj:IsA("BasePart") then
+				table.insert(parts, techoObj)
+			end
+			
+			-- Y sus descendientes
+			for _, p in ipairs(techoObj:GetDescendants()) do
+				if p:IsA("BasePart") then
+					table.insert(parts, p)
+				end
+			end
+			
+			for _, part in ipairs(parts) do
+				part.Transparency = opacity
+				part.CanCollide = active
+				part.CastShadow = active
+				part.CanQuery = active -- Evita que raycasts lo detecten
+				part.CanTouch = active -- Evita eventos de touch
+			end
+		end
+	end
+end
+
+--- Wrapper para actualizar visibilidad de techo basado en estado global (usado por MapManager o externamente)
+function VisibilityManager:updateTechoVisibility()
+	-- El techo debe estar visible SOLO si NO está el mapa activo
+	-- (Y opcionalmente si no estamos en modo cutscene, pero eso lo maneja el diálogo aparte por ahora)
+	local debeMostrarTecho = not state.mapaActivo
+	self:toggleTecho(debeMostrarTecho)
 end
 
 return VisibilityManager

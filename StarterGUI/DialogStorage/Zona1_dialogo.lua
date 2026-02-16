@@ -120,6 +120,40 @@ local function clearEffects()
 	activeHighlights = {}
 end
 
+-- Toggle visibilidad del Techo (Part, Model o Folder)
+local function toggleTecho(visible)
+	local opacity = visible and 0 or 1
+	local active = visible
+
+	-- Buscar objeto "Techo" SOLAMENTE en NivelActual
+	local nivelActual = workspace:FindFirstChild("NivelActual")
+	if nivelActual then
+		local techoObj = nivelActual:FindFirstChild("Techo", true)
+		
+		if techoObj then
+			local parts = {}
+			-- Si el objeto mismo es una parte
+			if techoObj:IsA("BasePart") then
+				table.insert(parts, techoObj)
+			end
+			-- Y sus descendientes
+			for _, p in ipairs(techoObj:GetDescendants()) do
+				if p:IsA("BasePart") then
+					table.insert(parts, p)
+				end
+			end
+			
+			for _, part in ipairs(parts) do
+				part.Transparency = opacity
+				part.CanCollide = active
+				part.CastShadow = active
+				part.CanQuery = active
+				part.CanTouch = active
+			end
+		end
+	end
+end
+
 -- ============================================================================
 -- 2. ZONA DE EDICIÓN DE DIÁLOGOS
 -- ============================================================================
@@ -135,6 +169,7 @@ local DATA_DIALOGOS = {
 		Sonido = { "rbxassetid://0", "rbxassetid://0" },
 		Evento = function()
 			-- Solo enfocar la cámara general
+			toggleTecho(false) -- Ocultar techo
 			local nodo1 = findNodePart("Nodo1_z1")
 			if nodo1 then focusCameraOn(nodo1, Vector3.new(15, 15, 15)) end
 		end,
@@ -189,6 +224,7 @@ local DATA_DIALOGOS = {
 		Sonido = "rbxassetid://0",
 		Evento = function()
 			clearEffects()
+			toggleTecho(true) -- Mostrar techo
 			restoreCamera()
 		end,
 		Siguiente = "FIN"
