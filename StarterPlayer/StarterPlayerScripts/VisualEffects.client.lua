@@ -43,12 +43,12 @@ end
 local function highlightNeighbors(neighbors)
 	clearHighlights()
 	if not neighbors then return end
-	
+
 	for _, node in ipairs(neighbors) do
 		if node and node:IsA("Model") then
 			-- ✅ Usar recursivo true por si acaso, aunque el screenshot muestra hijo directo
 			local selector = node:FindFirstChild("Selector", true)
-			
+
 			if selector and selector:IsA("BasePart") then
 				-- 1. Guardar propiedades originales
 				originalProperties[selector] = {
@@ -56,12 +56,12 @@ local function highlightNeighbors(neighbors)
 					Material = selector.Material,
 					Transparency = selector.Transparency
 				}
-				
+
 				-- 2. Cambiar apariencia física (Neon Amarillo)
 				selector.Color = Color3.fromRGB(255, 255, 0)
 				selector.Material = Enum.Material.Neon
 				selector.Transparency = 0
-				
+
 				-- 3. Agregar Highlight (Outline)
 				local h = Instance.new("Highlight")
 				h.Name = "NeighborHighlight"
@@ -90,17 +90,17 @@ end
 cableDragEvent.OnClientEvent:Connect(function(action, attStart, neighbors)
 	if action == "Start" and attStart then
 		limpiarCable()
-		
+
 		local char = player.Character
 		if not char then return end
-		
+
 		local hand = char:FindFirstChild("RightHand") or char:FindFirstChild("HumanoidRootPart")
 		if not hand then return end
-		
+
 		attJugadorActual = Instance.new("Attachment")
 		attJugadorActual.Name = "CableDragAtt"
 		attJugadorActual.Parent = hand
-		
+
 		hazActual = Instance.new("Beam")
 		hazActual.Name = "VisualDragCable"
 		hazActual.Attachment0 = attStart
@@ -112,12 +112,12 @@ cableDragEvent.OnClientEvent:Connect(function(action, attStart, neighbors)
 		hazActual.CurveSize0 = 1
 		hazActual.CurveSize1 = 1
 		hazActual.Parent = char
-		
+
 		-- Resaltar vecinos
 		if neighbors then
 			highlightNeighbors(neighbors)
 		end
-		
+
 	elseif action == "Stop" then
 		limpiarCable()
 	end
@@ -146,7 +146,7 @@ local function generarParticulaTrafico(posInicio, posFin, color, duracion, model
 	parte.Anchored = true
 	parte.Position = posInicio
 	parte.Name = "TrafficParticle"
-	
+
 	-- ✅ CRÍTICO: Parentear dentro del modelo del poste, NO en workspace
 	-- Esto evita que el minimapa encuentre la partícula suelta en workspace
 	if modeloPosteParent and modeloPosteParent:IsA("Model") then
@@ -155,7 +155,7 @@ local function generarParticulaTrafico(posInicio, posFin, color, duracion, model
 		warn("⚠️ [VisualEffects] modeloPosteParent no es válido, usando workspace como fallback")
 		parte.Parent = workspace
 	end
-	
+
 	-- Efecto Trail
 	local rastro = Instance.new("Trail")
 	rastro.Attachment0 = Instance.new("Attachment", parte)
@@ -170,7 +170,7 @@ local function generarParticulaTrafico(posInicio, posFin, color, duracion, model
 	})
 	rastro.Color = ColorSequence.new(color)
 	rastro.Parent = parte
-	
+
 	-- Animación manual con RenderStepped para loop limpio A->B
 	local t = 0
 	local conexion
@@ -179,15 +179,15 @@ local function generarParticulaTrafico(posInicio, posFin, color, duracion, model
 			conexion:Disconnect() 
 			return 
 		end
-		
+
 		t = t + (dt / duracion)
 		if t > 1 then 
 			t = 0 -- Reset instantaneo a inicio
 		end
-		
+
 		parte.Position = posInicio:Lerp(posFin, t)
 	end)
-	
+
 	return parte
 end
 
@@ -201,40 +201,40 @@ pulseEvent.OnClientEvent:Connect(function(accion, p1, p2, esBidireccional)
 		warn("⚠️ [VisualEffects] p2 no es un Model válido")
 		return
 	end
-	
+
 	local clave = obtenerClave(p1, p2)
-	
+
 	if accion == "StartPulse" then
 		if pulsosActivos[clave] then 
 			return 
 		end
-		
+
 		-- Obtener posiciones
 		local att1 = p1:FindFirstChild("Attachment", true) or p1.PrimaryPart
 		local att2 = p2:FindFirstChild("Attachment", true) or p2.PrimaryPart
-		
+
 		if not att1 or not att2 then 
 			warn("⚠️ [VisualEffects] No se encontraron attachments en los postes")
 			return 
 		end
-		
+
 		local pos1 = att1:IsA("Attachment") and att1.WorldPosition or att1.Position
 		local pos2 = att2:IsA("Attachment") and att2.WorldPosition or att2.Position
-		
+
 		local particulas = {}
-		
+
 		-- ✅ 1. Particula A -> B (Cyan) - parenteada dentro de p1
 		local part1 = generarParticulaTrafico(pos1, pos2, Color3.fromRGB(0, 255, 255), 2.0, p1)
 		table.insert(particulas, part1)
-		
+
 		-- ✅ 2. Particula B -> A (Gold) - parenteada dentro de p2 (si es bidireccional)
 		if esBidireccional then
 			local part2 = generarParticulaTrafico(pos2, pos1, Color3.fromRGB(255, 200, 0), 2.0, p2)
 			table.insert(particulas, part2)
 		end
-		
+
 		pulsosActivos[clave] = particulas
-		
+
 	elseif accion == "StopPulse" then
 		if pulsosActivos[clave] then
 			for _, p in ipairs(pulsosActivos[clave]) do
@@ -250,7 +250,7 @@ if eventoReiniciar then
 	eventoReiniciar.OnClientEvent:Connect(function()
 		local count = 0
 		for clave, particulas in pairs(pulsosActivos) do
-		for _, p in ipairs(particulas) do
+			for _, p in ipairs(particulas) do
 				p:Destroy()
 				count = count + 1
 			end

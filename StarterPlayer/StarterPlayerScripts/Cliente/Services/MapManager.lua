@@ -1,7 +1,5 @@
 -- ================================================================
--- MapManager.lua (FINAL v3)
--- Todas las funciones locales declaradas ANTES de usarse.
--- MapManager es el único dueño del estado del techo.
+-- MapManager.lua (v6 - colores: rojo/azul/verde/amarillo adyacentes)
 -- ================================================================
 
 local MapManager = {}
@@ -11,8 +9,8 @@ local Players           = game:GetService("Players")
 local RunService        = game:GetService("RunService")
 local TweenService      = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService  = game:GetService("UserInputService")
 
--- Dependencias (inyectadas en initialize)
 local LevelsConfig      = nil
 local NodeLabelManager  = nil
 local MissionsManager   = nil
@@ -20,25 +18,47 @@ local MissionsManager   = nil
 local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 
--- Estado del mapa
 local state            = nil
 local screenGui        = nil
 local btnMapa          = nil
 local camaraConnection = nil
+local clickConnection  = nil
 local zoneHighlights   = {}
 
--- ================================================================
--- ESTADO DEL TECHO — fuente única de verdad
--- ================================================================
-local techoValoresOriginales = {}    -- { [BasePart] = { Transparency, CastShadow } }
-local techoCapturado         = false -- true = ya capturamos los valores reales
-local techoEstaOculto        = false -- estado actual
+local mapaClickEvent   = nil
 
 -- ================================================================
--- FUNCIONES LOCALES (declaradas antes de usarse)
+-- ESTADO DE SELECCIÓN EN MODO MAPA
 -- ================================================================
+local nodoSeleccionado        = nil  -- nombre del poste del primer click
+local adyacentesSeleccionados = {}   -- { [nombrePoste] = true }
 
--- ---------- Techo ----------
+local function limpiarSeleccionMapa()
+	nodoSeleccionado        = nil
+	adyacentesSeleccionados = {}
+end
+
+local function calcularAdyacentes(nombrePoste, nivelID)
+	adyacentesSeleccionados = {}
+	local config = LevelsConfig and (LevelsConfig[nivelID] or LevelsConfig[0])
+	if not config or not config.Adyacencias then return end
+	local ady = config.Adyacencias[nombrePoste]
+	if not ady then return end
+	for _, vecino in ipairs(ady) do
+		adyacentesSeleccionados[vecino] = true
+	end
+end
+
+-- ================================================================
+-- ESTADO DEL TECHO
+-- ================================================================
+local techoValoresOriginales = {}
+local techoCapturado         = false
+local techoEstaOculto        = false
+
+-- ================================================================
+-- FUNCIONES LOCALES
+-- ================================================================
 
 local function capturarOriginales()
 	if techoCapturado then return end
@@ -51,14 +71,13 @@ local function capturarOriginales()
 			techoValoresOriginales[part] = {
 				Transparency = part.Transparency,
 				CastShadow   = part.CastShadow,
+				CanQuery     = part.CanQuery,
 			}
 		end
 	end
 	techoCapturado = true
-	print("🏠 MapManager: Originales del techo capturados (solo esta vez)")
+	print("🏠 MapManager: Originales del techo capturados")
 end
-
--- ---------- Zonas ----------
 
 local function findZones(nivelModel)
 	if not nivelModel then return {} end
@@ -219,16 +238,26 @@ function MapManager.initialize(globalState, screenGui_ref, deps)
 	NodeLabelManager = deps.NodeLabelManager
 	MissionsManager  = deps.MissionsManager
 
-	-- Buscar BtnMapa
 	local barraBotones = screenGui:FindFirstChild("BarraBotonesMain")
 	if barraBotones then btnMapa = barraBotones:FindFirstChild("BtnMapa") end
 	if not btnMapa  then btnMapa = screenGui:FindFirstChild("BtnMapa") end
 
-	-- Conectar BindableEvents en background
 	task.spawn(function()
 		local Events    = ReplicatedStorage:WaitForChild("Events", 10)
-		if not Events   then return end
+		if not Events then return end
+
+		local Remotes   = Events:WaitForChild("Remotes", 10)
 		local Bindables = Events:WaitForChild("Bindables", 10)
+
+		if Remotes then
+			mapaClickEvent = Remotes:WaitForChild("MapaClickNodo", 10)
+			if mapaClickEvent then
+				print("✅ MapManager: mapaClickEvent listo")
+			else
+				warn("❌ MapManager: MapaClickNodo no encontrado")
+			end
+		end
+
 		if not Bindables then return end
 
 		local function getOrCreate(name)
@@ -241,25 +270,21 @@ function MapManager.initialize(globalState, screenGui_ref, deps)
 			return e
 		end
 
-		-- ForceCloseMap: cerrar mapa SIN restaurar techo
 		getOrCreate("ForceCloseMap").Event:Connect(function()
 			if state.mapaActivo then
-				print("🗺️ MapManager: ForceCloseMap — cierre sin restaurar techo")
 				MapManager:_cerrarMapa(false)
 			end
 		end)
 
-		-- ShowRoof: diálogo pide ocultar techo
 		getOrCreate("ShowRoof").Event:Connect(function()
 			MapManager:showRoof()
 		end)
 
-		-- RestoreRoof: diálogo terminó, restaurar techo
 		getOrCreate("RestoreRoof").Event:Connect(function()
 			MapManager:restoreRoof()
 		end)
 
-		print("✅ MapManager: BindableEvents conectados (ForceCloseMap / ShowRoof / RestoreRoof)")
+		print("✅ MapManager: BindableEvents conectados")
 	end)
 
 	print("✅ MapManager: Inicializado")
@@ -276,6 +301,7 @@ function MapManager:showRoof()
 		if part and part.Parent then
 			part.Transparency = 0.95
 			part.CastShadow   = false
+			part.CanQuery     = false
 		end
 	end
 	techoEstaOculto = true
@@ -288,16 +314,38 @@ function MapManager:restoreRoof()
 		if part and part.Parent then
 			part.Transparency = orig.Transparency
 			part.CastShadow   = orig.CastShadow
+			part.CanQuery     = orig.CanQuery
 		end
 	end
 	techoEstaOculto = false
-	print("🏠 MapManager: Techo restaurado a valores originales")
+	print("🏠 MapManager: Techo restaurado")
 end
 
 function MapManager:resetRoofCache()
 	techoValoresOriginales = {}
 	techoCapturado         = false
 	techoEstaOculto        = false
+end
+
+-- ================================================================
+-- MINIMAP
+-- ================================================================
+
+function MapManager:_setMinimapVisible(visible)
+	local playerGui = player:FindFirstChild("PlayerGui")
+	if not playerGui then return end
+
+	local guiExplorador = playerGui:FindFirstChild("GUIExplorador")
+	if guiExplorador then
+		local contenedor = guiExplorador:FindFirstChild("ContenedorMiniMapa")
+		if contenedor then
+			contenedor.Visible = visible
+			print("🗺️ ContenedorMiniMapa " .. (visible and "mostrado" or "ocultado"))
+			return
+		end
+	end
+
+	warn("⚠️ MapManager: No se encontró ContenedorMiniMapa en GUIExplorador")
 end
 
 -- ================================================================
@@ -326,6 +374,7 @@ function MapManager:enable()
 	if MissionsManager  then MissionsManager:hide()  end
 
 	self:showRoof()
+	self:_setMinimapVisible(false)
 
 	local nivelID    = player:GetAttribute("CurrentLevelID") or 0
 	local config     = LevelsConfig[nivelID] or LevelsConfig[0]
@@ -338,6 +387,7 @@ function MapManager:enable()
 
 	self:_populateLabels()
 	self:_startCameraLoop()
+	self:_startClickInput()
 end
 
 function MapManager:disable()
@@ -348,7 +398,6 @@ function MapManager:isActive()
 	return state ~= nil and state.mapaActivo == true
 end
 
---- @param restaurarTecho boolean
 function MapManager:_cerrarMapa(restaurarTecho)
 	state.mapaActivo = false
 
@@ -365,8 +414,6 @@ function MapManager:_cerrarMapa(restaurarTecho)
 
 	if restaurarTecho then
 		self:restoreRoof()
-	else
-		print("🏠 MapManager: Techo NO restaurado — el diálogo toma control")
 	end
 
 	clearZoneHighlights()
@@ -376,6 +423,9 @@ function MapManager:_cerrarMapa(restaurarTecho)
 		camaraConnection = nil
 	end
 
+	self:_stopClickInput()
+	limpiarSeleccionMapa()
+	self:_setMinimapVisible(true)
 	self:_restoreSelectors()
 end
 
@@ -418,33 +468,195 @@ function MapManager:_startCameraLoop()
 end
 
 -- ================================================================
+-- INPUT DE CLICK
+-- ================================================================
+
+function MapManager:_startClickInput()
+	if clickConnection then clickConnection:Disconnect() end
+
+	if not mapaClickEvent then
+		warn("⚠️ MapManager: mapaClickEvent no listo, reintentando en 1s...")
+		task.delay(1, function()
+			if state.mapaActivo then
+				self:_startClickInput()
+			end
+		end)
+		return
+	end
+
+	-- Garantizar CanQuery = true en todos los Selectores
+	local nivelID    = player:GetAttribute("CurrentLevelID") or 0
+	local config     = LevelsConfig[nivelID] or LevelsConfig[0]
+	local nivelModel = self:_getLevelModel(nivelID, config)
+	if nivelModel then
+		local postesFolder = nivelModel:FindFirstChild("Objetos")
+			and nivelModel.Objetos:FindFirstChild("Postes")
+		if postesFolder then
+			for _, poste in ipairs(postesFolder:GetChildren()) do
+				local sel = poste:FindFirstChild("Selector")
+				if sel and sel:IsA("BasePart") then
+					sel.CanQuery = true
+				end
+			end
+		end
+	end
+
+	clickConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+		if gameProcessed then return end
+		if input.UserInputType ~= Enum.UserInputType.MouseButton1
+			and input.UserInputType ~= Enum.UserInputType.Touch then
+			return
+		end
+
+		local mouseLocation = UserInputService:GetMouseLocation()
+		local ray = camera:ViewportPointToRay(mouseLocation.X, mouseLocation.Y)
+
+		local nivelID2    = player:GetAttribute("CurrentLevelID") or 0
+		local config2     = LevelsConfig[nivelID2] or LevelsConfig[0]
+		local nivelModel2 = self:_getLevelModel(nivelID2, config2)
+
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Include
+		local candidatos = {}
+
+		if nivelModel2 then
+			local pf = nivelModel2:FindFirstChild("Objetos")
+				and nivelModel2.Objetos:FindFirstChild("Postes")
+			if pf then
+				for _, poste in ipairs(pf:GetChildren()) do
+					local sel = poste:FindFirstChild("Selector")
+					if sel and sel:IsA("BasePart") then
+						table.insert(candidatos, sel)
+					end
+				end
+			end
+			if #candidatos == 0 then
+				for _, d in ipairs(nivelModel2:GetDescendants()) do
+					if d.Name == "Selector" and d:IsA("BasePart") then
+						table.insert(candidatos, d)
+					end
+				end
+			end
+		end
+
+		if #candidatos == 0 then
+			warn("⚠️ MapManager: No se encontraron Selectores para click")
+			return
+		end
+
+		params.FilterDescendantsInstances = candidatos
+		local result = workspace:Raycast(ray.Origin, ray.Direction * 1000, params)
+
+		if result and result.Instance then
+			local selector    = result.Instance
+			local posteNombre = selector.Parent.Name
+			print("🎯 MapClick → servidor: " .. posteNombre)
+
+			if not nodoSeleccionado then
+				-- Primer click: guardar selección y calcular adyacentes
+				nodoSeleccionado = posteNombre
+				calcularAdyacentes(posteNombre, nivelID2)
+			else
+				-- Segundo click: limpiar selección
+				limpiarSeleccionMapa()
+			end
+
+			mapaClickEvent:FireServer(selector)
+		else
+			-- Diagnóstico
+			local paramsDebug = RaycastParams.new()
+			paramsDebug.FilterType = Enum.RaycastFilterType.Exclude
+			local debugExclude = {}
+			if player.Character then table.insert(debugExclude, player.Character) end
+			for part, _ in pairs(techoValoresOriginales) do
+				table.insert(debugExclude, part)
+			end
+			paramsDebug.FilterDescendantsInstances = debugExclude
+			local rd = workspace:Raycast(ray.Origin, ray.Direction * 1000, paramsDebug)
+			if rd then
+				print("❌ Click fallido. El rayo golpeó: " .. rd.Instance.Name .. " (" .. rd.Instance.Parent.Name .. ")")
+			else
+				print("❌ Click fallido. El rayo no golpeó nada.")
+			end
+		end
+	end)
+
+	print("✅ MapManager: Click input activo")
+end
+
+function MapManager:_stopClickInput()
+	if clickConnection then
+		clickConnection:Disconnect()
+		clickConnection = nil
+	end
+end
+
+-- ================================================================
 -- SELECTORES Y ETIQUETAS
 -- ================================================================
+
+-- Devuelve true si el poste tiene al menos una conexión activa
+local function tieneConexiones(poste)
+	local connections = poste:FindFirstChild("Connections")
+	if not connections then return false end
+	return #connections:GetChildren() > 0
+end
 
 function MapManager:_updateNodeSelector(poste, nombreInicio, nombreFin)
 	local selector = poste:FindFirstChild("Selector")
 	if not selector or not selector:IsA("BasePart") then return end
 	selector.Transparency = 0
+	selector.CanQuery     = true
 
+	-- Guardar tamaño original la primera vez
+	if not selector:GetAttribute("OriginalSize") then
+		selector:SetAttribute("OriginalSize", selector.Size)
+	end
+	local origSize = selector:GetAttribute("OriginalSize")
+
+	local nombre     = poste.Name
 	local energizado = poste:GetAttribute("Energizado")
-	local esInicio   = (poste.Name == nombreInicio)
+	local conectado  = tieneConexiones(poste)
 
-	if esInicio then
-		selector.Color    = Color3.fromRGB(52, 152, 219)
+	-- ================================================================
+	-- PRIORIDAD DE COLORES:
+	-- 1. 🟡 AMARILLO  — adyacente del nodo seleccionado (primer click activo)
+	-- 2. 🔵 AZUL VIF  — nodo actualmente seleccionado (esperando segundo click)
+	-- 3. ⚪ AZUL CLARO — nodo inicio especial (siempre)
+	-- 4. 🟢 VERDE     — energizado (corriente llega desde inicio)
+	-- 5. 🔵 AZUL      — tiene cables pero no energizado aún
+	-- 6. 🔴 ROJO      — aislado, sin ninguna conexión
+	-- ================================================================
+
+	if nodoSeleccionado and adyacentesSeleccionados[nombre] then
+		selector.Color    = Color3.fromRGB(255, 220, 0)   -- 🟡 Amarillo
 		selector.Material = Enum.Material.Neon
-	elseif energizado ~= true then
-		selector.Color    = Color3.fromRGB(231, 76, 60)
+		if origSize then selector.Size = origSize * 1.2 end
+
+	elseif nodoSeleccionado == nombre then
+		selector.Color    = Color3.fromRGB(0, 120, 255)   -- 🔵 Azul vivo (seleccionado)
 		selector.Material = Enum.Material.Neon
-		if not selector:GetAttribute("OriginalSize") then
-			selector:SetAttribute("OriginalSize", selector.Size)
-		end
-		local origSize = selector:GetAttribute("OriginalSize")
 		if origSize then selector.Size = origSize * 1.3 end
-	else
-		selector.Color    = Color3.fromRGB(46, 204, 113)
-		selector.Material = Enum.Material.Plastic
-		local origSize    = selector:GetAttribute("OriginalSize")
+
+	elseif nombre == nombreInicio then
+		selector.Color    = Color3.fromRGB(52, 152, 219)  -- ⚪ Azul claro (inicio)
+		selector.Material = Enum.Material.Neon
 		if origSize then selector.Size = origSize end
+
+	elseif energizado == true then
+		selector.Color    = Color3.fromRGB(46, 204, 113)  -- 🟢 Verde (energizado)
+		selector.Material = Enum.Material.Plastic
+		if origSize then selector.Size = origSize end
+
+	elseif conectado then
+		selector.Color    = Color3.fromRGB(52, 152, 219)  -- 🔵 Azul (conectado, sin energía)
+		selector.Material = Enum.Material.Neon
+		if origSize then selector.Size = origSize end
+
+	else
+		selector.Color    = Color3.fromRGB(231, 76, 60)   -- 🔴 Rojo (aislado)
+		selector.Material = Enum.Material.Neon
+		if origSize then selector.Size = origSize * 1.3 end
 	end
 end
 
@@ -476,6 +688,7 @@ function MapManager:_restoreSelectors()
 				selector.Transparency = 1
 				selector.Color        = Color3.fromRGB(196, 196, 196)
 				selector.Material     = Enum.Material.Plastic
+				selector.CanQuery     = true  -- ClickDetectors necesitan CanQuery=true
 				local origSize        = selector:GetAttribute("OriginalSize")
 				if origSize then selector.Size = origSize end
 			end
@@ -490,9 +703,18 @@ function MapManager:_getLevelModel(nivelID, config)
 		m = workspace:FindFirstChild(config.Modelo)
 		if m then return m end
 	end
-	m = workspace:FindFirstChild("Nivel" .. nivelID)
-	if m then return m end
-	return workspace:FindFirstChild("Nivel" .. nivelID .. "_Tutorial")
+	if nivelID then
+		m = workspace:FindFirstChild("Nivel" .. nivelID)
+		if m then return m end
+		m = workspace:FindFirstChild("Nivel" .. nivelID .. "_Tutorial")
+		if m then return m end
+	end
+	for _, child in ipairs(workspace:GetChildren()) do
+		if child.Name:match("^Nivel%d+") then
+			return child
+		end
+	end
+	return nil
 end
 
 function MapManager:_populateLabels()
@@ -519,6 +741,7 @@ end
 player.AncestryChanged:Connect(function(_, parent)
 	if parent == nil then
 		if camaraConnection then camaraConnection:Disconnect() end
+		if clickConnection  then clickConnection:Disconnect()  end
 		clearZoneHighlights()
 	end
 end)

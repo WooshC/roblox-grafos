@@ -55,7 +55,7 @@ end
 -- CONFIGURACIÓN
 -- ================================================================
 
-local ZOOM             = 100
+local ZOOM             = 120
 local TAMANO_NODO      = 5    -- Tamaño de la Part cuadrada que representa cada nodo
 local TAMANO_PARTICULA = 5    -- Tamaño de las TrafficParticle en el minimapa
 

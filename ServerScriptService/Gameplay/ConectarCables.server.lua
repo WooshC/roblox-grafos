@@ -137,7 +137,7 @@ local function conectarPostes(poste1, poste2, att1, att2, player)
 
 	-- Validar adyacencia
 	if not LevelService:canConnect(poste1, poste2) then
-		reproducirSonido(SOUND_FAILED_NAME, poste2) -- Sonido de fallo al intentar conectar
+		reproducirSonido(SOUND_FAILED_NAME, poste2)
 		if UIService then
 			UIService:notifyError(player, "Conexión Inválida", "Estos postes no pueden conectarse")
 		end
@@ -310,13 +310,12 @@ local function conectarPostes(poste1, poste2, att1, att2, player)
 end
 
 -- ============================================
--- GESTOR DE CLICKS
+-- GESTOR DE CLICKS (modo normal con ClickDetector)
 -- ============================================
 
 local function onClick(selector, player)
 	local poste = getPosteFromSelector(selector)
 
-	-- Registrar selección de nodo (para misiones NODO_SELECCIONADO)
 	if MissionService then
 		MissionService:registerNodeSelection(player, poste.Name)
 	end
@@ -331,7 +330,6 @@ local function onClick(selector, player)
 
 		local att = getAttachment(selector)
 		if att then
-			-- Calcular vecinos válidos para resaltar
 			local neighbors = {}
 			if LevelService then
 				local config = LevelService:getLevelConfig()
@@ -350,7 +348,6 @@ local function onClick(selector, player)
 					end
 				end
 			end
-			
 			cableDragEvent:FireClient(player, "Start", att, neighbors)
 		end
 		return
@@ -375,7 +372,6 @@ local function onClick(selector, player)
 	end
 
 	conectarPostes(posteAnterior, poste, att1, att2, player)
-
 	selecciones[player] = nil
 	cableDragEvent:FireClient(player, "Stop")
 end
@@ -412,4 +408,61 @@ if LevelService and LevelService:isLevelLoaded() then
 	if postesFolder then registrarPostes(postesFolder) end
 end
 
-print("⚡ ConectarCables cargado")
+-- ============================================
+-- SOPORTE PARA CLICKS EN MODO MAPA
+-- ============================================
+
+-- 🔥 FIX: Declarar mapaClickEvent correctamente en este scope
+local mapaClickEvent = Remotes:FindFirstChild("MapaClickNodo")
+if not mapaClickEvent then
+	mapaClickEvent = Instance.new("RemoteEvent")
+	mapaClickEvent.Name = "MapaClickNodo"
+	mapaClickEvent.Parent = Remotes
+end
+
+-- Lógica separada de onClick() para no llamar cableDragEvent en modo mapa
+mapaClickEvent.OnServerEvent:Connect(function(player, selector)
+	print("🖥️ SERVIDOR recibió de " .. player.Name)
+
+	if not selector or selector.Name ~= "Selector" then
+		warn("❌ Selector inválido: " .. tostring(selector))
+		return
+	end
+
+	local poste = selector.Parent
+	local att   = selector:FindFirstChild("Attachment")
+	print("   Poste: " .. poste.Name .. " | Att: " .. tostring(att))
+
+	local seleccionActual = selecciones[player]
+	print("   Selección previa: " .. tostring(seleccionActual and seleccionActual.Parent.Name or "ninguna"))
+
+	if not seleccionActual then
+		-- Primer click: solo guardar, sin FireClient (no funciona en modo mapa)
+		selecciones[player] = selector
+		reproducirSonido(SOUND_CLICK_NAME, selector)
+		if AudioService then AudioService:playClick() end
+		print("   → Guardado como primer nodo")
+	else
+		local posteAnterior = seleccionActual.Parent
+
+		if poste == posteAnterior then
+			selecciones[player] = nil
+			print("   → Mismo nodo, selección cancelada")
+			return
+		end
+
+		local att1 = seleccionActual:FindFirstChild("Attachment")
+		local att2 = att
+
+		if not att1 or not att2 then
+			warn("❌ Faltan Attachments — verifica que cada Selector tenga un hijo llamado 'Attachment'")
+			selecciones[player] = nil
+			return
+		end
+
+		conectarPostes(posteAnterior, poste, att1, att2, player)
+		selecciones[player] = nil
+	end
+end)
+
+print("✅ ConectarCables: MapaClickNodo listener activo")

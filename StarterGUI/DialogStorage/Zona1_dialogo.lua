@@ -1,10 +1,3 @@
--- ================================================================
--- Zona1_Dialogo.lua
--- ✅ El techo lo gestiona DialogueVisibilityManager (onDialogueStart/End)
--- ✅ Se eliminaron toggleTecho() manuales del Inicio y Confirmacion
--- ✅ El mapa se cierra automáticamente vía ForceCloseMap
--- ================================================================
-
 local dialogueKitModule = require(script.Parent.Parent.DialogueKit)
 local DialogueGenerator = require(script.Parent.DialogueGenerator)
 
@@ -73,7 +66,7 @@ local DATA_DIALOGOS = {
 
 	["Inicio"] = {
 		Actor = "Carlos",
-		Expresion = "Serio",
+		Expresion = "Bienvenida",
 		Texto = {
 			"Bienvenido a la Zona 1.",
 			"Aquí aprenderás qué es un nodo y qué es una conexión."
@@ -121,7 +114,7 @@ local DATA_DIALOGOS = {
 
 	["Nodo_Aislado"] = {
 		Actor = "Carlos",
-		Expresion = "Presentacion",
+		Expresion = "Serio",
 		Texto = {
 			"Un nodo sin conexiones está aislado.",
 			"No forma parte de una red."
@@ -182,7 +175,7 @@ local DATA_DIALOGOS = {
 
 	["Instrucciones_1"] = {
 		Actor = "Sistema",
-		Expresion = "Serio",
+		Expresion = "Bienvenida",
 		Texto = "Selecciona un nodo de origen (" .. alias1 .. ").",
 		Sonido = "rbxassetid://91232241403260",
 		Evento = function()
@@ -199,7 +192,7 @@ local DATA_DIALOGOS = {
 	},
 
 	["Instrucciones_2"] = {
-		Actor = "Sistema",
+		Actor = "Carlos",
 		Expresion = "Serio",
 		Texto = "Luego selecciona el nodo destino (" .. alias2 .. ").",
 		Sonido = "rbxassetid://76732191360053",
@@ -221,7 +214,7 @@ local DATA_DIALOGOS = {
 	},
 
 	["Instrucciones_3"] = {
-		Actor = "Sistema",
+		Actor = "Carlos",
 		Expresion = "Feliz",
 		Texto = "Así crearás una conexión.",
 		Sonido = "rbxassetid://124195032304220",
@@ -254,7 +247,7 @@ local DATA_DIALOGOS = {
 
 	["Confirmacion"] = {
 		Actor = "Carlos",
-		Expresion = "Serio",
+		Expresion = "Feliz",
 		Texto = {
 			"Ahora es tu turno.",
 			"Conecta los nodos."
