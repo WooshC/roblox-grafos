@@ -1,6 +1,5 @@
 -- ServerScriptService/Services/AudioService.lua
--- SERVICIO CENTRALIZADO para gestión de sonidos y música
--- Maneja efectos de sonido, música de fondo, avisos sonoros
+
 
 local AudioService = {}
 AudioService.__index = AudioService
@@ -30,9 +29,9 @@ local DEFAULT_SOUNDS = {
 	CableConnect = "rbxassetid://77515099019542",
 	CableSnap = "rbxassetid://131799331821436",
 	ConnectionFailed = "rbxassetid://128503882926000",
-	Click = "rbxassetid://4678184518", -- Sonido genérico de click (ejemplo)
+	Click = "rbxassetid://129273414525214", -- Sonido genérico de click (ejemplo)
 	Error = "rbxassetid://128503882926000", -- Sonido genérico de error (ejemplo)
-	Success = "rbxassetid://4836124505" -- Sonido genérico de éxito (ejemplo)
+	Success = "rbxassetid://132440961977628" -- Sonido genérico de éxito (ejemplo)
 }
 
 function AudioService:init()
@@ -42,9 +41,7 @@ function AudioService:init()
 		audioFolder = Instance.new("Folder")
 		audioFolder.Name = "Audio"
 		audioFolder.Parent = ReplicatedStorage
-		print("⚠️ AudioService: Carpeta Audio creada en ReplicatedStorage")
 	else
-		print("✅ AudioService: Carpeta Audio encontrada")
 	end
 
 	soundsFolder = audioFolder
@@ -137,7 +134,6 @@ function AudioService:playBGM(nombreCancion, loop, fadeIn)
 	})
 
 	currentBGM = nombreCancion
-	print("🎵 AudioService: Música de fondo cambiada a " .. nombreCancion)
 end
 
 -- Detiene la música de fondo actual
@@ -147,7 +143,6 @@ function AudioService:stopBGM(fadeOut)
 	if currentBGM then
 		self:fadeOutSound(currentBGM, fadeOut)
 		currentBGM = nil
-		print("🎵 AudioService: Música de fondo detenida")
 	end
 end
 
@@ -195,7 +190,6 @@ function AudioService:playSound(soundName, soundType, options)
 	end
 
 	soundPlayedEvent:Fire(soundName, soundType)
-	print("🔊 AudioService: Sonido reproducido - " .. soundName)
 
 	return sound
 end
@@ -255,7 +249,6 @@ end
 function AudioService:setVolume(soundType, volumeLevel)
 	volumeLevel = math.clamp(volumeLevel, 0, 1)
 	soundVolumes[soundType] = volumeLevel
-	print("🔊 AudioService: Volumen de " .. soundType .. " = " .. (volumeLevel * 100) .. "%")
 end
 
 -- Obtiene volumen actual de un tipo
@@ -268,7 +261,6 @@ function AudioService:muteAll()
 	for soundType, _ in pairs(soundVolumes) do
 		soundVolumes[soundType] = 0
 	end
-	print("🔇 AudioService: Todos los sonidos muteados")
 end
 
 -- Restaura volúmenes
@@ -277,7 +269,6 @@ function AudioService:unmuteAll()
 	soundVolumes.sfx = 0.7
 	soundVolumes.voice = 0.8
 	soundVolumes.ambient = 0.3
-	print("🔊 AudioService: Sonidos restaurados a volumen normal")
 end
 
 -- ============================================
@@ -319,7 +310,6 @@ function AudioService:playVictoryMusic()
 		loop = false,
 		volume = soundVolumes.bgm
 	})
-	print("🎵 AudioService: Música de victoria reproducida")
 end
 
 -- Reproducir música de derrota
@@ -328,7 +318,6 @@ function AudioService:playDefeatMusic()
 		loop = false,
 		volume = soundVolumes.bgm
 	})
-	print("🎵 AudioService: Música de derrota reproducida")
 end
 
 -- Reproducir música de menú
@@ -347,12 +336,10 @@ function AudioService:playAmbiance(levelID)
 		loop = true,
 		volume = soundVolumes.ambient
 	})
-	print("🌍 AudioService: Ambiente del nivel reproducido")
 end
 
 -- Detiene ambiente actual
 function AudioService:stopAmbiance()
-	-- Buscar y detener cualquier sonido looped de tipo ambient
 	print("🌍 AudioService: Ambiente detenido")
 end
 
@@ -362,33 +349,6 @@ end
 
 function AudioService:onSoundPlayed(callback)
 	soundPlayedEvent.Event:Connect(callback)
-end
-
--- ============================================
--- DEBUG
--- ============================================
-
-function AudioService:debug()
-	print("\n📊 ===== DEBUG AudioService =====")
-	print("Volúmenes actuales:")
-	for soundType, volume in pairs(soundVolumes) do
-		print("   " .. soundType .. ": " .. (volume * 100) .. "%")
-	end
-
-	if soundsFolder then
-		local soundCount = #soundsFolder:GetChildren()
-		print("Sonidos disponibles: " .. soundCount)
-	else
-		print("⚠️ Carpeta de sonidos no inicializada")
-	end
-
-	if currentBGM then
-		print("BGM actual: " .. currentBGM)
-	else
-		print("BGM actual: Ninguno")
-	end
-
-	print("===== Fin DEBUG =====\n")
 end
 
 return AudioService

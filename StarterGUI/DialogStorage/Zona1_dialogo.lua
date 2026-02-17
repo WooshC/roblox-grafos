@@ -1,3 +1,8 @@
+-- ================================================================
+-- Zona1_Dialogo.lua
+-- 🔥 NUEVO: Cierra el mapa automáticamente si está activo
+-- ================================================================
+
 local dialogueKitModule = require(script.Parent.Parent.DialogueKit)
 local DialogueGenerator = require(script.Parent.DialogueGenerator)
 
@@ -5,10 +10,16 @@ local VisualEffectsService = require(
 	game:GetService("StarterPlayer"):WaitForChild("StarterPlayerScripts")
 		:WaitForChild("Cliente"):WaitForChild("Services"):WaitForChild("VisualEffectsService")
 )
+
+local MapManager = require(
+	game:GetService("StarterPlayer"):WaitForChild("StarterPlayerScripts")
+		:WaitForChild("Cliente"):WaitForChild("Services"):WaitForChild("MapManager")
+)
+
 local LevelsConfig = require(game:GetService("ReplicatedStorage"):WaitForChild("LevelsConfig"))
 
 -- ================================================================
--- CONFIGURACIÓN
+-- CONFIGURACIÓN (sin cambios)
 -- ================================================================
 
 local CONFIG = {
@@ -36,14 +47,14 @@ local CONFIG = {
 }
 
 -- ================================================================
--- VARIABLES DINÁMICAS
+-- VARIABLES DINÁMICAS (sin cambios)
 -- ================================================================
 
 local alias1 = LevelsConfig[0].Nodos[CONFIG.NODOS.nodo1].Alias
 local alias2 = LevelsConfig[0].Nodos[CONFIG.NODOS.nodo2].Alias
 
 -- ================================================================
--- DIÁLOGOS
+-- DIÁLOGOS (sin cambios)
 -- ================================================================
 
 local DATA_DIALOGOS = {
@@ -106,22 +117,19 @@ local DATA_DIALOGOS = {
 			if n1 and n2 then
 				VisualEffectsService:highlightObject(n1, CONFIG.COLORES.rojo)
 				VisualEffectsService:highlightObject(n2, CONFIG.COLORES.rojo)
-
 				VisualEffectsService:showNodeLabel(n1, alias1)
 				VisualEffectsService:showNodeLabel(n2, alias2)
 
 				local midPoint = n1.Position:Lerp(n2.Position, 0.5)
-				local camPos = midPoint + CONFIG.CAMARA.offset_arista
-				local newCF = CFrame.new(camPos, midPoint)
-
 				local camera = workspace.CurrentCamera
-				local tweenInfo = TweenInfo.new(CONFIG.CAMARA.duracion, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-				game:GetService("TweenService"):Create(camera, tweenInfo, {CFrame = newCF}):Play()
+				game:GetService("TweenService"):Create(camera,
+					TweenInfo.new(CONFIG.CAMARA.duracion, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+					{CFrame = CFrame.new(midPoint + CONFIG.CAMARA.offset_arista, midPoint)}
+				):Play()
 			end
 		end,
 		Siguiente = "Concepto_Arista"
 	},
-
 
 	["Concepto_Arista"] = {
 		Actor = "Carlos",
@@ -139,19 +147,16 @@ local DATA_DIALOGOS = {
 			if n1 and n2 then
 				VisualEffectsService:highlightObject(n1, CONFIG.COLORES.azul)
 				VisualEffectsService:highlightObject(n2, CONFIG.COLORES.azul)
-
 				VisualEffectsService:showNodeLabel(n1, alias1)
 				VisualEffectsService:showNodeLabel(n2, alias2)
-
 				VisualEffectsService:createFakeEdge(n1, n2, CONFIG.COLORES.amarillo)
 
 				local midPoint = n1.Position:Lerp(n2.Position, 0.5)
-				local camPos = midPoint + CONFIG.CAMARA.offset_arista
-				local newCF = CFrame.new(camPos, midPoint)
-
 				local camera = workspace.CurrentCamera
-				local tweenInfo = TweenInfo.new(CONFIG.CAMARA.duracion, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-				game:GetService("TweenService"):Create(camera, tweenInfo, {CFrame = newCF}):Play()
+				game:GetService("TweenService"):Create(camera,
+					TweenInfo.new(CONFIG.CAMARA.duracion, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+					{CFrame = CFrame.new(midPoint + CONFIG.CAMARA.offset_arista, midPoint)}
+				):Play()
 			end
 		end,
 		Siguiente = "Instrucciones_1"
@@ -185,14 +190,11 @@ local DATA_DIALOGOS = {
 			local n1 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo1)
 			local n2 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo2)
 
-
 			if n1 and n2 then
 				VisualEffectsService:highlightObject(n1, CONFIG.COLORES.verde_debil)
 				VisualEffectsService:highlightObject(n2, CONFIG.COLORES.rojo)
-
 				VisualEffectsService:showNodeLabel(n1, LevelsConfig[0].Nodos[CONFIG.NODOS.nodo1].Alias)
 				VisualEffectsService:showNodeLabel(n2, LevelsConfig[0].Nodos[CONFIG.NODOS.nodo2].Alias)
-
 				VisualEffectsService:focusCameraOn(n2, CONFIG.CAMARA.offset_zoom)
 				VisualEffectsService:blink(n2, 30, 1)
 			end
@@ -213,19 +215,16 @@ local DATA_DIALOGOS = {
 			if n1 and n2 then
 				VisualEffectsService:highlightObject(n1, CONFIG.COLORES.verde)
 				VisualEffectsService:highlightObject(n2, CONFIG.COLORES.verde)
-
 				VisualEffectsService:showNodeLabel(n1, LevelsConfig[0].Nodos[CONFIG.NODOS.nodo1].Alias)
 				VisualEffectsService:showNodeLabel(n2, LevelsConfig[0].Nodos[CONFIG.NODOS.nodo2].Alias)
-
 				VisualEffectsService:createFakeEdge(n1, n2, CONFIG.COLORES.amarillo)
 
 				local midPoint = n1.Position:Lerp(n2.Position, 0.5)
-				local camPos = midPoint + CONFIG.CAMARA.offset_arista
-				local newCF = CFrame.new(camPos, midPoint)
-
 				local camera = workspace.CurrentCamera
-				local tweenInfo = TweenInfo.new(CONFIG.CAMARA.duracion, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-				game:GetService("TweenService"):Create(camera, tweenInfo, {CFrame = newCF}):Play()
+				game:GetService("TweenService"):Create(camera,
+					TweenInfo.new(CONFIG.CAMARA.duracion, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+					{CFrame = CFrame.new(midPoint + CONFIG.CAMARA.offset_arista, midPoint)}
+				):Play()
 
 				VisualEffectsService:blink(n1, 30, 1.5)
 				task.wait(0.2)
@@ -268,12 +267,19 @@ local function checkZone(newZone)
 		yaSeMostro = true
 		print("✅ " .. CONFIG.ZONA_OBJETIVO .. " detectada")
 
+		-- 🔥 NUEVO: Si el mapa está activo, cerrarlo antes del diálogo
+		if MapManager:isActive() then
+			print("🗺️ Zona1_Dialogo: Cerrando mapa antes de iniciar diálogo...")
+			MapManager:disable()
+			task.wait(0.4) -- Dar tiempo a que la cámara se restaure
+		end
+
 		local layersComplejas = DialogueGenerator.GenerarEstructura(DATA_DIALOGOS, CONFIG.SKIN_NAME)
 
 		dialogueKitModule.CreateDialogue({
-			InitialLayer = "Inicio", 
-			SkinName = CONFIG.SKIN_NAME, 
-			Config = script:FindFirstChild(CONFIG.SKIN_NAME .. "Config") or script, 
+			InitialLayer = "Inicio",
+			SkinName = CONFIG.SKIN_NAME,
+			Config = script:FindFirstChild(CONFIG.SKIN_NAME .. "Config") or script,
 			Layers = layersComplejas
 		})
 	end

@@ -32,9 +32,9 @@ end)
 
 if success and loaded then
 	DialogueVisibilityManager = loaded
-	print("✅ [DialogueKit] DialogueVisibilityManager cargado correctamente")
+	-- print("✅ [DialogueKit] DialogueVisibilityManager cargado correctamente")
 else
-	warn("⚠️ [DialogueKit] DialogueVisibilityManager no disponible")
+	-- warn("⚠️ [DialogueKit] DialogueVisibilityManager no disponible")
 end
 
 
@@ -43,19 +43,19 @@ function parseNodeDialogue(nodeProjectName)
 	local dialogueNodeFolder = replicatedStorage:FindFirstChild("Dialogue_node")
 
 	if not dialogueNodeFolder then
-		warn("Dialogue_node folder not found in ReplicatedStorage")
+		-- warn("Dialogue_node folder not found in ReplicatedStorage")
 		return nil
 	end
 
 	local nodeFolder = dialogueNodeFolder:FindFirstChild(nodeProjectName)
 	if not nodeFolder then
-		warn("Node project '" .. nodeProjectName .. "' not found")
+		-- warn("Node project '" .. nodeProjectName .. "' not found")
 		return nil
 	end
 
 	local nodesFolder = nodeFolder:FindFirstChild("nodes")
 	if not nodesFolder then
-		warn("No 'nodes' folder found in " .. nodeProjectName)
+		-- warn("No 'nodes' folder found in " .. nodeProjectName)
 		return nil
 	end
 
@@ -105,7 +105,7 @@ function parseNodeDialogue(nodeProjectName)
 	end
 
 	if not configNode then
-		warn("No Config Node found in " .. nodeProjectName)
+		-- warn("No Config Node found in " .. nodeProjectName)
 		return nil
 	end
 
@@ -113,50 +113,50 @@ function parseNodeDialogue(nodeProjectName)
 
 	local configRightConnector = configNode.connectors["rightConnector"] 
 	if configRightConnector and configRightConnector.connectedTo then
-		print("Found Config right connector with connection: " .. configRightConnector.connectedTo)
+		-- print("Found Config right connector with connection: " .. configRightConnector.connectedTo)
 		for targetId in string.gmatch(configRightConnector.connectedTo, "[^,]+") do
 			local targetConnector = connectorMap[targetId]
 			if targetConnector then
 				local targetNodeData = nodeMap[targetConnector.nodeConfig.Name]
-				print("  Config targeting: " .. targetConnector.nodeConfig.Name .. " (" .. (targetNodeData and targetNodeData.nodeType or "nil") .. ") via " .. targetConnector.connectorName)
+				-- print("  Config targeting: " .. targetConnector.nodeConfig.Name .. " (" .. (targetNodeData and targetNodeData.nodeType or "nil") .. ") via " .. targetConnector.connectorName)
 				if targetNodeData and targetNodeData.nodeType == "Dialogue Start Node" and (targetConnector.connectorName:match("Left") or targetConnector.connectorName:match("left")) then
 					dialogueStartNode = targetNodeData
-					print("Found connected Dialogue Start Node: " .. targetConnector.nodeConfig.Name)
+					-- print("Found connected Dialogue Start Node: " .. targetConnector.nodeConfig.Name)
 					break
 				end
 			end
 		end
 	else
-		print("No Config right connector found or no connections")
+		-- print("No Config right connector found or no connections")
 	end
 
 	if not dialogueStartNode then
-		warn("No Dialogue Start Node connected to Config Node")
+		-- warn("No Dialogue Start Node connected to Config Node")
 		return nil
 	end
 
 	local initialLayerNode = nil
 	local startRightConnector = dialogueStartNode.connectors["rightConnector"] 
 	if startRightConnector and startRightConnector.connectedTo then
-		print("Found Dialogue Start right connector with connection: " .. startRightConnector.connectedTo)
+		-- print("Found Dialogue Start right connector with connection: " .. startRightConnector.connectedTo)
 		for targetId in string.gmatch(startRightConnector.connectedTo, "[^,]+") do
 			local targetConnector = connectorMap[targetId]
 			if targetConnector then
 				local targetNodeData = nodeMap[targetConnector.nodeConfig.Name]
-				print("  Dialogue Start targeting: " .. targetConnector.nodeConfig.Name .. " (" .. (targetNodeData and targetNodeData.nodeType or "nil") .. ") via " .. targetConnector.connectorName)
+				-- print("  Dialogue Start targeting: " .. targetConnector.nodeConfig.Name .. " (" .. (targetNodeData and targetNodeData.nodeType or "nil") .. ") via " .. targetConnector.connectorName)
 				if targetNodeData and targetNodeData.nodeType == "Layer Node" and (targetConnector.connectorName:match("Left") or targetConnector.connectorName:match("left")) then
 					initialLayerNode = targetNodeData
-					print("Found connected Initial Layer Node: " .. targetConnector.nodeConfig.Name)
+					-- print("Found connected Initial Layer Node: " .. targetConnector.nodeConfig.Name)
 					break
 				end
 			end
 		end
 	else
-		print("No Dialogue Start right connector found or no connections")
+		-- print("No Dialogue Start right connector found or no connections")
 	end
 
 	if not initialLayerNode then
-		warn("No Layer Node connected to Dialogue Start Node")
+		-- warn("No Layer Node connected to Dialogue Start Node")
 		return nil
 	end
 
@@ -289,37 +289,29 @@ function processLayerNode(layerNode, nodeMap, connectorMap)
 		Replies = {}
 	}
 
-	print("=== Debug: All connectors in map ===")
-	for connectorId, connectorData in pairs(connectorMap) do
-		print("ID: " .. connectorId .. " -> Node: " .. connectorData.nodeConfig.Name .. " (" .. nodeMap[connectorData.nodeConfig.Name].nodeType .. "), Connector: " .. connectorData.connectorName)
-	end
-	print("=== End connector map ===")
+	-- Debug block removed
 
 	local dialogueNodes = {}
 	local currentDialogueNode = nil
 
-	print("=== Debug: Layer Node connectors ===")
-	for connectorName, connector in pairs(layerNode.connectors) do
-		print("Connector: " .. connectorName .. " (ID: " .. (connector.id or "nil") .. "), ConnectedTo: " .. (connector.connectedTo or "nil"))
-	end
-	print("Looking for DialogueRightConnector...")
+	-- Debug block removed
 
-	print("Looking for DialogueRightConnector or old-style right connectors...")
+	-- print("Looking for DialogueRightConnector or old-style right connectors...")
 
 	local dialogueConnector = layerNode.connectors["DialogueRightConnector"]
 	if not dialogueConnector or not dialogueConnector.connectedTo then
-		print("DialogueRightConnector not found, checking old-style connectors...")
+		-- print("DialogueRightConnector not found, checking old-style connectors...")
 		for connectorName, connector in pairs(layerNode.connectors) do
 			if connector.connectedTo and (connectorName:match("right") or connectorName == "rightConnector") then
-				print("  Checking old-style connector: " .. connectorName)
+				-- print("  Checking old-style connector: " .. connectorName)
 				for targetId in string.gmatch(connector.connectedTo, "[^,]+") do
 					local targetConnector = connectorMap[targetId]
 					if targetConnector then
 						local targetNodeData = nodeMap[targetConnector.nodeConfig.Name]
-						print("    Target: " .. targetConnector.nodeConfig.Name .. " (" .. (targetNodeData and targetNodeData.nodeType or "nil") .. ")")
+						-- print("    Target: " .. targetConnector.nodeConfig.Name .. " (" .. (targetNodeData and targetNodeData.nodeType or "nil") .. ")")
 						if targetNodeData and targetNodeData.nodeType == "Dialogue Content Node" and (targetConnector.connectorName:match("Left") or targetConnector.connectorName:match("left")) then
 							dialogueConnector = connector  
-							print("  Found dialogue connection via old-style connector: " .. connectorName)
+							-- print("  Found dialogue connection via old-style connector: " .. connectorName)
 							break
 						end
 					end
@@ -330,25 +322,25 @@ function processLayerNode(layerNode, nodeMap, connectorMap)
 	end
 
 	if dialogueConnector and dialogueConnector.connectedTo then
-		print("Found dialogue connector with connection: " .. dialogueConnector.connectedTo)
+		-- print("Found dialogue connector with connection: " .. dialogueConnector.connectedTo)
 		for targetId in string.gmatch(dialogueConnector.connectedTo, "[^,]+") do
-			print("  Checking target ID: " .. targetId)
+			-- print("  Checking target ID: " .. targetId)
 			local targetConnector = connectorMap[targetId]
 			if targetConnector then
 				local targetNodeData = nodeMap[targetConnector.nodeConfig.Name]
-				print("  Target node: " .. targetConnector.nodeConfig.Name .. ", Type: " .. (targetNodeData and targetNodeData.nodeType or "nil"))
-				print("  Target connector: " .. targetConnector.connectorName)
+				-- print("  Target node: " .. targetConnector.nodeConfig.Name .. ", Type: " .. (targetNodeData and targetNodeData.nodeType or "nil"))
+				-- print("  Target connector: " .. targetConnector.connectorName)
 				if targetNodeData and targetNodeData.nodeType == "Dialogue Content Node" and (targetConnector.connectorName:match("Left") or targetConnector.connectorName:match("left")) then
 					currentDialogueNode = targetNodeData
-					print("Found connected Dialogue Content Node: " .. targetConnector.nodeConfig.Name)
+					-- print("Found connected Dialogue Content Node: " .. targetConnector.nodeConfig.Name)
 					break
 				end
 			else
-				print("  Target connector not found for ID: " .. targetId)
+				-- print("  Target connector not found for ID: " .. targetId)
 			end
 		end
 	else
-		print("No dialogue connector found or no connections")
+		-- print("No dialogue connector found or no connections")
 	end
 
 	while currentDialogueNode do
@@ -368,7 +360,7 @@ function processLayerNode(layerNode, nodeMap, connectorMap)
 					local targetNodeData = nodeMap[targetConnector.nodeConfig.Name]
 					if targetNodeData and (targetNodeData.nodeType == "Dialogue Content Node" or targetNodeData.nodeType == "Dialogue Content Node+") and (targetConnector.connectorName:match("Left") or targetConnector.connectorName:match("left")) then
 						nextDialogueNode = targetNodeData
-						print("Found next Dialogue Content Node: " .. targetConnector.nodeConfig.Name)
+						-- print("Found next Dialogue Content Node: " .. targetConnector.nodeConfig.Name)
 						break
 					end
 				end
@@ -383,12 +375,12 @@ function processLayerNode(layerNode, nodeMap, connectorMap)
 			local content = dialogueNode.config:GetAttribute("Param_Content") or 
 				dialogueNode.config:GetAttribute("Param_DialogueContent") or 
 				""
-			print("Extracted content from " .. dialogueNode.config.Name .. " (" .. dialogueNode.nodeType .. "): '" .. content .. "'")
+			-- print("Extracted content from " .. dialogueNode.config.Name .. " (" .. dialogueNode.nodeType .. "): '" .. content .. "'")
 			table.insert(layerData.Dialogue, content)
 			table.insert(layerData.DialogueSounds, nil) 
 		end
 	else
-		print("No dialogue content nodes found, adding blank entry")
+		-- print("No dialogue content nodes found, adding blank entry")
 		table.insert(layerData.Dialogue, "")
 		table.insert(layerData.DialogueSounds, nil)
 	end
@@ -397,7 +389,7 @@ function processLayerNode(layerNode, nodeMap, connectorMap)
 
 	local repliesConnector = layerNode.connectors["RepliesRightConnector"]
 	if not repliesConnector or not repliesConnector.connectedTo then
-		print("RepliesRightConnector not found, checking old-style connectors for reply connections...")
+		-- print("RepliesRightConnector not found, checking old-style connectors for reply connections...")
 		for connectorName, connector in pairs(layerNode.connectors) do
 			if connector.connectedTo and (connectorName:match("right") or connectorName == "rightConnector") then
 				for targetId in string.gmatch(connector.connectedTo, "[^,]+") do
@@ -406,7 +398,7 @@ function processLayerNode(layerNode, nodeMap, connectorMap)
 						local targetNodeData = nodeMap[targetConnector.nodeConfig.Name]
 						if targetNodeData and targetNodeData.nodeType == "ReplyNode" and (targetConnector.connectorName:match("Left") or targetConnector.connectorName:match("left")) then
 							repliesConnector = connector  
-							print("Found reply connection via old-style connector: " .. connectorName)
+							-- print("Found reply connection via old-style connector: " .. connectorName)
 							break
 						end
 					end
@@ -417,20 +409,20 @@ function processLayerNode(layerNode, nodeMap, connectorMap)
 	end
 
 	if repliesConnector and repliesConnector.connectedTo then
-		print("Found replies connector with connection: " .. repliesConnector.connectedTo)
+		-- print("Found replies connector with connection: " .. repliesConnector.connectedTo)
 		for targetId in string.gmatch(repliesConnector.connectedTo, "[^,]+") do
 			local targetConnector = connectorMap[targetId]
 			if targetConnector then
 				local targetNodeData = nodeMap[targetConnector.nodeConfig.Name]
 				if targetNodeData and targetNodeData.nodeType == "ReplyNode" and (targetConnector.connectorName:match("Left") or targetConnector.connectorName:match("left")) then
 					replyNode = targetNodeData
-					print("Found connected Reply Node: " .. targetConnector.nodeConfig.Name)
+					-- print("Found connected Reply Node: " .. targetConnector.nodeConfig.Name)
 					break
 				end
 			end
 		end
 	else
-		print("No replies connector found or no connections")
+		-- print("No replies connector found or no connections")
 	end
 
 	if replyNode then
@@ -438,7 +430,7 @@ function processLayerNode(layerNode, nodeMap, connectorMap)
 
 		for i, paramName in ipairs(replyParams) do
 			local replyText = replyNode.config:GetAttribute(paramName)
-			print("Processing " .. paramName .. ": " .. (replyText or "nil"))
+			-- print("Processing " .. paramName .. ": " .. (replyText or "nil"))
 			if replyText and replyText ~= "" then
 				local replyName = "reply" .. i  
 
@@ -448,7 +440,7 @@ function processLayerNode(layerNode, nodeMap, connectorMap)
 				local replyConnector = replyNode.connectors[replyConnectorName]
 
 				if not replyConnector or not replyConnector.connectedTo then
-					print("  " .. replyConnectorName .. " not found, checking old-style connectors...")
+					-- print("  " .. replyConnectorName .. " not found, checking old-style connectors...")
 					for connectorName, connector in pairs(replyNode.connectors) do
 						if connector.connectedTo and (connectorName:match("right") or connectorName == "rightConnector") then
 							for targetId in string.gmatch(connector.connectedTo, "[^,]+") do
@@ -457,7 +449,7 @@ function processLayerNode(layerNode, nodeMap, connectorMap)
 									local targetNodeData = nodeMap[targetConnector.nodeConfig.Name]
 									if targetNodeData and targetNodeData.nodeType == "Layer Node" and (targetConnector.connectorName:match("Left") or targetConnector.connectorName:match("left")) then
 										replyConnector = connector  
-										print("  Found reply target via old-style connector: " .. connectorName)
+										-- print("  Found reply target via old-style connector: " .. connectorName)
 										break
 									end
 								end
@@ -474,7 +466,7 @@ function processLayerNode(layerNode, nodeMap, connectorMap)
 							local targetNodeData = nodeMap[targetConnector.nodeConfig.Name]
 							if targetNodeData and targetNodeData.nodeType == "Layer Node" and (targetConnector.connectorName:match("Left") or targetConnector.connectorName:match("left")) then
 								targetLayerNode = targetNodeData
-								print("Found target Layer Node for reply " .. i .. ": " .. targetConnector.nodeConfig.Name)
+								-- print("Found target Layer Node for reply " .. i .. ": " .. targetConnector.nodeConfig.Name)
 								break
 							end
 						end
@@ -486,29 +478,18 @@ function processLayerNode(layerNode, nodeMap, connectorMap)
 						ReplyText = replyText,
 						ReplyLayer = targetLayerNode.config.Name
 					}
-					print("Added reply: " .. replyName .. " -> " .. targetLayerNode.config.Name)
+					-- print("Added reply: " .. replyName .. " -> " .. targetLayerNode.config.Name)
 				else
 					layerData.Replies["_goodbye" .. i] = {  
 						ReplyText = replyText
 					}
-					print("Added goodbye reply: _goodbye" .. i)
+					-- print("Added goodbye reply: _goodbye" .. i)
 				end
 			end
 		end
 	end
 
-	print("=== Final Layer Data for " .. layerNode.config.Name .. " ===")
-	print("Dialogue count: " .. #layerData.Dialogue)
-	for i, dialogue in ipairs(layerData.Dialogue) do
-		print("  [" .. i .. "]: '" .. dialogue .. "'")
-	end
-	local replyCount = 0
-	for _ in pairs(layerData.Replies or {}) do replyCount = replyCount + 1 end
-	print("Reply count: " .. replyCount)
-	for replyName, replyData in pairs(layerData.Replies or {}) do
-		print("  " .. replyName .. ": '" .. replyData.ReplyText .. "' -> " .. (replyData.ReplyLayer or "GOODBYE"))
-	end
-	print("=== End Layer Data ===")
+	-- Debug block removed
 
 	return layerData
 end
@@ -518,19 +499,19 @@ function module.startNodeDialogue(nodeProjectName)
 	local dialogueNodeFolder = replicatedStorage:FindFirstChild("Dialogue_node")
 
 	if not dialogueNodeFolder then
-		warn("Dialogue_node folder not found in ReplicatedStorage. Node dialogues are not available.")
+		-- warn("Dialogue_node folder not found in ReplicatedStorage. Node dialogues are not available.")
 		return
 	end
 
 	local dialogueData = parseNodeDialogue(nodeProjectName)
 	if not dialogueData then
-		warn("Failed to parse node dialogue: " .. nodeProjectName)
+		-- warn("Failed to parse node dialogue: " .. nodeProjectName)
 		return
 	end
 
-	print("Starting node dialogue: " .. nodeProjectName)
-	print("Initial Layer: " .. dialogueData.InitialLayer)
-	print("Skin: " .. dialogueData.SkinName)
+	-- print("Starting node dialogue: " .. nodeProjectName)
+	-- print("Initial Layer: " .. dialogueData.InitialLayer)
+	-- print("Skin: " .. dialogueData.SkinName)
 
 	module.CreateDialogue(dialogueData)
 end
@@ -542,7 +523,7 @@ function executeLayerFunction(execData)
 
 	local success, err = pcall(execData.Function)
 	if not success then
-		warn("Error executing dialogue function: " .. tostring(err))
+		-- warn("Error executing dialogue function: " .. tostring(err))
 	end
 end
 
@@ -1430,7 +1411,7 @@ function onRepliesTweenComplete(isGoodbye, targetLayer, isInvalidLayer)
 	end
 
 	if isInvalidLayer then
-		warn("Invalid reply target layer: " .. tostring(targetLayer))
+		-- warn("Invalid reply target layer: " .. tostring(targetLayer))
 		isShowingReplies = false
 		closeDialogue()
 		return
@@ -1460,7 +1441,7 @@ function displayContent()
 	local layerData = currentDialogue.Layers[currentLayer]
 
 	if not layerData or not layerData.Dialogue or currentContentIndex > #layerData.Dialogue then
-		warn("Invalid content index or dialogue data")
+		-- warn("Invalid content index or dialogue data")
 		closeDialogue()
 		return
 	end
@@ -1483,8 +1464,8 @@ function displayContent()
 	local typewriterEnabled = config and config:FindFirstChild("Typewriter") and config.Typewriter.Value
 
 	if dialogueSound then
-		print("🔊 [DialogueKit] Attempting to play sound for content index:", currentContentIndex)
-		print("🔊 [DialogueKit] Sound ID from data:", dialogueSound)
+		-- print("🔊 [DialogueKit] Attempting to play sound for content index:", currentContentIndex)
+		-- print("🔊 [DialogueKit] Sound ID from data:", dialogueSound)
 
 		if activeDialogueSound then
 			activeDialogueSound:Stop()
@@ -1913,7 +1894,7 @@ function onContinueButtonClicked()
 	local layerData = currentDialogue.Layers[currentLayer]
 
 	if not layerData or not layerData.Dialogue then
-		warn("Invalid layer data")
+		-- warn("Invalid layer data")
 		closeDialogue()
 		return
 	end
@@ -2009,17 +1990,17 @@ function module.CreateDialogue(dialogueData)
 	end
 
 	if not dialogueData or not dialogueData.InitialLayer or not dialogueData.SkinName or not dialogueData.Layers then
-		warn("Invalid dialogue data. Required fields: InitialLayer, SkinName, Layers")
+		-- warn("Invalid dialogue data. Required fields: InitialLayer, SkinName, Layers")
 		return
 	end
 
 	if not dialogueData.Layers[dialogueData.InitialLayer] then
-		warn("Initial layer not found: " .. tostring(dialogueData.InitialLayer))
+		-- warn("Initial layer not found: " .. tostring(dialogueData.InitialLayer))
 		return
 	end
 
 	if not skins:FindFirstChild(dialogueData.SkinName) then
-		warn("Skin not found: " .. tostring(dialogueData.SkinName))
+		-- warn("Skin not found: " .. tostring(dialogueData.SkinName))
 		return
 	end
 
@@ -2127,8 +2108,7 @@ function module.CreateDialogue(dialogueData)
 end
 
 initializeSkins()
-
-print("Initialized Dialogue Kit V"..script.Parent.Version.Value.." by Asadrith")
+-- print("Initialized Dialogue Kit V"..script.Parent.Version.Value.." by Asadrith")
 
 if DialogueVisibilityManager then
 	DialogueVisibilityManager.initialize()
