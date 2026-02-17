@@ -72,18 +72,41 @@ local function getAdjacencyMatrix(player, zonaID)
 		return {Headers={}, Matrix={}}
 	end
 	
+	-- ============================================
+	-- ROBUST NODE ZONE CHECK
+	-- ============================================
+	local function safeGetNodeZone(nid, nodeName)
+		-- Try strict module call
+		if NivelUtils and NivelUtils.getNodeZone then
+			return NivelUtils.getNodeZone(nid, nodeName)
+		end
+		
+		-- Fallback: Try to recreate logic if module is broken
+		-- Logic: Get config -> Nodos -> nodeName -> Zona
+		local LevelsConfig = require(ReplicatedStorage:WaitForChild("LevelsConfig"))
+		if LevelsConfig and LevelsConfig[nid] and LevelsConfig[nid].Nodos then
+			local nodeData = LevelsConfig[nid].Nodos[nodeName]
+			if nodeData then 
+				return nodeData.Zona
+			end
+		end
+		
+		return nil
+	end
+	
 	-- FILTRADO POR ZONA
 	local filteredNodes = {}
 	if zonaID and zonaID ~= "" then
 		for _, node in ipairs(allNodes) do
-			local nodeZone = NivelUtils.getNodeZone(nivelID, node.Name)
-			-- Incluir si la zona coincide O si es un nodo compartido (si la lógica lo requiere)
-			-- Por ahora: estricto
+			local nodeZone = safeGetNodeZone(nivelID, node.Name)
+			
+			-- Incluir si la zona coincide
 			if nodeZone == zonaID then
 				table.insert(filteredNodes, node)
 			end
 		end
-		-- Si no hay nodos en la zona, devolver vacío o fallback?
+		
+		-- Si no hay nodos en la zona, devolver vacío
 		if #filteredNodes == 0 then
 			print("⚠️ GraphTheoryService: No hay nodos en la zona " .. zonaID)
 			return {Headers={}, Matrix={}}
