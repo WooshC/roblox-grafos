@@ -55,7 +55,7 @@ local DATA_DIALOGOS = {
 			"Bienvenido a la Zona 1.",
 			"Aquí aprenderás qué es un nodo y qué es una conexión."
 		},
-		Sonido = { "rbxassetid://133631096743397", "rbxassetid://82943328777335" },
+		Sonido = { "rbxassetid://82943328777335", "rbxassetid://133631096743397" },
 		Evento = function()
 			VisualEffectsService:toggleTecho(false)
 			local nodo1 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo1)
@@ -76,7 +76,8 @@ local DATA_DIALOGOS = {
 			"Un nodo puede representar cualquier cosa: una persona, una ciudad, una computadora…",
 			"Lo importante es que es un punto que puede conectarse con otros."
 		},
-		Sonido = { "rbxassetid://0", "rbxassetid://0" },
+		Sonido = { "rbxassetid://85119928661707","rbxassetid://84437951272776",
+			"rbxassetid://84784432074545", "rbxassetid://87649995326832","rbxassetid://120274038079160" },
 		Evento = function()
 			VisualEffectsService:clearEffects()
 			local n1 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo1)
@@ -96,7 +97,7 @@ local DATA_DIALOGOS = {
 			"Un nodo sin conexiones está aislado.",
 			"No forma parte de una red."
 		},
-		Sonido = { "rbxassetid://0", "rbxassetid://0" },
+		Sonido = { "rbxassetid://71817259692490", "rbxassetid://127699663903662" },
 		Evento = function()
 			VisualEffectsService:clearEffects()
 			local n1 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo1)
@@ -160,7 +161,7 @@ local DATA_DIALOGOS = {
 		Actor = "Sistema",
 		Expresion = "Serio",
 		Texto = "Selecciona un nodo de origen (" .. alias1 .. ").",
-		Sonido = "rbxassetid://0",
+		Sonido = "rbxassetid://127699663903662",
 		Evento = function()
 			VisualEffectsService:clearEffects()
 			local n1 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo1)
