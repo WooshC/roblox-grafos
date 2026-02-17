@@ -130,7 +130,7 @@ local DATA_DIALOGOS = {
 			"Cuando conectas dos nodos, creas una ARISTA.",
 			"La arista representa una relación entre ellos."
 		},
-		Sonido = { "rbxassetid://0", "rbxassetid://0" },
+		Sonido = { "rbxassetid://138764900027849", "rbxassetid://135325741435287" },
 		Evento = function()
 			VisualEffectsService:clearEffects()
 			local n1 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo1)
@@ -161,7 +161,7 @@ local DATA_DIALOGOS = {
 		Actor = "Sistema",
 		Expresion = "Serio",
 		Texto = "Selecciona un nodo de origen (" .. alias1 .. ").",
-		Sonido = "rbxassetid://127699663903662",
+		Sonido = "rbxassetid://91232241403260",
 		Evento = function()
 			VisualEffectsService:clearEffects()
 			local n1 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo1)
@@ -179,7 +179,7 @@ local DATA_DIALOGOS = {
 		Actor = "Sistema",
 		Expresion = "Serio",
 		Texto = "Luego selecciona el nodo destino (" .. alias2 .. ").",
-		Sonido = "rbxassetid://0",
+		Sonido = "rbxassetid://76732191360053",
 		Evento = function()
 			VisualEffectsService:clearEffects()
 			local n1 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo1)
@@ -204,7 +204,7 @@ local DATA_DIALOGOS = {
 		Actor = "Sistema",
 		Expresion = "Feliz",
 		Texto = "Así crearás una conexión.",
-		Sonido = "rbxassetid://0",
+		Sonido = "rbxassetid://124195032304220",
 		Evento = function()
 			VisualEffectsService:clearEffects()
 			local n1 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo1)
@@ -242,7 +242,7 @@ local DATA_DIALOGOS = {
 			"Ahora es tu turno.",
 			"Conecta los nodos."
 		},
-		Sonido = { "rbxassetid://0", "rbxassetid://0" },
+		Sonido = { "rbxassetid://98229492565124", "rbxassetid://98076423902070" },
 		Evento = function()
 			VisualEffectsService:clearEffects()
 			VisualEffectsService:toggleTecho(true)
