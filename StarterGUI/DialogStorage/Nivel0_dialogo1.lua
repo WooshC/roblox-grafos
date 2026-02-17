@@ -1,6 +1,6 @@
 local dialogueKitModule = require(script.Parent.Parent.DialogueKit)
 local DialogueGenerator = require(script.Parent.DialogueGenerator)
-local dialoguePrompt = workspace:WaitForChild("NivelActual"):WaitForChild("DialoguePrompts"):WaitForChild("TestPrompt1").PromptPart.ProximityPrompt
+-- local dialoguePrompt moved to async initialization
 
 -- ============================================================================
 -- CONFIGURACIÓN DE APARIENCIA
@@ -84,17 +84,34 @@ local DATA_DIALOGOS = {
 -- 3. EJECUCIÓN
 -- ============================================================================
 
-dialoguePrompt.Triggered:Connect(function(player)
-	-- Generamos la tabla compleja usando el módulo
-	local layersComplejas = DialogueGenerator.GenerarEstructura(DATA_DIALOGOS, SKIN_NAME)
+-- Inicialización asíncrona para evitar esperas infinitas si el nivel no carga inmediatamente
+task.spawn(function()
+	local nivelActual = workspace:WaitForChild("NivelActual", 30)
+	if not nivelActual then 
+		-- warn("⚠️ Nivel0_dialogo1: NivelActual no encontrado tras 30s")
+		return 
+	end
 
-	-- Llamamos al módulo
-	dialogueKitModule.CreateDialogue({
-		InitialLayer = "Bienvenida", 
-		SkinName = SKIN_NAME, 
-		Config = script:FindFirstChild(SKIN_NAME .. "Config") or script, 
-		Layers = layersComplejas
-	})
+	local prompts = nivelActual:WaitForChild("DialoguePrompts", 10)
+	if not prompts then return end
+
+	local testPrompt = prompts:WaitForChild("TestPrompt1", 10)
+	if not testPrompt then return end
+
+	local dialoguePrompt = testPrompt.PromptPart.ProximityPrompt
+
+	dialoguePrompt.Triggered:Connect(function(player)
+		-- Generamos la tabla compleja usando el módulo
+		local layersComplejas = DialogueGenerator.GenerarEstructura(DATA_DIALOGOS, SKIN_NAME)
+
+		-- Llamamos al módulo
+		dialogueKitModule.CreateDialogue({
+			InitialLayer = "Bienvenida", 
+			SkinName = SKIN_NAME, 
+			Config = script:FindFirstChild(SKIN_NAME .. "Config") or script, 
+			Layers = layersComplejas
+		})
+	end)
 end)
 
 

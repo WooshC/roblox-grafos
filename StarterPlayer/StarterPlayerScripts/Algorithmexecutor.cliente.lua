@@ -8,7 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
-local screenGui = playerGui:WaitForChild("GameUI")
+local screenGui = playerGui:WaitForChild("GUIExplorador")
 
 -- Remotes
 local Remotes = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Remotes")
@@ -20,17 +20,32 @@ local LevelsConfig = require(ReplicatedStorage:WaitForChild("LevelsConfig"))
 
 -- Estado
 local algorithmRunning = false
-local btnFinalizar = screenGui:WaitForChild("BtnFinalizar", 5)
+local btnFinalizar = nil 
+local btnAlgo = nil
 
--- ================================================================
--- FUNCIÓN: Ejecutar Algoritmo
--- ================================================================
+-- Función para buscar botones recursivamente o en rutas específicas
+local function actualizarReferenciasGui()
+	if not screenGui then return end
+	
+	-- Buscar BtnFinalizar en su ruta correcta
+	local barraSup = screenGui:FindFirstChild("BarraSuperior")
+	local barraSec = barraSup and barraSup:FindFirstChild("BarraBotonesSecundarios")
+	btnFinalizar = barraSec and barraSec:FindFirstChild("BtnFinalizar")
+	
+	-- Buscar BtnAlgoritmo en su ruta correcta
+	local barraMain = screenGui:FindFirstChild("BarraBotonesMain")
+	btnAlgo = barraMain and barraMain:FindFirstChild("BtnAlgoritmo")
+end
+
+-- Intentar buscar referencias iniciales
+actualizarReferenciasGui()
 
 -- ================================================================
 -- FUNCIÓN: Finalizar Nivel
 -- ================================================================
 
 local function finalizarNivel()
+	if not btnFinalizar then actualizarReferenciasGui() end
 	if not btnFinalizar then return end
 
 	local nivelID = player:GetAttribute("CurrentLevelID") or 0
@@ -77,8 +92,9 @@ end
 -- ================================================================
 
 local function mostrarBotonFinalizar(algoritmo)
+	if not btnFinalizar then actualizarReferenciasGui() end
+	
 	if not btnFinalizar then
-		print("⚠️ BtnFinalizar no encontrado")
 		return
 	end
 
@@ -117,7 +133,7 @@ local function ejecutarAlgoritmo()
 	local config = LevelsConfig[nivelID]
 
 	if not config then
-		print("❌ No hay configuración para nivel " .. nivelID)
+		-- Silencioso en menú principal o niveles sin config
 		return
 	end
 
@@ -134,7 +150,8 @@ local function ejecutarAlgoritmo()
 	print("🧠 Ejecutando " .. algoritmo .. " (" .. nodoInicio .. " -> " .. nodoFin .. ")")
 
 	-- Cambiar apariencia del botón
-	local btnAlgo = screenGui:FindFirstChild("BtnAlgo")
+	if not btnAlgo then actualizarReferenciasGui() end
+	
 	if btnAlgo then
 		btnAlgo.Text = "⏳ " .. algoritmo .. "..."
 		btnAlgo.BackgroundColor3 = Color3.fromRGB(127, 140, 141)
@@ -159,30 +176,31 @@ local function ejecutarAlgoritmo()
 end
 
 -- ================================================================
--- FUNCIÓN: Mostrar Botón Finalizar
--- ================================================================
-
-
-
--- ================================================================
 -- CONECTAR BOTÓN ALGORITMO
 -- ================================================================
 
-local btnAlgo = screenGui:FindFirstChild("BtnAlgo")
+-- Intentar conectar si el botón ya existe
 if btnAlgo then
-	btnAlgo.MouseButton1Click:Connect(function()
-		ejecutarAlgoritmo()
-	end)
-	print("✅ AlgorithmExecutor: BtnAlgo conectado")
-else
-	warn("⚠️ AlgorithmExecutor: BtnAlgo no encontrado")
+	btnAlgo.MouseButton1Click:Connect(ejecutarAlgoritmo)
+	print("✅ AlgorithmExecutor: Conectado a BtnAlgoritmo")
 end
+
+-- Escuchar por si se añade el botón después (ej. carga dinámica de GUI)
+screenGui.DescendantAdded:Connect(function(descendant)
+	if descendant.Name == "BtnAlgoritmo" and descendant:IsA("GuiButton") then
+		btnAlgo = descendant
+		btnAlgo.MouseButton1Click:Connect(ejecutarAlgoritmo)
+		-- print("✅ AlgorithmExecutor: Conectado a BtnAlgoritmo (Dinámico)")
+	elseif descendant.Name == "BtnFinalizar" and descendant:IsA("GuiButton") then
+		btnFinalizar = descendant
+	end
+end)
 
 -- ================================================================
 -- INICIALIZACIÓN
 -- ================================================================
 
-print("✅ AlgorithmExecutor.client cargado")
-print("   🧠 Haz click en 'BtnAlgo' para ejecutar algoritmo")
-print("   ✅ Se mostrará 'BtnFinalizar' al completar")
-print("   📊 El nombre del botón cambiará según el algoritmo")
+-- Solo imprimimos si estamos en un contexto relevante, para evitar spam en menú
+if player:GetAttribute("CurrentLevelID") then
+	print("✅ AlgorithmExecutor listo")
+end
