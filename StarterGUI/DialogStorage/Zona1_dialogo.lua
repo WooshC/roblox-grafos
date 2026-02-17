@@ -1,6 +1,8 @@
 -- ================================================================
 -- Zona1_Dialogo.lua
--- 🔥 NUEVO: Cierra el mapa automáticamente si está activo
+-- ✅ El techo lo gestiona DialogueVisibilityManager (onDialogueStart/End)
+-- ✅ Se eliminaron toggleTecho() manuales del Inicio y Confirmacion
+-- ✅ El mapa se cierra automáticamente vía ForceCloseMap
 -- ================================================================
 
 local dialogueKitModule = require(script.Parent.Parent.DialogueKit)
@@ -18,8 +20,18 @@ local MapManager = require(
 
 local LevelsConfig = require(game:GetService("ReplicatedStorage"):WaitForChild("LevelsConfig"))
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 -- ================================================================
--- CONFIGURACIÓN (sin cambios)
+-- OBTENER DialogueVisibilityManager
+-- ================================================================
+
+local DialogueVisibilityManager = require(
+	ReplicatedStorage:WaitForChild("DialogueVisibilityManager", 5)
+)
+
+-- ================================================================
+-- CONFIGURACIÓN
 -- ================================================================
 
 local CONFIG = {
@@ -30,31 +42,31 @@ local CONFIG = {
 		nodo2 = "Nodo2_z1"
 	},
 	COLORES = {
-		azul = Color3.fromRGB(0, 170, 255),
-		verde = Color3.fromRGB(0, 255, 0),
-		rojo = Color3.fromRGB(255, 0, 0),
-		amarillo = Color3.fromRGB(255, 255, 0),
+		azul        = Color3.fromRGB(0, 170, 255),
+		verde       = Color3.fromRGB(0, 255, 0),
+		rojo        = Color3.fromRGB(255, 0, 0),
+		amarillo    = Color3.fromRGB(255, 255, 0),
 		verde_debil = Color3.fromRGB(100, 200, 100)
 	},
 	CAMARA = {
-		offset_inicio = Vector3.new(22, 22, 22),
-		offset_nodo = Vector3.new(15, 18, 15),
-		offset_arista = Vector3.new(0, 25, 20),
-		offset_objetivo = Vector3.new(0, 30, 25),
-		offset_zoom = Vector3.new(12, 15, 12),
-		duracion = 1.5
+		offset_inicio  = Vector3.new(22, 22, 22),
+		offset_nodo    = Vector3.new(15, 18, 15),
+		offset_arista  = Vector3.new(0, 25, 20),
+		offset_objetivo= Vector3.new(0, 30, 25),
+		offset_zoom    = Vector3.new(12, 15, 12),
+		duracion       = 1.5
 	}
 }
 
 -- ================================================================
--- VARIABLES DINÁMICAS (sin cambios)
+-- VARIABLES DINÁMICAS
 -- ================================================================
 
 local alias1 = LevelsConfig[0].Nodos[CONFIG.NODOS.nodo1].Alias
 local alias2 = LevelsConfig[0].Nodos[CONFIG.NODOS.nodo2].Alias
 
 -- ================================================================
--- DIÁLOGOS (sin cambios)
+-- DIÁLOGOS
 -- ================================================================
 
 local DATA_DIALOGOS = {
@@ -68,7 +80,8 @@ local DATA_DIALOGOS = {
 		},
 		Sonido = { "rbxassetid://82943328777335", "rbxassetid://133631096743397" },
 		Evento = function()
-			VisualEffectsService:toggleTecho(false)
+			-- ✅ El techo ya está oculto — DialogueVisibilityManager lo gestionó
+			-- Solo mover la cámara al nodo inicial
 			local nodo1 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo1)
 			if nodo1 then
 				VisualEffectsService:focusCameraOn(nodo1, CONFIG.CAMARA.offset_inicio)
@@ -87,8 +100,13 @@ local DATA_DIALOGOS = {
 			"Un nodo puede representar cualquier cosa: una persona, una ciudad, una computadora…",
 			"Lo importante es que es un punto que puede conectarse con otros."
 		},
-		Sonido = { "rbxassetid://85119928661707","rbxassetid://84437951272776",
-			"rbxassetid://84784432074545", "rbxassetid://87649995326832","rbxassetid://120274038079160" },
+		Sonido = {
+			"rbxassetid://85119928661707",
+			"rbxassetid://84437951272776",
+			"rbxassetid://84784432074545",
+			"rbxassetid://87649995326832",
+			"rbxassetid://120274038079160"
+		},
 		Evento = function()
 			VisualEffectsService:clearEffects()
 			local n1 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo1)
@@ -244,8 +262,9 @@ local DATA_DIALOGOS = {
 		Sonido = { "rbxassetid://98229492565124", "rbxassetid://98076423902070" },
 		Evento = function()
 			VisualEffectsService:clearEffects()
-			VisualEffectsService:toggleTecho(true)
 			VisualEffectsService:restoreCamera()
+			-- ✅ El techo lo restaura DialogueVisibilityManager:onDialogueEnd()
+			-- No llamamos toggleTecho(true) aquí para evitar doble restauración
 		end,
 		Siguiente = "FIN"
 	}
@@ -259,36 +278,44 @@ local yaSeMostro = false
 
 local function checkZone(newZone)
 	if yaSeMostro then return end
+	if newZone ~= CONFIG.ZONA_OBJETIVO then return end
 
-	if newZone == CONFIG.ZONA_OBJETIVO then
-		local player = game.Players.LocalPlayer
-		if not player.Character then return end
+	local player = game.Players.LocalPlayer
+	if not player.Character then return end
 
-		yaSeMostro = true
-		print("✅ " .. CONFIG.ZONA_OBJETIVO .. " detectada")
+	yaSeMostro = true
+	print("✅ " .. CONFIG.ZONA_OBJETIVO .. " detectada — iniciando diálogo")
 
-		-- 🔥 NUEVO: Si el mapa está activo, cerrarlo antes del diálogo
-		if MapManager:isActive() then
-			print("🗺️ Zona1_Dialogo: Cerrando mapa antes de iniciar diálogo...")
-			MapManager:disable()
-			task.wait(0.4) -- Dar tiempo a que la cámara se restaure
-		end
-
-		local layersComplejas = DialogueGenerator.GenerarEstructura(DATA_DIALOGOS, CONFIG.SKIN_NAME)
-
-		dialogueKitModule.CreateDialogue({
-			InitialLayer = "Inicio",
-			SkinName = CONFIG.SKIN_NAME,
-			Config = script:FindFirstChild(CONFIG.SKIN_NAME .. "Config") or script,
-			Layers = layersComplejas
-		})
+	-- Cerrar mapa si está activo (también oculta techo vía ForceCloseMap)
+	if MapManager:isActive() then
+		print("🗺️ Zona1_Dialogo: Mapa activo — ForceCloseMap se disparará desde onDialogueStart")
 	end
+
+	-- ✅ Notificar inicio de diálogo (oculta techo, bloquea salto, cierra mapa)
+	if DialogueVisibilityManager then
+		DialogueVisibilityManager:onDialogueStart()
+	end
+
+	local layersComplejas = DialogueGenerator.GenerarEstructura(DATA_DIALOGOS, CONFIG.SKIN_NAME)
+
+	dialogueKitModule.CreateDialogue({
+		InitialLayer = "Inicio",
+		SkinName = CONFIG.SKIN_NAME,
+		Config = script:FindFirstChild(CONFIG.SKIN_NAME .. "Config") or script,
+		Layers = layersComplejas,
+		OnClose = function()
+			-- ✅ Notificar fin de diálogo (restaura techo, desbloquea salto, restaura GUI)
+			if DialogueVisibilityManager then
+				DialogueVisibilityManager:onDialogueEnd()
+			end
+			print("✅ Zona1_Dialogo: Diálogo terminado — recursos restaurados")
+		end
+	})
 end
 
 local player = game.Players.LocalPlayer
 player:GetAttributeChangedSignal("CurrentZone"):Connect(function()
-	local zona = player:GetAttribute("CurrentZone")
-	checkZone(zona)
+	checkZone(player:GetAttribute("CurrentZone"))
 end)
 
 task.delay(1, function()
