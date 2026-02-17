@@ -25,13 +25,13 @@ local function loadSharedModules()
 		warn("❌ CRÍTICO: No se encontró ReplicatedStorage/Shared")
 		return false
 	end
-	
+
 	local enumsModule = shared:WaitForChild("Enums", 10)
 	if enumsModule then
 		Enums = require(enumsModule)
 		print("   ✅ Enums.lua cargado")
 	end
-	
+
 	local utils = shared:WaitForChild("Utils", 10)
 	if utils then
 		local graphUtilsModule = utils:WaitForChild("GraphUtils", 10)
@@ -40,7 +40,7 @@ local function loadSharedModules()
 			print("   ✅ GraphUtils.lua cargado")
 		end
 	end
-	
+
 	return true
 end
 
