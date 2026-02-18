@@ -567,24 +567,38 @@ function MatrixManager.initialize(state, guiRef, depRef)
 					print("📊 MatrixManager: nodo seleccionado en 3D → " .. nodeName)
 					seleccionarNodo(nodeName)
 				end
-				elseif tipo == "Stop" then
-					-- Segundo click completado (cable conectado o cancelado)
-					-- Refrescar la matriz completa para obtener datos actualizados del servidor
-					task.delay(0.2, function()
-						MatrixManager.refrescar()
-						-- Recalcular grados del nodo seleccionado con los nuevos datos
-						if nodoSelecIdx and matrizData and matrizData.Headers then
-							local nombreNodo = matrizData.Headers[nodoSelecIdx]
-							if nombreNodo then
-								local n = #matrizData.Headers
-								local gT, gE, gS = calcularGrados(matrizData.Matrix, nodoSelecIdx, n)
-								actualizarInfoNodo(nombreNodo, gT, gE, gS)
-								resaltarEnMatriz(nodoSelecIdx)
-								print("📊 MatrixManager: Grados actualizados tras conexión")
-							end
-						end
-					end)
+			elseif tipo == "Stop" then
+				-- Segundo click completado (cable conectado o cancelado)
+				-- 🔥 FIX: Mantener selección pero refrescar datos
+				print("📊 MatrixManager: Refrescando matriz tras Stop")
+				-- Guardar el nodo que estaba seleccionado
+				local nodoSeleccionadoNombre = nil
+				if nodoSelecIdx and matrizData and matrizData.Headers then
+					nodoSeleccionadoNombre = matrizData.Headers[nodoSelecIdx]
 				end
+				-- Refrescar la matriz completa para obtener datos actualizados del servidor
+				task.delay(0.3, function()
+					MatrixManager.refrescar()
+					-- Después de refrescar, recalcular y mostrar stats del nodo seleccionado
+					task.wait(0.1)
+					if nodoSeleccionadoNombre and matrizData and matrizData.Headers then
+						local nuevoIdx = getHeaderIdx(nodoSeleccionadoNombre)
+						if nuevoIdx then
+							nodoSelecIdx = nuevoIdx
+							local n = #matrizData.Headers
+							local gT, gE, gS = calcularGrados(matrizData.Matrix, nuevoIdx, n)
+							actualizarInfoNodo(nodoSeleccionadoNombre, gT, gE, gS)
+							resaltarEnMatriz(nuevoIdx)
+							print("📊 MatrixManager: Stats actualizados tras conexión")
+						else
+							-- Nodo ya no existe, limpiar
+							nodoSelecIdx = nil
+							actualizarInfoNodo(nil, 0, 0, 0)
+							resaltarEnMatriz(nil)
+						end
+					end
+				end)
+			end
 		end)
 		print("✅ MatrixManager: escucha CableDragEvent (selección 3D)")
 	else
@@ -620,8 +634,32 @@ function MatrixManager.initialize(state, guiRef, depRef)
 				resaltarEnMatriz(nil)
 			elseif tipo == "ConexionCompletada" then
 				print("🗺️ MatrixManager: Conexión completada desde mapa")
-				task.delay(0.2, function()
+				-- 🔥 FIX: Mantener selección pero refrescar datos
+				-- Guardar el nodo que estaba seleccionado
+				local nodoSeleccionadoNombre = nil
+				if nodoSelecIdx and matrizData and matrizData.Headers then
+					nodoSeleccionadoNombre = matrizData.Headers[nodoSelecIdx]
+				end
+				task.delay(0.3, function()
 					MatrixManager.refrescar()
+					-- Después de refrescar, recalcular y mostrar stats del nodo seleccionado
+					task.wait(0.1)
+					if nodoSeleccionadoNombre and matrizData and matrizData.Headers then
+						local nuevoIdx = getHeaderIdx(nodoSeleccionadoNombre)
+						if nuevoIdx then
+							nodoSelecIdx = nuevoIdx
+							local n = #matrizData.Headers
+							local gT, gE, gS = calcularGrados(matrizData.Matrix, nuevoIdx, n)
+							actualizarInfoNodo(nodoSeleccionadoNombre, gT, gE, gS)
+							resaltarEnMatriz(nuevoIdx)
+							print("📊 MatrixManager: Stats actualizados tras conexión en mapa")
+						else
+							-- Nodo ya no existe, limpiar
+							nodoSelecIdx = nil
+							actualizarInfoNodo(nil, 0, 0, 0)
+							resaltarEnMatriz(nil)
+						end
+					end
 				end)
 			end
 		end)
@@ -634,10 +672,20 @@ end
 -- ================================================================
 -- API PÚBLICA
 -- ================================================================
+
+-- 🔥 NUEVO: Limpiar selección de nodo (útil al cambiar de modo)
+function MatrixManager.clearSelection()
+	nodoSelecIdx = nil
+	actualizarInfoNodo(nil, 0, 0, 0)
+	resaltarEnMatriz(nil)
+	print("📊 MatrixManager: Selección limpiada")
+end
+
 function MatrixManager.activar()
 	local panel = getPanel()
 	if panel then panel.Visible = true end
 
+	-- 🔥 FIX: Limpiar cualquier selección previa al activar
 	nodoSelecIdx = nil
 	actualizarInfoNodo(nil, 0, 0, 0)
 

@@ -14,6 +14,7 @@ local UserInputService  = game:GetService("UserInputService")
 local LevelsConfig      = nil
 local NodeLabelManager  = nil
 local MissionsManager   = nil
+local MatrixManager     = nil  -- 🔥 NUEVO: Para limpiar selección al entrar en modo mapa
 
 local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
@@ -261,6 +262,7 @@ function MapManager.initialize(globalState, screenGui_ref, deps)
 	LevelsConfig     = deps.LevelsConfig
 	NodeLabelManager = deps.NodeLabelManager
 	MissionsManager  = deps.MissionsManager
+	MatrixManager    = deps.MatrixManager  -- 🔥 NUEVO
 
 	local barraBotones = screenGui:FindFirstChild("BarraBotonesMain")
 	if barraBotones then btnMapa = barraBotones:FindFirstChild("BtnMapa") end
@@ -386,6 +388,11 @@ end
 
 function MapManager:enable()
 	state.mapaActivo = true
+
+	-- 🔥 FIX: Limpiar selección de matriz al entrar en modo mapa
+	if MatrixManager and MatrixManager.clearSelection then
+		MatrixManager.clearSelection()
+	end
 
 	if btnMapa then
 		btnMapa.Text             = "CERRAR MAPA"
