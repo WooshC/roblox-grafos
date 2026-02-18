@@ -486,7 +486,6 @@ function MatrixManager.initialize(state, guiRef, depRef)
 		end
 		if not nivel then return end
 
-		local postesFolder = nivel:FindFirstChildWhereIsA("Folder", true)
 		-- Buscar la carpeta Postes recursivamente
 		local function findPostes(parent)
 			for _, child in ipairs(parent:GetChildren()) do
@@ -497,7 +496,7 @@ function MatrixManager.initialize(state, guiRef, depRef)
 				if found then return found end
 			end
 		end
-		postesFolder = findPostes(nivel)
+		local postesFolder = findPostes(nivel)
 		if not postesFolder then return end
 
 		-- Para cada poste, observar su carpeta Connections
@@ -569,7 +568,7 @@ function MatrixManager.initialize(state, guiRef, depRef)
 				end
 			elseif tipo == "Stop" then
 				-- Segundo click completado (cable conectado o cancelado)
-				-- 🔥 FIX: Mantener selección pero refrescar datos
+				-- 🔥 FIX: Mantener selección y actualizar datos
 				print("📊 MatrixManager: Refrescando matriz tras Stop")
 				-- Guardar el nodo que estaba seleccionado
 				local nodoSeleccionadoNombre = nil
@@ -590,6 +589,7 @@ function MatrixManager.initialize(state, guiRef, depRef)
 							actualizarInfoNodo(nodoSeleccionadoNombre, gT, gE, gS)
 							resaltarEnMatriz(nuevoIdx)
 							print("📊 MatrixManager: Stats actualizados tras conexión")
+							-- 🔥 MANTENER: No limpiar selección, se mantiene hasta que selecciones otro nodo
 						else
 							-- Nodo ya no existe, limpiar
 							nodoSelecIdx = nil
@@ -634,7 +634,7 @@ function MatrixManager.initialize(state, guiRef, depRef)
 				resaltarEnMatriz(nil)
 			elseif tipo == "ConexionCompletada" then
 				print("🗺️ MatrixManager: Conexión completada desde mapa")
-				-- 🔥 FIX: Mantener selección pero refrescar datos
+				-- 🔥 FIX: Mantener selección y actualizar datos
 				-- Guardar el nodo que estaba seleccionado
 				local nodoSeleccionadoNombre = nil
 				if nodoSelecIdx and matrizData and matrizData.Headers then
@@ -653,6 +653,7 @@ function MatrixManager.initialize(state, guiRef, depRef)
 							actualizarInfoNodo(nodoSeleccionadoNombre, gT, gE, gS)
 							resaltarEnMatriz(nuevoIdx)
 							print("📊 MatrixManager: Stats actualizados tras conexión en mapa")
+							-- 🔥 MANTENER: No limpiar selección, se mantiene hasta que selecciones otro nodo
 						else
 							-- Nodo ya no existe, limpiar
 							nodoSelecIdx = nil

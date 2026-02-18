@@ -598,6 +598,12 @@ function MapManager:_startClickInput()
 					table.insert(adyList, k)
 				end
 				print("   → Adyacentes: " .. (#adyList > 0 and table.concat(adyList, ", ") or "ninguno"))
+				
+				-- 🔥 NUEVO: Notificar inmediatamente a MatrixManager (sin esperar al servidor)
+				if MatrixManager and MatrixManager.onNodoSeleccionado then
+					MatrixManager.onNodoSeleccionado(posteNombre)
+					print("   → MatrixManager notificado localmente")
+				end
 			else
 				-- Segundo click: limpiar selección
 				print("   → Segundo click, limpiando selección")
