@@ -998,9 +998,40 @@ function typewriterEffect(textLabel, fullText, config)
 
 			if isLastContent and hasReplies then
 				showReplies()
+				-- Auto-advance: click first reply after delay
+				if currentDialogue and currentDialogue.AutoAdvanceDelay then
+					local capturedDialogue = currentDialogue
+					local capturedLayer    = currentLayer
+					local delay = currentDialogue.AutoAdvanceDelay
+					task.delay(delay, function()
+						if currentDialogue ~= capturedDialogue then return end
+						if currentLayer ~= capturedLayer then return end
+						if not isShowingReplies then return end
+						local layerData = currentDialogue.Layers[currentLayer]
+						if layerData and layerData.Replies then
+							for replyName, replyData in pairs(layerData.Replies) do
+								onReplyButtonClicked(replyName, replyData)
+								break
+							end
+						end
+					end)
+				end
 			else
 				showContinueButton()
 				continueButton.Active = true
+				-- Auto-advance: trigger continue after delay
+				if currentDialogue and currentDialogue.AutoAdvanceDelay then
+					local capturedDialogue     = currentDialogue
+					local capturedContentIndex = currentContentIndex
+					local delay = currentDialogue.AutoAdvanceDelay
+					task.delay(delay, function()
+						if currentDialogue ~= capturedDialogue then return end
+						if currentContentIndex ~= capturedContentIndex then return end
+						if not isTyping then
+							onContinueButtonClicked()
+						end
+					end)
+				end
 			end
 
 			isTyping = false

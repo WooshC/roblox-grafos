@@ -224,8 +224,8 @@ local DATA_DIALOGOS = {
 			local n2 = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodo2)
 
 			if n1 and n2 then
-				VisualEffectsService:highlightObject(n1, CONFIG.COLORES.verde)
-				VisualEffectsService:highlightObject(n2, CONFIG.COLORES.verde)
+				VisualEffectsService:highlightObject(n1, CONFIG.COLORES.azul)
+				VisualEffectsService:highlightObject(n2, CONFIG.COLORES.azul)
 				VisualEffectsService:showNodeLabel(n1, LevelsConfig[0].Nodos[CONFIG.NODOS.nodo1].Alias)
 				VisualEffectsService:showNodeLabel(n2, LevelsConfig[0].Nodos[CONFIG.NODOS.nodo2].Alias)
 				VisualEffectsService:createFakeEdge(n1, n2, CONFIG.COLORES.amarillo)

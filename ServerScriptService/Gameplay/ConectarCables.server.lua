@@ -28,6 +28,14 @@ local Remotes = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Remotes")
 local cableDragEvent = Remotes:WaitForChild("CableDragEvent")
 local pulseEvent = Remotes:WaitForChild("PulseEvent")
 
+-- Evento de notificación de selección (compartido entre modo normal y modo mapa)
+local notifyEvent = Remotes:FindFirstChild("NotificarSeleccionNodo")
+if not notifyEvent then
+	notifyEvent = Instance.new("RemoteEvent")
+	notifyEvent.Name = "NotificarSeleccionNodo"
+	notifyEvent.Parent = Remotes
+end
+
 -- ============================================
 -- UTILIDADES
 -- ============================================
@@ -138,6 +146,7 @@ local function conectarPostes(poste1, poste2, att1, att2, player)
 	-- Validar adyacencia
 	if not LevelService:canConnect(poste1, poste2) then
 		reproducirSonido(SOUND_FAILED_NAME, poste2)
+		notifyEvent:FireClient(player, "ConexionInvalida", poste1.Name, poste2.Name)
 		if UIService then
 			UIService:notifyError(player, "Conexión Inválida", "Estos postes no pueden conectarse")
 		end
@@ -325,6 +334,7 @@ local function onClick(selector, player)
 	-- Primer click
 	if not seleccionActual then
 		selecciones[player] = selector
+		notifyEvent:FireClient(player, "NodoSeleccionado", poste.Name)
 		reproducirSonido(SOUND_CLICK_NAME, selector)
 		if AudioService then AudioService:playClick() end
 
@@ -372,6 +382,7 @@ local function onClick(selector, player)
 	end
 
 	conectarPostes(posteAnterior, poste, att1, att2, player)
+	notifyEvent:FireClient(player, "ConexionCompletada")
 	selecciones[player] = nil
 	cableDragEvent:FireClient(player, "Stop")
 end
@@ -432,14 +443,6 @@ mapaClickEvent.OnServerEvent:Connect(function(player, selector)
 	local poste = selector.Parent
 	local att   = selector:FindFirstChild("Attachment")
 	print("   Poste: " .. poste.Name .. " | Att: " .. tostring(att))
-
-	-- 🔥 NUEVO: Notificar al cliente sobre la selección para actualizar la matriz
-	local notifyEvent = Remotes:FindFirstChild("NotificarSeleccionNodo")
-	if not notifyEvent then
-		notifyEvent = Instance.new("RemoteEvent")
-		notifyEvent.Name = "NotificarSeleccionNodo"
-		notifyEvent.Parent = Remotes
-	end
 
 	local seleccionActual = selecciones[player]
 	print("   Selección previa: " .. tostring(seleccionActual and seleccionActual.Parent.Name or "ninguna"))
