@@ -101,6 +101,7 @@ local function clearZoneHighlights()
 		end
 		if data.Highlight and data.Highlight.Parent then data.Highlight:Destroy() end
 		if data.Billboard and data.Billboard.Parent then data.Billboard:Destroy() end
+		if data.ZoneConnection then data.ZoneConnection:Disconnect() end  -- 🔥 NUEVO: Limpiar conexión
 	end
 	zoneHighlights = {}
 end
@@ -185,10 +186,33 @@ local function highlightZone(zonaPart, zonaID, nivelID)
 		{ Size = UDim2.new(1, 0, 1, 0) }
 	):Play()
 
+	-- 🔥 NUEVO: Ocultar billboard cuando el jugador está dentro de la zona
+	local function updateBillboardVisibility()
+		local char = player.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+		if not root or not zonaPart then return end
+		
+		-- Verificar si el jugador está dentro de la zona usando CurrentZone
+		local currentZone = player:GetAttribute("CurrentZone")
+		local isInZone = currentZone == zonaID
+		
+		-- Ocultar billboard si está dentro de la zona
+		if bb and bb.Parent then
+			bb.Enabled = not isInZone
+		end
+	end
+	
+	-- Actualizar visibilidad inicialmente
+	updateBillboardVisibility()
+	
+	-- Actualizar cuando cambia la zona
+	local zoneConnection = player:GetAttributeChangedSignal("CurrentZone"):Connect(updateBillboardVisibility)
+
 	zoneHighlights[zonaPart] = {
 		Highlight            = highlight,
 		Billboard            = bb,
 		OriginalTransparency = originalTransparency,
+		ZoneConnection       = zoneConnection,  -- Guardar para limpiar después
 	}
 end
 
@@ -549,19 +573,41 @@ function MapManager:_startClickInput()
 
 		if result and result.Instance then
 			local selector    = result.Instance
-			local posteNombre = selector.Parent.Name
-			print("🎯 MapClick → servidor: " .. posteNombre)
+			local posteNombre = selector.Parent and selector.Parent.Name or "DESCONOCIDO"
+			print("🎯 MapClick detectado → Poste: " .. posteNombre)
+			
+			if not mapaClickEvent then
+				warn("❌ MapManager: mapaClickEvent no está disponible, no se puede enviar al servidor")
+				return
+			end
 
 			if not nodoSeleccionado then
 				-- Primer click: guardar selección y calcular adyacentes
 				nodoSeleccionado = posteNombre
 				calcularAdyacentes(posteNombre, nivelID2)
+				print("   → Primer nodo seleccionado: " .. posteNombre)
+				local adyList = {}
+				for k in pairs(adyacentesSeleccionados or {}) do
+					table.insert(adyList, k)
+				end
+				print("   → Adyacentes: " .. (#adyList > 0 and table.concat(adyList, ", ") or "ninguno"))
 			else
 				-- Segundo click: limpiar selección
+				print("   → Segundo click, limpiando selección")
 				limpiarSeleccionMapa()
 			end
 
-			mapaClickEvent:FireServer(selector)
+			-- Enviar al servidor
+			print("   → Enviando al servidor...")
+			local success, err = pcall(function()
+				mapaClickEvent:FireServer(selector)
+			end)
+			
+			if not success then
+				warn("❌ Error al enviar MapaClickNodo: " .. tostring(err))
+			else
+				print("   ✅ Evento enviado correctamente")
+			end
 		else
 			-- Diagnóstico
 			local paramsDebug = RaycastParams.new()

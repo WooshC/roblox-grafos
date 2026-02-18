@@ -118,6 +118,7 @@ LevelsConfig[0] = {
 		["Nodo1_z2"] = { Zona = "Zona_Estacion_2", Alias = "Centro", Descripcion = "Nodo central. Su GRADO es el número de aristas conectadas." },
 		["Nodo2_z2"] = { Zona = "Zona_Estacion_2", Alias = "Vecino 1", Descripcion = "Conecta al centro para aumentar el grado." },
 		["Nodo3_z2"] = { Zona = "Zona_Estacion_2", Alias = "Vecino 2", Descripcion = "Segundo vecino. Incrementará el grado a 2." },
+		["Nodo4_z2"] = { Zona = "Zona_Estacion_2", Alias = "Vecino 3", Descripcion = "Segundo vecino. Incrementará el grado a 3." },
 		["Nodo1_z3"] = { Zona = "Zona_Estacion_3", Alias = "Nodo X", Descripcion = "Nodo origen. Aristas dirigidas tienen DIRECCIÓN." },
 		["Nodo2_z3"] = { Zona = "Zona_Estacion_3", Alias = "Nodo Y", Descripcion = "Nodo intermedio. Recibe de X, envía a Z." },
 		["Nodo3_z3"] = { Zona = "Zona_Estacion_3", Alias = "Nodo Z", Descripcion = "Nodo destino. Solo tiene entrada." },

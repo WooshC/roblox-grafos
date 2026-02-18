@@ -58,16 +58,17 @@ local ButtonManager = require(Services:WaitForChild("ButtonManager"))
 local MissionsManager = require(Services:WaitForChild("MissionsManager"))
 local MapManager = require(Services:WaitForChild("MapManager"))
 local NodeLabelManager = require(Services:WaitForChild("NodeLabelManager"))
-local EventManager = require(Services:WaitForChild("EventManager")) -- 🔥 NUEVO: EventManager
+local EventManager = require(Services:WaitForChild("EventManager"))
 local LevelsConfig = require(ReplicatedStorage:WaitForChild("LevelsConfig"))
-
+local MatrixManager=require(Services:WaitForChild("MatrixManager"))
 print("⚙️ GUIExplorador: Inicializando servicios...")
 
 -- Estado global compartido
 local globalState = {
 	mapaActivo = false,
 	enMenu = false,
-	zoomLevel = 60
+	zoomLevel = 60,
+	modoActual="VISUAL"
 }
 
 -- Dependencias
@@ -75,18 +76,20 @@ local deps = {
 	LevelsConfig = LevelsConfig,
 	NodeLabelManager = NodeLabelManager,
 	MissionsManager = MissionsManager,
-	MapManager = MapManager
+	MapManager = MapManager,
+	MatrixManager    = MatrixManager,
+	globalState = globalState
 }
 
 -- Inicializar managers
 NodeLabelManager.initialize(deps)
 MissionsManager.initialize(globalState, gui, deps)
 MapManager.initialize(globalState, gui, deps)
-EventManager.initialize(globalState, deps) -- 🔥 NUEVO
-
+MatrixManager.initialize(globalState, gui, deps)
+EventManager.initialize(globalState, deps)
 ButtonManager.initialize(gui, deps)
 ButtonManager:init() -- Conectar listeners
-EventManager:init() -- 🔥 NUEVO: Conectar eventos remotos
+EventManager:init() --NUEVO: Conectar eventos remotos
 
 print("✅ GUIExplorador: Servicios inicializados y conectados")
 

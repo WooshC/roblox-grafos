@@ -433,6 +433,14 @@ mapaClickEvent.OnServerEvent:Connect(function(player, selector)
 	local att   = selector:FindFirstChild("Attachment")
 	print("   Poste: " .. poste.Name .. " | Att: " .. tostring(att))
 
+	-- 🔥 NUEVO: Notificar al cliente sobre la selección para actualizar la matriz
+	local notifyEvent = Remotes:FindFirstChild("NotificarSeleccionNodo")
+	if not notifyEvent then
+		notifyEvent = Instance.new("RemoteEvent")
+		notifyEvent.Name = "NotificarSeleccionNodo"
+		notifyEvent.Parent = Remotes
+	end
+
 	local seleccionActual = selecciones[player]
 	print("   Selección previa: " .. tostring(seleccionActual and seleccionActual.Parent.Name or "ninguna"))
 
@@ -442,12 +450,17 @@ mapaClickEvent.OnServerEvent:Connect(function(player, selector)
 		reproducirSonido(SOUND_CLICK_NAME, selector)
 		if AudioService then AudioService:playClick() end
 		print("   → Guardado como primer nodo")
+		
+		-- Notificar al cliente para resaltar en la matriz
+		notifyEvent:FireClient(player, "NodoSeleccionado", poste.Name)
 	else
 		local posteAnterior = seleccionActual.Parent
 
 		if poste == posteAnterior then
 			selecciones[player] = nil
 			print("   → Mismo nodo, selección cancelada")
+			-- Notificar cancelación
+			notifyEvent:FireClient(player, "SeleccionCancelada")
 			return
 		end
 
@@ -457,11 +470,14 @@ mapaClickEvent.OnServerEvent:Connect(function(player, selector)
 		if not att1 or not att2 then
 			warn("❌ Faltan Attachments — verifica que cada Selector tenga un hijo llamado 'Attachment'")
 			selecciones[player] = nil
+			notifyEvent:FireClient(player, "SeleccionCancelada")
 			return
 		end
 
 		conectarPostes(posteAnterior, poste, att1, att2, player)
 		selecciones[player] = nil
+		-- Notificar que se completó la conexión
+		notifyEvent:FireClient(player, "ConexionCompletada")
 	end
 end)
 
