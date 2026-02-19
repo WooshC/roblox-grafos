@@ -99,6 +99,7 @@ local TiempoTransicion = 1.5
 local Cooldown = 1.7
 local BotonesBloqueados = false
 local EnMenu = true -- Variable de control para saber si estamos en menú
+local CameraAtual = nil -- Cámara actualmente activa en el menú (se asigna en init)
 
 -- // SCRIPT // --
 
@@ -167,25 +168,19 @@ local function CambiarEscenario(camaraDestino, contenidoVisible, contenidoOculta
 		workspace.CurrentCamera.CFrame = camaraDestino.CFrame
 		CambiarVisibilidad(contenidoVisible, contenidoOcultar)
 		
-		-- FORZAR VISIBILIDAD DE ELEMENTOS DEL SELECTOR
+		-- Registrar cámara activa (para CharacterAdded y el loop de init)
+		CameraAtual = camaraDestino
+
+		-- Forzar visibilidad de los HIJOS del Contenedor (sin re-disparar la señal de FrameSelector)
 		if contenidoVisible == ContenidoSelectorNiveles then
-			task.wait(0.1) -- Pequeño delay para asegurar que todo cargó
-			if ContenidoSelectorNiveles.ContenedorInfo then 
-				ContenidoSelectorNiveles.ContenedorInfo.Visible = true 
-			end
-			if ContenidoSelectorNiveles.FrameSelector then 
-				ContenidoSelectorNiveles.FrameSelector.Visible = true 
-			end
-			-- Hacer visibles los hijos del Contenedor también
+			task.wait(0.1)
 			if ContenidoSelectorNiveles.ContenedorInfo then
 				for _, child in ipairs(ContenidoSelectorNiveles.ContenedorInfo:GetChildren()) do
-					if child:IsA("GuiObject") then
-						child.Visible = true
-					end
+					if child:IsA("GuiObject") then child.Visible = true end
 				end
 			end
 		end
-		
+
 		AnimarTransicion(false)
 		task.wait(Cooldown)
 		BotonesBloqueados = false
@@ -214,33 +209,6 @@ function _G.StartGame()
 		BotonesBloqueados = false
 	end)
 end
-
--- ============================================
--- GLOBAL: ABRIR SELECTOR (Con BindableEvent)
--- ============================================
-local Bindables = game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Bindables")
-local OpenMenuEvent = Bindables:FindFirstChild("OpenMenu") or Instance.new("BindableEvent", Bindables)
-OpenMenuEvent.Name = "OpenMenu"
-
-OpenMenuEvent.Event:Connect(function()
-	print("🎞️ Regresando al Selector de Niveles (Evento Recibido)...")
-	
-	-- Restaurar estado menú
-	EnMenu = true
-	BotonesBloqueados = false -- Asegurar desbloqueo
-	
-	-- IMPORTANTE: Asegurar que UI de Roblox se oculte
-	ConfigurarCoreGui(false)
-	
-	-- Forzar Cámara Scriptable
-	ForzarCamaraScriptable()
-	
-	-- Asegurar que CurrentCamera esté en una posición inicial válida antes de tween
-	-- (Opcional, pero ayuda si la cámara estaba muy lejos)
-	
-	-- Transición al Selector
-	CambiarEscenario(CamarasTotales.SelectorCamara, ContenidoSelectorNiveles, ContenidoMenuPrincipal)
-end)
 
 ContenidoMenuPrincipal.BotonPlay.MouseButton1Click:Connect(function()
 	print("🖱️ Click Play -> Ir a Selector de Niveles")
@@ -301,13 +269,14 @@ end
 local cam = workspace.CurrentCamera
 cam.CameraType = Enum.CameraType.Scriptable
 cam.CFrame = CamarasTotales.MenuPrincipalCamara.CFrame
+CameraAtual = CamarasTotales.MenuPrincipalCamara -- Registrar cámara inicial
 
 -- 2. Mantener forzado durante un momento (combate el auto-spawn inicial)
 task.spawn(function()
 	for i = 1, 60 do -- 1 segundo aprox
-		if EnMenu then
+		if EnMenu and CameraAtual then
 			cam.CameraType = Enum.CameraType.Scriptable
-			cam.CFrame = CamarasTotales.MenuPrincipalCamara.CFrame
+			cam.CFrame = CameraAtual.CFrame -- Usar cámara activa, no siempre MenuPrincipal
 		else
 			break
 		end
@@ -322,9 +291,9 @@ end
 
 -- 4. Eventos de Personaje (Respawn en menú)
 Players.LocalPlayer.CharacterAdded:Connect(function()
-	if EnMenu then
+	if EnMenu and CameraAtual then
 		cam.CameraType = Enum.CameraType.Scriptable
-		cam.CFrame = CamarasTotales.MenuPrincipalCamara.CFrame
+		cam.CFrame = CameraAtual.CFrame -- Mantener la cámara del escenario actual (menú o selector)
 	end
 end)
 

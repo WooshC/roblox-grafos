@@ -140,13 +140,18 @@ local function CrearIconoCandado(padre)
 	icon.ZIndex = 2
 end
 
+local Cargando = false
 local function CargarBotonesNiveles()
+	if Cargando then return end
+	Cargando = true
+
 	DatosJugador = GetProgressFunc:InvokeServer()
 	if not DatosJugador or not DatosJugador.Levels then
 		warn("❌ Error obteniendo datos del jugador")
+		Cargando = false
 		return
 	end
-	
+
 	print("📊 Datos recibidos:", DatosJugador.Levels)
 
 	for _, boton in pairs(BotonesFrame:GetChildren()) do
@@ -154,14 +159,14 @@ local function CargarBotonesNiveles()
 			-- Extraer ID del nombre "Nivel_1" -> 1
 			local sID = boton.Name:match("Nivel_(%d+)")
 			local nID = tonumber(sID)
-			
+
 			if nID then
 				local nivelData = DatosJugador.Levels[sID]
 				local estaDesbloqueado = nivelData and nivelData.Unlocked
-				
+
 				-- Reiniciar conexiones previas (simple)
 				-- En sistemas complejos usariamos Maid/Janitor, aqui desconectamos al destruir si recargamos
-				
+
 				if estaDesbloqueado then
 					-- ESTILO DESBLOQUEADO
 					boton.Visible = true -- 🔥 FORZAR VISIBILIDAD
@@ -169,7 +174,7 @@ local function CargarBotonesNiveles()
 					boton.AutoButtonColor = true
 					boton.TextTransparency = 0
 					if boton:FindFirstChild("LockIcon") then boton.LockIcon:Destroy() end
-					
+
 					-- Evento Click Normal
 					boton.MouseButton1Click:Connect(function()
 						ActualizarPanelInfo(nID)
@@ -179,27 +184,28 @@ local function CargarBotonesNiveles()
 					boton.Visible = true -- 🔥 FORZAR VISIBILIDAD
 					boton.BackgroundColor3 = ColorBloqueado
 					boton.AutoButtonColor = true -- Permitir click
-					boton.TextTransparency = 0.5 
+					boton.TextTransparency = 0.5
 					CrearIconoCandado(boton)
-					
+
 					boton.MouseButton1Click:Connect(function()
 						-- Mostrar info del nivel bloqueado
 						ActualizarPanelInfo(nID)
-						
+
 						-- Desactivar botón jugar explícitamente
 						BotonJugar.Visible = true
 						BotonJugar.Text = "BLOQUEADO 🔒"
 						BotonJugar.BackgroundColor3 = Color3.fromRGB(127, 140, 141) -- Gris
 						BotonJugar.AutoButtonColor = false
-						
+
 						-- Desconectar evento jugar anterior (la función Jugar chequea NivelSeleccionado, pero aqui prevenimos visualmente)
-						-- Un truco simple es cambiar NivelSeleccionado a nil temporalmente al pulsar Jugar si estuviera bloqueado, 
+						-- Un truco simple es cambiar NivelSeleccionado a nil temporalmente al pulsar Jugar si estuviera bloqueado,
 						-- pero mejor controlamos en el evento del boton jugar.
 					end)
 				end
 			end
 		end
 	end
+	Cargando = false
 end
 
 -- ============================================
