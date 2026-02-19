@@ -341,11 +341,14 @@ end
 --- Genera una matriz de adyacencia
 --- @param nodes table — lista de instancias de nodos
 --- @param cables table
+--- @param adyacencias table|nil — tabla { [nodo] = {vecino,...} } de LevelsConfig.
+---        Si se provee, respeta la direccionalidad (dígrafo).
+---        Si es nil, produce una matriz simétrica (no-dirigido).
 --- @return table
-function GraphUtils.getAdjacencyMatrix(nodes, cables)
+function GraphUtils.getAdjacencyMatrix(nodes, cables, adyacencias)
 	local matrix = {}
 	local n = #nodes
-	
+
 	-- Mapeo nombre -> índice
 	local nameToIndex = {}
 	for i, node in ipairs(nodes) do
@@ -355,16 +358,26 @@ function GraphUtils.getAdjacencyMatrix(nodes, cables)
 			matrix[i][j] = 0
 		end
 	end
-	
+
 	for _, info in pairs(cables) do
-		local idxA = nameToIndex[info.nodeA.Name]
-		local idxB = nameToIndex[info.nodeB.Name]
+		local nA   = info.nodeA.Name
+		local nB   = info.nodeB.Name
+		local idxA = nameToIndex[nA]
+		local idxB = nameToIndex[nB]
 		if idxA and idxB then
-			matrix[idxA][idxB] = 1
-			matrix[idxB][idxA] = 1
+			if adyacencias then
+				local aToB = adyacencias[nA] and table.find(adyacencias[nA], nB)
+				local bToA = adyacencias[nB] and table.find(adyacencias[nB], nA)
+				local fallback = not aToB and not bToA
+				if aToB or fallback then matrix[idxA][idxB] = 1 end
+				if bToA or fallback then matrix[idxB][idxA] = 1 end
+			else
+				matrix[idxA][idxB] = 1
+				matrix[idxB][idxA] = 1
+			end
 		end
 	end
-	
+
 	return matrix
 end
 

@@ -235,57 +235,6 @@ local DATA_DIALOGOS = {
 				enfocarEntre({nX, nY, nZ}, CONFIG.CAMARA.offset_alto)
 			end
 		end,
-		Siguiente = "Instruccion_1",
-	},
-
-	-- ============================================
-	-- MISIONES
-	-- ============================================
-
-	["Instruccion_1"] = {
-		Actor     = "Sistema",
-		Expresion = "Bienvenida",
-		Texto     = "MISIÓN: Crea la arista " .. aliasX .. " → " .. aliasY .. ".",
-		Sonido    = "rbxassetid://91232241403260",
-		Evento    = function()
-			VisualEffectsService:clearEffects()
-			local nX = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodoX)
-			local nY = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodoY)
-			if nX and nY then
-				VisualEffectsService:highlightObject(nX, CONFIG.COLORES.verde)
-				VisualEffectsService:highlightObject(nY, CONFIG.COLORES.azul)
-				VisualEffectsService:showNodeLabel(nX, aliasX .. " (1° clic)")
-				VisualEffectsService:showNodeLabel(nY, aliasY .. " (2° clic)")
-				VisualEffectsService:focusCameraOn(nX, CONFIG.CAMARA.offset_medio)
-				VisualEffectsService:blink(nX, 30, 1.5)
-			end
-		end,
-		Siguiente = "Instruccion_2",
-	},
-
-	["Instruccion_2"] = {
-		Actor     = "Sistema",
-		Expresion = "Bienvenida",
-		Texto     = "Ahora completa la cadena: " .. aliasY .. " → " .. aliasZ .. ".",
-		Sonido    = "rbxassetid://76732191360053",
-		Evento    = function()
-			VisualEffectsService:clearEffects()
-			local nX = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodoX)
-			local nY = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodoY)
-			local nZ = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodoZ)
-			if nX and nY and nZ then
-				VisualEffectsService:highlightObject(nX, CONFIG.COLORES.verde_debil)
-				VisualEffectsService:highlightObject(nY, CONFIG.COLORES.verde)
-				VisualEffectsService:highlightObject(nZ, CONFIG.COLORES.azul)
-				VisualEffectsService:showNodeLabel(nX, aliasX .. " ✔")
-				VisualEffectsService:showNodeLabel(nY, aliasY .. " (1° clic)")
-				VisualEffectsService:showNodeLabel(nZ, aliasZ .. " (2° clic)")
-				enfocarEntre({nX, nY, nZ}, CONFIG.CAMARA.offset_alto)
-				VisualEffectsService:blink(nY, 30, 1.5)
-				task.wait(0.4)
-				VisualEffectsService:blink(nZ, 30, 1.5)
-			end
-		end,
 		Siguiente = "Pregunta_Dirigido",
 	},
 

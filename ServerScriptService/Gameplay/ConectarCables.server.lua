@@ -146,7 +146,20 @@ local function conectarPostes(poste1, poste2, att1, att2, player)
 	-- Validar adyacencia
 	if not LevelService:canConnect(poste1, poste2) then
 		reproducirSonido(SOUND_FAILED_NAME, poste2)
-		notifyEvent:FireClient(player, "ConexionInvalida", poste1.Name, poste2.Name)
+
+		-- Detectar si es error de DIRECCIÓN (la arista existe pero en sentido contrario)
+		-- En ese caso se usa DireccionInvalida para que DirectedFeedback lo maneje.
+		local tipoEvento = "ConexionInvalida"
+		local cfg = LevelService:getLevelConfig()
+		if cfg and cfg.Adyacencias then
+			local ady = cfg.Adyacencias
+			local reversValido = ady[poste2.Name] and table.find(ady[poste2.Name], poste1.Name)
+			if reversValido then
+				tipoEvento = "DireccionInvalida"
+			end
+		end
+
+		notifyEvent:FireClient(player, tipoEvento, poste1.Name, poste2.Name)
 		if UIService then
 			UIService:notifyError(player, "Conexión Inválida", "Estos postes no pueden conectarse")
 		end

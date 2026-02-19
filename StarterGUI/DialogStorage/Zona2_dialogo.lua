@@ -276,50 +276,15 @@ local DATA_DIALOGOS = {
 		Siguiente = "GradoEnTiempoReal",
 	},
 
-	["GradoEnTiempoReal"] = {
-		Actor     = "Carlos",
-		Expresion = "Feliz",
-		Texto     = {
-			"Este contador muestra el grado del " .. aliasA .. " en tiempo real.",
-			"Cada vez que conectes un vecino, el número subirá.",
-		},
-		Sonido    = { "rbxassetid://98229492565124", "rbxassetid://98076423902070" },
-		Evento    = function()
-			VisualEffectsService:clearEffects()
-			local nA = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodoA)
-			if nA then
-				VisualEffectsService:highlightObject(nA, CONFIG.COLORES.azul)
-				VisualEffectsService:focusCameraOn(nA, CONFIG.CAMARA.offset_medio)
-				mostrarGradoEnTiempoReal(nA)
-			end
-		end,
-		Siguiente = "ModoMatematico",
-	},
-
-	["ModoMatematico"] = {
-		Actor     = "Carlos",
-		Expresion = "Presentacion",
-		Texto     = {
-			"Por cierto, puedes activar el Modo Matemático desde el panel de herramientas.",
-			"Verás la matriz de adyacencia de la red y los grados de cada nodo actualizándose en tiempo real.",
-			"Cada conexión que hagas se reflejará ahí de inmediato.",
-		},
-		Sonido    = {
-			"rbxassetid://98229492565124",
-			"rbxassetid://84784432074545",
-			"rbxassetid://87649995326832",
-		},
-		Siguiente = "Mision1",
-	},
 
 	-- ============================================
 	-- MISIONES
 	-- ============================================
 
-	["Mision1"] = {
+	["GradoEnTiempoReal"] = {
 		Actor     = "Sistema",
 		Expresion = "Bienvenida",
-		Texto     = "MISIÓN: Conecta un vecino al " .. aliasA .. ". Grado objetivo: 1.",
+		Texto     = "Una de tus misiones sera conectar el vecino al " .. aliasA,
 		Sonido    = "rbxassetid://91232241403260",
 		Evento    = function()
 			VisualEffectsService:clearEffects()
@@ -349,23 +314,9 @@ local DATA_DIALOGOS = {
 				VisualEffectsService:focusCameraOn(nA, CONFIG.CAMARA.offset_alto)
 			end
 		end,
-		Siguiente = "Mision2",
-	},
-
-	["Mision2"] = {
-		Actor     = "Sistema",
-		Expresion = "Bienvenida",
-		Texto     = "Ahora conecta los otros dos vecinos. Grado objetivo: 3.",
-		Sonido    = "rbxassetid://76732191360053",
-		Evento    = function()
-			local nC = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodoC)
-			local nD = VisualEffectsService:findNodeByName(CONFIG.NODOS.nodoD)
-			if nC then VisualEffectsService:blink(nC, 25, 2) end
-			task.wait(0.3)
-			if nD then VisualEffectsService:blink(nD, 25, 2) end
-		end,
 		Siguiente = "Pregunta_Grado",
 	},
+
 
 	-- ============================================
 	-- PREGUNTA DE VALIDACIÓN
@@ -422,7 +373,9 @@ local DATA_DIALOGOS = {
 	["Cierre_Z2"] = {
 		Actor     = "Carlos",
 		Expresion = "Sonriente",
-		Texto     = "Ahora conecta el " .. aliasA .. " con sus tres vecinos y observa el contador de grado en tiempo real.",
+		Texto = "Por cierto, puedes activar el Modo Matemático desde el panel de herramientas. " ..
+			"Verás la matriz de adyacencia de la red y los grados de cada nodo actualizándose en tiempo real. " ..
+			"Cada conexión que hagas se reflejará ahí de inmediato.",
 		Sonido    = "rbxassetid://98229492565124",
 		Evento    = function()
 			limpiarIndicador()

@@ -1,7 +1,8 @@
--- NonAdjacentFeedback.lua
--- Muestra un diálogo educativo cuando el jugador intenta conectar
--- dos nodos que NO son adyacentes según la configuración del nivel.
--- NOTA: errores de DIRECCIÓN en grafos dirigidos son manejados por DirectedFeedback.lua
+-- StarterGUI/DialogStorage/DirectedFeedback.lua
+-- Muestra un diálogo educativo cuando el jugador intenta conectar dos nodos
+-- en la dirección INCORRECTA dentro de un grafo dirigido.
+-- Ejemplo: intenta Y→X cuando la arista válida es X→Y.
+-- El servidor detecta el caso y envía el evento "DireccionInvalida".
 
 local dialogueKitModule = require(script.Parent.Parent.DialogueKit)
 local DialogueGenerator  = require(script.Parent.DialogueGenerator)
@@ -19,18 +20,14 @@ local SKIN_NAME = "Hotline"
 -- HELPERS
 -- ================================================================
 
--- Verificación de seguridad en el cliente: devuelve true si la conexión
--- nodo1→nodo2 falla porque existe la arista inversa nodo2→nodo1 en un dígrafo.
--- El servidor ya debería enviar DireccionInvalida en ese caso, pero esto
--- evita falsos positivos si hay alguna desincronización.
-local function esDireccionInvalida(nodo1, nodo2)
-	local cfg = LevelsConfig[0]  -- Nivel educativo (siempre nivel 0)
-	if not cfg or not cfg.Adyacencias then return false end
-	local ady = cfg.Adyacencias
-	return ady[nodo2] and table.find(ady[nodo2], nodo1) ~= nil
+local function getAlias(nodeName)
+	local cfg = LevelsConfig[0]
+	if cfg and cfg.Nodos and cfg.Nodos[nodeName] then
+		return cfg.Nodos[nodeName].Alias or nodeName
+	end
+	return nodeName
 end
 
--- Espera a que el kit no tenga ningún diálogo activo.
 local function esperarKitLibre()
 	while DialogueVisibilityManager:isActive() do
 		task.wait(0.2)
@@ -38,22 +35,32 @@ local function esperarKitLibre()
 	task.wait(1.0)
 end
 
--- Muestra el diálogo y luego restaura inmediatamente el movimiento
--- para que el jugador pueda caminar mientras lee.
-local function mostrarFeedbackAdyacencia()
+-- ================================================================
+-- DIÁLOGO
+-- ================================================================
+
+-- poste1Name = primer nodo clicado (origen intentado, INCORRECTO)
+-- poste2Name = segundo nodo clicado (destino intentado, INCORRECTO)
+-- La dirección VÁLIDA es poste2 → poste1 (sentido contrario al intento)
+local function mostrarFeedbackDireccion(poste1Name, poste2Name)
 	task.spawn(function()
 		esperarKitLibre()
 
+		local aliasIntento  = getAlias(poste1Name) .. " → " .. getAlias(poste2Name)
+		local aliasCorrecta = getAlias(poste2Name) .. " → " .. getAlias(poste1Name)
+
 		local data = {
-			["NoAdyacente"] = {
+			["DireccionInvalida"] = {
 				Actor     = "Sistema",
 				Expresion = "Nodo",
 				Texto     = {
-					"Esos dos nodos no son adyacentes.",
-					"En un grafo, solo puedes crear una arista entre nodos que sean vecinos definidos.",
-					"Observa qué nodos están resaltados y elige solo entre ellos.",
+					"¡Dirección incorrecta en un grafo DIRIGIDO!",
+					"Intentaste: " .. aliasIntento,
+					"La flecha válida es: " .. aliasCorrecta,
+					"En un dígrafo, el orden en que haces clic importa: primero el ORIGEN, luego el DESTINO.",
 				},
 				Sonido    = {
+					"rbxassetid://91232241403260",
 					"rbxassetid://91232241403260",
 					"rbxassetid://91232241403260",
 					"rbxassetid://91232241403260",
@@ -64,13 +71,13 @@ local function mostrarFeedbackAdyacencia()
 
 		local layers = DialogueGenerator.GenerarEstructura(data, SKIN_NAME)
 		dialogueKitModule.CreateDialogue({
-			InitialLayer = "NoAdyacente",
+			InitialLayer = "DireccionInvalida",
 			SkinName     = SKIN_NAME,
 			Config       = script,
 			Layers       = layers,
 		})
 
-		-- Restaurar movimiento del jugador inmediatamente después de mostrar el diálogo
+		-- Restaurar movimiento del jugador (mismo patrón que NonAdjacentFeedback)
 		task.delay(0.15, function()
 			local Players = game:GetService("Players")
 			local char = Players.LocalPlayer.Character
@@ -95,20 +102,15 @@ task.spawn(function()
 	local notifyEvent = Remotes:WaitForChild("NotificarSeleccionNodo", 30)
 
 	if not notifyEvent then
-		warn("❌ NonAdjacentFeedback: NotificarSeleccionNodo no encontrado (timeout)")
+		warn("❌ DirectedFeedback: NotificarSeleccionNodo no encontrado (timeout)")
 		return
 	end
 
 	notifyEvent.OnClientEvent:Connect(function(tipo, nodo1, nodo2)
-		if tipo == "ConexionInvalida" then
-			-- Seguridad cliente: no mostrar si en realidad es error de dirección en dígrafo
-			-- (el servidor ya diferencia con DireccionInvalida, esto previene edge cases)
-			if nodo1 and nodo2 and esDireccionInvalida(nodo1, nodo2) then
-				return  -- DirectedFeedback.lua maneja este caso
-			end
-			mostrarFeedbackAdyacencia()
+		if tipo == "DireccionInvalida" then
+			mostrarFeedbackDireccion(nodo1, nodo2)
 		end
 	end)
 
-	print("✅ NonAdjacentFeedback: escuchando ConexionInvalida")
+	print("✅ DirectedFeedback: escuchando DireccionInvalida")
 end)

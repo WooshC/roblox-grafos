@@ -11,7 +11,8 @@ local GraphService = _G.Services.Graph
 local GraphUtils = _G.Services.GraphUtils
 local LevelService = _G.Services.Level
 
-local NivelUtils = require(ReplicatedStorage:WaitForChild("Utilidades"):WaitForChild("NivelUtils"))
+local NivelUtils    = require(ReplicatedStorage:WaitForChild("Utilidades"):WaitForChild("NivelUtils"))
+local LevelsConfig  = require(ReplicatedStorage:WaitForChild("LevelsConfig"))
 
 local eventsFolder = ReplicatedStorage:WaitForChild("Events")
 local remotesFolder = eventsFolder:WaitForChild("Remotes")
@@ -126,29 +127,50 @@ local function getAdjacencyMatrix(player, zonaID)
 	local headers = {}
 	local matrix = {}
 	local n = #sortedNodes
-	
-	-- Obtener cables actuales
-	local cables = GraphService:getCables()
-	
-	for i = 1, n do
-		headers[i] = sortedNodes[i].Name
+
+	-- Obtener cables actuales y adyacencias para determinar direccionalidad
+	local cables     = GraphService:getCables()
+	local levelCfg   = LevelsConfig[nivelID]
+	local adyacencias = levelCfg and levelCfg.Adyacencias or nil
+
+	-- Mapeo nombre -> índice
+	local nameToIndex = {}
+	for i, node in ipairs(sortedNodes) do
+		headers[i]          = node.Name
+		nameToIndex[node.Name] = i
 		matrix[i] = {}
-		
 		for j = 1, n do
-			local nodeA = sortedNodes[i]
-			local nodeB = sortedNodes[j]
-			
-			if i == j then
-				matrix[i][j] = 0
-			else
-				-- Verificar conexión usando GraphUtils/Service
-				if GraphUtils.areConnected(nodeA, nodeB, cables) then
-					-- 🔥 CORREGIDO: Calcular peso (distancia en metros) usando función helper
-					local distStuds = calcularDistancia(nodeA, nodeB)
-					matrix[i][j] = math.floor(distStuds / 4) -- 4 studs = 1 metro
-				else
-					matrix[i][j] = 0
+			matrix[i][j] = 0
+		end
+	end
+
+	-- Rellenar según cables + direccionalidad definida en Adyacencias
+	for _, info in pairs(cables) do
+		local nA   = info.nodeA.Name
+		local nB   = info.nodeB.Name
+		local idxA = nameToIndex[nA]
+		local idxB = nameToIndex[nB]
+
+		if idxA and idxB and idxA ~= idxB then
+			local distStuds = calcularDistancia(info.nodeA, info.nodeB)
+			local peso      = math.max(1, math.floor(distStuds / 4)) -- 4 studs = 1 metro
+
+			if adyacencias then
+				local aToB = adyacencias[nA] and table.find(adyacencias[nA], nB)
+				local bToA = adyacencias[nB] and table.find(adyacencias[nB], nA)
+
+				if aToB then matrix[idxA][idxB] = peso end
+				if bToA then matrix[idxB][idxA] = peso end
+
+				-- Fallback: ninguna dirección definida → bidireccional
+				if not aToB and not bToA then
+					matrix[idxA][idxB] = peso
+					matrix[idxB][idxA] = peso
 				end
+			else
+				-- Sin adyacencias: tratar como no-dirigido
+				matrix[idxA][idxB] = peso
+				matrix[idxB][idxA] = peso
 			end
 		end
 	end
