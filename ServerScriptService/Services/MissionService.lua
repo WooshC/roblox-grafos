@@ -424,17 +424,29 @@ function MissionService:checkVictoryCondition(player)
 				warn("⚠️ _G.CompleteLevel no encontrado, no se guardó el progreso")
 			end
 			
-			-- Feedback visual/auditivo en server (opcional, el cliente también lo hará)
+			-- Feedback visual en server
 			if UIService then UIService:notifyLevelComplete() end
-			if AudioService then AudioService:playVictoryMusic() end
-			
-			-- 🔥 DISPARAR EVENTO AL CLIENTE (Para abrir menú)
+
+			-- 🔥 DISPARAR EVENTO AL CLIENTE con stats completas
 			local Remotes = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Remotes")
 			local LevelCompletedEvent = Remotes:FindFirstChild("LevelCompleted")
-			
+
 			if LevelCompletedEvent then
-				LevelCompletedEvent:FireClient(player, nivelID, estrellas, puntos)
-				print("✅ LevelCompletedEvent disparado al cliente")
+				local startTime = player:GetAttribute("LevelStartTime") or os.time()
+				local tiempoSegundos = os.time() - startTime
+				local erroresCount = player:GetAttribute("NivelErrores") or 0
+				local estadoActual = self:buildFullGameState(player)
+				local numConexiones = estadoActual.numConexiones or 0
+
+				LevelCompletedEvent:FireClient(player, {
+					nivelID   = nivelID,
+					puntos    = puntos,
+					estrellas = estrellas,
+					tiempo    = tiempoSegundos,
+					errores   = erroresCount,
+					aciertos  = numConexiones,
+				})
+				print("✅ LevelCompletedEvent disparado al cliente con stats")
 			else
 				warn("⚠️ LevelCompletedEvent no encontrado en Remotes")
 			end

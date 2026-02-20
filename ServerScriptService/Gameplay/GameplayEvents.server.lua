@@ -185,10 +185,12 @@ end
 
 if LevelService then
 	LevelService:onLevelLoaded(function(nivelID, levelFolder, config)
-		print("🎮 Nivel " .. nivelID .. " cargado: " .. config.Nombre)
+		local cfg = config or LevelService:getLevelConfig()
+		local nombre = cfg and cfg.Nombre or ("Nivel " .. tostring(nivelID))
+		print("🎮 Nivel " .. nivelID .. " cargado: " .. nombre)
 		task.wait(0.5)
 		actualizarLucesZonas(nivelID)
-		if AudioService then AudioService:playBGM("Level_" .. nivelID .. "_BGM", true, 1.0) end
+		-- AudioClient maneja el ambiente en el cliente; no hay BGM en el servidor
 		if UIService then UIService:updateAll() end
 	end)
 
@@ -220,30 +222,5 @@ end)
 Players.PlayerRemoving:Connect(function(player)
 	if MissionService and MissionService.clearPlayer then MissionService:clearPlayer(player) end
 end)
-
--- Finalizar nivel
-local Remotes = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Remotes")
-local LevelCompletedEvent = Remotes:FindFirstChild("LevelCompleted")
-
-if LevelCompletedEvent then
-	LevelCompletedEvent.OnServerEvent:Connect(function(player, nivelID, estrellas, puntos)
-		print("🏆 " .. player.Name .. " completó Nivel " .. nivelID)
-		if RewardService then RewardService:giveCompletionRewards(player, nivelID) end
-		if UIService then UIService:notifyLevelComplete() end
-		if AudioService then AudioService:playVictoryMusic() end
-
-		-- Notificar al cliente (Menú / Victoria)
-		if LevelCompletedEvent then
-			LevelCompletedEvent:FireClient(player, nivelID, estrellas, puntos)
-		end
-		
-		-- Intentar avisar a otros scripts del server (opcional)
-		local Bindables = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Bindables")
-		local OpenMenuEvent = Bindables:FindFirstChild("OpenMenu")
-		if OpenMenuEvent then
-			OpenMenuEvent:Fire()
-		end
-	end)
-end
 
 print("⚡ GameplayEvents (REFACTORIZADO) cargado")

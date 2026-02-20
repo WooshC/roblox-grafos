@@ -41,18 +41,25 @@ function AudioService:init()
 		audioFolder = Instance.new("Folder")
 		audioFolder.Name = "Audio"
 		audioFolder.Parent = ReplicatedStorage
-	else
 	end
 
 	soundsFolder = audioFolder
 
-	-- Verificar y crear sonidos por defecto
+	-- Asegurar que exista la subcarpeta SFX
+	local sfxFolder = soundsFolder:FindFirstChild("SFX")
+	if not sfxFolder then
+		sfxFolder = Instance.new("Folder")
+		sfxFolder.Name = "SFX"
+		sfxFolder.Parent = soundsFolder
+	end
+
+	-- Verificar y crear sonidos por defecto en la subcarpeta SFX
 	for name, id in pairs(DEFAULT_SOUNDS) do
-		if not soundsFolder:FindFirstChild(name) then
+		if not sfxFolder:FindFirstChild(name) then
 			local sound = Instance.new("Sound")
 			sound.Name = name
 			sound.SoundId = id
-			sound.Parent = soundsFolder
+			sound.Parent = sfxFolder
 			print("➕ AudioService: Sonido '" .. name .. "' creado (" .. id .. ")")
 		end
 	end
@@ -66,7 +73,7 @@ end
 
 -- Reproducer sonido de conexión exitosa
 function AudioService:playCableConnected()
-	self:playSound("CableConnected", "sfx", {
+	self:playSound("CableConnect", "sfx", {
 		pitch = 1.0,
 		volume = soundVolumes.sfx
 	})
@@ -74,7 +81,7 @@ end
 
 -- Reproducir sonido de desconexión
 function AudioService:playCableDisconnected()
-	self:playSound("CableDisconnected", "sfx", {
+	self:playSound("CableSnap", "sfx", {
 		pitch = 0.9,
 		volume = soundVolumes.sfx
 	})
@@ -117,31 +124,26 @@ end
 -- ============================================
 
 -- Cambia la música de fondo del nivel
-function AudioService:playBGM(nombreCancion, loop, fadeIn)
+function AudioService:playBGM(nombreCancion, loop)
 	loop = loop ~= false
-	fadeIn = fadeIn or 0
 
-	-- Si hay BGM actual, hacer fade out
 	if currentBGM then
-		self:stopBGM(fadeIn)
-		task.wait(fadeIn)
+		self:stopBGM()
 	end
 
 	self:playSound(nombreCancion, "bgm", {
 		loop = loop,
 		volume = soundVolumes.bgm,
-		fadeIn = fadeIn
 	})
 
 	currentBGM = nombreCancion
 end
 
 -- Detiene la música de fondo actual
-function AudioService:stopBGM(fadeOut)
-	fadeOut = fadeOut or 0
-
+function AudioService:stopBGM()
 	if currentBGM then
-		self:fadeOutSound(currentBGM, fadeOut)
+		local sound = soundsFolder and soundsFolder:FindFirstChild(currentBGM)
+		if sound and sound:IsA("Sound") then sound:Stop() end
 		currentBGM = nil
 	end
 end
@@ -160,8 +162,14 @@ function AudioService:playSound(soundName, soundType, options)
 	soundType = soundType or "sfx"
 	options = options or {}
 
-	-- Buscar sonido en la carpeta
-	local soundAsset = soundsFolder:FindFirstChild(soundName)
+	-- Buscar sonido en la subcarpeta correcta según tipo, con fallback a la raíz
+	local subfolderName = soundType == "sfx" and "SFX"
+		or soundType == "ambient" and "Ambiente"
+		or soundType == "bgm" and "Victoria"
+		or nil
+	local subfolder = subfolderName and soundsFolder:FindFirstChild(subfolderName)
+	local soundAsset = (subfolder and subfolder:FindFirstChild(soundName))
+		or soundsFolder:FindFirstChild(soundName)
 	if not soundAsset then
 		print("⚠️ AudioService: Sonido '" .. soundName .. "' no encontrado")
 		return
@@ -179,11 +187,6 @@ function AudioService:playSound(soundName, soundType, options)
 	-- Reproducir
 	sound:Play()
 
-	-- Fade in si se especifica
-	if options.fadeIn and options.fadeIn > 0 then
-		self:fadeInSound(sound, options.fadeIn)
-	end
-
 	-- Limpiar después de terminar (si no es loop)
 	if not sound.Looped then
 		game:GetService("Debris"):AddItem(sound, sound.TimeLength + 1)
@@ -192,53 +195,6 @@ function AudioService:playSound(soundName, soundType, options)
 	soundPlayedEvent:Fire(soundName, soundType)
 
 	return sound
-end
-
--- ============================================
--- EFECTOS DE SONIDO
--- ============================================
-
--- Fade in de volumen
-function AudioService:fadeInSound(sound, duration)
-	duration = duration or 1.0
-	local startVolume = 0
-	local endVolume = soundVolumes.sfx
-
-	local startTime = tick()
-	local connection
-
-	connection = game:GetService("RunService").RenderStepped:Connect(function()
-		local elapsed = tick() - startTime
-		local progress = math.min(elapsed / duration, 1)
-
-		sound.Volume = startVolume + (endVolume - startVolume) * progress
-
-		if progress >= 1 then
-			connection:Disconnect()
-		end
-	end)
-end
-
--- Fade out de volumen
-function AudioService:fadeOutSound(sound, duration)
-	duration = duration or 1.0
-	local startVolume = sound.Volume
-	local endVolume = 0
-
-	local startTime = tick()
-	local connection
-
-	connection = game:GetService("RunService").RenderStepped:Connect(function()
-		local elapsed = tick() - startTime
-		local progress = math.min(elapsed / duration, 1)
-
-		sound.Volume = startVolume + (endVolume - startVolume) * progress
-
-		if progress >= 1 then
-			connection:Disconnect()
-			sound:Stop()
-		end
-	end)
 end
 
 -- ============================================

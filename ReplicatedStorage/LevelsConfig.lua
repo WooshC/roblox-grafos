@@ -25,6 +25,12 @@ LevelsConfig[0] = {
 		RecompensaXP = 500
 	},
 
+	Audio = {
+		Ambiente = "Nivel0",       -- ReplicatedStorage/Audio/Ambiente/Nivel0
+		Victoria = "Fanfare",      -- ReplicatedStorage/Audio/Victoria/Fanfare
+		TemaVictoria = "Tema",     -- ReplicatedStorage/Audio/Victoria/Tema
+	},
+
 	NodoInicio = "PostePanel",
 	NodoFin = "PostePanel",
 	NodosTotales = 13,
@@ -175,6 +181,7 @@ LevelsConfig[2] = {
 	ImageId = "rbxassetid://1234567892",
 	Modelo = "Nivel2_Expansion",
 	Descripcion = "La ciudad crece. Conecta los nuevos distritos comerciales.",
+	Audio = { Ambiente = "Nivel2", Victoria = "Fanfare", TemaVictoria = "Tema" },
 	DineroInicial = 8000, CostoPorMetro = 35, Algoritmo = "DFS",
 	CondicionVictoria = "CIRCUITO_CERRADO",
 	NodoInicio = "GeneradorCentral", NodoFin = "SubestacionNorte",
@@ -195,6 +202,7 @@ LevelsConfig[3] = {
 	ImageId = "rbxassetid://1234567893",
 	Modelo = "Nivel3_Industrial",
 	Descripcion = "Las fábricas necesitan potencia estable.",
+	Audio = { Ambiente = "Nivel3", Victoria = "Fanfare", TemaVictoria = "Tema" },
 	DineroInicial = 12000, CostoPorMetro = 50, Algoritmo = "Dijkstra",
 	CondicionVictoria = "CIRCUITO_CERRADO",
 	NodoInicio = "PlantaNuclear", NodoFin = "FabricaAceros",
@@ -215,6 +223,7 @@ LevelsConfig[4] = {
 	ImageId = "rbxassetid://1234567894",
 	Modelo = "Nivel4_Final",
 	Descripcion = "Toda la ciudad depende de ti.",
+	Audio = { Ambiente = "Nivel4", Victoria = "Fanfare", TemaVictoria = "Tema" },
 	DineroInicial = 20000, CostoPorMetro = 45, Algoritmo = "Dijkstra",
 	CondicionVictoria = "CIRCUITO_CERRADO",
 	NodoInicio = "CentralHidro", NodoFin = "Rascacielos",

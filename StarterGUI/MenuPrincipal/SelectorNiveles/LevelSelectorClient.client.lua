@@ -261,29 +261,34 @@ if BotonesFrame.Visible then
 end
 
 -- EVENTO NIVEL COMPLETADO (Victory!)
+-- El servidor ahora envía una tabla con stats: { nivelID, puntos, estrellas, tiempo, errores, aciertos }
 local LevelCompletedEvent = Remotes:WaitForChild("LevelCompleted", 5)
 if LevelCompletedEvent then
-	LevelCompletedEvent.OnClientEvent:Connect(function(nivelID, estrellas, puntos)
-		print("🏆 ¡Nivel " .. nivelID .. " Completado! " .. estrellas .. " Estrellas | " .. puntos .. " Pts")
-		
-		-- 🔥 GUARDAR RESULTADOS LOCALMENTE
+	LevelCompletedEvent.OnClientEvent:Connect(function(stats)
+		-- Compatibilidad: acepta tabla nueva o argumentos sueltos legacy
+		local nivelID, estrellas, puntos
+		if type(stats) == "table" then
+			nivelID   = stats.nivelID
+			estrellas = stats.estrellas
+			puntos    = stats.puntos
+		else
+			-- Fallback por si algo llega en formato viejo
+			nivelID   = stats
+			estrellas = 0
+			puntos    = 0
+		end
+
+		print("🏆 ¡Nivel " .. tostring(nivelID) .. " Completado! " .. tostring(estrellas) .. " Estrellas | " .. tostring(puntos) .. " Pts")
+
+		-- Guardar resultados localmente (para mostrar en el selector al volver)
 		ResultsLastRun = {
 			LevelID = nivelID,
-			Stars = estrellas,
-			Score = puntos
+			Stars   = estrellas,
+			Score   = puntos
 		}
-		
-		task.wait(2) -- Esperar celebración en juego (si la hay)
-		
-		-- Volver al selector para mostrar progreso
-		local Bindables = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Bindables")
-		local OpenMenuEvent = Bindables:FindFirstChild("OpenMenu")
-		
-		if OpenMenuEvent then
-			OpenMenuEvent:Fire()
-		else
-			warn("❌ Evento OpenMenu no encontrado en Bindables")
-		end
+
+		-- LevelSelectorClient NO abre el menú: eso lo hace VictoryScreenManager
+		-- cuando el jugador pulsa "Continuar". Solo guardamos los resultados.
 	end)
 end
 

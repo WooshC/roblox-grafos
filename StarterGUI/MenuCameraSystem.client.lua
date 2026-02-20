@@ -143,7 +143,15 @@ local function CambiarVisibilidad(contenidoVisible, contenidoOcultar)
 	end
 
 	for _, objeto in pairs(contenidoVisible) do
-		if objeto and objeto:IsA("GuiObject") then objeto.Visible = true end
+		if objeto and objeto:IsA("GuiObject") then
+			objeto.Visible = true
+			-- Restaurar la cadena de padres que OcultarTodo() pudo haber ocultado
+			local padre = objeto.Parent
+			while padre and padre ~= UI and padre:IsA("GuiObject") do
+				padre.Visible = true
+				padre = padre.Parent
+			end
+		end
 	end
 end
 

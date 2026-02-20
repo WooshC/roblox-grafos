@@ -143,6 +143,8 @@ function LevelService:loadLevel(nivelID)
 	-- Actualizar atributo en todos los jugadores (para Minimap y UI)
 	for _, player in ipairs(Players:GetPlayers()) do
 		player:SetAttribute("CurrentLevelID", nivelID)
+		player:SetAttribute("LevelStartTime", os.time())
+		player:SetAttribute("NivelErrores", 0)
 	end
 
 	-- Emitir evento de carga
@@ -295,11 +297,13 @@ function LevelService:resetLevel()
 		end
 	end
 
-	-- Resetear misiones para todos los jugadores
+	-- Resetear misiones y estadísticas de sesión para todos los jugadores
 	for _, player in ipairs(Players:GetPlayers()) do
 		if missionService then
 			missionService:resetMissions(player)
 		end
+		player:SetAttribute("NivelErrores", 0)
+		player:SetAttribute("LevelStartTime", os.time())
 	end
 
 	-- Emitir evento de reset

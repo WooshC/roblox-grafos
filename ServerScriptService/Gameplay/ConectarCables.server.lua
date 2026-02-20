@@ -146,6 +146,7 @@ local function conectarPostes(poste1, poste2, att1, att2, player)
 	-- Validar adyacencia
 	if not LevelService:canConnect(poste1, poste2) then
 		reproducirSonido(SOUND_FAILED_NAME, poste2)
+		player:SetAttribute("NivelErrores", (player:GetAttribute("NivelErrores") or 0) + 1)
 
 		-- Detectar si es error de DIRECCIÓN (la arista existe pero en sentido contrario)
 		-- En ese caso se usa DireccionInvalida para que DirectedFeedback lo maneje.
@@ -201,6 +202,7 @@ local function conectarPostes(poste1, poste2, att1, att2, player)
 
 		if money.Value < costoTotal then
 			reproducirSonido(SOUND_FAILED_NAME, poste2)
+			player:SetAttribute("NivelErrores", (player:GetAttribute("NivelErrores") or 0) + 1)
 			if UIService then
 				UIService:notifyError(player, "Fondos Insuficientes", "Necesitas $" .. costoTotal)
 			end

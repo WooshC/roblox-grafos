@@ -54,13 +54,15 @@ end
 local Cliente = script.Parent:WaitForChild("Cliente")
 local Services = Cliente:WaitForChild("Services")
 
-local ButtonManager = require(Services:WaitForChild("ButtonManager"))
-local MissionsManager = require(Services:WaitForChild("MissionsManager"))
-local MapManager = require(Services:WaitForChild("MapManager"))
+local ButtonManager    = require(Services:WaitForChild("ButtonManager"))
+local MissionsManager  = require(Services:WaitForChild("MissionsManager"))
+local MapManager       = require(Services:WaitForChild("MapManager"))
 local NodeLabelManager = require(Services:WaitForChild("NodeLabelManager"))
-local EventManager = require(Services:WaitForChild("EventManager"))
-local LevelsConfig = require(ReplicatedStorage:WaitForChild("LevelsConfig"))
-local MatrixManager=require(Services:WaitForChild("MatrixManager"))
+local EventManager     = require(Services:WaitForChild("EventManager"))
+local LevelsConfig     = require(ReplicatedStorage:WaitForChild("LevelsConfig"))
+local MatrixManager    = require(Services:WaitForChild("MatrixManager"))
+local AudioClient         = require(Services:WaitForChild("AudioClient"))
+local VictoryScreenManager = require(Services:WaitForChild("VictoryScreenManager"))
 print("⚙️ GUIExplorador: Inicializando servicios...")
 
 -- Estado global compartido
@@ -77,8 +79,9 @@ local deps = {
 	NodeLabelManager = NodeLabelManager,
 	MissionsManager = MissionsManager,
 	MapManager = MapManager,
-	MatrixManager    = MatrixManager,
-	globalState = globalState
+	MatrixManager  = MatrixManager,
+	AudioClient    = AudioClient,
+	globalState    = globalState
 }
 
 -- Inicializar managers
@@ -89,7 +92,12 @@ MatrixManager.initialize(globalState, gui, deps)
 EventManager.initialize(globalState, deps)
 ButtonManager.initialize(gui, deps)
 ButtonManager:init() -- Conectar listeners
-EventManager:init() --NUEVO: Conectar eventos remotos
+EventManager:init() -- Conectar eventos remotos
+
+-- Inicializar AudioClient y VictoryScreenManager
+VictoryScreenManager.initialize(gui, deps)
+AudioClient.initialize(deps)
+AudioClient.setVictoryScreenManager(VictoryScreenManager)
 
 print("✅ GUIExplorador: Servicios inicializados y conectados")
 
