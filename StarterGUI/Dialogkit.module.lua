@@ -1506,7 +1506,7 @@ function displayContent()
 
 		local soundService = game:GetService("SoundService")
 		local dialogueSoundService = soundService:FindFirstChild("DialogueKit")
-		
+
 		-- On-demand creation if missing
 		if not dialogueSoundService then
 			dialogueSoundService = Instance.new("Folder")
@@ -1523,25 +1523,25 @@ function displayContent()
 				templateSound.Volume = 0.5
 				templateSound.Parent = dialogueSoundService
 			end
-			
+
 			if templateSound then
 				activeDialogueSound = templateSound:Clone()
-				
+
 				if tostring(dialogueSound):match("^rbxassetid://") then
 					activeDialogueSound.SoundId = dialogueSound
 				else
 					activeDialogueSound.SoundId = "rbxassetid://" .. dialogueSound
 				end
-				
+
 				local skin = skins[currentSkin]
 				if skin then
 					activeDialogueSound.Parent = skin
 				else
 					activeDialogueSound.Parent = script.Parent -- Fallback
 				end
-				
+
 				activeDialogueSound:Play()
-				
+
 				activeDialogueSound.Ended:Connect(function()
 					if activeDialogueSound then
 						activeDialogueSound:Destroy()
@@ -2016,22 +2016,25 @@ function createCinematicBars(config)
 end
 
 function module.CreateDialogue(dialogueData)
+	-- FIX: Inicialización lazy de skins para evitar timing issues al cargar el módulo
+	local skinName = dialogueData and dialogueData.SkinName
+	if skinName and (not defaultTransparencyValues[skinName] or not next(defaultTransparencyValues[skinName])) then
+		initializeSkins()
+	end
+
 	if currentDialogue then
 		return
 	end
 
 	if not dialogueData or not dialogueData.InitialLayer or not dialogueData.SkinName or not dialogueData.Layers then
-		-- warn("Invalid dialogue data. Required fields: InitialLayer, SkinName, Layers")
 		return
 	end
 
 	if not dialogueData.Layers[dialogueData.InitialLayer] then
-		-- warn("Initial layer not found: " .. tostring(dialogueData.InitialLayer))
 		return
 	end
 
 	if not skins:FindFirstChild(dialogueData.SkinName) then
-		-- warn("Skin not found: " .. tostring(dialogueData.SkinName))
 		return
 	end
 
@@ -2048,19 +2051,11 @@ function module.CreateDialogue(dialogueData)
 			end
 		end
 	end
-	
+
 	if DialogueVisibilityManager then
 		DialogueVisibilityManager:onDialogueStart()
 	end
 
-	currentDialogue = dialogueData
-	currentLayer = dialogueData.InitialLayer
-	currentContentIndex = 1
-	currentSkin = dialogueData.SkinName
-
-	local skin = skins[currentSkin]
-
-	skin.Visible = true
 
 	currentDialogue = dialogueData
 	currentLayer = dialogueData.InitialLayer
@@ -2068,7 +2063,12 @@ function module.CreateDialogue(dialogueData)
 	currentSkin = dialogueData.SkinName
 
 	local skin = skins[currentSkin]
+	local dialogueKitGui = script.Parent
+	if dialogueKitGui:IsA("ScreenGui") then
+		dialogueKitGui.Enabled = true
+	end
 
+	local skin = skins[currentSkin]
 	skin.Visible = true
 
 	local layerData = currentDialogue.Layers[currentLayer]
@@ -2111,11 +2111,8 @@ function module.CreateDialogue(dialogueData)
 	end)
 
 	applyPlayerSettings(dialogueData.Config)
-
 	setupPlayerDeathHandling(dialogueData.Config)
-
 	setupInputHandling(dialogueData.Config)
-
 	createCinematicBars(dialogueData.Config)
 
 	local openPosition = skin:GetAttribute("OpenPosition")
@@ -2134,12 +2131,11 @@ function module.CreateDialogue(dialogueData)
 	end
 
 	tweenTransparencyIn(currentSkin)
-
 	displayContent()
 end
 
-initializeSkins()
--- print("Initialized Dialogue Kit V"..script.Parent.Version.Value.." by Asadrith")
+-- FIX: initializeSkins() ya NO se llama aquí para evitar el timing issue.
+-- Ahora se llama de forma lazy dentro de CreateDialogue cuando realmente se necesita.
 
 if DialogueVisibilityManager then
 	DialogueVisibilityManager.initialize()
