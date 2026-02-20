@@ -137,6 +137,7 @@ local function AnimarTransicion(aparecer, callback)
 	end)
 end
 
+
 local function CambiarVisibilidad(contenidoVisible, contenidoOcultar)
 	for _, objeto in pairs(contenidoOcultar) do
 		if objeto and objeto:IsA("GuiObject") then objeto.Visible = false end
@@ -145,11 +146,17 @@ local function CambiarVisibilidad(contenidoVisible, contenidoOcultar)
 	for _, objeto in pairs(contenidoVisible) do
 		if objeto and objeto:IsA("GuiObject") then
 			objeto.Visible = true
-			-- Restaurar la cadena de padres que OcultarTodo() pudo haber ocultado
+			-- Restaurar cadena de padres
 			local padre = objeto.Parent
 			while padre and padre ~= UI and padre:IsA("GuiObject") do
 				padre.Visible = true
 				padre = padre.Parent
+			end
+			-- FIX: Restaurar todos los descendientes también
+			for _, descendiente in pairs(objeto:GetDescendants()) do
+				if descendiente:IsA("GuiObject") then
+					descendiente.Visible = true
+				end
 			end
 		end
 	end
