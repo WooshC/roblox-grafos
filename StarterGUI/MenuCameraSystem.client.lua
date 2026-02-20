@@ -41,6 +41,18 @@ local SFXCambioEscena = CarpetaSonidos and CarpetaSonidos:FindFirstChild("Cambia
 local SFXBotonPlay = CarpetaSonidos and CarpetaSonidos:FindFirstChild("Play")
 local SFXSeleccionar = CarpetaSonidos and CarpetaSonidos:FindFirstChild("Seleccion")
 local SFXClick = CarpetaSonidos and CarpetaSonidos:FindFirstChild("Click")
+local SFXMusicaMenu = CarpetaSonidos and CarpetaSonidos:FindFirstChild("MusicaMenu")
+
+-- // SISTEMA DE MÚSICA POR ESCENARIO //
+-- Mapeo: nombre exacto de la Part de cámara (en CamarasMenu) → nombre del Sound (en Sonidos)
+-- Si un escenario no está en la tabla, o el Sound no existe en Sonidos, simplemente no suena nada.
+local MusicaPorEscenario = {
+	["Menu"]           = "MusicaMenu",      -- Menú Principal
+	["CamaraCreditos"] = "MusicaCreditos",  -- Créditos (Sound distinto)
+	["CamaraAjuste"]   = "MusicaMenu",      -- Ajustes (misma que menú por defecto)
+	["CamaraSelector"] = "MusicaMenu",      -- Selector de Niveles (misma por defecto)
+}
+local MusicaActual = nil -- Sound que está reproduciéndose ahora mismo
 
 -- // ESCENARIOS DISPONIBLES // --
 
@@ -78,7 +90,7 @@ local ContenidoEscenarioAjustes = {
 local ContenidoSelectorNiveles = {
 	BotonCerrar = EscenarioSelector:WaitForChild("Close"),
 	FrameSelector = EscenarioSelector:WaitForChild("AjustesFrame"), 
-	ContenedorInfo = EscenarioSelector:WaitForChild("Contenedor"), -- AQUI AGREGAMOS EL CONTENEDOR NUEVO
+	ContenedorInfo = EscenarioSelector:WaitForChild("Contenedor"), 
 	TituloFrame = EscenarioSelector:WaitForChild("Tittle"),
 	TituloText = EscenarioSelector:WaitForChild("Tittle"):WaitForChild("TittleText")
 }
@@ -110,10 +122,10 @@ local function AnimarTransicion(aparecer, callback)
 
 	TrancisionFrame.BackgroundTransparency = transparenciaInicial
 	TrancisionFrame.Visible = true -- Asegurar visibilidad
-	
+
 	local tween = TweenService:Create(TrancisionFrame, TweenInfo.new(TiempoTransicion), {BackgroundTransparency = transparenciaFinal})
 	tween:Play()
-	
+
 	tween.Completed:Connect(function()
 		if callback then
 			callback()
@@ -135,6 +147,20 @@ local function CambiarVisibilidad(contenidoVisible, contenidoOcultar)
 	end
 end
 
+-- Cambia la música según la cámara destino. No interrumpe si ya suena la misma.
+local function CambiarMusica(camaraDestino)
+	if not CarpetaSonidos then return end
+	local nombreNueva = MusicaPorEscenario[camaraDestino.Name]
+	local nuevaMusica = nombreNueva and CarpetaSonidos:FindFirstChild(nombreNueva)
+	if nuevaMusica == MusicaActual then return end -- Ya suena, no reiniciar
+	if MusicaActual then MusicaActual:Stop() end
+	if nuevaMusica then
+		nuevaMusica.Looped = true
+		nuevaMusica:Play()
+	end
+	MusicaActual = nuevaMusica
+end
+
 local function OcultarTodo()
 	for _, objeto in pairs(UI:GetDescendants()) do
 		if objeto:IsA("GuiObject") and objeto ~= TrancisionFrame and objeto.Parent ~= TrancisionFrame then
@@ -152,6 +178,8 @@ local function ForzarCamaraScriptable()
 	end
 end
 
+
+
 local function CambiarEscenario(camaraDestino, contenidoVisible, contenidoOcultar)
 	if BotonesBloqueados then return end
 	BotonesBloqueados = true
@@ -167,9 +195,10 @@ local function CambiarEscenario(camaraDestino, contenidoVisible, contenidoOculta
 		ForzarCamaraScriptable() -- Asegurar tipo antes de mover
 		workspace.CurrentCamera.CFrame = camaraDestino.CFrame
 		CambiarVisibilidad(contenidoVisible, contenidoOcultar)
-		
+
 		-- Registrar cámara activa (para CharacterAdded y el loop de init)
 		CameraAtual = camaraDestino
+		CambiarMusica(camaraDestino) -- Cambiar música según el escenario
 
 		-- Forzar visibilidad de los HIJOS del Contenedor (sin re-disparar la señal de FrameSelector)
 		if contenidoVisible == ContenidoSelectorNiveles then
@@ -194,17 +223,20 @@ function _G.StartGame()
 	print("🎬 Iniciando transición al juego...")
 	if BotonesBloqueados then return end
 	BotonesBloqueados = true
-	
+
 	AnimarTransicion(true, function()
 		EnMenu = false -- Importante: Ya no forzamos la cámara en el respawn
 		OcultarTodo()
-		
+		-- Detener música al entrar al juego (pantalla ya negra)
+		if MusicaActual then MusicaActual:Stop() end
+		MusicaActual = nil
+
 		local cam = workspace.CurrentCamera
 		cam.CameraType = Enum.CameraType.Custom
 		if Players.LocalPlayer.Character then
 			cam.CameraSubject = Players.LocalPlayer.Character:FindFirstChild("Humanoid")
 		end
-		
+
 		AnimarTransicion(false)
 		BotonesBloqueados = false
 	end)
@@ -212,6 +244,12 @@ end
 
 ContenidoMenuPrincipal.BotonPlay.MouseButton1Click:Connect(function()
 	print("🖱️ Click Play -> Ir a Selector de Niveles")
+
+	-- Reproducir sonido de clic en Play
+	if SFXBotonPlay then
+		SFXBotonPlay:Play()
+	end
+
 	CambiarEscenario(CamarasTotales.SelectorCamara, ContenidoSelectorNiveles, ContenidoMenuPrincipal)
 end)
 
@@ -306,10 +344,11 @@ for _, obj in pairs(ContenidoSelectorNiveles) do if obj:IsA("GuiObject") then ob
 -- Ocultar UI de Roblox al inicio
 ConfigurarCoreGui(false)
 
--- FADE IN PARA MOSTRAR MENÚ
+-- FADE IN PARA MOSTRAR MENÚ + INICIAR MÚSICA DEL MENÚ
 task.defer(function()
 	task.wait(0.5) -- Pequeña pausa para asegurar carga de modelos
 	AnimarTransicion(false)
+	CambiarMusica(CamarasTotales.MenuPrincipalCamara) -- Usar el sistema centralizado
 end)
 
 -- ============================================
@@ -319,10 +358,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 task.spawn(function()
 	local Events = ReplicatedStorage:WaitForChild("Events", 10)
 	if not Events then warn("❌ No se encontró carpeta Events") return end
-	
+
 	local Bindables = Events:WaitForChild("Bindables", 5)
 	if not Bindables then warn("❌ No se encontró carpeta Bindables") return end
-	
+
 	local OpenMenuEvent = Bindables:FindFirstChild("OpenMenu")
 	if not OpenMenuEvent then
 		OpenMenuEvent = Instance.new("BindableEvent")
@@ -330,27 +369,32 @@ task.spawn(function()
 		OpenMenuEvent.Parent = Bindables
 		print("✅ MenuCameraSystem: Evento OpenMenu creado")
 	end
-	
+
 	OpenMenuEvent.Event:Connect(function()
 		print("🎉 Regresando al Selector de Niveles...")
-		
-		-- Restaurar estado menú
 		EnMenu = true
 		BotonesBloqueados = false
-		
-		-- Ocultar UI de Roblox
 		ConfigurarCoreGui(false)
-		
-		-- Forzar cámara scriptable
+
+		-- Ocultar GUI de gameplay (GUIExplorador) al volver al menú
+		local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui", 5)
+		if playerGui then
+			local guiExplorador = playerGui:FindFirstChild("GUIExplorador")
+			if guiExplorador then
+				guiExplorador.Enabled = false
+				print("🔒 GUIExplorador ocultada al regresar al menú")
+			end
+		end
+
+		-- La música se reanuda automáticamente vía CambiarMusica() dentro de CambiarEscenario
 		local Camera = Workspace.CurrentCamera
 		if Camera then
 			Camera.CameraType = Enum.CameraType.Scriptable
 		end
-		
-		-- Transición al Selector
+
 		CambiarEscenario(CamarasTotales.SelectorCamara, ContenidoSelectorNiveles, ContenidoMenuPrincipal)
 	end)
-	
+
 	print("✅ MenuCameraSystem: Escuchando evento OpenMenu")
 end)
 
