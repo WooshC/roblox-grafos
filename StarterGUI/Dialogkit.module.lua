@@ -1494,63 +1494,56 @@ function displayContent()
 
 	local typewriterEnabled = config and config:FindFirstChild("Typewriter") and config.Typewriter.Value
 
-	if dialogueSound then
-		-- print("🔊 [DialogueKit] Attempting to play sound for content index:", currentContentIndex)
-		-- print("🔊 [DialogueKit] Sound ID from data:", dialogueSound)
-
-		if activeDialogueSound then
-			activeDialogueSound:Stop()
-			activeDialogueSound:Destroy()
-			activeDialogueSound = nil
-		end
-
-		local soundService = game:GetService("SoundService")
-		local dialogueSoundService = soundService:FindFirstChild("DialogueKit")
-
-		-- On-demand creation if missing
-		if not dialogueSoundService then
-			dialogueSoundService = Instance.new("Folder")
-			dialogueSoundService.Name = "DialogueKit"
-			dialogueSoundService.Parent = soundService
-		end
-
-		if dialogueSoundService then
-			local templateSound = dialogueSoundService:FindFirstChild("DialogueSound")
-			if not templateSound then
-				templateSound = Instance.new("Sound")
-				templateSound.Name = "DialogueSound"
-				templateSound.SoundId = "rbxassetid://12221967" -- Valid obscure sound to prevent errors
-				templateSound.Volume = 0.5
-				templateSound.Parent = dialogueSoundService
-			end
-
-			if templateSound then
-				activeDialogueSound = templateSound:Clone()
-
-				if tostring(dialogueSound):match("^rbxassetid://") then
-					activeDialogueSound.SoundId = dialogueSound
-				else
-					activeDialogueSound.SoundId = "rbxassetid://" .. dialogueSound
-				end
-
-				local skin = skins[currentSkin]
-				if skin then
-					activeDialogueSound.Parent = skin
-				else
-					activeDialogueSound.Parent = script.Parent -- Fallback
-				end
-
-				activeDialogueSound:Play()
-
-				activeDialogueSound.Ended:Connect(function()
-					if activeDialogueSound then
-						activeDialogueSound:Destroy()
-						activeDialogueSound = nil
-					end
-				end)
-			end
-		end
+	-- Detener TTS anterior si existe
+	if activeDialogueSound then
+		activeDialogueSound:Destroy()
+		activeDialogueSound = nil
 	end
+
+	-- TTS: reproducir el texto actual
+	task.spawn(function()
+		local texto = contentText:gsub("<[^>]+>", "")
+		if texto == "" then return end
+		if #texto > 300 then texto = string.sub(texto, 1, 300) end
+
+		local VOCES = {
+			Carlos  = "101",  -- Español masculino
+			Sistema = "101",  -- Español masculino
+		}
+		local vozId = VOCES[layerData.Title] or "101"
+
+		local tts = Instance.new("AudioTextToSpeech")
+		tts.Text = texto
+		tts.VoiceId = vozId
+		tts.Volume = 10
+		tts.Parent = script.Parent
+
+		local output = Instance.new("AudioDeviceOutput")
+		output.Parent = tts
+
+		local wire = Instance.new("Wire")
+		wire.SourceInstance = tts
+		wire.TargetInstance = output
+		wire.Parent = tts
+
+		activeDialogueSound = tts
+
+		local ok, status = pcall(function()
+			return tts:LoadAsync()
+		end)
+
+		if ok and status == Enum.AssetFetchStatus.Success then
+			tts:Play()
+			tts.Ended:Wait()
+		else
+			warn("⚠️ TTS falló:", texto)
+		end
+
+		if tts and tts.Parent then
+			tts:Destroy()
+		end
+		activeDialogueSound = nil
+	end)
 
 	local beforeExecs = findExecForContent(currentContentIndex, "Before")
 	if beforeExecs then
