@@ -1,344 +1,472 @@
--- LevelSelectorClient.client.lua
--- Controla la lógica del menú de selección de niveles: Bloqueo, Información y Jugar.
+-- StarterGui/MenuPrincipal/SelectorNiveles/LevelSelectorClient.client.lua
+-- Estructura real:
+-- SelectorNiveles (Folder)
+--   └── Contenedor_2 (Frame)
+--         ├── Header > Icon, Titulo, BtnCerrar
+--         └── Body
+--               ├── GridFrame (vacío, se llena por script)
+--               └── InfoPanel
+--                     ├── Placeholder
+--                     └── InfoContent
+--                           ├── InfoImageBg > NivelImagen (ImageLabel)
+--                           ├── InfoBody > InfoTag, InfoTitle, InfoDesc,
+--                           │             StarsFrame (Estrella1/2/3),
+--                           │             StatsGrid (StatRecord, StatStatus)
+--                           └── BtnJugar
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
 
--- Configuración
-local LevelsConfig = require(ReplicatedStorage:WaitForChild("LevelsConfig"))
-local Remotes = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Remotes")
-local GetProgressFunc = Remotes:WaitForChild("GetPlayerProgress")
-local RequestPlayEvent = Remotes:WaitForChild("RequestPlayLevel")
+-- ─── REMOTOS ──────────────────────────────────────────────────
+local LevelsConfig     = require(ReplicatedStorage:WaitForChild("LevelsConfig"))
+local Remotes          = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Remotes")
+local GetProgressFunc  = Remotes:WaitForChild("GetPlayerProgress", 10)
+local RequestPlayEvent = Remotes:WaitForChild("RequestPlayLevel",  10)
 
--- Referencias UI
-local SelectorMenu = script.Parent
-local BotonesFrame = SelectorMenu:WaitForChild("AjustesFrame") 
-local Contenedor = SelectorMenu:WaitForChild("Contenedor") 
-local InfoPanel = Contenedor:WaitForChild("InfoNivelPanel") 
+if not GetProgressFunc or not RequestPlayEvent then
+	warn("❌ LevelSelectorClient: Remotos no encontrados")
+	return
+end
 
--- UI Elements del InfoPanel (Búsqueda Robusta)
-local TituloNivel = InfoPanel:WaitForChild("TituloNivel", 5) or InfoPanel:FindFirstChild("Titulo")
-if TituloNivel then TituloNivel.TextScaled = true end -- EVITAR DESBORDE DE TEXTO
+-- ─── REFERENCIAS UI ───────────────────────────────────────────
+local SelectorFolder  = script.Parent                             -- Folder SelectorNiveles
+local Contenedor      = SelectorFolder:WaitForChild("Contenedor_2")
+local Header          = Contenedor:WaitForChild("Header")
+local Body            = Contenedor:WaitForChild("Body")
+local GridFrame       = Body:WaitForChild("GridFrame")
+local InfoPanel       = Body:WaitForChild("InfoPanel")
 
-local ImagenContainer = InfoPanel:WaitForChild("ImagenContainer", 5)
-local ImagenNivel = ImagenContainer and (ImagenContainer:FindFirstChild("ImageLabel") or ImagenContainer:FindFirstChild("PreviewImage"))
+local BtnCerrar       = Header:WaitForChild("BtnCerrar")
 
-local DescripcionContainer = InfoPanel:WaitForChild("DescripcionScroll", 5) or InfoPanel:FindFirstChild("DescripcionContainer")
-local DescripcionTexto = DescripcionContainer and (DescripcionContainer:FindFirstChild("TextoDesc") or DescripcionContainer:FindFirstChild("DescripcionTexto"))
+local Placeholder     = InfoPanel:WaitForChild("Placeholder")
+local InfoContent     = InfoPanel:WaitForChild("InfoContent")
 
-local BotonJugar = InfoPanel:WaitForChild("BotonJugar", 5)
+local InfoImageBg     = InfoContent:WaitForChild("InfoImageBg")
+local NivelImagen     = InfoImageBg:WaitForChild("NivelImagen")   -- ImageLabel creado en el editor
+local InfoBody        = InfoContent:WaitForChild("InfoBody")
+local BtnJugar        = InfoContent:WaitForChild("BtnJugar")
 
--- Búsqueda recursiva para Stats (ya que pueden estar dentro de StatsFrame o sueltos)
-local PuntajeTexto = InfoPanel:FindFirstChild("Puntaje", true) -- true busca recursivamente
-local EstrellasTexto = InfoPanel:FindFirstChild("Estrellas", true)
+local InfoTag         = InfoBody:WaitForChild("InfoTag")
+local InfoTitle       = InfoBody:WaitForChild("InfoTitle")
+local InfoDesc        = InfoBody:WaitForChild("InfoDesc")
+local StarsFrame      = InfoBody:WaitForChild("StarsFrame")
+local StatsGrid       = InfoBody:WaitForChild("StatsGrid")
 
--- Validaciones de UI urgentes
-if not ImagenNivel then warn("⚠️ UI ERROR: No encuentro ImageLabel") end
-if not PuntajeTexto then warn("⚠️ UI ERROR: No encuentro label Puntaje") end
+local Estrella = {
+	StarsFrame:WaitForChild("Estrella1"),
+	StarsFrame:WaitForChild("Estrella2"),
+	StarsFrame:WaitForChild("Estrella3"),
+}
 
--- Configuración Remotos
-local Remotes = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Remotes")
-local GetProgressFunc = Remotes:WaitForChild("GetPlayerProgress", 10)
-local RequestPlayEvent = Remotes:WaitForChild("RequestPlayLevel", 10)
+local StatRecord = StatsGrid:WaitForChild("StatRecord"):WaitForChild("StatValue")
+local StatStatus = StatsGrid:WaitForChild("StatStatus"):WaitForChild("StatValue")
 
-if not GetProgressFunc or not RequestPlayEvent then return end
+-- ─── COLORES ──────────────────────────────────────────────────
+local C = {
+	accent     = Color3.fromRGB(0, 212, 255),
+	gold       = Color3.fromRGB(255, 215, 0),
+	green      = Color3.fromRGB(0, 255, 136),
+	muted      = Color3.fromRGB(74, 96, 128),
+	black      = Color3.fromRGB(0, 0, 0),
+	locked     = Color3.fromRGB(42, 52, 69),
+	cardBg     = Color3.fromRGB(19, 26, 43),
+	cardActive = Color3.fromRGB(13, 30, 53),
+	border     = Color3.fromRGB(30, 45, 71),
+	white      = Color3.fromRGB(255, 255, 255),
+}
 
--- Estado Local
+-- ─── ESTADO ───────────────────────────────────────────────────
 local NivelSeleccionado = nil
-local DatosJugador = nil 
-local ResultsLastRun = nil -- 🔥 Almacena resultados del último intento 
+local DatosJugador      = nil
+local ResultsLastRun    = nil
+local Cargando          = false
+local BotonesBloqueados = false
+local cardRefs          = {}
 
--- Colores
-local ColorDesbloqueado = Color3.fromRGB(44, 62, 80)
-local ColorBloqueado = Color3.fromRGB(149, 165, 166)
-local ColorHighlight = Color3.fromRGB(241, 196, 15) -- Amarillo para destacar último run
+-- =====================================================
+-- PANEL INFO
+-- =====================================================
 
--- ============================================
--- FUNCIONES DE UI
--- ============================================
+local function mostrarPlaceholder()
+	Placeholder.Visible = true
+	InfoContent.Visible = false
+	NivelSeleccionado   = nil
+end
 
--- Helper para forzar visibilidad recursiva
-local function ForzarVisibilidadRecursiva(padre)
-	if not padre then return end
-	if padre:IsA("GuiObject") then padre.Visible = true end
-	
-	for _, hijo in ipairs(padre:GetDescendants()) do
-		if hijo:IsA("GuiObject") then
-			hijo.Visible = true
+local function actualizarPanelInfo(levelID)
+	local config = LevelsConfig[levelID]
+	if not config then return end
+	NivelSeleccionado = levelID
+
+	local data      = DatosJugador and DatosJugador.Levels[tostring(levelID)]
+	local unlocked  = data and data.Unlocked  or false
+	local estrellas = data and data.Stars     or 0
+	local score     = data and data.HighScore or 0
+
+	if ResultsLastRun and ResultsLastRun.LevelID == levelID then
+		estrellas = ResultsLastRun.Stars
+		score     = ResultsLastRun.Score
+	end
+
+	-- Imagen del nivel (si existe)
+	NivelImagen.Image = config.ImageId or ""
+
+	InfoTag.Text   = "NIVEL " .. levelID .. (config.Algoritmo and (" · " .. config.Algoritmo) or " · EDUCATIVO")
+	InfoTitle.Text = config.Nombre or ("Nivel " .. levelID)
+	InfoDesc.Text  = config.Descripcion or config.DescripcionCorta or ""
+
+	for i, s in ipairs(Estrella) do
+		s.TextTransparency = i <= estrellas and 0 or 0.75
+	end
+
+	StatRecord.Text       = score > 0 and (tostring(score) .. " pts") or "—"
+	StatRecord.TextColor3 = C.gold
+
+	if not unlocked then
+		StatStatus.Text       = "BLOQUEADO"
+		StatStatus.TextColor3 = C.muted
+	elseif estrellas == 3 then
+		StatStatus.Text       = "★★★"
+		StatStatus.TextColor3 = C.gold
+	elseif estrellas > 0 then
+		StatStatus.Text       = "PROGRESO"
+		StatStatus.TextColor3 = C.accent
+	else
+		StatStatus.Text       = "NUEVO"
+		StatStatus.TextColor3 = C.green
+	end
+
+	if unlocked then
+		BtnJugar.Text             = "▶  JUGAR NIVEL " .. levelID
+		BtnJugar.BackgroundColor3 = C.accent
+		BtnJugar.TextColor3       = C.black
+		BtnJugar.AutoButtonColor  = true
+	else
+		BtnJugar.Text             = "🔒  NIVEL BLOQUEADO"
+		BtnJugar.BackgroundColor3 = C.locked
+		BtnJugar.TextColor3       = C.muted
+		BtnJugar.AutoButtonColor  = false
+	end
+
+	Placeholder.Visible = false
+	InfoContent.Visible = true
+end
+
+-- =====================================================
+-- CARDS (creación dinámica)
+-- =====================================================
+
+local function resaltarCard(id)
+	for lid, ref in pairs(cardRefs) do
+		if lid == id then
+			ref.card.BackgroundColor3 = C.cardActive
+			ref.stroke.Color          = C.accent
+			ref.stroke.Thickness      = 1.5
+		else
+			ref.card.BackgroundColor3 = C.cardBg
+			ref.stroke.Color          = C.border
+			ref.stroke.Thickness      = 1
 		end
 	end
 end
 
-local function ActualizarPanelInfo(levelID)
-	local config = LevelsConfig[levelID]
-	if not config then return end
-	
-	NivelSeleccionado = levelID
-	
-	-- Actualizar Textos e Imagen
-	TituloNivel.Text = "NIVEL " .. levelID .. ": " .. string.upper(config.Nombre)
-	DescripcionTexto.Text = config.Descripcion or "Sin descripción."
-	ImagenNivel.Image = config.ImageId or "rbxassetid://0"
-	
-	-- Actualizar Stats 
-	local data = DatosJugador and DatosJugador.Levels[tostring(levelID)]
-	local estrellas = data and data.Stars or 0
-	local score = data and data.HighScore or 0
-	
-	-- 🔥 SI ES EL NIVEL RECIÉN COMPLETADO, MOSTRAR RESULTADOS DEL INTENTO
-	if ResultsLastRun and ResultsLastRun.LevelID == levelID then
-		estrellas = ResultsLastRun.Stars
-		score = ResultsLastRun.Score
-		print("🌟 Mostrando resultados del intento actual: " .. score .. " pts")
+local function limpiarCards()
+	for _, ref in pairs(cardRefs) do
+		if ref.card and ref.card.Parent then ref.card:Destroy() end
 	end
-	
-	if PuntajeTexto then PuntajeTexto.Text = "Récord: " .. score end
-	
-	-- Generar string de estrellas (ej: "⭐⭐⭐")
-	local estrellasStr = ""
-	for i = 1, 3 do
-		if i <= estrellas then estrellasStr = estrellasStr .. "⭐" else estrellasStr = estrellasStr .. "☆" end
+	cardRefs = {}
+end
+
+local function crearCard(levelID, config, nivelData)
+	local unlocked  = nivelData and nivelData.Unlocked  or false
+	local estrellas = nivelData and nivelData.Stars     or 0
+	local score     = nivelData and nivelData.HighScore or 0
+
+	local card = Instance.new("Frame")
+	card.Name             = "Card_" .. levelID
+	card.BackgroundColor3 = C.cardBg
+	card.BorderSizePixel  = 0
+	card.LayoutOrder      = levelID + 1  -- Para ordenar según ID
+	card.Parent           = GridFrame
+
+	local uiCorner = Instance.new("UICorner")
+	uiCorner.CornerRadius = UDim.new(0, 12)
+	uiCorner.Parent = card
+
+	local uiStroke = Instance.new("UIStroke")
+	uiStroke.Thickness = 1
+	uiStroke.Color     = C.border
+	uiStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	uiStroke.Parent = card
+
+	local inner = Instance.new("Frame")
+	inner.Size   = UDim2.new(1, -16, 1, -14)
+	inner.Position = UDim2.new(0, 8, 0, 7)
+	inner.BackgroundTransparency = 1
+	inner.BorderSizePixel = 0
+	inner.Parent = card
+
+	local listLayout = Instance.new("UIListLayout")
+	listLayout.FillDirection = Enum.FillDirection.Vertical
+	listLayout.Padding       = UDim.new(0, 4)
+	listLayout.Parent        = inner
+
+	-- Imagen de la tarjeta (desde config)
+	local cardImage = Instance.new("ImageLabel")
+	cardImage.Name = "CardImage"
+	cardImage.Size = UDim2.new(1, 0, 0, 70)  -- Alto fijo, ancho completo
+	cardImage.BackgroundColor3 = C.cardBg
+	cardImage.BackgroundTransparency = 0.2
+	cardImage.Image = config.ImageId or ""
+	cardImage.ScaleType = Enum.ScaleType.Crop
+	cardImage.LayoutOrder = 0
+	cardImage.Parent = inner
+
+	-- Fila top
+	local topRow = Instance.new("Frame")
+	topRow.Size   = UDim2.new(1, 0, 0, 18)
+	topRow.BackgroundTransparency = 1
+	topRow.BorderSizePixel = 0
+	topRow.LayoutOrder = 1
+	topRow.Parent = inner
+
+	local numLbl = Instance.new("TextLabel")
+	numLbl.Size  = UDim2.new(0.55, 0, 1, 0)
+	numLbl.Text  = "NIVEL " .. levelID
+	numLbl.TextSize = 10
+	numLbl.Font  = Enum.Font.GothamBold
+	numLbl.TextColor3 = C.accent
+	numLbl.BackgroundTransparency = 1
+	numLbl.BorderSizePixel = 0
+	numLbl.TextXAlignment = Enum.TextXAlignment.Left
+	numLbl.Parent = topRow
+
+	local badge = Instance.new("TextLabel")
+	badge.Name  = "Badge"
+	badge.Size  = UDim2.new(0.45, 0, 1, 0)
+	badge.Position = UDim2.new(0.55, 0, 0, 0)
+	badge.TextSize = 9
+	badge.Font  = Enum.Font.GothamBold
+	badge.BackgroundTransparency = 1
+	badge.BorderSizePixel = 0
+	badge.TextXAlignment = Enum.TextXAlignment.Right
+	badge.Parent = topRow
+
+	if not unlocked then
+		badge.Text = "BLOQUEADO" ; badge.TextColor3 = C.muted
+	elseif estrellas > 0 then
+		badge.Text = "✓ COMPLETADO" ; badge.TextColor3 = C.green
+	else
+		badge.Text = "DISPONIBLE" ; badge.TextColor3 = C.accent
 	end
-	
-	if EstrellasTexto then EstrellasTexto.Text = estrellasStr end
-	BotonJugar.Text = "JUGAR " .. estrellasStr
-	
-	-- Habilitar botón jugar
-	BotonJugar.AutoButtonColor = true
-	BotonJugar.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
-	
-	-- 🔥 FORZAR VISIBILIDAD DE TODO EL PANEL Y SUS HIJOS
-	ForzarVisibilidadRecursiva(InfoPanel)
+
+	-- Nombre del nivel
+	local titleLbl = Instance.new("TextLabel")
+	titleLbl.Size  = UDim2.new(1, 0, 0, 32)
+	titleLbl.Text  = config.Nombre or ("Nivel " .. levelID)
+	titleLbl.TextSize = 13
+	titleLbl.Font  = Enum.Font.GothamBold
+	titleLbl.TextColor3 = C.white
+	titleLbl.BackgroundTransparency = 1
+	titleLbl.BorderSizePixel = 0
+	titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+	titleLbl.TextWrapped    = true
+	titleLbl.LayoutOrder    = 2
+	titleLbl.Parent = inner
+
+	-- Concepto (usamos Algoritmo o un texto por defecto)
+	local concepto = config.Algoritmo or (levelID == 0 and "Fundamentos") or ""
+	local concLbl = Instance.new("TextLabel")
+	concLbl.Size  = UDim2.new(1, 0, 0, 14)
+	concLbl.Text  = concepto
+	concLbl.TextSize = 11
+	concLbl.Font  = Enum.Font.Gotham
+	concLbl.TextColor3 = C.muted
+	concLbl.BackgroundTransparency = 1
+	concLbl.BorderSizePixel = 0
+	concLbl.TextXAlignment = Enum.TextXAlignment.Left
+	concLbl.LayoutOrder    = 3
+	concLbl.Parent = inner
+
+	-- Footer
+	local footer = Instance.new("Frame")
+	footer.Size  = UDim2.new(1, 0, 0, 20)
+	footer.BackgroundTransparency = 1
+	footer.BorderSizePixel = 0
+	footer.LayoutOrder     = 4
+	footer.Parent = inner
+
+	local line = Instance.new("Frame")
+	line.Size  = UDim2.new(1, 0, 0, 1)
+	line.BackgroundColor3 = C.border
+	line.BorderSizePixel  = 0
+	line.Parent = footer
+
+	local starsStr = ""
+	for i = 1, 3 do starsStr = starsStr .. (i <= estrellas and "⭐ " or "☆ ") end
+
+	local starsLbl = Instance.new("TextLabel")
+	starsLbl.Size  = UDim2.new(0.55, 0, 0, 18)
+	starsLbl.Position = UDim2.new(0, 0, 0, 2)
+	starsLbl.Text  = starsStr
+	starsLbl.TextSize = 11
+	starsLbl.Font  = Enum.Font.GothamBold
+	starsLbl.TextColor3 = estrellas > 0 and C.gold or C.muted
+	starsLbl.BackgroundTransparency = 1
+	starsLbl.BorderSizePixel = 0
+	starsLbl.TextXAlignment = Enum.TextXAlignment.Left
+	starsLbl.Parent = footer
+
+	local scoreLbl = Instance.new("TextLabel")
+	scoreLbl.Size  = UDim2.new(0.45, 0, 0, 18)
+	scoreLbl.Position = UDim2.new(0.55, 0, 0, 2)
+	scoreLbl.Text  = score > 0 and (tostring(score) .. " pts") or "—"
+	scoreLbl.TextSize = 10
+	scoreLbl.Font  = Enum.Font.GothamBold
+	scoreLbl.TextColor3 = C.muted
+	scoreLbl.BackgroundTransparency = 1
+	scoreLbl.BorderSizePixel = 0
+	scoreLbl.TextXAlignment = Enum.TextXAlignment.Right
+	scoreLbl.Parent = footer
+
+	-- Overlay candado
+	if not unlocked then
+		local lockOverlay = Instance.new("TextLabel")
+		lockOverlay.Size  = UDim2.new(1, 0, 1, 0)
+		lockOverlay.Text  = "🔒"
+		lockOverlay.TextSize = 28
+		lockOverlay.Font  = Enum.Font.GothamBold
+		lockOverlay.TextColor3 = C.white
+		lockOverlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+		lockOverlay.BackgroundTransparency = 0.55
+		lockOverlay.BorderSizePixel = 0
+		lockOverlay.ZIndex = 5
+		lockOverlay.Parent = card
+		local lc = Instance.new("UICorner")
+		lc.CornerRadius = UDim.new(0, 12)
+		lc.Parent = lockOverlay
+	end
+
+	-- Botón invisible para click
+	local btn = Instance.new("TextButton")
+	btn.Size  = UDim2.new(1, 0, 1, 0)
+	btn.BackgroundTransparency = 1
+	btn.Text  = ""
+	btn.ZIndex = 6
+	btn.Parent = card
+
+	btn.MouseButton1Click:Connect(function()
+		resaltarCard(levelID)
+		actualizarPanelInfo(levelID)
+	end)
+
+	cardRefs[levelID] = { card = card, stroke = uiStroke }
 end
 
-local function BloquearPanel()
-	TituloNivel.Text = "SELECCIONA UN NIVEL"
-	DescripcionTexto.Text = "Elige un nivel desbloqueado para ver los detalles y comenzar tu misión."
-	ImagenNivel.Image = ""
-	
-	BotonJugar.Visible = false
-	
-	-- Limpiar basura visual (Valores por defecto)
-	if EstrellasTexto then EstrellasTexto.Text = "" end
-	if PuntajeTexto then PuntajeTexto.Text = "" end
-	
-	NivelSeleccionado = nil
-end
+-- =====================================================
+-- CARGAR NIVELES (desde LevelsConfig)
+-- =====================================================
 
-local function CrearIconoCandado(padre)
-	if padre:FindFirstChild("LockIcon") then return end
-	
-	local icon = Instance.new("TextLabel")
-	icon.Name = "LockIcon"
-	icon.Parent = padre
-	icon.Size = UDim2.new(1, 0, 1, 0)
-	icon.BackgroundTransparency = 1
-	icon.Text = "🔒" -- Emoji simple, funcional y bonito
-	icon.TextSize = 30
-	icon.TextColor3 = Color3.fromRGB(50, 50, 50)
-	icon.ZIndex = 2
-end
-
-local Cargando = false
-local function CargarBotonesNiveles()
+local function cargarNiveles()
 	if Cargando then return end
 	Cargando = true
 
 	DatosJugador = GetProgressFunc:InvokeServer()
 	if not DatosJugador or not DatosJugador.Levels then
-		warn("❌ Error obteniendo datos del jugador")
+		warn("❌ LevelSelectorClient: Sin datos de progreso")
 		Cargando = false
 		return
 	end
 
-	print("📊 Datos recibidos:", DatosJugador.Levels)
+	-- Eliminar tarjetas anteriores (las que haya, sean estáticas o dinámicas)
+	limpiarCards()
 
-	for _, boton in pairs(BotonesFrame:GetChildren()) do
-		if boton:IsA("GuiButton") and boton.Name:find("Nivel_") then
-			-- Extraer ID del nombre "Nivel_1" -> 1
-			local sID = boton.Name:match("Nivel_(%d+)")
-			local nID = tonumber(sID)
+	-- Obtener lista de IDs desde LevelsConfig
+	local ids = {}
+	for id, _ in pairs(LevelsConfig) do
+		table.insert(ids, id)
+	end
+	table.sort(ids)  -- Orden ascendente (0,1,2,3...)
 
-			if nID then
-				local nivelData = DatosJugador.Levels[sID]
-				local estaDesbloqueado = nivelData and nivelData.Unlocked
-
-				-- Reiniciar conexiones previas (simple)
-				-- En sistemas complejos usariamos Maid/Janitor, aqui desconectamos al destruir si recargamos
-
-				if estaDesbloqueado then
-					-- ESTILO DESBLOQUEADO
-					boton.Visible = true -- 🔥 FORZAR VISIBILIDAD
-					boton.BackgroundColor3 = ColorDesbloqueado
-					boton.AutoButtonColor = true
-					boton.TextTransparency = 0
-					if boton:FindFirstChild("LockIcon") then boton.LockIcon:Destroy() end
-
-					-- Evento Click Normal
-					boton.MouseButton1Click:Connect(function()
-						ActualizarPanelInfo(nID)
-					end)
-				else
-					-- ESTILO BLOQUEADO (Pero visible)
-					boton.Visible = true -- 🔥 FORZAR VISIBILIDAD
-					boton.BackgroundColor3 = ColorBloqueado
-					boton.AutoButtonColor = true -- Permitir click
-					boton.TextTransparency = 0.5
-					CrearIconoCandado(boton)
-
-					boton.MouseButton1Click:Connect(function()
-						-- Mostrar info del nivel bloqueado
-						ActualizarPanelInfo(nID)
-
-						-- Desactivar botón jugar explícitamente
-						BotonJugar.Visible = true
-						BotonJugar.Text = "BLOQUEADO 🔒"
-						BotonJugar.BackgroundColor3 = Color3.fromRGB(127, 140, 141) -- Gris
-						BotonJugar.AutoButtonColor = false
-
-						-- Desconectar evento jugar anterior (la función Jugar chequea NivelSeleccionado, pero aqui prevenimos visualmente)
-						-- Un truco simple es cambiar NivelSeleccionado a nil temporalmente al pulsar Jugar si estuviera bloqueado,
-						-- pero mejor controlamos en el evento del boton jugar.
-					end)
-				end
-			end
+	-- Crear una tarjeta por cada nivel
+	for _, id in ipairs(ids) do
+		local config = LevelsConfig[id]
+		if config then
+			crearCard(id, config, DatosJugador.Levels[tostring(id)])
 		end
 	end
+
 	Cargando = false
+	print("✅ LevelSelectorClient: Niveles cargados")
 end
 
--- ============================================
--- INTERACCIÓN PRINCIPAL
--- ============================================
+-- =====================================================
+-- BOTÓN JUGAR
+-- =====================================================
 
-BotonJugar.MouseButton1Click:Connect(function()
-	if NivelSeleccionado ~= nil then
-		-- VALIDAR BLOQUEO REAL
-		local nivelData = DatosJugador and DatosJugador.Levels[tostring(NivelSeleccionado)]
-		if not nivelData or not nivelData.Unlocked then
-			print("🔒 Intento de jugar nivel bloqueado")
-			BotonJugar.Text = "BLOQUEADO"
-			task.wait(1)
-			BotonJugar.Text = "Jugar" -- Restaurar texto aunque siga bloqueado visualmente
-			return
-		end
-		
-		print("🎮 Solicitando jugar Nivel " .. NivelSeleccionado)
-		-- Feedback visual
-		BotonJugar.Text = "CARGANDO..."
-		BotonJugar.BackgroundColor3 = Color3.fromRGB(127, 140, 141)
-		
-		RequestPlayEvent:FireServer(NivelSeleccionado)
-		
-		-- LIBERAR CÁMARA E INICIAR JUEGO
-		if _G.StartGame then
-			task.wait(0.5) -- Pequeña pausa para sincronizar con el server spawneando
-			_G.StartGame()
-		else
-			warn("❌ _G.StartGame no encontrado en MenuCameraSystem")
-		end
+BtnJugar.MouseButton1Click:Connect(function()
+	if not NivelSeleccionado or BotonesBloqueados then return end
+	local data = DatosJugador and DatosJugador.Levels[tostring(NivelSeleccionado)]
+	if not data or not data.Unlocked then return end
+
+	BotonesBloqueados = true
+	BtnJugar.Text             = "⏳  CARGANDO..."
+	BtnJugar.BackgroundColor3 = C.muted
+
+	RequestPlayEvent:FireServer(NivelSeleccionado)
+	task.wait(0.4)
+
+	if _G.StartGame then
+		_G.StartGame()
+	else
+		warn("❌ _G.StartGame no encontrado")
+	end
+
+	BotonesBloqueados = false
+end)
+
+-- =====================================================
+-- EVENTO: OpenMenu (volver del gameplay)
+-- =====================================================
+
+task.spawn(function()
+	local Bindables   = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Bindables")
+	local OpenMenuEvt = Bindables:WaitForChild("OpenMenu", 10)
+	if OpenMenuEvt then
+		OpenMenuEvt.Event:Connect(function()
+			task.wait(0.5)
+			mostrarPlaceholder()
+			cargarNiveles()
+			if ResultsLastRun then
+				task.wait(0.1)
+				actualizarPanelInfo(ResultsLastRun.LevelID)
+			end
+		end)
+		print("✅ LevelSelectorClient: Escuchando OpenMenu")
 	end
 end)
 
--- Cuando se muestre este menú (usamos BotonesFrame como referencia visual ya que la carpeta padre no tiene propiedad Visible)
-BotonesFrame:GetPropertyChangedSignal("Visible"):Connect(function()
-	if BotonesFrame.Visible then
-		-- FORZAR VISIBILIDAD DE CONTENEDORES (Fix por si están ocultos)
-		if Contenedor then Contenedor.Visible = true end
-		InfoPanel.Visible = true 
-		
-		BloquearPanel() -- Resetear panel derecho
-		task.wait(0.1) -- Pequeño delay para asegurar carga de datos remotos
-		CargarBotonesNiveles()
-	end
-end)
+-- =====================================================
+-- EVENTO: Nivel completado
+-- =====================================================
 
--- Carga inicial si ya está visible
-if BotonesFrame.Visible then
-	CargarBotonesNiveles()
-	BloquearPanel()
-end
-
--- EVENTO NIVEL COMPLETADO (Victory!)
--- El servidor ahora envía una tabla con stats: { nivelID, puntos, estrellas, tiempo, errores, aciertos }
-local LevelCompletedEvent = Remotes:WaitForChild("LevelCompleted", 5)
+local LevelCompletedEvent = Remotes:FindFirstChild("LevelCompleted")
 if LevelCompletedEvent then
 	LevelCompletedEvent.OnClientEvent:Connect(function(stats)
-		-- Compatibilidad: acepta tabla nueva o argumentos sueltos legacy
-		local nivelID, estrellas, puntos
 		if type(stats) == "table" then
-			nivelID   = stats.nivelID
-			estrellas = stats.estrellas
-			puntos    = stats.puntos
-		else
-			-- Fallback por si algo llega en formato viejo
-			nivelID   = stats
-			estrellas = 0
-			puntos    = 0
+			ResultsLastRun = {
+				LevelID = stats.nivelID,
+				Stars   = stats.estrellas,
+				Score   = stats.puntos,
+			}
 		end
-
-		print("🏆 ¡Nivel " .. tostring(nivelID) .. " Completado! " .. tostring(estrellas) .. " Estrellas | " .. tostring(puntos) .. " Pts")
-
-		-- Guardar resultados localmente (para mostrar en el selector al volver)
-		ResultsLastRun = {
-			LevelID = nivelID,
-			Stars   = estrellas,
-			Score   = puntos
-		}
-
-		-- LevelSelectorClient NO abre el menú: eso lo hace VictoryScreenManager
-		-- cuando el jugador pulsa "Continuar". Solo guardamos los resultados.
 	end)
 end
 
--- ============================================
--- EVENTO: Refrescar cuando se abre el menú
--- ============================================
-task.spawn(function()
-	local Bindables = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Bindables")
-	local OpenMenuEvent = Bindables:WaitForChild("OpenMenu", 10)
-	
-	if OpenMenuEvent then
-		OpenMenuEvent.Event:Connect(function()
-			print("🔄 Refrescando selector de niveles...")
-			
-			-- FORZAR VISIBILIDAD DE TODOS LOS ELEMENTOS
-			if Contenedor then 
-				Contenedor.Visible = true 
-				for _, child in ipairs(Contenedor:GetChildren()) do
-					if child:IsA("GuiObject") then child.Visible = true end
-				end
-			end
-			
-			if InfoPanel then 
-				InfoPanel.Visible = true 
-				for _, child in ipairs(InfoPanel:GetChildren()) do
-					if child:IsA("GuiObject") then child.Visible = true end
-				end
-			end
-			
-			if BotonesFrame then BotonesFrame.Visible = true end
-			
-			task.wait(0.3) -- Esperar a que cámara se mueva
-			BloquearPanel()
-			CargarBotonesNiveles()
-			
-			-- 🔥 SI VENIMOS DE UN NIVEL, MOSTRAR SU INFO
-			if ResultsLastRun then
-				task.wait(0.1)
-				ActualizarPanelInfo(ResultsLastRun.LevelID)
-				
-				-- Limpiar para la próxima (opcional, o dejarlo un rato)
-				-- ResultsLastRun = nil 
-			end
-			
-			print("✅ Niveles actualizados")
-		end)
-		print("✅ LevelSelector: Escuchando evento OpenMenu")
-	end
-end)
+-- =====================================================
+-- INIT
+-- =====================================================
 
-print("✅ Selector de Niveles (Cliente) Inicializado correctamente")
+mostrarPlaceholder()
+cargarNiveles()
 
-
+print("✅ LevelSelectorClient: Inicializado (con imágenes dinámicas)")
