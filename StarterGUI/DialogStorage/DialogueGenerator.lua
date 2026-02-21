@@ -11,8 +11,6 @@ local ASSETS_ACTORES = {
 		Sorprendido = "rbxassetid://131165138421450", 
 		Enojado = "rbxassetid://137903500304444", 
 		Presentacion = "rbxassetid://122672087494736",
-		-- Sonido por defecto para Carlos
-		Sonido = "rbxassetid://9119713990" 
 	},
 	Sistema = { 
 		Nodo = "rbxassetid://74761782067926", 
@@ -21,8 +19,6 @@ local ASSETS_ACTORES = {
 		Generador = "rbxassetid://90803355152419",
 		Arista_energizada = "rbxassetid://112790520179693",
 		Arista_conectada = "rbxassetid://140291147333433",
-		-- Sonido por defecto para Sistema
-		Sonido = "rbxassetid://9119713990"
 	}
 }
 
@@ -103,28 +99,6 @@ function DialogueGenerator.GenerarEstructura(dialogosSimples, skinName)
 			}
 		end
 
-		-- INYECCIÓN: Lógica especial para Confirmacion_Final (Mapa)
-		-- Mantenemos esto aquí por compatibilidad, o se podría mover a un callback externo
-		if id == "Confirmacion_Final" then
-			if not nuevaLayer.Exec then nuevaLayer.Exec = {} end
-
-			nuevaLayer.Exec.SpawnObject = {
-				Function = function()
-					print("⚡ EJECUTANDO SpawnObject desde Confirmacion_Final...")
-					local ReplicatedStorage = game:GetService("ReplicatedStorage")
-					local events = ReplicatedStorage:WaitForChild("Events", 5)
-					local remotes = events and events:WaitForChild("Remotes", 5)
-					local event = remotes and remotes:WaitForChild("AparecerObjeto", 5)
-
-					if event then
-						event:FireServer(0, "Mapa")
-						print("✅ Solicitud de Mapa ENVIADA")
-					end
-				end,
-				ExecTime = "Before",
-				ExecContent = 1
-			}
-		end
 
 		-- WORKAROUND: Inyectar función Exec para forzar cambio de imagen
 		if imagen ~= "" then
