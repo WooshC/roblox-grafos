@@ -162,6 +162,98 @@ LevelsConfig[0] = {
 		["Zona_luz_2"] = { Modo = "ANY", Descripcion = "Sector secundario: Puerta", NodosRequeridos = {"toma_corriente"}, Oculta = true }
 	},
 
+	-- ============================================
+	-- GUÍA VISUAL (GuiaService)
+	-- Secuencia de waypoints activados uno a uno.
+	-- Para avanzar al siguiente dispara desde cualquier sistema:
+	--   GuiaAvanzar:Fire("ID_del_objetivo_actual")
+	--
+	-- WaypointRef.Tipo:
+	--   "PART_EXISTENTE"  → Part ya en workspace.Objetivos (Nombre)
+	--   "PART_DIRECTA"    → Part existente del nivel; NO se destruye (Nombre o Ruta + BuscarEn)
+	--   "SOBRE_OBJETO"    → Crea Part encima de un objeto del nivel (Nombre/Ruta + BuscarEn + OffsetY)
+	--   "POSICION_FIJA"   → Crea Part en una posición absoluta (Posicion: Vector3)
+	--
+	-- Búsqueda:
+	--   Nombre = "Nodo1_z1"  → búsqueda recursiva en el contenedor
+	--   Ruta   = {"Objetos","Postes","Nodo1_z1","Selector"}  → ruta exacta
+	--
+	-- DestruirAlCompletar: true → destruye la Part al avanzar (default true)
+	--                      false → solo elimina beacon/attachment (usar con PART_DIRECTA)
+	-- ============================================
+	Guia = {
+		-- 1. Hablar con Carlos
+		{
+			ID = "carlos",
+			WaypointRef = {
+				Tipo   = "PART_EXISTENTE",
+				Nombre = "Objetivo_Carlos",   -- Part colocada manualmente en workspace.Objetivos
+			},
+			DestruirAlCompletar = true,
+			-- Disparar: GuiaAvanzar:Fire("carlos")
+			-- Dónde: Evento "Confirmacion_Final" en Nivel0_dialogo1.lua  ← ya integrado
+		},
+		-- 2. Ir al primer nodo de Zona 1 (Nodo1_z1)
+		--    PART_DIRECTA apunta a una Part existente del nivel sin crearla ni destruirla.
+		--
+		--    Opción A – Ruta exacta hasta el Selector del nodo:
+		--      Requiere NivelActual/Objetos/Postes/Nodo1_z1/Selector (BasePart)
+		--      Si no existe "Selector", GuiaService busca la PrimaryPart o cualquier BasePart
+		--
+		--    Opción B – Solo por nombre (búsqueda recursiva):
+		--      Cambiar Ruta por: Nombre = "Nodo1_z1"
+		{
+			ID = "zona1",
+			WaypointRef = {
+				Tipo     = "PART_DIRECTA",
+				BuscarEn = "NIVEL_ACTUAL",
+				Ruta     = {"Objetos", "Postes", "Nodo1_z1", "Selector"},
+				-- Opción B: comenta Ruta y descomenta la siguiente línea
+				-- Nombre = "Nodo1_z1",
+			},
+			DestruirAlCompletar = false,  -- SIEMPRE false con PART_DIRECTA
+			-- Disparar: GuiaAvanzar:Fire("zona1")
+			-- Dónde: cuando el jugador complete las misiones de Zona_Estacion_1
+		},
+		-- 3. Ir a Zona 2 (Grado de Nodo)
+		{
+			ID = "zona2",
+			WaypointRef = {
+				Tipo      = "SOBRE_OBJETO",
+				Nombre    = "Zona_Estacion_2",
+				BuscarEn  = "NIVEL_ACTUAL",
+				OffsetY   = 6,
+			},
+			DestruirAlCompletar = true,
+			-- Disparar: GuiaAvanzar:Fire("zona2")
+		},
+		-- 4. Ir a Zona 3 (Grafos Dirigidos)
+		{
+			ID = "zona3",
+			WaypointRef = {
+				Tipo      = "SOBRE_OBJETO",
+				Nombre    = "Zona_Estacion_3",
+				BuscarEn  = "NIVEL_ACTUAL",
+				OffsetY   = 6,
+			},
+			DestruirAlCompletar = true,
+			-- Disparar: GuiaAvanzar:Fire("zona3")
+		},
+		-- 5. Ir a Zona 4 (Conectividad)
+		{
+			ID = "zona4",
+			WaypointRef = {
+				Tipo      = "SOBRE_OBJETO",
+				Nombre    = "Zona_Estacion_4",
+				BuscarEn  = "NIVEL_ACTUAL",
+				OffsetY   = 6,
+			},
+			DestruirAlCompletar = false,  -- último objetivo; no se destruye automáticamente
+			-- Disparar: GuiaAvanzar:Fire("zona4")
+			-- Dónde: cuando el jugador complete las misiones de Zona_Estacion_4
+		},
+	},
+
 	NombresPostes = {
 		["Nodo1_z1"] = "Nodo 1", ["Nodo2_z1"] = "Nodo 2",
 		["Nodo1_z2"] = "Centro", ["Nodo2_z2"] = "Vecino 1", ["Nodo3_z2"] = "Vecino 2",["Nodo4_z2"] = "Vecino 3",

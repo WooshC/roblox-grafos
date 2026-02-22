@@ -61,7 +61,10 @@ local NodeLabelManager = require(Services:WaitForChild("NodeLabelManager"))
 local EventManager     = require(Services:WaitForChild("EventManager"))
 local LevelsConfig     = require(ReplicatedStorage:WaitForChild("LevelsConfig"))
 local MatrixManager    = require(Services:WaitForChild("MatrixManager"))
-local AudioClient         = require(Services:WaitForChild("AudioClient"))
+local AudioClient      = require(Services:WaitForChild("AudioClient"))
+local GuiaService = require(Services:WaitForChild("GuiaService"))
+
+
 local VictoryScreenManager = require(Services:WaitForChild("VictoryScreenManager"))
 print("⚙️ GUIExplorador: Inicializando servicios...")
 
@@ -93,7 +96,7 @@ EventManager.initialize(globalState, deps)
 ButtonManager.initialize(gui, deps)
 ButtonManager:init() -- Conectar listeners
 EventManager:init() -- Conectar eventos remotos
-
+GuiaService:init()
 -- Inicializar AudioClient y VictoryScreenManager
 VictoryScreenManager.initialize(gui, deps)
 AudioClient.initialize(deps)

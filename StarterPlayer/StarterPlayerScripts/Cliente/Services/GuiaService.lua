@@ -1,0 +1,569 @@
+--!nocheck
+-- StarterPlayer/StarterPlayerScripts/Cliente/Services/GuiaService.lua
+-- Sistema parametrizable de guía visual (Beam + Beacon).
+--
+-- La secuencia de objetivos se define en LevelsConfig[nivelID].Guia.
+-- Cualquier sistema avanza la guía disparando:
+--   ReplicatedStorage.Events.Bindables.GuiaAvanzar:Fire("objetivoID")
+--
+-- Tipos de WaypointRef soportados:
+--   "PART_EXISTENTE"  → Part ya colocada manualmente en workspace.Objetivos (Nombre)
+--   "SOBRE_OBJETO"    → Crea Part invisible encima de un objeto del nivel (Nombre/Ruta + OffsetY)
+--   "PART_DIRECTA"    → Usa una Part ya existente del nivel (Nombre/Ruta); NO la destruye
+--   "POSICION_FIJA"   → Crea Part en un Vector3 absoluto (Posicion)
+--
+-- Búsqueda por nombre vs ruta:
+--   Nombre = "Nodo1_z1"                        → búsqueda recursiva en el contenedor
+--   Ruta   = {"Objetos","Postes","Nodo1_z1","Selector"}  → ruta exacta paso a paso
+
+local GuiaService = {}
+GuiaService.__index = GuiaService
+
+-- ============================================
+-- SERVICIOS
+-- ============================================
+
+local Players           = game:GetService("Players")
+local TweenService      = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local localPlayer  = Players.LocalPlayer
+
+-- ============================================
+-- ESTADO INTERNO
+-- ============================================
+
+local listaObjetivos  = {}   -- tabla Guia del nivel activo [{ID, WaypointRef, ...}]
+local indexActual     = 0    -- 1-based; 0 = sin guía activa
+local headAttachment  = nil  -- Attachment en la cabeza del jugador
+local guideBeam       = nil  -- Beam visual activo
+local currentPart     = nil  -- Part waypoint activa
+local completados     = {}   -- { [ID] = true } objetivos ya completados
+local objetivosFolder = nil  -- workspace.Objetivos
+
+-- ============================================
+-- CONFIGURACIÓN VISUAL (ajustable)
+-- ============================================
+
+local CFG = {
+	-- Beam
+	COLOR = ColorSequence.new({
+		ColorSequenceKeypoint.new(0,   Color3.fromRGB(255, 215,  50)),
+		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 180)),
+		ColorSequenceKeypoint.new(1,   Color3.fromRGB(255, 215,  50)),
+	}),
+	TRANSPARENCY = NumberSequence.new({
+		NumberSequenceKeypoint.new(0,   0.5),
+		NumberSequenceKeypoint.new(0.5, 0.0),
+		NumberSequenceKeypoint.new(1,   0.5),
+	}),
+	WIDTH          = 0.5,   -- ancho del beam (studs)
+	LIGHT_EMISSION = 1,
+	SEGMENTS       = 24,
+	-- Textura de flechas
+	TEXTURE_ID     = "rbxassetid://5886559421",
+	TEXTURE_LENGTH = 1.5,   -- longitud de cada repetición (más corto = flechas más juntas)
+	TEXTURE_SPEED  = 0.8,   -- velocidad de scroll (propiedad nativa Beam.TextureSpeed)
+
+	-- Beacon flotante (cilindro Neon encima del waypoint)
+	BEACON_SIZE    = Vector3.new(2.5, 0.3, 2.5),
+	BEACON_COLOR   = Color3.fromRGB(255, 215, 50),
+	BEACON_OFFSET  = 2,     -- studs sobre la Part ancla (eleva el beacon sobre el nodo/zona)
+	BEACON_FLOAT   = 0.5,   -- amplitud del tween de flotación
+	BEACON_SPEED   = 1.2,   -- duración de cada mitad del tween (s)
+}
+
+-- ============================================
+-- PRIVADAS – BÚSQUEDA DE OBJETOS
+-- ============================================
+
+-- Devuelve el modelo del nivel activo en Workspace
+local function getLevelModel()
+	return workspace:FindFirstChild("NivelActual")
+		or workspace:FindFirstChild("Nivel0")
+end
+
+-- Devuelve el contenedor según BuscarEn
+local function getContainer(buscarEn)
+	if buscarEn == "NIVEL_ACTUAL" then
+		return getLevelModel()
+	elseif buscarEn == "WORKSPACE" then
+		return workspace
+	else
+		return workspace:FindFirstChild(buscarEn, true) or workspace
+	end
+end
+
+-- Busca un objeto dentro de un contenedor.
+--   ref.Ruta   = {"Objetos","Postes","Nodo1_z1","Selector"}  → ruta exacta paso a paso
+--   ref.Nombre = "Nodo1_z1"                                  → búsqueda recursiva
+local function findTarget(container, ref)
+	if ref.Ruta then
+		local current = container
+		for _, step in ipairs(ref.Ruta) do
+			if not current then return nil end
+			current = current:FindFirstChild(step)
+		end
+		return current
+	elseif ref.Nombre then
+		return container:FindFirstChild(ref.Nombre, true)
+	end
+	return nil
+end
+
+-- Dada una instancia (Model o BasePart), devuelve la BasePart sobre la que
+-- se puede crear un Attachment y el Beacon.
+-- Para modelos, prioriza: PrimaryPart → hijo "Selector" → primera BasePart
+local function getBasePart(instance)
+	if not instance then return nil end
+	if instance:IsA("BasePart") then return instance end
+	if instance:IsA("Model") then
+		return instance.PrimaryPart
+			or instance:FindFirstChild("Selector")
+			or instance:FindFirstChildWhichIsA("BasePart")
+	end
+	return nil
+end
+
+-- ── Descripción legible del ref para mensajes de error ──────────────────────
+local function refDesc(ref)
+	if ref.Ruta then return table.concat(ref.Ruta, "/") end
+	return ref.Nombre or "?"
+end
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Dado un objetivo (elemento de Guia), devuelve la Part del waypoint.
+-- Nunca crea duplicados: si ya existe, la reutiliza (útil en respawns).
+-- ─────────────────────────────────────────────────────────────────────────────
+local function resolveWaypointPart(objetivo)
+	local ref  = objetivo.WaypointRef
+	local tipo = ref.Tipo
+
+	-- ── PART_EXISTENTE ──────────────────────────────────────────
+	-- Part colocada manualmente en workspace.Objetivos
+	if tipo == "PART_EXISTENTE" then
+		if not objetivosFolder then
+			warn("❌ GuiaService: objetivosFolder no inicializado")
+			return nil
+		end
+		local part = objetivosFolder:FindFirstChild(ref.Nombre)
+		if not part then
+			warn("❌ GuiaService: Part '" .. ref.Nombre .. "' no encontrada en Objetivos")
+		end
+		return part
+
+		-- ── PART_DIRECTA ─────────────────────────────────────────────
+		-- Usa una Part ya existente en el nivel como ancla del beam.
+		-- NO crea nada en Objetivos. NO la destruye al avanzar.
+		-- Ideal para apuntar a nodos específicos (ej. Nodo1_z1 o su Selector).
+	elseif tipo == "PART_DIRECTA" then
+		local container = getContainer(ref.BuscarEn or "NIVEL_ACTUAL")
+		if not container then
+			warn("❌ GuiaService: PART_DIRECTA – contenedor '" .. (ref.BuscarEn or "NIVEL_ACTUAL") .. "' no encontrado")
+			return nil
+		end
+
+		local target  = findTarget(container, ref)
+		local basePart = getBasePart(target)
+		if not basePart then
+			warn("❌ GuiaService: PART_DIRECTA – '" .. refDesc(ref) .. "' no encontrado o sin BasePart")
+			return nil
+		end
+		return basePart
+
+		-- ── SOBRE_OBJETO ─────────────────────────────────────────────
+		-- Crea una Part invisible encima del objeto indicado.
+		-- Admite Nombre (recursivo) o Ruta (exacta).
+	elseif tipo == "SOBRE_OBJETO" then
+		local container = getContainer(ref.BuscarEn or "NIVEL_ACTUAL")
+		if not container then
+			warn("❌ GuiaService: SOBRE_OBJETO – contenedor '" .. (ref.BuscarEn or "NIVEL_ACTUAL") .. "' no encontrado")
+			return nil
+		end
+
+		local target = findTarget(container, ref)
+		if not target then
+			warn("❌ GuiaService: SOBRE_OBJETO – '" .. refDesc(ref) .. "' no encontrado")
+			return nil
+		end
+
+		-- Evitar duplicados (útil en respawn)
+		local partName = "Objetivo_" .. objetivo.ID
+		local existing = objetivosFolder and objetivosFolder:FindFirstChild(partName)
+		if existing then return existing end
+
+		local center = target:IsA("Model") and target:GetPivot().Position or target.Position
+		local part   = Instance.new("Part")
+		part.Name         = partName
+		part.Anchored     = true
+		part.CanCollide   = false
+		part.CastShadow   = false
+		part.Transparency = 1
+		part.Size         = Vector3.new(3, 0.1, 3)
+		part.CFrame       = CFrame.new(center + Vector3.new(0, ref.OffsetY or 6, 0))
+		part.Parent       = objetivosFolder or workspace
+		return part
+
+		-- ── POSICION_FIJA ────────────────────────────────────────────
+		-- Crea una Part en una posición absoluta (Vector3 en ref.Posicion)
+	elseif tipo == "POSICION_FIJA" then
+		if not ref.Posicion then
+			warn("❌ GuiaService: POSICION_FIJA sin campo 'Posicion' en WaypointRef")
+			return nil
+		end
+		local partName = "Objetivo_" .. objetivo.ID
+		local existing = objetivosFolder and objetivosFolder:FindFirstChild(partName)
+		if existing then return existing end
+
+		local part = Instance.new("Part")
+		part.Name         = partName
+		part.Anchored     = true
+		part.CanCollide   = false
+		part.CastShadow   = false
+		part.Transparency = 1
+		part.Size         = Vector3.new(3, 0.1, 3)
+		part.CFrame       = CFrame.new(ref.Posicion)
+		part.Parent       = objetivosFolder or workspace
+		return part
+	end
+
+	warn("❌ GuiaService: WaypointRef.Tipo desconocido: '" .. tostring(tipo) .. "'")
+	return nil
+end
+
+-- ============================================
+-- PRIVADAS – ATTACHMENT
+-- ============================================
+
+local function getOrCreateHeadAtt(character)
+	local head = character:FindFirstChild("Head")
+	if not head then
+		warn("❌ GuiaService: Personaje sin Head")
+		return nil
+	end
+	local att = head:FindFirstChild("GuiaHeadAtt")
+	if att then headAttachment = att; return att end
+	att          = Instance.new("Attachment")
+	att.Name     = "GuiaHeadAtt"
+	att.Position = Vector3.new(0, 0.65, 0)
+	att.Parent   = head
+	headAttachment = att
+	return att
+end
+
+local function getOrCreateObjAtt(part)
+	local att = part:FindFirstChild("GuiaObjAtt")
+	if att then return att end
+	att        = Instance.new("Attachment")
+	att.Name   = "GuiaObjAtt"
+	att.Parent = part
+	return att
+end
+
+-- ============================================
+-- PRIVADAS – BEAM
+-- ============================================
+
+local function destroyBeam()
+	if guideBeam and guideBeam.Parent then guideBeam:Destroy() end
+	guideBeam = nil
+end
+
+local function createBeamBetween(headAtt, objAtt)
+	destroyBeam()
+
+	local beam = Instance.new("Beam")
+	beam.Name           = "GuiaBeam"
+	beam.Attachment0    = headAtt
+	beam.Attachment1    = objAtt
+	beam.Color          = CFG.COLOR
+	beam.Transparency   = CFG.TRANSPARENCY
+	beam.Width0         = CFG.WIDTH
+	beam.Width1         = CFG.WIDTH
+	beam.LightEmission  = CFG.LIGHT_EMISSION
+	beam.LightInfluence = 0
+	beam.FaceCamera     = true   -- la textura siempre mira a la cámara
+	beam.Segments       = CFG.SEGMENTS
+	beam.CurveSize0     = 0
+	beam.CurveSize1     = 0
+	beam.Texture        = CFG.TEXTURE_ID
+	beam.TextureLength  = CFG.TEXTURE_LENGTH
+	beam.TextureMode    = Enum.TextureMode.Wrap
+	beam.TextureSpeed   = CFG.TEXTURE_SPEED  -- animación nativa (no requiere Heartbeat)
+	beam.Parent         = headAtt.Parent
+
+	guideBeam = beam
+end
+
+-- ============================================
+-- PRIVADAS – BEACON
+-- ============================================
+
+local function createBeacon(part)
+	local old = part:FindFirstChild("GuiaBeacon")
+	if old then old:Destroy() end
+
+	local center  = part:IsA("Model") and part:GetPivot().Position or part.Position
+	local beacon  = Instance.new("Part")
+	beacon.Name         = "GuiaBeacon"
+	beacon.Anchored     = true
+	beacon.CanCollide   = false
+	beacon.CastShadow   = false
+	beacon.Size         = CFG.BEACON_SIZE
+	beacon.Color        = CFG.BEACON_COLOR
+	beacon.Material     = Enum.Material.Neon
+	beacon.Shape        = Enum.PartType.Cylinder
+	beacon.Transparency = 0.25
+	beacon.CFrame       = CFrame.new(center + Vector3.new(0, CFG.BEACON_OFFSET, 0))
+		* CFrame.Angles(0, 0, math.pi / 2)  -- cilindro horizontal
+	beacon.Parent       = part
+
+	local basePos = beacon.CFrame
+	TweenService:Create(beacon,
+		TweenInfo.new(CFG.BEACON_SPEED, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+		{ CFrame = basePos + Vector3.new(0, CFG.BEACON_FLOAT, 0) }
+	):Play()
+end
+
+-- ============================================
+-- PRIVADAS – APUNTAR Y LIMPIAR
+-- ============================================
+
+local function apuntarA(part)
+	local char = localPlayer.Character
+	if not char then
+		warn("❌ GuiaService: Sin personaje para apuntar guía")
+		return
+	end
+	local headAtt = getOrCreateHeadAtt(char)
+	if not headAtt then return end
+	local objAtt = getOrCreateObjAtt(part)
+	createBeamBetween(headAtt, objAtt)
+	createBeacon(part)
+	currentPart = part
+end
+
+-- destroyPart = true  → destruye la Part entera (PART_EXISTENTE / SOBRE_OBJETO)
+-- destroyPart = false → solo elimina el Beacon y el Attachment que añadimos
+--                       (PART_DIRECTA: la Part pertenece al nivel, no se toca)
+local function cleanupObjective(part, destroyPart)
+	if not part or not part.Parent then return end
+	local beacon = part:FindFirstChild("GuiaBeacon")
+	local att    = part:FindFirstChild("GuiaObjAtt")
+
+	if beacon then
+		TweenService:Create(beacon,
+			TweenInfo.new(0.4, Enum.EasingStyle.Sine),
+			{ Transparency = 1 }
+		):Play()
+	end
+
+	task.delay(0.45, function()
+		if destroyPart then
+			-- Eliminamos la Part completa (y con ella el beacon + att)
+			if part and part.Parent then part:Destroy() end
+		else
+			-- Solo limpiamos lo que añadimos; la Part del nivel se conserva
+			if beacon and beacon.Parent then beacon:Destroy() end
+			if att   and att.Parent   then att:Destroy()    end
+		end
+	end)
+end
+
+-- ============================================
+-- PÚBLICO: avanzar al siguiente objetivo
+--
+-- Llamar con el ID del objetivo ACTUAL que acaba de completarse.
+-- Ejemplo: GuiaAvanzar:Fire("carlos")
+-- ============================================
+
+function GuiaService:avanzar(objetivoID)
+	local current = listaObjetivos[indexActual]
+	if not current then
+		warn("⚠️ GuiaService:avanzar() – No hay objetivo activo (indexActual=" .. indexActual .. ")")
+		return
+	end
+
+	if current.ID ~= objetivoID then
+		-- Silencioso: puede ser un evento de otra etapa o desfase temporal
+		return
+	end
+
+	if completados[objetivoID] then return end
+	completados[objetivoID] = true
+
+	local prevPart      = currentPart
+	local shouldDestroy = current.DestruirAlCompletar ~= false  -- true por defecto
+
+	-- Avanzar índice
+	indexActual += 1
+	local next = listaObjetivos[indexActual]
+
+	destroyBeam()
+
+	if next then
+		local nextPart = resolveWaypointPart(next)
+		if nextPart then
+			apuntarA(nextPart)
+			print("🧭 GuiaService: [" .. (indexActual - 1) .. "→" .. indexActual .. "] " .. current.ID .. " → " .. next.ID)
+		else
+			warn("❌ GuiaService: No se pudo resolver waypoint para '" .. next.ID .. "'")
+		end
+	else
+		currentPart = nil
+		print("🏁 GuiaService: Todos los objetivos completados")
+	end
+
+	cleanupObjective(prevPart, shouldDestroy)
+end
+
+-- ============================================
+-- PÚBLICO: inicializar guía para un nivel dado
+-- ============================================
+
+function GuiaService:initForLevel(nivelID)
+	self:limpiar()
+	completados = {}
+
+	local LevelsConfig = require(ReplicatedStorage:WaitForChild("LevelsConfig"))
+	local levelCfg = LevelsConfig[nivelID]
+	if not levelCfg then
+		print("ℹ️ GuiaService: Nivel " .. tostring(nivelID) .. " no existe en LevelsConfig")
+		return
+	end
+	if not levelCfg.Guia or #levelCfg.Guia == 0 then
+		print("ℹ️ GuiaService: Nivel " .. tostring(nivelID) .. " sin sección 'Guia'")
+		return
+	end
+
+	listaObjetivos = levelCfg.Guia
+
+	-- Obtener modelo del nivel activo
+	local levelModel = getLevelModel()
+	if not levelModel then
+		warn("❌ GuiaService: NivelActual no encontrado en Workspace")
+		return
+	end
+
+	-- Buscar Objetivos dentro del nivel
+	objetivosFolder = levelModel:FindFirstChild("Objetivos")
+		or levelModel:WaitForChild("Objetivos", 10)
+
+	if not objetivosFolder then
+		warn("❌ GuiaService: 'Objetivos' no encontrada dentro de NivelActual")
+		return
+	end
+
+	-- Asegurar personaje disponible
+	local _ = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+
+	-- Mostrar primer objetivo
+	indexActual  = 1
+	local first  = listaObjetivos[1]
+	local firstP = resolveWaypointPart(first)
+	if firstP then
+		apuntarA(firstP)
+		print("🧭 GuiaService: Guía iniciada → Objetivo[1] '" .. first.ID .. "'")
+	else
+		warn("❌ GuiaService: No se pudo resolver primer waypoint '" .. first.ID .. "'")
+	end
+end
+
+-- ============================================
+-- PÚBLICO: limpiar toda la guía visual
+-- ============================================
+
+function GuiaService:limpiar()
+	destroyBeam()
+	if headAttachment and headAttachment.Parent then
+		headAttachment:Destroy()
+	end
+	headAttachment = nil
+	currentPart    = nil
+	indexActual    = 0
+	listaObjetivos = {}
+end
+
+-- ============================================
+-- INIT – conecta eventos y atributos
+-- ============================================
+
+function GuiaService:init()
+	print("🧭 GuiaService: Inicializando...")
+
+	-- 1. Escuchar cambio de nivel (servidor pone CurrentLevelID)
+	localPlayer:GetAttributeChangedSignal("CurrentLevelID"):Connect(function()
+		local id = localPlayer:GetAttribute("CurrentLevelID")
+		if id and id >= 0 then
+			-- Pequeña espera para que el nivel y el personaje estén listos
+			task.delay(2, function()
+				self:initForLevel(id)
+			end)
+		else
+			self:limpiar()
+		end
+	end)
+
+	-- 2. Reconectar beam si el personaje respawna (sin reiniciar progreso)
+	localPlayer.CharacterAdded:Connect(function()
+		task.delay(1.5, function()
+			if currentPart and currentPart.Parent and indexActual > 0 then
+				local char = localPlayer.Character
+				if not char then return end
+				local hAtt = getOrCreateHeadAtt(char)
+				if hAtt then
+					local oAtt = getOrCreateObjAtt(currentPart)
+					createBeamBetween(hAtt, oAtt)
+				end
+			end
+		end)
+	end)
+
+	-- 3. Escuchar BindableEvents desde ReplicatedStorage/Events/Bindables
+	task.spawn(function()
+		local Events    = ReplicatedStorage:WaitForChild("Events", 15)
+		if not Events then
+			warn("❌ GuiaService: Carpeta Events no encontrada")
+			return
+		end
+		local Bindables = Events:WaitForChild("Bindables", 10)
+		if not Bindables then
+			warn("❌ GuiaService: Carpeta Bindables no encontrada")
+			return
+		end
+
+		-- GuiaAvanzar:Fire("objetivoID") → avanza la guía
+		local guiaEv = Bindables:WaitForChild("GuiaAvanzar", 10)
+		if guiaEv then
+			guiaEv.Event:Connect(function(id)
+				self:avanzar(id)
+			end)
+			print("✅ GuiaService: Escuchando 'GuiaAvanzar'")
+		else
+			warn("⚠️ GuiaService: BindableEvent 'GuiaAvanzar' no encontrado en Bindables")
+		end
+
+		-- Limpiar guía al volver al menú
+		local openMenu = Bindables:FindFirstChild("OpenMenu")
+		if openMenu then
+			openMenu.Event:Connect(function()
+				self:limpiar()
+			end)
+		end
+	end)
+
+	-- 4. Si ya hay nivel activo al cargar (Studio / rejoins)
+	local existingID = localPlayer:GetAttribute("CurrentLevelID")
+	if existingID and existingID >= 0 then
+		task.delay(2, function()
+			self:initForLevel(existingID)
+		end)
+	end
+
+	print("✅ GuiaService: Inicializado correctamente")
+end
+
+-- Auto-init al hacer require
+GuiaService:init()
+
+return GuiaService

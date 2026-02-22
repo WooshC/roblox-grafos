@@ -1758,7 +1758,8 @@ function closeDialogue()
 	end
 
 	if activeDialogueSound then
-		activeDialogueSound:Stop()
+		-- AudioTextToSpeech no tiene :Stop(); solo destruir es suficiente
+		pcall(function() activeDialogueSound:Stop() end)
 		activeDialogueSound:Destroy()
 		activeDialogueSound = nil
 	end

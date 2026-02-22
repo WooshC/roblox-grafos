@@ -1,5 +1,6 @@
 local dialogueKitModule = require(script.Parent.Parent.DialogueKit)
 local DialogueGenerator = require(script.Parent.DialogueGenerator)
+local desbloquearZona = require(game:GetService("ReplicatedStorage"):WaitForChild("DesbloquearZona"))
 -- local dialoguePrompt moved to async initialization
 
 -- ============================================================================
@@ -75,6 +76,16 @@ local DATA_DIALOGOS = {
 		Evento = function()
 			VisualEffectsService:restoreCamera()
 			VisualEffectsService:toggleTecho(true)
+			desbloquearZona("Bloqueo_zona_1")
+			local GuiaAvanzar = game:GetService("ReplicatedStorage")
+				:WaitForChild("Events", 10)
+				:WaitForChild("Bindables", 5)
+				:FindFirstChild("GuiaAvanzar")
+			if GuiaAvanzar then
+				GuiaAvanzar:Fire("carlos")
+			else
+				warn("⚠️ Nivel0_dialogo1: GuiaAvanzar no encontrado en Bindables")
+			end
 		end,
 		Siguiente = "FIN"
 	}
