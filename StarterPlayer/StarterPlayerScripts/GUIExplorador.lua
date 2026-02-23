@@ -96,7 +96,7 @@ EventManager.initialize(globalState, deps)
 ButtonManager.initialize(gui, deps)
 ButtonManager:init() -- Conectar listeners
 EventManager:init() -- Conectar eventos remotos
-GuiaService:init()
+
 -- Inicializar AudioClient y VictoryScreenManager
 VictoryScreenManager.initialize(gui, deps)
 AudioClient.initialize(deps)
