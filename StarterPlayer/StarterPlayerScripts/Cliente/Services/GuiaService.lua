@@ -33,13 +33,15 @@ local localPlayer  = Players.LocalPlayer
 -- ESTADO INTERNO
 -- ============================================
 
-local listaObjetivos  = {}   -- tabla Guia del nivel activo [{ID, WaypointRef, ...}]
-local indexActual     = 0    -- 1-based; 0 = sin guía activa
-local headAttachment  = nil  -- Attachment en la cabeza del jugador
-local guideBeam       = nil  -- Beam visual activo
-local currentPart     = nil  -- Part waypoint activa
-local completados     = {}   -- { [ID] = true } objetivos ya completados
-local objetivosFolder = nil  -- workspace.Objetivos
+local listaObjetivos      = {}   -- tabla Guia del nivel activo [{ID, WaypointRef, ...}]
+local indexActual         = 0    -- 1-based; 0 = sin guía activa
+local headAttachment      = nil  -- Attachment en la cabeza del jugador
+local guideBeam           = nil  -- Beam visual activo
+local currentPart         = nil  -- Part waypoint activa
+local completados         = {}   -- { [ID] = true } objetivos ya completados
+local objetivosFolder     = nil  -- workspace.Objetivos
+local misionesCompletadas = {}   -- { [misionID] = true } misiones completadas en la sesión
+local guideBillboard      = nil  -- BillboardGui sobre el waypoint activo
 
 -- ============================================
 -- CONFIGURACIÓN VISUAL (ajustable)
@@ -236,9 +238,10 @@ end
 -- ============================================
 
 local function getOrCreateHeadAtt(character)
-	local head = character:FindFirstChild("Head")
+	-- WaitForChild porque el personaje puede no estar completamente cargado aún
+	local head = character:WaitForChild("Head", 5)
 	if not head then
-		warn("❌ GuiaService: Personaje sin Head")
+		warn("❌ GuiaService: Personaje sin Head (timeout)")
 		return nil
 	end
 	local att = head:FindFirstChild("GuiaHeadAtt")
@@ -326,10 +329,112 @@ local function createBeacon(part)
 end
 
 -- ============================================
+-- PRIVADAS – BILLBOARD
+-- ============================================
+
+local function destroyBillboard()
+	if guideBillboard and guideBillboard.Parent then
+		guideBillboard:Destroy()
+	end
+	guideBillboard = nil
+end
+
+-- Crea un BillboardGui sobre la Part del waypoint.
+-- Muestra la descripción de la zona o el Label personalizado del objetivo.
+local function createBillboard(part, objetivo)
+	destroyBillboard()
+	if not part or not part.Parent then return end
+
+	-- Texto descriptivo: Label > Zonas[Zona].Descripcion > ID en mayúsculas
+	local labelText = objetivo.Label
+	if not labelText and objetivo.Zona then
+		local nivelID = localPlayer:GetAttribute("CurrentLevelID")
+		if nivelID then
+			local cfg = require(ReplicatedStorage:WaitForChild("LevelsConfig"))
+			local levelCfg = cfg[nivelID]
+			if levelCfg and levelCfg.Zonas and levelCfg.Zonas[objetivo.Zona] then
+				labelText = levelCfg.Zonas[objetivo.Zona].Descripcion
+			end
+		end
+	end
+	labelText = labelText or objetivo.ID:upper()
+
+	local bill = Instance.new("BillboardGui")
+	bill.Name           = "GuiaBillboard"
+	bill.Adornee        = part
+	bill.AlwaysOnTop    = true   -- visible aunque haya paredes entre medias
+	bill.StudsOffset    = Vector3.new(0, CFG.BEACON_OFFSET + 3.5, 0)
+	bill.Size           = UDim2.new(0, 240, 0, 52)
+	bill.MaxDistance    = 80
+	bill.LightInfluence = 0
+	bill.Parent         = part
+
+	local frame = Instance.new("Frame")
+	frame.Size                   = UDim2.new(1, 0, 1, 0)
+	frame.BackgroundColor3       = Color3.fromRGB(8, 8, 18)
+	frame.BackgroundTransparency = 0.25
+	frame.BorderSizePixel        = 0
+	frame.Parent                 = bill
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 10)
+	corner.Parent       = frame
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color     = CFG.BEACON_COLOR
+	stroke.Thickness = 2
+	stroke.Parent    = frame
+
+	local label = Instance.new("TextLabel")
+	label.Size                   = UDim2.new(1, -12, 1, 0)
+	label.Position               = UDim2.new(0, 6, 0, 0)
+	label.BackgroundTransparency = 1
+	label.Text                   = labelText
+	label.TextColor3             = Color3.new(1, 1, 1)
+	label.TextScaled             = true
+	label.Font                   = Enum.Font.GothamBold
+	label.TextXAlignment         = Enum.TextXAlignment.Center
+	label.TextYAlignment         = Enum.TextYAlignment.Center
+	label.Parent                 = frame
+
+	guideBillboard = bill
+end
+
+-- Muestra u oculta el beam y el billboard.
+-- El beacon se mantiene visible siempre (marca la ubicación aunque ya estés ahí).
+local function setGuideVisible(visible)
+	if guideBeam and guideBeam.Parent then
+		guideBeam.Enabled = visible
+	end
+	if guideBillboard and guideBillboard.Parent then
+		guideBillboard.Enabled = visible
+	end
+end
+
+-- Actualizar visibilidad basada en la zona actual del jugador.
+-- Si el jugador ya está en la zona objetivo → oculta beam+billboard.
+-- Si está fuera → muestra. Para objetivos sin zona (carlos) siempre visible.
+local function updateGuideVisibility()
+	local current = listaObjetivos[indexActual]
+	if not current or not current.Zona then
+		setGuideVisible(true)
+		return
+	end
+	if completados[current.ID] then
+		-- Ya avanzó: current es el siguiente objetivo, siempre visible
+		setGuideVisible(true)
+		return
+	end
+	local playerZone = localPlayer:GetAttribute("CurrentZone") or ""
+	-- Ocultar si el jugador ya está en la zona objetivo
+	setGuideVisible(playerZone ~= current.Zona)
+end
+
+-- ============================================
 -- PRIVADAS – APUNTAR Y LIMPIAR
 -- ============================================
 
-local function apuntarA(part)
+local function apuntarA(part, objetivo)
 	local char = localPlayer.Character
 	if not char then
 		warn("❌ GuiaService: Sin personaje para apuntar guía")
@@ -340,7 +445,9 @@ local function apuntarA(part)
 	local objAtt = getOrCreateObjAtt(part)
 	createBeamBetween(headAtt, objAtt)
 	createBeacon(part)
+	createBillboard(part, objetivo)
 	currentPart = part
+	updateGuideVisibility()
 end
 
 -- destroyPart = true  → destruye la Part entera (PART_EXISTENTE / SOBRE_OBJETO)
@@ -404,7 +511,7 @@ function GuiaService:avanzar(objetivoID)
 	if next then
 		local nextPart = resolveWaypointPart(next)
 		if nextPart then
-			apuntarA(nextPart)
+			apuntarA(nextPart, next)
 			print("🧭 GuiaService: [" .. (indexActual - 1) .. "→" .. indexActual .. "] " .. current.ID .. " → " .. next.ID)
 		else
 			warn("❌ GuiaService: No se pudo resolver waypoint para '" .. next.ID .. "'")
@@ -462,7 +569,7 @@ function GuiaService:initForLevel(nivelID)
 	local first  = listaObjetivos[1]
 	local firstP = resolveWaypointPart(first)
 	if firstP then
-		apuntarA(firstP)
+		apuntarA(firstP, first)
 		print("🧭 GuiaService: Guía iniciada → Objetivo[1] '" .. first.ID .. "'")
 	else
 		warn("❌ GuiaService: No se pudo resolver primer waypoint '" .. first.ID .. "'")
@@ -475,13 +582,15 @@ end
 
 function GuiaService:limpiar()
 	destroyBeam()
+	destroyBillboard()
 	if headAttachment and headAttachment.Parent then
 		headAttachment:Destroy()
 	end
-	headAttachment = nil
-	currentPart    = nil
-	indexActual    = 0
-	listaObjetivos = {}
+	headAttachment        = nil
+	currentPart           = nil
+	indexActual           = 0
+	listaObjetivos        = {}
+	misionesCompletadas   = {}
 end
 
 -- ============================================
@@ -552,7 +661,59 @@ function GuiaService:init()
 		end
 	end)
 
-	-- 4. Si ya hay nivel activo al cargar (Studio / rejoins)
+	-- 4. Auto-avanzar guía cuando se completan todas las misiones de la zona actual.
+	--    El server dispara ActualizarMision(misionID, true/false) al cliente.
+	--    GuiaService lo escucha y verifica si todas las misiones de current.Zona están listas.
+	task.spawn(function()
+		local Events  = ReplicatedStorage:WaitForChild("Events", 15)
+		if not Events then return end
+		local Remotes = Events:WaitForChild("Remotes", 10)
+		if not Remotes then return end
+		local actualizarEv = Remotes:WaitForChild("ActualizarMision", 10)
+		if not actualizarEv then
+			warn("⚠️ GuiaService: 'ActualizarMision' no encontrado en Remotes")
+			return
+		end
+
+		local LevelsConfig = require(ReplicatedStorage:WaitForChild("LevelsConfig"))
+
+		actualizarEv.OnClientEvent:Connect(function(misionID, completada)
+			misionesCompletadas[misionID] = completada or nil
+
+			-- Solo actuar si hay un objetivo activo con zona asignada
+			local current = listaObjetivos[indexActual]
+			if not current or not current.Zona then return end
+			if completados[current.ID] then return end
+
+			local nivelID = localPlayer:GetAttribute("CurrentLevelID")
+			if not nivelID then return end
+			local levelCfg = LevelsConfig[nivelID]
+			if not levelCfg or not levelCfg.Misiones then return end
+
+			-- Verificar que TODAS las misiones de la zona estén completas
+			local hayMisiones = false
+			for _, mision in ipairs(levelCfg.Misiones) do
+				if mision.Zona == current.Zona then
+					hayMisiones = true
+					if not misionesCompletadas[mision.ID] then return end
+				end
+			end
+
+			if not hayMisiones then return end  -- zona sin misiones → no auto-avanzar
+
+			print("🧭 GuiaService: Zona '" .. current.Zona .. "' completada → avanzando guía")
+			self:avanzar(current.ID)
+		end)
+
+		print("✅ GuiaService: Escuchando 'ActualizarMision' para auto-avanzar por zona")
+	end)
+
+	-- 5. Ocultar/mostrar beam+billboard según si el jugador está en la zona objetivo
+	localPlayer:GetAttributeChangedSignal("CurrentZone"):Connect(function()
+		updateGuideVisibility()
+	end)
+
+	-- 6. Si ya hay nivel activo al cargar (Studio / rejoins)
 	local existingID = localPlayer:GetAttribute("CurrentLevelID")
 	if existingID and existingID >= 0 then
 		task.delay(2, function()

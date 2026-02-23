@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GUIExplorador — Mockup Mejorado</title>
+<style>
+  /* ─── RESET & BASE ─── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0d0f14;
+    color: #f0f5fa;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px;
+    gap: 16px;
+  }
+
+  /* ─── CONTROL PANEL (meta UI) ─── */
+  .meta-controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+    background: #1a1d25;
+    border: 1px solid #2a2d3a;
+    border-radius: 12px;
+    padding: 10px 16px;
+    width: 100%;
+    max-width: 960px;
+  }
+  .meta-controls span { color: #8090a0; font-size: 12px; align-self: center; }
+  .meta-btn {
+    background: #252833;
+    border: 1px solid #3a3d4a;
+    color: #b0bec5;
+    padding: 6px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all .18s;
+  }
+  .meta-btn:hover { background: #2e3340; color: #fff; border-color: #5a9fff; }
+  .meta-btn.active { background: #1e3a5f; color: #5a9fff; border-color: #5a9fff; }
+
+  /* ─── GAME VIEWPORT ─── */
+  .viewport {
+    position: relative;
+    width: 960px;
+    max-width: 100%;
+    aspect-ratio: 16/9;
+    background: linear-gradient(160deg, #1a2a3a 0%, #0e1820 60%, #0a1015 100%);
+    border-radius: 12px;
+    overflow: hidden;
+    border: 2px solid #2a3040;
+    box-shadow: 0 0 60px rgba(0,0,0,.8), 0 0 0 1px #1a2030;
+    user-select: none;
+  }
+
+  /* Fondo simulado del mundo 3D */
+  .world-bg {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 60% 50% at 50% 60%, rgba(30,60,80,.4) 0%, transparent 70%),
+      linear-gradient(180deg, #0e1c28 0%, #0a141e 50%, #060d13 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+  .world-hint {
+    color: rgba(255,255,255,.08);
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: .15em;
+    text-transform: uppercase;
+    text-align: center;
+  }
+
+  /* ─── COLOR TOKENS ─── */
+  :root {
+    --bg-base:    #14161c;
+    --bg-surface: #1e2130;
+    --bg-card:    #252a38;
+    --border:     rgba(255,255,255,.08);
+    --border-hi:  rgba(255,255,255,.15);
+    --text-1:     #f0f5fa;
+    --text-2:     #8090a0;
+    --accent-vis: #41b489;   /* VISUAL — verde */
+    --accent-mat: #64a0d7;   /* MATRIX — azul */
+    --accent-ana: #d78c3c;   /* ANÁLISIS — naranja */
+    --accent-mis: #5b8fff;   /* MISIONES — azul claro */
+    --gold:       #ffd700;
+    --points:     #2196f3;
+    --money:      #4caf50;
+    --danger:     #e74c3c;
+    --success:    #2ecc71;
+    --warn:       #f1c40f;
+  }
+
+  /* ─── ROBLOX TOP CHROME (simulado) ─── */
+  .roblox-chrome {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 36px;
+    background: rgba(0,0,0,.55);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+    z-index: 5;
+  }
+  .rb-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.2);
+  }
+
+  /* ─── TOP BAR ─── */
+  .top-bar {
+    position: absolute;
+    top: 36px; left: 0; right: 0;
+    height: 56px;
+    background: linear-gradient(180deg, rgba(14,16,22,.95) 0%, rgba(14,16,22,.85) 100%);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    gap: 10px;
+    z-index: 20;
+  }
+
+  .title-badge {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,.05);
+    border: 1px solid var(--border-hi);
+    border-radius: 8px;
+    padding: 6px 12px;
+    flex-shrink: 0;
+  }
+  .title-badge .icon { font-size: 16px; }
+  .title-badge .text {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-1);
+    letter-spacing: .03em;
+  }
+  .title-badge .sub {
+    font-size: 9px;
+    color: var(--text-2);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+
+  /* Score chips */
+  .score-strip {
+    display: flex;
+    gap: 6px;
+    flex: 1;
+    justify-content: center;
+  }
+  .score-chip {
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(255,255,255,.05);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 5px 10px;
+    min-width: 80px;
+  }
+  .score-chip .icon { font-size: 13px; }
+  .score-chip .value {
+    font-size: 14px; font-weight: 700;
+    color: var(--text-1);
+  }
+  .score-chip .label {
+    font-size: 8px;
+    color: var(--text-2);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+  .score-chip.stars .value { color: var(--gold); font-size: 16px; letter-spacing: 1px; }
+  .score-chip.pts   .value { color: var(--points); }
+  .score-chip.money .value { color: var(--money); }
+
+  /* Action buttons (top-right) */
+  .action-btns { display: flex; gap: 6px; flex-shrink: 0; }
+  .action-btn {
+    display: flex; align-items: center; gap: 5px;
+    border: none; border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 11px; font-weight: 700;
+    cursor: pointer;
+    letter-spacing: .04em;
+    transition: filter .15s, transform .1s;
+  }
+  .action-btn:hover { filter: brightness(1.15); transform: translateY(-1px); }
+  .action-btn.restart { background: rgba(241,196,15,.18); color: var(--warn); border: 1px solid rgba(241,196,15,.35); }
+  .action-btn.finish  { background: rgba(46,204,113,.22); color: var(--success); border: 1px solid rgba(46,204,113,.4); }
+
+  /* ─── MAIN BUTTON BAR ─── */
+  .main-bar {
+    position: absolute;
+    top: 100px; left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    background: rgba(14,16,22,.85);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--border-hi);
+    border-radius: 12px;
+    padding: 6px;
+    z-index: 20;
+  }
+  .main-btn {
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(255,255,255,.06);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 14px;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer;
+    color: var(--text-1);
+    transition: all .18s;
+    white-space: nowrap;
+  }
+  .main-btn:hover { background: rgba(255,255,255,.12); border-color: var(--border-hi); transform: translateY(-1px); }
+  .main-btn.vis  { color: var(--accent-vis); border-color: rgba(65,180,137,.3); }
+  .main-btn.mat  { color: var(--accent-mat); border-color: rgba(100,160,215,.3); }
+  .main-btn.ana  { color: var(--accent-ana); border-color: rgba(215,140,60,.3); }
+  .main-btn.mis  { color: var(--accent-mis); border-color: rgba(91,143,255,.3); }
+  .main-btn.vis:hover  { background: rgba(65,180,137,.12); }
+  .main-btn.mat:hover  { background: rgba(100,160,215,.12); }
+  .main-btn.ana:hover  { background: rgba(215,140,60,.12); }
+  .main-btn.mis:hover  { background: rgba(91,143,255,.12); }
+
+  /* ─── MODE SELECTOR (bottom-left) ─── */
+  .mode-sel {
+    position: absolute;
+    bottom: 14px; left: 14px;
+    display: flex;
+    gap: 4px;
+    background: rgba(14,16,22,.88);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--border-hi);
+    border-radius: 12px;
+    padding: 5px;
+    z-index: 20;
+  }
+  .mode-btn {
+    display: flex; align-items: center; gap: 5px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    padding: 7px 14px;
+    font-size: 11px; font-weight: 700;
+    cursor: pointer;
+    color: var(--text-2);
+    transition: all .2s;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+  .mode-btn:hover { color: var(--text-1); background: rgba(255,255,255,.06); }
+  .mode-btn.active-vis { color: var(--accent-vis); background: rgba(65,180,137,.14); border-color: rgba(65,180,137,.3); }
+  .mode-btn.active-mat { color: var(--accent-mat); background: rgba(100,160,215,.14); border-color: rgba(100,160,215,.3); }
+  .mode-btn.active-ana { color: var(--accent-ana); background: rgba(215,140,60,.14); border-color: rgba(215,140,60,.3); }
+  .mode-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .mode-btn.active-vis .mode-dot { background: var(--accent-vis); box-shadow: 0 0 6px var(--accent-vis); }
+  .mode-btn.active-mat .mode-dot { background: var(--accent-mat); box-shadow: 0 0 6px var(--accent-mat); }
+  .mode-btn.active-ana .mode-dot { background: var(--accent-ana); box-shadow: 0 0 6px var(--accent-ana); }
+  .mode-btn:not([class*="active"]) .mode-dot { background: rgba(255,255,255,.2); }
+
+  /* ─── MINI-MAP (bottom-right, VISUAL mode) ─── */
+  .minimap {
+    position: absolute;
+    bottom: 14px; right: 14px;
+    width: 210px;
+    background: rgba(14,16,22,.9);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border-hi);
+    border-radius: 12px;
+    overflow: hidden;
+    z-index: 20;
+  }
+  .minimap-header {
+    padding: 7px 10px;
+    background: rgba(65,180,137,.12);
+    border-bottom: 1px solid rgba(65,180,137,.2);
+    font-size: 9px; font-weight: 700;
+    color: var(--accent-vis);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .minimap-header::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--accent-vis); box-shadow: 0 0 6px var(--accent-vis); flex-shrink: 0; }
+  .minimap-viewport {
+    height: 140px;
+    background: radial-gradient(ellipse at center, #0e2030 0%, #060e15 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  /* Mini graph SVG placeholder */
+  .minimap-viewport svg { width: 90%; height: 90%; }
+  .minimap-footer {
+    padding: 8px 10px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .map-stat {
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 7px;
+    display: flex; flex-direction: column;
+    gap: 2px;
+  }
+  .map-stat .k { font-size: 8px; color: var(--text-2); text-transform: uppercase; letter-spacing: .06em; }
+  .map-stat .v { font-size: 13px; font-weight: 700; color: var(--text-1); }
+
+  /* ─── MATRIX PANEL (right side, MATRIX mode) ─── */
+  .matrix-panel {
+    position: absolute;
+    top: 96px; right: 14px;
+    width: 270px;
+    bottom: 14px;
+    background: rgba(14,16,22,.92);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(100,160,215,.25);
+    border-radius: 12px;
+    overflow: hidden;
+    z-index: 20;
+    display: flex; flex-direction: column;
+  }
+  .matrix-header {
+    padding: 10px 12px;
+    background: rgba(100,160,215,.1);
+    border-bottom: 1px solid rgba(100,160,215,.2);
+    font-size: 11px; font-weight: 700;
+    color: var(--accent-mat);
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .node-info {
+    margin: 8px;
+    background: rgba(100,160,215,.08);
+    border: 1px solid rgba(100,160,215,.2);
+    border-radius: 8px;
+    padding: 8px 10px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+  }
+  .ni-row { display: flex; justify-content: space-between; align-items: center; font-size: 10px; }
+  .ni-row .k { color: var(--text-2); }
+  .ni-row .v { color: var(--accent-mat); font-weight: 700; font-size: 11px; }
+  .matrix-scroll { flex: 1; overflow: auto; padding: 8px; }
+  .matrix-grid {
+    display: inline-grid;
+    gap: 2px;
+  }
+  .cell {
+    width: 26px; height: 26px;
+    border-radius: 4px;
+    font-size: 10px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: filter .15s;
+  }
+  .cell:hover { filter: brightness(1.3); }
+  .cell.header { background: rgba(52,152,219,.5); color: #fff; font-size: 9px; }
+  .cell.diag   { background: rgba(40,40,40,.8); color: rgba(255,255,255,.2); cursor: default; }
+  .cell.c1     { background: rgba(46,204,113,.6); color: #fff; }
+  .cell.c0     { background: rgba(50,50,60,.7); color: rgba(255,255,255,.25); }
+  .cell.sel-row { filter: brightness(1.4) saturate(1.5); outline: 1px solid var(--gold); }
+
+  /* ─── MISSIONS PANEL (left float) ─── */
+  .missions-panel {
+    position: absolute;
+    top: 96px; left: 14px;
+    width: 230px;
+    background: rgba(14,16,22,.92);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(91,143,255,.25);
+    border-radius: 12px;
+    overflow: hidden;
+    z-index: 25;
+    max-height: calc(100% - 115px);
+    display: flex; flex-direction: column;
+  }
+  .missions-header {
+    padding: 10px 12px;
+    background: rgba(91,143,255,.1);
+    border-bottom: 1px solid rgba(91,143,255,.2);
+    font-size: 11px; font-weight: 700;
+    color: var(--accent-mis);
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .missions-header .close-btn {
+    width: 22px; height: 22px;
+    background: rgba(231,76,60,.2);
+    border: 1px solid rgba(231,76,60,.3);
+    border-radius: 6px;
+    color: var(--danger);
+    font-size: 11px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .missions-header .close-btn:hover { background: rgba(231,76,60,.4); }
+  .missions-body { padding: 8px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  .zone-section { display: flex; flex-direction: column; gap: 4px; }
+  .zone-label {
+    font-size: 9px;
+    color: var(--text-2);
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    padding: 0 4px;
+    margin-top: 4px;
+  }
+  .mission-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 7px 9px;
+    font-size: 11px;
+    color: var(--text-1);
+    line-height: 1.35;
+    transition: background .15s;
+  }
+  .mission-item:hover { background: rgba(255,255,255,.07); }
+  .mission-item.done  { color: rgba(255,255,255,.4); }
+  .mission-item.done .m-check { color: var(--success); }
+  .m-check { flex-shrink: 0; font-size: 13px; margin-top: 1px; }
+  .bonus-sep {
+    font-size: 9px;
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    padding: 4px 4px 0;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .bonus-sep::before, .bonus-sep::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(255,215,0,.2);
+  }
+
+  /* ─── ANALYSIS OVERLAY (full) ─── */
+  .analysis-overlay {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,.78);
+    backdrop-filter: blur(4px);
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .analysis-panel {
+    width: 640px;
+    max-width: 90%;
+    background: rgba(20,22,30,.96);
+    border: 1px solid rgba(215,140,60,.3);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 24px 80px rgba(0,0,0,.8), 0 0 0 1px rgba(215,140,60,.15);
+  }
+  .analysis-head {
+    background: linear-gradient(135deg, rgba(215,140,60,.3) 0%, rgba(180,100,20,.2) 100%);
+    border-bottom: 1px solid rgba(215,140,60,.25);
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .analysis-head .title { font-size: 17px; font-weight: 800; color: var(--accent-ana); letter-spacing: .03em; }
+  .analysis-head .subtitle { font-size: 10px; color: var(--text-2); margin-top: 2px; text-transform: uppercase; letter-spacing: .08em; }
+  .analysis-close {
+    width: 28px; height: 28px;
+    background: rgba(231,76,60,.2);
+    border: 1px solid rgba(231,76,60,.35);
+    border-radius: 8px;
+    color: var(--danger);
+    font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  .analysis-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .step-indicator {
+    background: rgba(255,255,255,.05);
+    border: 1px solid var(--border-hi);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--text-1);
+    line-height: 1.5;
+  }
+  .step-indicator .step-n { color: var(--accent-ana); font-weight: 700; }
+  .data-panel {
+    background: rgba(10,12,18,.6);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .data-panel-head {
+    padding: 8px 12px;
+    background: rgba(100,160,215,.08);
+    border-bottom: 1px solid rgba(100,160,215,.15);
+    font-size: 9px; font-weight: 700;
+    color: var(--accent-mat);
+    text-transform: uppercase;
+    letter-spacing: .1em;
+  }
+  .data-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0;
+  }
+  .data-col {
+    padding: 10px 12px;
+    border-right: 1px solid var(--border);
+  }
+  .data-col:last-child { border-right: none; }
+  .data-col .dk { font-size: 9px; color: var(--text-2); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px; }
+  .data-col .dv { font-family: 'Consolas', monospace; font-size: 11px; color: var(--text-1); line-height: 1.8; }
+  .dv .hi { color: var(--accent-ana); font-weight: 700; }
+  .dv .vis { color: var(--accent-vis); }
+  .analysis-controls {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+  }
+  .ctrl-btn {
+    display: flex; align-items: center; gap: 6px;
+    border: none; border-radius: 8px;
+    padding: 9px 20px;
+    font-size: 12px; font-weight: 700;
+    cursor: pointer;
+    transition: filter .15s, transform .1s;
+    letter-spacing: .04em;
+  }
+  .ctrl-btn:hover { filter: brightness(1.15); transform: translateY(-1px); }
+  .ctrl-btn.prev   { background: rgba(241,196,15,.18); color: var(--warn); border: 1px solid rgba(241,196,15,.3); }
+  .ctrl-btn.next   { background: rgba(215,140,60,.22); color: var(--accent-ana); border: 1px solid rgba(215,140,60,.35); }
+  .ctrl-btn.exit   { background: rgba(231,76,60,.18); color: var(--danger); border: 1px solid rgba(231,76,60,.3); }
+
+  /* ─── VICTORY OVERLAY ─── */
+  .victory-overlay {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,.85);
+    backdrop-filter: blur(6px);
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .victory-panel {
+    width: 440px;
+    background: rgba(18,20,28,.97);
+    border: 1px solid rgba(255,215,0,.25);
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 0 120px rgba(255,215,0,.15), 0 30px 90px rgba(0,0,0,.8);
+  }
+  .victory-head {
+    background: linear-gradient(135deg, rgba(255,215,0,.2) 0%, rgba(255,160,0,.12) 100%);
+    border-bottom: 1px solid rgba(255,215,0,.2);
+    padding: 20px;
+    text-align: center;
+  }
+  .victory-title { font-size: 26px; font-weight: 900; color: var(--gold); letter-spacing: .05em; text-shadow: 0 0 30px rgba(255,215,0,.4); }
+  .victory-sub   { font-size: 11px; color: var(--text-2); text-transform: uppercase; letter-spacing: .12em; margin-top: 4px; }
+  .stars-row     { display: flex; justify-content: center; gap: 12px; margin-top: 16px; }
+  .star-icon     { font-size: 36px; filter: drop-shadow(0 0 8px rgba(255,215,0,.6)); }
+  .star-icon.dim { filter: grayscale(1) opacity(.3); }
+  .victory-stats {
+    padding: 16px 20px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .stat-row .sk { font-size: 12px; color: var(--text-2); }
+  .stat-row .sv { font-size: 14px; font-weight: 700; color: var(--text-1); }
+  .stat-row .sv.gold { color: var(--gold); font-size: 18px; }
+  .victory-btns {
+    padding: 0 20px 20px;
+    display: flex;
+    gap: 10px;
+  }
+  .v-btn {
+    flex: 1;
+    padding: 11px;
+    border: none;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: filter .15s, transform .1s;
+  }
+  .v-btn:hover { filter: brightness(1.15); transform: translateY(-1px); }
+  .v-btn.repeat { background: rgba(241,196,15,.2); color: var(--warn); border: 1px solid rgba(241,196,15,.3); }
+  .v-btn.next   { background: linear-gradient(135deg, rgba(65,180,137,.8), rgba(40,130,90,.8)); color: #fff; }
+
+  /* ─── GUIDE BEAM indicator (HUD) ─── */
+  .guide-hud {
+    position: absolute;
+    top: 148px; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255,215,0,.1);
+    border: 1px solid rgba(255,215,0,.3);
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 10px;
+    color: var(--gold);
+    font-weight: 600;
+    display: flex; align-items: center; gap: 6px;
+    z-index: 18;
+    animation: pulse-guide 2s ease-in-out infinite;
+  }
+  @keyframes pulse-guide {
+    0%, 100% { opacity: .7; }
+    50% { opacity: 1; box-shadow: 0 0 12px rgba(255,215,0,.25); }
+  }
+  .guide-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 6px var(--gold); }
+
+  /* ─── NOTIFICATIONS ─── */
+  .notif-stack {
+    position: absolute;
+    top: 100px; right: 14px;
+    display: flex; flex-direction: column; gap: 6px;
+    z-index: 22;
+    pointer-events: none;
+    width: 200px;
+  }
+  .notif {
+    background: rgba(14,16,22,.9);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 11px;
+    display: flex; align-items: center; gap: 8px;
+    border-left: 3px solid;
+    backdrop-filter: blur(8px);
+  }
+  .notif.success { border-color: var(--success); color: var(--success); }
+  .notif.info    { border-color: var(--accent-mis); color: var(--text-1); }
+  .notif .ni-text { color: var(--text-1); }
+
+  /* ─── TOOLTIP LEGEND ─── */
+  .legend {
+    position: absolute;
+    bottom: 70px; right: 14px;
+    background: rgba(14,16,22,.85);
+    border: 1px solid var(--border-hi);
+    border-radius: 8px;
+    padding: 8px 10px;
+    z-index: 18;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .legend-title { font-size: 8px; color: var(--text-2); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 2px; }
+  .legend-row { display: flex; align-items: center; gap: 7px; font-size: 9px; color: var(--text-2); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ─── DISPLAY TOGGLES ─── */
+  .hidden { display: none !important; }
+
+  /* ─── SCROLLBARS ─── */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.3); }
+</style>
+</head>
+<body>
+
+<!-- ─── META CONTROLS ─── -->
+<div class="meta-controls">
+  <span>Vista previa:</span>
+  <button class="meta-btn active" onclick="setMode('visual')">👁️ Modo Visual</button>
+  <button class="meta-btn" onclick="setMode('matrix')">📋 Modo Matriz</button>
+  <button class="meta-btn" onclick="setMode('analysis')">🔍 Modo Análisis</button>
+  <button class="meta-btn" onclick="setMode('victory')">🏆 Pantalla Victoria</button>
+  <span style="margin-left:8px">|</span>
+  <button class="meta-btn" id="btnMissions" onclick="toggleMissions()">📌 Misiones</button>
+  <button class="meta-btn" id="btnGuide" onclick="toggleGuide()">🧭 Guía activa</button>
+  <button class="meta-btn" id="btnNotif" onclick="toggleNotifs()">🔔 Notificaciones</button>
+</div>
+
+<!-- ─── GAME VIEWPORT ─── -->
+<div class="viewport" id="vp">
+
+  <!-- Fondo mundo 3D simulado -->
+  <div class="world-bg">
+    <div style="text-align:center">
+      <svg width="500" height="250" viewBox="0 0 500 250" style="opacity:.12">
+        <!-- Aristas -->
+        <line x1="110" y1="110" x2="240" y2="60"  stroke="#64a0d7" stroke-width="1.5" stroke-dasharray="6,3"/>
+        <line x1="110" y1="110" x2="150" y2="200" stroke="#64a0d7" stroke-width="1.5" stroke-dasharray="6,3"/>
+        <line x1="240" y1="60"  x2="380" y2="80"  stroke="#64a0d7" stroke-width="1.5" stroke-dasharray="6,3"/>
+        <line x1="240" y1="60"  x2="300" y2="160" stroke="#64a0d7" stroke-width="1.5" stroke-dasharray="6,3"/>
+        <line x1="380" y1="80"  x2="420" y2="190" stroke="#64a0d7" stroke-width="1.5" stroke-dasharray="6,3"/>
+        <line x1="300" y1="160" x2="420" y2="190" stroke="#64a0d7" stroke-width="1.5" stroke-dasharray="6,3"/>
+        <line x1="150" y1="200" x2="300" y2="160" stroke="#64a0d7" stroke-width="1.5" stroke-dasharray="6,3"/>
+        <!-- Nodos -->
+        <circle cx="110" cy="110" r="16" fill="rgba(33,150,243,.5)" stroke="#2196f3" stroke-width="1.5"/>
+        <text x="110" y="115" text-anchor="middle" fill="#fff" font-size="9" font-family="monospace">N1</text>
+        <circle cx="240" cy="60" r="16" fill="rgba(65,180,137,.6)" stroke="#41b489" stroke-width="2"/>
+        <text x="240" y="65" text-anchor="middle" fill="#fff" font-size="9" font-family="monospace">N2</text>
+        <circle cx="380" cy="80" r="16" fill="rgba(33,150,243,.5)" stroke="#2196f3" stroke-width="1.5"/>
+        <text x="380" y="85" text-anchor="middle" fill="#fff" font-size="9" font-family="monospace">N3</text>
+        <circle cx="300" cy="160" r="16" fill="rgba(46,204,113,.5)" stroke="#2ecc71" stroke-width="1.5"/>
+        <text x="300" y="165" text-anchor="middle" fill="#fff" font-size="9" font-family="monospace">N4</text>
+        <circle cx="150" cy="200" r="16" fill="rgba(33,150,243,.4)" stroke="#2196f3" stroke-width="1.5"/>
+        <text x="150" y="205" text-anchor="middle" fill="#fff" font-size="9" font-family="monospace">N5</text>
+        <circle cx="420" cy="190" r="18" fill="rgba(255,128,0,.5)" stroke="#ff8000" stroke-width="2"/>
+        <text x="420" y="195" text-anchor="middle" fill="#fff" font-size="8" font-family="monospace">META</text>
+      </svg>
+      <div class="world-hint">MUNDO 3D — ROBLOX</div>
+    </div>
+  </div>
+
+  <!-- ─── CHROME ROBLOX ─── -->
+  <div class="roblox-chrome">
+    <div class="rb-dot"></div><div class="rb-dot"></div><div class="rb-dot"></div>
+    <div class="rb-dot"></div><div class="rb-dot"></div>
+  </div>
+
+  <!-- ─── TOP BAR ─── -->
+  <div class="top-bar">
+    <div class="title-badge">
+      <span class="icon">📊</span>
+      <div>
+        <div class="text">Explorador de Grafos</div>
+        <div class="sub">Zona 1 — Estación</div>
+      </div>
+    </div>
+
+    <div class="score-strip">
+      <div class="score-chip stars">
+        <span class="icon">⭐</span>
+        <div>
+          <div class="value">⭐⭐☆</div>
+          <div class="label">Estrellas</div>
+        </div>
+      </div>
+      <div class="score-chip pts">
+        <span class="icon">🏆</span>
+        <div>
+          <div class="value">1,250</div>
+          <div class="label">Puntos</div>
+        </div>
+      </div>
+      <div class="score-chip money">
+        <span class="icon">💰</span>
+        <div>
+          <div class="value">$340</div>
+          <div class="label">Dinero</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="action-btns">
+      <button class="action-btn restart">🔄 Reiniciar</button>
+      <button class="action-btn finish">✓ Finalizar</button>
+    </div>
+  </div>
+
+  <!-- ─── MAIN BUTTON BAR ─── -->
+  <div class="main-bar">
+    <button class="main-btn ana" onclick="setMode('analysis')">🎯 Algoritmo</button>
+    <button class="main-btn vis" id="btnMapaMain" onclick="setMode('visual')">🗺️ Mapa</button>
+    <button class="main-btn mat" onclick="setMode('matrix')">📋 Matriz</button>
+    <button class="main-btn mis" onclick="toggleMissions()">📌 Misiones</button>
+  </div>
+
+  <!-- ─── GUIDE HUD ─── -->
+  <div class="guide-hud hidden" id="guideHud">
+    <div class="guide-dot"></div>
+    🧭 Dirígete a: <strong>Nodo Central</strong>
+  </div>
+
+  <!-- ─── MISSIONS PANEL ─── -->
+  <div class="missions-panel hidden" id="missionsPanel">
+    <div class="missions-header">
+      <span>📋 MISIONES</span>
+      <div class="close-btn" onclick="toggleMissions()">✕</div>
+    </div>
+    <div class="missions-body">
+      <div class="zone-section">
+        <div class="zone-label">📍 Zona 1 — Estación</div>
+        <div class="mission-item done">
+          <span class="m-check">✅</span>
+          <span>Conectar Nodo 1 con Nodo 2</span>
+        </div>
+        <div class="mission-item done">
+          <span class="m-check">✅</span>
+          <span>Identificar el nodo de mayor grado</span>
+        </div>
+        <div class="mission-item">
+          <span class="m-check">◻</span>
+          <span>Completar el recorrido BFS desde el nodo inicial</span>
+        </div>
+        <div class="mission-item">
+          <span class="m-check">◻</span>
+          <span>Encontrar el camino más corto a META</span>
+        </div>
+      </div>
+      <div class="bonus-sep">⭐ BONUS</div>
+      <div class="mission-item">
+        <span class="m-check">◻</span>
+        <span>Completar sin errores</span>
+      </div>
+      <div class="mission-item done">
+        <span class="m-check">✅</span>
+        <span>Explorar todos los nodos del grafo</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── MINI-MAP (VISUAL mode) ─── -->
+  <div class="minimap" id="minimap">
+    <div class="minimap-header">Mapa en Vivo — Grafo</div>
+    <div class="minimap-viewport">
+      <svg viewBox="0 0 200 130">
+        <line x1="40"  y1="65"  x2="100" y2="30"  stroke="#64a0d7" stroke-width="1.5"/>
+        <line x1="40"  y1="65"  x2="60"  y2="110" stroke="#64a0d7" stroke-width="1.5"/>
+        <line x1="100" y1="30"  x2="160" y2="45"  stroke="#64a0d7" stroke-width="1.5"/>
+        <line x1="100" y1="30"  x2="120" y2="90"  stroke="#64a0d7" stroke-width="1.5"/>
+        <line x1="160" y1="45"  x2="175" y2="105" stroke="#64a0d7" stroke-width="1.5"/>
+        <line x1="120" y1="90"  x2="175" y2="105" stroke="#64a0d7" stroke-width="1.5"/>
+        <line x1="60"  y1="110" x2="120" y2="90"  stroke="#64a0d7" stroke-width="1.5"/>
+        <!-- Nodos -->
+        <circle cx="40"  cy="65"  r="9" fill="#2196f3" opacity=".8"/>
+        <circle cx="100" cy="30"  r="10" fill="#41b489" opacity=".9"/>
+        <circle cx="160" cy="45"  r="9" fill="#2196f3" opacity=".8"/>
+        <circle cx="120" cy="90"  r="9" fill="#2ecc71" opacity=".8"/>
+        <circle cx="60"  cy="110" r="9" fill="#2196f3" opacity=".8"/>
+        <circle cx="175" cy="105" r="11" fill="#ff8000" opacity=".85" stroke="#ffd700" stroke-width="1.5"/>
+        <!-- Labels -->
+        <text x="40"  y="68"  text-anchor="middle" fill="#fff" font-size="6" font-family="monospace">N1</text>
+        <text x="100" y="33"  text-anchor="middle" fill="#fff" font-size="6" font-family="monospace">N2</text>
+        <text x="160" y="48"  text-anchor="middle" fill="#fff" font-size="6" font-family="monospace">N3</text>
+        <text x="120" y="93"  text-anchor="middle" fill="#fff" font-size="6" font-family="monospace">N4</text>
+        <text x="60"  y="113" text-anchor="middle" fill="#fff" font-size="6" font-family="monospace">N5</text>
+        <text x="175" y="108" text-anchor="middle" fill="#fff" font-size="5.5" font-family="monospace">META</text>
+      </svg>
+    </div>
+    <div class="minimap-footer">
+      <div class="map-stat"><div class="k">Nodos</div><div class="v">6</div></div>
+      <div class="map-stat"><div class="k">Aristas</div><div class="v">7</div></div>
+      <div class="map-stat"><div class="k">Tipo</div><div class="v" style="font-size:10px">Dirigido</div></div>
+      <div class="map-stat"><div class="k">Visitados</div><div class="v" style="color:var(--accent-vis)">3/6</div></div>
+    </div>
+  </div>
+
+  <!-- ─── MATRIX PANEL (MATRIX mode) ─── -->
+  <div class="matrix-panel hidden" id="matrixPanel">
+    <div class="matrix-header">📋 Matriz de Adyacencia</div>
+    <div class="node-info">
+      <div class="ni-row"><span class="k">Nodo</span><span class="v">N2</span></div>
+      <div class="ni-row"><span class="k">Grado</span><span class="v">3</span></div>
+      <div class="ni-row"><span class="k">Entrada</span><span class="v">1</span></div>
+      <div class="ni-row"><span class="k">Salida</span><span class="v">2</span></div>
+    </div>
+    <div class="matrix-scroll">
+      <!-- 6×6 matrix: N1 N2 N3 N4 N5 META -->
+      <div class="matrix-grid" style="grid-template-columns: repeat(7,26px)">
+        <!-- Header row -->
+        <div class="cell" style="background:transparent"></div>
+        <div class="cell header">N1</div>
+        <div class="cell header sel-row">N2</div>
+        <div class="cell header">N3</div>
+        <div class="cell header">N4</div>
+        <div class="cell header">N5</div>
+        <div class="cell header">MT</div>
+        <!-- Row N1 -->
+        <div class="cell header">N1</div>
+        <div class="cell diag">—</div>
+        <div class="cell c1 sel-row">1</div>
+        <div class="cell c0">0</div>
+        <div class="cell c0">0</div>
+        <div class="cell c0">0</div>
+        <div class="cell c0">0</div>
+        <!-- Row N2 (selected) -->
+        <div class="cell header sel-row">N2</div>
+        <div class="cell c0 sel-row">0</div>
+        <div class="cell diag sel-row">—</div>
+        <div class="cell c1 sel-row">1</div>
+        <div class="cell c1 sel-row">1</div>
+        <div class="cell c0 sel-row">0</div>
+        <div class="cell c0 sel-row">0</div>
+        <!-- Row N3 -->
+        <div class="cell header">N3</div>
+        <div class="cell c0">0</div>
+        <div class="cell c0 sel-row">0</div>
+        <div class="cell diag">—</div>
+        <div class="cell c0">0</div>
+        <div class="cell c0">0</div>
+        <div class="cell c1">1</div>
+        <!-- Row N4 -->
+        <div class="cell header">N4</div>
+        <div class="cell c0">0</div>
+        <div class="cell c0 sel-row">0</div>
+        <div class="cell c0">0</div>
+        <div class="cell diag">—</div>
+        <div class="cell c0">0</div>
+        <div class="cell c1">1</div>
+        <!-- Row N5 -->
+        <div class="cell header">N5</div>
+        <div class="cell c0">0</div>
+        <div class="cell c0 sel-row">0</div>
+        <div class="cell c0">0</div>
+        <div class="cell c1">1</div>
+        <div class="cell diag">—</div>
+        <div class="cell c0">0</div>
+        <!-- Row META -->
+        <div class="cell header">MT</div>
+        <div class="cell c0">0</div>
+        <div class="cell c0 sel-row">0</div>
+        <div class="cell c0">0</div>
+        <div class="cell c0">0</div>
+        <div class="cell c0">0</div>
+        <div class="cell diag">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── ANALYSIS OVERLAY (ANALYSIS mode) ─── -->
+  <div class="analysis-overlay hidden" id="analysisOverlay">
+    <div class="analysis-panel">
+      <div class="analysis-head">
+        <div>
+          <div class="title">🎯 EJECUCIÓN: BFS</div>
+          <div class="subtitle">Búsqueda en Anchura — Grafo Zona 1</div>
+        </div>
+        <div class="analysis-close" onclick="setMode('visual')">✕</div>
+      </div>
+      <div class="analysis-body">
+        <div class="step-indicator">
+          <span class="step-n">Paso 4:</span> Procesando nodo <strong>N2</strong> — explorando vecinos N3 y N4
+        </div>
+        <div class="data-panel">
+          <div class="data-panel-head">📊 Estado actual del algoritmo</div>
+          <div class="data-grid">
+            <div class="data-col">
+              <div class="dk">Cola (Queue)</div>
+              <div class="dv">
+                <span class="hi">N3</span><br>
+                N4<br>
+                N5
+              </div>
+            </div>
+            <div class="data-col">
+              <div class="dk">Visitados</div>
+              <div class="dv">
+                <span class="vis">N1</span><br>
+                <span class="vis">N2</span><br>
+                <span style="color:var(--text-2)">···</span>
+              </div>
+            </div>
+            <div class="data-col">
+              <div class="dk">Distancias</div>
+              <div class="dv">
+                N1: <span class="vis">0</span><br>
+                N2: <span class="vis">1</span><br>
+                N3: <span class="hi">2</span><br>
+                N4: <span class="hi">2</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="analysis-controls">
+          <button class="ctrl-btn prev">⬅ Anterior</button>
+          <button class="ctrl-btn next">Siguiente ➡</button>
+          <button class="ctrl-btn exit" onclick="setMode('visual')">✕ Salir</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── VICTORY OVERLAY ─── -->
+  <div class="victory-overlay hidden" id="victoryOverlay">
+    <div class="victory-panel">
+      <div class="victory-head">
+        <div class="victory-title">¡NIVEL COMPLETADO!</div>
+        <div class="victory-sub">Zona 1 — Estación Superada</div>
+        <div class="stars-row">
+          <span class="star-icon">⭐</span>
+          <span class="star-icon">⭐</span>
+          <span class="star-icon dim">⭐</span>
+        </div>
+      </div>
+      <div class="victory-stats">
+        <div class="stat-row">
+          <span class="sk">⏱ Tiempo</span>
+          <span class="sv">2:34</span>
+        </div>
+        <div class="stat-row">
+          <span class="sk">🔗 Conexiones correctas</span>
+          <span class="sv" style="color:var(--success)">7 / 7</span>
+        </div>
+        <div class="stat-row">
+          <span class="sk">❌ Errores</span>
+          <span class="sv" style="color:var(--danger)">2</span>
+        </div>
+        <div class="stat-row">
+          <span class="sk">🏆 Puntaje Final</span>
+          <span class="sv gold">1,250</span>
+        </div>
+      </div>
+      <div class="victory-btns">
+        <button class="v-btn repeat" onclick="setMode('visual')">🔄 Repetir</button>
+        <button class="v-btn next" onclick="setMode('visual')">Continuar ➡</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── NOTIFICATIONS ─── -->
+  <div class="notif-stack hidden" id="notifStack">
+    <div class="notif success">✅ <span class="ni-text">¡Misión completada!</span></div>
+    <div class="notif info">🧭 <span class="ni-text">Nueva zona desbloqueada</span></div>
+  </div>
+
+  <!-- ─── NODE LEGEND (VISUAL mode) ─── -->
+  <div class="legend" id="legend">
+    <div class="legend-title">Leyenda de nodos</div>
+    <div class="legend-row"><div class="dot" style="background:#2196f3"></div> Inicial</div>
+    <div class="legend-row"><div class="dot" style="background:#2ecc71"></div> Energizado</div>
+    <div class="legend-row"><div class="dot" style="background:#ffd700"></div> Adyacente</div>
+    <div class="legend-row"><div class="dot" style="background:#ff8000"></div> Meta</div>
+    <div class="legend-row"><div class="dot" style="background:#e74c3c"></div> Aislado</div>
+  </div>
+
+  <!-- ─── MODE SELECTOR ─── -->
+  <div class="mode-sel">
+    <button class="mode-btn active-vis" id="mVisual" onclick="setMode('visual')">
+      <div class="mode-dot"></div>Visual
+    </button>
+    <button class="mode-btn" id="mMatrix" onclick="setMode('matrix')">
+      <div class="mode-dot"></div>Matriz
+    </button>
+    <button class="mode-btn" id="mAnalysis" onclick="setMode('analysis')">
+      <div class="mode-dot"></div>Análisis
+    </button>
+  </div>
+
+</div><!-- /viewport -->
+
+<!-- ─── DESIGN NOTES ─── -->
+<div style="width:960px;max-width:100%;background:#1a1d25;border:1px solid #2a2d3a;border-radius:12px;padding:16px 20px;font-size:12px;color:#8090a0;line-height:1.7">
+  <strong style="color:#f0f5fa;font-size:13px">Cambios de diseño vs versión actual</strong><br><br>
+  <strong style="color:#64a0d7">Top Bar:</strong> Zona activa visible en el título · Chips de score con icono + valor + etiqueta · Botones de acción con color semántico (warn/success)<br>
+  <strong style="color:#41b489">Barra principal:</strong> Botones con color por modo (visual=verde, matriz=azul, análisis=naranja, misiones=índigo) · Sin hover opaco — glassmorphism sutil<br>
+  <strong style="color:#d78c3c">Matrix Panel:</strong> Info del nodo seleccionado (grado entrada/salida) · Resaltado de fila+columna simultáneo · Fondo tipo terminal<br>
+  <strong style="color:#5b8fff">Misiones:</strong> Separación visual por zona + separador BONUS · Borde izquierdo de colores por estado<br>
+  <strong style="color:#ffd700">Análisis:</strong> Panel de estado en 3 columnas (Cola / Visitados / Distancias) · Color coding por tipo de dato<br>
+  <strong style="color:#2ecc71">Victoria:</strong> Fondo con glow dorado · Estrellas con drop-shadow · Stats en tarjetas separadas<br>
+  <strong style="color:#e74c3c">Notificaciones:</strong> Stack en esquina superior derecha · Borde izquierdo semántico · Auto-dismiss (implementar en Lua)<br>
+  <strong style="color:#ff8000">Leyenda:</strong> Panel compacto con color coding de nodos · Siempre visible en VISUAL
+</div>
+
+<script>
+  let currentMode = 'visual';
+  let missionsOpen = false;
+  let guideActive = false;
+  let notifsActive = false;
+
+  function setMode(mode) {
+    currentMode = mode;
+
+    // Panels
+    document.getElementById('minimap').classList.toggle('hidden',      mode !== 'visual');
+    document.getElementById('matrixPanel').classList.toggle('hidden',  mode !== 'matrix');
+    document.getElementById('analysisOverlay').classList.toggle('hidden', mode !== 'analysis');
+    document.getElementById('victoryOverlay').classList.toggle('hidden',  mode !== 'victory');
+    document.getElementById('legend').classList.toggle('hidden',       mode !== 'visual');
+    document.getElementById('btnMapaMain').classList.toggle('hidden',  mode === 'matrix');
+
+    // Mode buttons styling
+    const mVisual   = document.getElementById('mVisual');
+    const mMatrix   = document.getElementById('mMatrix');
+    const mAnalysis = document.getElementById('mAnalysis');
+    mVisual.className   = 'mode-btn' + (mode === 'visual'    ? ' active-vis' : '');
+    mMatrix.className   = 'mode-btn' + (mode === 'matrix'    ? ' active-mat' : '');
+    mAnalysis.className = 'mode-btn' + (mode === 'analysis'  ? ' active-ana' : '');
+
+    // Meta buttons
+    document.querySelectorAll('.meta-btn').forEach(b => b.classList.remove('active'));
+    const map = { visual:'Modo Visual', matrix:'Modo Matriz', analysis:'Modo Análisis', victory:'Pantalla Victoria' };
+    document.querySelectorAll('.meta-btn').forEach(b => {
+      if (b.textContent.includes(map[mode] || '')) b.classList.add('active');
+    });
+  }
+
+  function toggleMissions() {
+    missionsOpen = !missionsOpen;
+    document.getElementById('missionsPanel').classList.toggle('hidden', !missionsOpen);
+    document.getElementById('btnMissions').classList.toggle('active', missionsOpen);
+  }
+
+  function toggleGuide() {
+    guideActive = !guideActive;
+    document.getElementById('guideHud').classList.toggle('hidden', !guideActive);
+    document.getElementById('btnGuide').classList.toggle('active', guideActive);
+  }
+
+  function toggleNotifs() {
+    notifsActive = !notifsActive;
+    document.getElementById('notifStack').classList.toggle('hidden', !notifsActive);
+    document.getElementById('btnNotif').classList.toggle('active', notifsActive);
+  }
+
+  // Init
+  setMode('visual');
+</script>
+</body>
+</html>

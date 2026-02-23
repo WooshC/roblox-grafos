@@ -179,13 +179,16 @@ local function crearGUIExplorador()
 	gui.Name = "GUIExplorador"
 	gui.ResetOnSpawn = false
 	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	gui.IgnoreGuiInset = true   -- posición relativa a la pantalla real, no al inset del chat
 	gui.Parent = ServicioGui
 	gui.Enabled = false
 
 	-- ═══════════════════════════════════════════════════════════════
 	-- BARRA SUPERIOR (TOP BAR)
 	-- ═══════════════════════════════════════════════════════════════
-	local barraSuperior = FabricaComponentes.Marco("BarraSuperior", gui, UDim2.new(1, -40, 0, 60), UDim2.new(0, 20, 0, 15))
+	-- Y=40 deja la barra justo debajo de la barra superior de Roblox (~36px),
+	-- sin que los botones del chat o emotes la empujen hacia abajo.
+	local barraSuperior = FabricaComponentes.Marco("BarraSuperior", gui, UDim2.new(1, -40, 0, 60), UDim2.new(0, 20, 0, 40))
 
 	local distribucionBarraSuperior = Instance.new("UIListLayout")
 	distribucionBarraSuperior.FillDirection = Enum.FillDirection.Horizontal

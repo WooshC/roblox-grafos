@@ -67,20 +67,25 @@ local function setPlayerMovementLocked(locked)
 
 	if locked then
 		-- Guardar estado original en atributos del Humanoid para restaurar después
-		humanoid:SetAttribute("_dlg_JumpPower", humanoid.JumpPower)
+		humanoid:SetAttribute("_dlg_JumpPower",  humanoid.JumpPower)
 		humanoid:SetAttribute("_dlg_JumpHeight", humanoid.JumpHeight)
+		humanoid:SetAttribute("_dlg_WalkSpeed",  humanoid.WalkSpeed)
 		humanoid.JumpPower  = 0
 		humanoid.JumpHeight = 0
-		print("🔒 DialogueVisibilityManager: Salto bloqueado")
+		humanoid.WalkSpeed  = 0   -- inmovilizar completamente durante el diálogo
+		print("🔒 DialogueVisibilityManager: Movimiento bloqueado")
 	else
 		-- Restaurar valores originales (o valores por defecto de Roblox si no se guardaron)
 		local savedJumpPower  = humanoid:GetAttribute("_dlg_JumpPower")
 		local savedJumpHeight = humanoid:GetAttribute("_dlg_JumpHeight")
+		local savedWalkSpeed  = humanoid:GetAttribute("_dlg_WalkSpeed")
 		humanoid.JumpPower  = savedJumpPower  or 50
 		humanoid.JumpHeight = savedJumpHeight or 7.2
+		humanoid.WalkSpeed  = savedWalkSpeed  or 16
 		humanoid:SetAttribute("_dlg_JumpPower",  nil)
 		humanoid:SetAttribute("_dlg_JumpHeight", nil)
-		print("🔓 DialogueVisibilityManager: Salto restaurado")
+		humanoid:SetAttribute("_dlg_WalkSpeed",  nil)
+		print("🔓 DialogueVisibilityManager: Movimiento restaurado")
 	end
 end
 

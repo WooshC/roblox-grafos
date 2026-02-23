@@ -184,7 +184,8 @@ LevelsConfig[0] = {
 	Guia = {
 		-- 1. Hablar con Carlos
 		{
-			ID = "carlos",
+			ID    = "carlos",
+			Label = "Hablar con Carlos",  -- texto del BillboardGui
 			WaypointRef = {
 				Tipo   = "PART_EXISTENTE",
 				Nombre = "Objetivo_Carlos",   -- Part colocada manualmente en workspace.Objetivos
@@ -204,6 +205,7 @@ LevelsConfig[0] = {
 		--      Cambiar Ruta por: Nombre = "Nodo1_z1"
 		{
 			ID = "zona1",
+			Zona = "Zona_Estacion_1",     -- ← GuiaService avanzará automáticamente al completar todas sus misiones
 			WaypointRef = {
 				Tipo     = "PART_DIRECTA",
 				BuscarEn = "NIVEL_ACTUAL",
@@ -212,12 +214,11 @@ LevelsConfig[0] = {
 				-- Nombre = "Nodo1_z1",
 			},
 			DestruirAlCompletar = false,  -- SIEMPRE false con PART_DIRECTA
-			-- Disparar: GuiaAvanzar:Fire("zona1")
-			-- Dónde: cuando el jugador complete las misiones de Zona_Estacion_1
 		},
 		-- 3. Ir a Zona 2 (Grado de Nodo)
 		{
 			ID = "zona2",
+			Zona = "Zona_Estacion_2",
 			WaypointRef = {
 				Tipo      = "SOBRE_OBJETO",
 				Nombre    = "Zona_Estacion_2",
@@ -225,11 +226,11 @@ LevelsConfig[0] = {
 				OffsetY   = 6,
 			},
 			DestruirAlCompletar = true,
-			-- Disparar: GuiaAvanzar:Fire("zona2")
 		},
 		-- 4. Ir a Zona 3 (Grafos Dirigidos)
 		{
 			ID = "zona3",
+			Zona = "Zona_Estacion_3",
 			WaypointRef = {
 				Tipo      = "SOBRE_OBJETO",
 				Nombre    = "Zona_Estacion_3",
@@ -237,11 +238,11 @@ LevelsConfig[0] = {
 				OffsetY   = 6,
 			},
 			DestruirAlCompletar = true,
-			-- Disparar: GuiaAvanzar:Fire("zona3")
 		},
 		-- 5. Ir a Zona 4 (Conectividad)
 		{
 			ID = "zona4",
+			Zona = "Zona_Estacion_4",
 			WaypointRef = {
 				Tipo      = "SOBRE_OBJETO",
 				Nombre    = "Zona_Estacion_4",
@@ -249,8 +250,6 @@ LevelsConfig[0] = {
 				OffsetY   = 6,
 			},
 			DestruirAlCompletar = false,  -- último objetivo; no se destruye automáticamente
-			-- Disparar: GuiaAvanzar:Fire("zona4")
-			-- Dónde: cuando el jugador complete las misiones de Zona_Estacion_4
 		},
 	},
 

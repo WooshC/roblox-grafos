@@ -1,5 +1,6 @@
 local dialogueKitModule = require(script.Parent.Parent.DialogueKit)
 local DialogueGenerator = require(script.Parent.DialogueGenerator)
+local desbloquearZona = require(game:GetService("ReplicatedStorage"):WaitForChild("DesbloquearZona"))
 
 local VisualEffectsService = require(
 	game:GetService("StarterPlayer"):WaitForChild("StarterPlayerScripts")
@@ -256,8 +257,7 @@ local DATA_DIALOGOS = {
 		Evento = function()
 			VisualEffectsService:clearEffects()
 			VisualEffectsService:restoreCamera()
-			-- ✅ El techo lo restaura DialogueVisibilityManager:onDialogueEnd()
-			-- No llamamos toggleTecho(true) aquí para evitar doble restauración
+			desbloquearZona("Bloqueo_zona_2")
 		end,
 		Siguiente = "FIN"
 	}
