@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EDA Quest — Sistema de Diálogos</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=Orbitron:wght@600;900&family=JetBrains+Mono:wght@400;700&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #06090f;
+  --surface:  #0d1421;
+  --panel:    #111c2e;
+  --border:   #1a2d47;
+  --hi:       #243d60;
+  --accent:   #00cfff;
+  --accent2:  #7c3aed;
+  --green:    #00e5a0;
+  --gold:     #fbbf24;
+  --danger:   #f43f5e;
+  --text:     #dde9f5;
+  --muted:    #5a7a9e;
+  --dim:      #2a3f58;
+}
+
+html, body {
+  width: 100%; height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Sora', sans-serif;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* ─── SCENE BACKGROUND ─── */
+.scene {
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 100%, rgba(0,207,255,.07) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 40% at 20% 30%, rgba(124,58,237,.06) 0%, transparent 60%),
+    linear-gradient(180deg, #06090f 0%, #0a1120 100%);
+}
+
+.grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(0,207,255,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,207,255,.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,.5) 40%, rgba(0,0,0,.8) 100%);
+}
+
+.scanlines {
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent, transparent 3px,
+    rgba(0,0,0,.06) 3px, rgba(0,0,0,.06) 4px
+  );
+  pointer-events: none;
+}
+
+/* ─── GAME WORLD (placeholder scene) ─── */
+.world {
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 0;
+}
+
+.world-scene {
+  width: 100%; height: 100%;
+  background:
+    linear-gradient(180deg,
+      #060c18 0%,
+      #0a1628 30%,
+      #0d1f3a 60%,
+      #0a1a2e 100%
+    );
+  position: relative; overflow: hidden;
+}
+
+/* Ambient city silhouette */
+.city-silhouette {
+  position: absolute; bottom: 32%; left: 0; right: 0;
+  height: 200px;
+  background: #06090f;
+  clip-path: polygon(
+    0% 100%, 0% 60%, 3% 60%, 3% 30%, 6% 30%, 6% 50%, 9% 50%, 9% 20%,
+    11% 20%, 11% 45%, 14% 45%, 14% 15%, 17% 15%, 17% 40%, 20% 40%, 20% 25%,
+    23% 25%, 23% 10%, 26% 10%, 26% 35%, 29% 35%, 29% 20%, 32% 20%, 32% 50%,
+    35% 50%, 35% 30%, 38% 30%, 38% 60%, 41% 60%, 41% 35%, 44% 35%, 44% 45%,
+    47% 45%, 47% 18%, 50% 18%, 50% 40%, 53% 40%, 53% 25%, 56% 25%, 56% 55%,
+    59% 55%, 59% 35%, 62% 35%, 62% 20%, 65% 20%, 65% 42%, 68% 42%, 68% 28%,
+    71% 28%, 71% 48%, 74% 48%, 74% 32%, 77% 32%, 77% 15%, 80% 15%, 80% 38%,
+    83% 38%, 83% 22%, 86% 22%, 86% 50%, 89% 50%, 89% 35%, 92% 35%, 92% 60%,
+    95% 60%, 95% 42%, 97% 42%, 97% 55%, 100% 55%, 100% 100%
+  );
+  opacity: .7;
+}
+
+.city-glow {
+  position: absolute; bottom: 32%; left: 0; right: 0; height: 60px;
+  background: linear-gradient(to top, rgba(0,207,255,.12), transparent);
+}
+
+/* Floating particles */
+.particle {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: particleFloat linear infinite;
+}
+@keyframes particleFloat {
+  from { transform: translateY(100vh) translateX(0); opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  to   { transform: translateY(-10vh) translateX(30px); opacity: 0; }
+}
+
+/* Stars */
+.stars {
+  position: absolute; inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 15% 12%, rgba(255,255,255,.4) 0%, transparent 100%),
+    radial-gradient(1px 1px at 35% 8%,  rgba(255,255,255,.3) 0%, transparent 100%),
+    radial-gradient(1px 1px at 55% 18%, rgba(255,255,255,.5) 0%, transparent 100%),
+    radial-gradient(1px 1px at 72% 5%,  rgba(255,255,255,.3) 0%, transparent 100%),
+    radial-gradient(1px 1px at 88% 14%, rgba(255,255,255,.4) 0%, transparent 100%),
+    radial-gradient(1px 1px at 22% 25%, rgba(255,255,255,.2) 0%, transparent 100%),
+    radial-gradient(1px 1px at 48% 30%, rgba(255,255,255,.3) 0%, transparent 100%),
+    radial-gradient(1px 1px at 65% 22%, rgba(255,255,255,.2) 0%, transparent 100%),
+    radial-gradient(2px 2px at 8%  6%,  rgba(0,207,255,.6)  0%, transparent 100%),
+    radial-gradient(2px 2px at 92% 10%, rgba(124,58,237,.5) 0%, transparent 100%);
+}
+
+/* ─── CHARACTER AREA ─── */
+.character-area {
+  position: fixed;
+  bottom: 220px;
+  left: 80px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  transition: transform .5s cubic-bezier(.16,1,.3,1), opacity .4s;
+}
+.character-area.hidden {
+  transform: translateY(30px);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Character portrait frame */
+.portrait-frame {
+  width: 140px;
+  height: 170px;
+  position: relative;
+  cursor: pointer;
+}
+.portrait-border {
+  position: absolute; inset: 0;
+  border: 1.5px solid var(--accent);
+  border-radius: 10px 10px 0 0;
+  clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 0 100%);
+  box-shadow:
+    0 0 0 1px rgba(0,207,255,.15),
+    inset 0 0 20px rgba(0,207,255,.05),
+    0 -8px 40px rgba(0,207,255,.15);
+}
+.portrait-corner {
+  position: absolute; top: 0; right: 0;
+  width: 20px; height: 20px;
+  border-bottom: 1.5px solid var(--accent);
+  border-left: 1.5px solid var(--accent);
+  background: var(--surface);
+}
+.portrait-bg {
+  position: absolute; inset: 1.5px;
+  border-radius: 9px 9px 0 0;
+  background: linear-gradient(180deg, #0d1a2e 0%, #091424 100%);
+  overflow: hidden;
+  clip-path: polygon(0 0, calc(100% - 19px) 0, 100% 19px, 100% 100%, 0 100%);
+}
+
+/* Character face / sprite placeholder */
+.char-sprite {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: flex-end;
+  padding-bottom: 0;
+}
+.char-body {
+  font-size: 72px;
+  line-height: 1;
+  animation: charFloat 3s ease-in-out infinite;
+  filter: drop-shadow(0 0 20px rgba(0,207,255,.4));
+}
+@keyframes charFloat {
+  0%,100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+.char-glow {
+  position: absolute; bottom: -10px; left: 50%;
+  transform: translateX(-50%);
+  width: 80px; height: 20px;
+  background: radial-gradient(ellipse, rgba(0,207,255,.35) 0%, transparent 70%);
+  border-radius: 50%;
+}
+
+/* Expression indicator */
+.char-expression {
+  position: absolute; top: 8px; left: 8px;
+  font-size: 9px; font-family: 'JetBrains Mono', monospace;
+  color: var(--accent); letter-spacing: 1px;
+  background: rgba(0,207,255,.1);
+  border: 1px solid rgba(0,207,255,.25);
+  border-radius: 3px; padding: 2px 6px;
+  text-transform: uppercase;
+}
+
+/* Portrait base / name plate */
+.portrait-nameplate {
+  width: 140px;
+  background: var(--accent);
+  padding: 5px 12px;
+  border-radius: 0 0 6px 6px;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 6px) 100%, 6px 100%);
+}
+.portrait-name {
+  font-family: 'Orbitron', monospace;
+  font-size: 9px; font-weight: 600;
+  letter-spacing: 2px; color: #000;
+  text-align: center; text-transform: uppercase;
+}
+
+/* portrait-toggle externo: eliminado — reemplazado por eye-btn en el speaker-tag */
+
+/* ─── DIALOGUE BOX ─── */
+.dialogue-box {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 20;
+  padding: 0 60px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Main text panel */
+.dialogue-panel {
+  position: relative;
+  background: rgba(9, 16, 28, 0.92);
+  border: 1px solid var(--hi);
+  border-bottom: none;
+  border-radius: 12px 12px 0 0;
+  backdrop-filter: blur(20px);
+  padding: 0;
+  overflow: hidden;
+  box-shadow:
+    0 -20px 60px rgba(0,0,0,.5),
+    0 0 0 1px rgba(0,207,255,.06),
+    inset 0 1px 0 rgba(0,207,255,.1);
+}
+
+/* Top accent strip */
+.panel-accent-strip {
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, var(--accent) 20%, var(--accent2) 80%, transparent 100%);
+  animation: stripFlow 3s linear infinite;
+  background-size: 200% 100%;
+}
+@keyframes stripFlow {
+  from { background-position: 0% 0%; }
+  to   { background-position: 200% 0%; }
+}
+
+/* Speaker tag */
+.speaker-tag {
+  position: absolute;
+  top: -1px; left: 32px;
+  background: var(--accent);
+  padding: 4px 6px 4px 12px;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 100%, 0 100%);
+  border-radius: 0;
+  display: flex; align-items: center; gap: 8px;
+}
+.speaker-tag-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: rgba(0,0,0,.4);
+  animation: speakerPulse 1.5s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes speakerPulse { 0%,100%{opacity:.4} 50%{opacity:1} }
+.speaker-name {
+  font-family: 'Orbitron', monospace;
+  font-size: 9px; font-weight: 600;
+  letter-spacing: 2px; color: #000;
+  text-transform: uppercase;
+}
+
+/* Botón ojo — dentro del speaker-tag */
+.eye-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px;
+  background: rgba(0,0,0,.18);
+  border: 1px solid rgba(0,0,0,.22);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background .2s, transform .15s;
+  flex-shrink: 0;
+  line-height: 1;
+  clip-path: none !important;
+}
+.eye-btn:hover { background: rgba(0,0,0,.32); transform: scale(1.1); }
+.eye-btn:active { transform: scale(.92); }
+.eye-btn.is-hidden { opacity: .55; }
+.eye-btn.no-char   { opacity: .25; cursor: default; pointer-events: none; }
+
+/* Text area */
+.dialogue-text-area {
+  padding: 28px 36px 20px;
+  min-height: 110px;
+  display: flex; align-items: center;
+}
+.dialogue-text {
+  font-size: 15px;
+  font-weight: 300;
+  line-height: 1.8;
+  color: var(--text);
+  letter-spacing: .2px;
+  position: relative;
+}
+.dialogue-text .highlight {
+  color: var(--accent);
+  font-weight: 600;
+}
+.dialogue-text .keyword {
+  color: var(--green);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  background: rgba(0,229,160,.08);
+  border: 1px solid rgba(0,229,160,.2);
+  border-radius: 3px;
+  padding: 0 5px;
+}
+
+/* Typing cursor */
+.cursor {
+  display: inline-block;
+  width: 2px; height: 16px;
+  background: var(--accent);
+  margin-left: 2px;
+  vertical-align: middle;
+  animation: blink .7s step-end infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+/* Bottom controls bar */
+.dialogue-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 36px 14px;
+  border-top: 1px solid var(--border);
+}
+
+/* Progress indicator */
+.dialogue-progress {
+  display: flex; align-items: center; gap: 8px;
+}
+.prog-dots {
+  display: flex; gap: 4px;
+}
+.prog-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--dim); transition: .3s;
+}
+.prog-dot.done  { background: var(--accent2); }
+.prog-dot.cur   { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+.prog-count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: var(--muted);
+}
+
+/* Skip button */
+.btn-skip {
+  background: transparent;
+  border: 1px solid var(--dim);
+  border-radius: 4px;
+  padding: 5px 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; letter-spacing: 1px;
+  color: var(--muted); cursor: pointer;
+  transition: .2s;
+}
+.btn-skip:hover { border-color: var(--muted); color: var(--text); }
+
+/* NEXT button */
+.btn-next {
+  display: flex; align-items: center; gap: 8px;
+  background: transparent;
+  border: 1px solid rgba(0,207,255,.4);
+  border-radius: 6px;
+  padding: 8px 20px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--accent); cursor: pointer;
+  transition: .2s;
+  position: relative; overflow: hidden;
+}
+.btn-next::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: rgba(0,207,255,.08);
+  transform: translateX(-100%);
+  transition: transform .25s;
+}
+.btn-next:hover { border-color: var(--accent); box-shadow: 0 0 16px rgba(0,207,255,.2); }
+.btn-next:hover::before { transform: translateX(0); }
+.btn-next:active { transform: scale(.97); }
+.btn-next-arrow {
+  font-size: 14px;
+  animation: arrowBounce 1.2s ease-in-out infinite;
+}
+@keyframes arrowBounce {
+  0%,100% { transform: translateX(0); }
+  50%      { transform: translateX(4px); }
+}
+
+/* ─── CHOICES PANEL ─── */
+/* Ocupa exactamente el mismo espacio que el dialogue-box */
+.choices-panel {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 25;
+  padding: 0 60px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  transition: transform .4s cubic-bezier(.16,1,.3,1), opacity .3s;
+}
+.choices-panel.hidden {
+  transform: translateY(20px);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Panel unificado: pregunta + opciones, mismo contenedor */
+.choices-box {
+  position: relative;
+  background: rgba(9,16,28,.93);
+  border: 1px solid var(--hi);
+  border-bottom: none;
+  border-radius: 12px 12px 0 0;
+  backdrop-filter: blur(20px);
+  overflow: hidden;
+  box-shadow:
+    0 -20px 60px rgba(0,0,0,.5),
+    0 0 0 1px rgba(124,58,237,.06),
+    inset 0 1px 0 rgba(124,58,237,.12);
+}
+
+/* Speaker tag dentro del choices-box (igual que el diálogo) */
+.choices-box .speaker-tag {
+  background: var(--accent2);  /* violeta para diferenciarlo */
+}
+.choices-box .speaker-tag .speaker-tag-dot { background: rgba(255,255,255,.3); }
+.choices-box .speaker-tag .speaker-name    { color: #fff; }
+.choices-box .speaker-tag .eye-btn {
+  background: rgba(255,255,255,.12);
+  border-color: rgba(255,255,255,.18);
+}
+
+/* Zona de la pregunta — misma altura mínima que el texto del diálogo */
+.choices-question-area {
+  padding: 28px 36px 16px;
+  min-height: 110px;
+  display: flex; align-items: center;
+  border-bottom: 1px solid var(--border);
+}
+.choices-question-text {
+  font-size: 15px; font-weight: 300;
+  line-height: 1.8; color: var(--text);
+  letter-spacing: .2px;
+}
+
+/* Separador con etiqueta */
+.choices-divider {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 36px 0;
+}
+.choices-divider-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; letter-spacing: 3px;
+  color: var(--muted); text-transform: uppercase;
+  white-space: nowrap;
+}
+.choices-divider-line {
+  flex: 1; height: 1px;
+  background: linear-gradient(90deg, var(--border), transparent);
+}
+
+/* Lista de opciones */
+.choices-list {
+  padding: 10px 36px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+/* Strip de accent para choices (violeta → verde) */
+.choices-strip {
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, var(--accent2) 30%, var(--green) 70%, transparent 100%);
+  animation: stripFlow 3s linear infinite;
+  background-size: 200% 100%;
+}
+
+.choice-btn {
+  position: relative;
+  width: 100%;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 20px;
+  cursor: pointer;
+  transition: all .2s;
+  display: flex; align-items: center; gap: 14px;
+  overflow: hidden;
+  text-align: left;
+}
+.choice-btn::before {
+  content: '';
+  position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--choice-color, var(--accent));
+  transform: scaleY(0); transform-origin: center;
+  transition: transform .2s;
+}
+.choice-btn:hover {
+  border-color: var(--choice-color, var(--accent));
+  background: rgba(0,207,255,.04);
+  transform: translateX(3px);
+}
+.choice-btn:hover::before { transform: scaleY(1); }
+.choice-btn:active { transform: translateX(3px) scale(.99); }
+
+.choice-index {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; font-weight: 700;
+  color: var(--choice-color, var(--accent));
+  width: 20px; flex-shrink: 0;
+  text-align: center;
+}
+.choice-text {
+  font-size: 13px; font-weight: 400;
+  color: var(--text); line-height: 1.4;
+  flex: 1;
+}
+.choice-hint {
+  font-size: 10px; color: var(--muted);
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 1px; flex-shrink: 0;
+}
+.choice-arrow {
+  color: var(--dim); font-size: 12px;
+  transition: transform .2s, color .2s;
+}
+.choice-btn:hover .choice-arrow {
+  transform: translateX(4px);
+  color: var(--choice-color, var(--accent));
+}
+
+/* ─── HUD ELEMENTS ─── */
+.hud-top {
+  position: fixed;
+  top: 16px; right: 20px;
+  display: flex; align-items: center; gap: 10px;
+  z-index: 30;
+}
+.hud-tag {
+  background: rgba(9,16,28,.8);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 5px 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: var(--muted);
+  letter-spacing: 1px;
+  backdrop-filter: blur(10px);
+}
+.hud-tag span { color: var(--accent); }
+
+/* ─── DEMO CONTROLS ─── */
+.demo-bar {
+  position: fixed;
+  top: 16px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(9,16,28,.9);
+  border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 16px;
+  z-index: 50;
+  backdrop-filter: blur(12px);
+}
+.demo-bar-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; letter-spacing: 2px;
+  color: var(--muted); text-transform: uppercase;
+  margin-right: 4px;
+}
+.demo-pill {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px; padding: 4px 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; letter-spacing: 1px;
+  color: var(--muted); cursor: pointer;
+  transition: .2s; white-space: nowrap;
+}
+.demo-pill:hover { border-color: var(--accent); color: var(--accent); }
+.demo-pill.active { border-color: var(--accent); color: var(--accent); background: rgba(0,207,255,.08); }
+.demo-sep { color: var(--dim); font-size: 12px; }
+
+</style>
+</head>
+<body>
+
+<!-- ─── WORLD ─── -->
+<div class="scene">
+  <div class="grid"></div>
+</div>
+
+<div class="world">
+  <div class="world-scene" id="worldScene">
+    <div class="stars"></div>
+    <div class="city-silhouette"></div>
+    <div class="city-glow"></div>
+    <!-- Particles injected by JS -->
+  </div>
+</div>
+
+<!-- ─── HUD ─── -->
+<div class="hud-top">
+  <div class="hud-tag">ZONA <span>02</span></div>
+  <div class="hud-tag">NIVEL <span>2</span> — La Fábrica de Señales</div>
+</div>
+
+<!-- ─── DEMO CONTROLS ─── -->
+<div class="demo-bar">
+  <span class="demo-bar-label">Modo</span>
+  <button class="demo-pill active" id="pill-narrador" onclick="setMode('narrador')">Narrador</button>
+  <button class="demo-pill" id="pill-guia"     onclick="setMode('guia')">Guía</button>
+  <button class="demo-pill" id="pill-choices"  onclick="setMode('choices')">Opciones</button>
+  <button class="demo-pill" id="pill-hidden"   onclick="setMode('hidden')">Sin Cara</button>
+  <span class="demo-sep">|</span>
+  <button class="demo-pill" id="pill-expr"     onclick="cycleExpression()">⟳ Expresión</button>
+</div>
+
+<!-- ─── CHARACTER ─── -->
+<div class="character-area" id="charArea">
+  <div class="portrait-frame">
+    <div class="portrait-bg">
+      <div class="char-sprite">
+        <div class="char-body" id="charEmoji">🤖</div>
+        <div class="char-glow"></div>
+      </div>
+    </div>
+    <div class="portrait-border"></div>
+    <div class="portrait-corner"></div>
+    <div class="char-expression" id="charExpression">NORMAL</div>
+  </div>
+  <div class="portrait-nameplate">
+    <div class="portrait-name" id="charName">Bit-01</div>
+  </div>
+</div>
+
+<!-- portrait-toggle: eliminado — el ojo ahora está en el speaker-tag -->
+
+<!-- ─── DIALOGUE BOX ─── -->
+<div class="dialogue-box" id="dialogueBox">
+  <div class="dialogue-panel">
+    <div class="panel-accent-strip"></div>
+    <div class="speaker-tag" id="speakerTag">
+      <div class="speaker-tag-dot"></div>
+      <div class="speaker-name" id="speakerName">Bit-01</div>
+      <button class="eye-btn" id="eyeBtn" onclick="toggleChar()" title="Mostrar/Ocultar retrato">👁</button>
+    </div>
+    <div class="dialogue-text-area">
+      <div class="dialogue-text" id="dialogueText">
+        <!-- Filled by JS -->
+      </div>
+    </div>
+    <div class="dialogue-controls">
+      <div class="dialogue-progress">
+        <div class="prog-dots" id="progDots"></div>
+        <div class="prog-count" id="progCount">1 / 5</div>
+      </div>
+      <button class="btn-skip" onclick="skipDialogue()">SALTAR</button>
+      <button class="btn-next" id="btnNext" onclick="nextLine()">
+        CONTINUAR
+        <span class="btn-next-arrow">→</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── CHOICES PANEL ─── -->
+<div class="choices-panel hidden" id="choicesPanel">
+  <div class="choices-box">
+    <div class="choices-strip"></div>
+
+    <!-- Speaker tag idéntico al del diálogo, con ojo -->
+    <div class="speaker-tag" id="choicesSpeakerTag">
+      <div class="speaker-tag-dot"></div>
+      <div class="speaker-name" id="choicesSpeakerName">Bit-01</div>
+      <button class="eye-btn" id="eyeBtnChoices" onclick="toggleChar()" title="Mostrar/Ocultar retrato">👁</button>
+    </div>
+
+    <!-- Zona de pregunta: el usuario puede releerla mientras elige -->
+    <div class="choices-question-area">
+      <div class="choices-question-text" id="choicesQuestion"></div>
+    </div>
+
+    <!-- Divisor -->
+    <div class="choices-divider">
+      <span class="choices-divider-label">¿Qué responderás?</span>
+      <div class="choices-divider-line"></div>
+    </div>
+
+    <!-- Opciones -->
+    <div class="choices-list" id="choicesList"></div>
+  </div>
+</div>
+
+
+<script>
+// ══════════════════════════════════════════════
+//  DATA: Diálogos de demo
+// ══════════════════════════════════════════════
+const DIALOGUES = {
+  narrador: [
+    {
+      speaker: 'Sistema',
+      char: null,
+      text: 'Zona 02 iniciada. La fábrica de señales ha perdido su conexión con los nodos de destino.',
+      expression: null,
+    },
+    {
+      speaker: 'Bit-01',
+      char: { emoji: '🤖', name: 'Bit-01', color: '#00cfff' },
+      text: '¡Por fin llegas! Llevaba horas esperando. Mira, toda la red está <span class="highlight">desconectada</span>. Los técnicos se fueron sin terminar el trabajo.',
+      expression: 'PREOCUPADO',
+    },
+    {
+      speaker: 'Bit-01',
+      char: { emoji: '🤖', name: 'Bit-01', color: '#00cfff' },
+      text: 'Para resolver esto necesitamos entender el algoritmo <span class="keyword">BFS</span>. Es como explorar un laberinto nivel por nivel, sin saltarte ningún camino.',
+      expression: 'EXPLICANDO',
+    },
+    {
+      speaker: 'Narrador',
+      char: null,
+      text: 'Observa el grafo frente a ti. Cada nodo representa una estación de señal. Las aristas son los cables que las conectan.',
+      expression: null,
+    },
+    {
+      speaker: 'Bit-01',
+      char: { emoji: '🤖', name: 'Bit-01', color: '#00cfff' },
+      text: '¡Empieza conectando el <span class="highlight">nodo origen</span>! Recuerda: en <span class="keyword">BFS</span> siempre exploramos todos los vecinos antes de avanzar al siguiente nivel.',
+      expression: 'ENTUSIASTA',
+    },
+  ],
+
+  guia: [
+    {
+      speaker: 'Dra. Ada',
+      char: { emoji: '👩‍🔬', name: 'Dra. Ada', color: '#00e5a0' },
+      text: 'Muy bien. Primero identifica el <span class="highlight">nodo de origen</span>. Es el marcado con el icono de energía.',
+      expression: 'NORMAL',
+    },
+    {
+      speaker: 'Dra. Ada',
+      char: { emoji: '👩‍🔬', name: 'Dra. Ada', color: '#00e5a0' },
+      text: 'Ahora conecta ese nodo con todos sus <span class="keyword">vecinos directos</span>. En teoría de grafos, llamamos a esto explorar el nivel 1 del árbol <span class="keyword">BFS</span>.',
+      expression: 'EXPLICANDO',
+    },
+    {
+      speaker: 'Dra. Ada',
+      char: { emoji: '👩‍🔬', name: 'Dra. Ada', color: '#00e5a0' },
+      text: '¡Excelente! Ya tienes los vecinos del nivel 1 conectados. Ahora haz lo mismo para cada uno de ellos.',
+      expression: 'FELIZ',
+    },
+  ],
+
+  choices: [
+    {
+      speaker: 'Bit-01',
+      char: { emoji: '🤖', name: 'Bit-01', color: '#00cfff' },
+      text: 'Hmm... parece que necesitas conectar el nodo central. ¿Cuál de estas opciones describe mejor la propiedad de <span class="keyword">conectividad</span> que buscamos?',
+      expression: 'CURIOSO',
+      choices: [
+        { text: 'Un grafo donde todos los nodos son alcanzables desde cualquier otro nodo.', color: '#00e5a0', hint: 'CORRECTO', next: 'correct' },
+        { text: 'Un grafo donde solo el nodo origen tiene conexiones salientes.', color: '#f43f5e', hint: 'INCORRECTO', next: 'wrong' },
+        { text: 'Un grafo donde cada nodo tiene exactamente dos vecinos.', color: '#fbbf24', hint: 'INCORRECTO', next: 'wrong' },
+      ],
+    },
+  ],
+};
+
+const EXPRESSIONS = ['NORMAL','FELIZ','CURIOSO','PREOCUPADO','EXPLICANDO','ENTUSIASTA','SORPRENDIDO'];
+let currentExprIdx = 0;
+
+// ══════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════
+let currentMode    = 'narrador';
+let currentLine    = 0;
+let charVisible    = true;
+let isTyping       = false;
+let typeTimeout    = null;
+let fullText       = '';
+let displayedChars = 0;
+
+// ══════════════════════════════════════════════
+//  PARTICLES
+// ══════════════════════════════════════════════
+function buildParticles() {
+  const scene = document.getElementById('worldScene');
+  for(let i=0; i<18; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    const size = Math.random()*3+1;
+    const colors = ['rgba(0,207,255,.5)','rgba(124,58,237,.5)','rgba(0,229,160,.4)'];
+    p.style.cssText = `
+      left:${Math.random()*100}%;
+      width:${size}px; height:${size}px;
+      background:${colors[Math.floor(Math.random()*colors.length)]};
+      animation-duration:${Math.random()*12+8}s;
+      animation-delay:${Math.random()*8}s;
+    `;
+    scene.appendChild(p);
+  }
+}
+
+// ══════════════════════════════════════════════
+//  PROGRESS DOTS
+// ══════════════════════════════════════════════
+function buildDots(total, current) {
+  const container = document.getElementById('progDots');
+  container.innerHTML = '';
+  for(let i=0; i<total; i++) {
+    const d = document.createElement('div');
+    d.className = 'prog-dot' + (i < current ? ' done' : '') + (i === current ? ' cur' : '');
+    container.appendChild(d);
+  }
+  document.getElementById('progCount').textContent = `${current+1} / ${total}`;
+}
+
+// ══════════════════════════════════════════════
+//  TYPEWRITER
+// ══════════════════════════════════════════════
+function typeText(htmlContent, onDone) {
+  const el = document.getElementById('dialogueText');
+  // Extract plain text length (ignore HTML tags for timing)
+  const tmp = document.createElement('div');
+  tmp.innerHTML = htmlContent;
+  const plainLen = tmp.textContent.length;
+
+  isTyping = true;
+  el.innerHTML = '';
+
+  // Reveal HTML character by character using a workaround:
+  // We render full HTML but clip via character count on plain text
+  let charCount = 0;
+  const chars = plainLen;
+
+  function tick() {
+    charCount++;
+    // Progressive reveal: show portion of text
+    const ratio = charCount / chars;
+    // Build partial HTML by character position
+    el.innerHTML = revealHTML(htmlContent, charCount) + (charCount < chars ? '<span class="cursor"></span>' : '');
+    if(charCount < chars) {
+      typeTimeout = setTimeout(tick, 22);
+    } else {
+      isTyping = false;
+      if(onDone) onDone();
+    }
+  }
+  tick();
+}
+
+// Reveal HTML tags fully but limit visible plain-text characters
+function revealHTML(html, visibleChars) {
+  let result = '';
+  let count  = 0;
+  let inTag  = false;
+  for(let i=0; i<html.length; i++) {
+    const ch = html[i];
+    if(ch === '<') { inTag = true; }
+    if(inTag) { result += ch; if(ch==='>') inTag = false; continue; }
+    if(count >= visibleChars) break;
+    result += ch;
+    count++;
+  }
+  return result;
+}
+
+// ══════════════════════════════════════════════
+//  EYE BUTTON: sincronizar ambos (diálogo + choices)
+// ══════════════════════════════════════════════
+function syncEyeButtons(hasChar) {
+  // hasChar puede ser undefined — usa el estado actual
+  const eyeMain    = document.getElementById('eyeBtn');
+  const eyeChoices = document.getElementById('eyeBtnChoices');
+  [eyeMain, eyeChoices].forEach(btn => {
+    if(!btn) return;
+    if(hasChar === false) {
+      btn.classList.add('no-char');
+      btn.classList.remove('is-hidden');
+      btn.title = 'Sin retrato en esta línea';
+    } else if(!charVisible) {
+      btn.classList.remove('no-char');
+      btn.classList.add('is-hidden');
+      btn.textContent = '🙈';
+      btn.title = 'Mostrar retrato';
+    } else {
+      btn.classList.remove('no-char', 'is-hidden');
+      btn.textContent = '👁';
+      btn.title = 'Ocultar retrato';
+    }
+  });
+}
+
+// Alias para compatibilidad
+function updateToggleBtn(hasChar) { syncEyeButtons(hasChar); }
+
+// ══════════════════════════════════════════════
+//  RENDER LINE
+// ══════════════════════════════════════════════
+function renderLine(line) {
+  // Speaker tag
+  document.getElementById('speakerName').textContent = line.speaker;
+
+  // Character — respetar la preferencia del usuario (charVisible)
+  if(line.char) {
+    document.getElementById('charEmoji').textContent = line.char.emoji;
+    document.getElementById('charName').textContent  = line.char.name;
+    // Solo mostrar el charArea si el usuario NO lo ocultó
+    if(charVisible) {
+      document.getElementById('charArea').classList.remove('hidden');
+    }
+  } else {
+    // Esta línea no tiene personaje (narrador, sistema) → siempre ocultar área
+    document.getElementById('charArea').classList.add('hidden');
+  }
+
+  // Actualizar botón persistente
+  updateToggleBtn(!!line.char);
+
+  // Expression
+  if(line.expression) {
+    document.getElementById('charExpression').textContent = line.expression;
+    document.getElementById('charExpression').style.display = 'block';
+  } else {
+    document.getElementById('charExpression').style.display = 'none';
+  }
+
+  // Choices?
+  if(line.choices) {
+    // Show choices after brief text display
+    hideChoices();
+    fullText = line.text;
+    typeText(line.text, () => {
+      setTimeout(() => showChoices(line.choices, line.text), 400);
+    });
+  } else {
+    hideChoices();
+    fullText = line.text;
+    typeText(line.text);
+  }
+}
+
+// ══════════════════════════════════════════════
+//  CHOICES
+// ══════════════════════════════════════════════
+function showChoices(choices, questionText) {
+  // Poblar la pregunta visible para que el usuario la releer mientras elige
+  document.getElementById('choicesQuestion').innerHTML = questionText || '';
+
+  // Sincronizar el speaker tag del panel de choices
+  const mainSpeaker = document.getElementById('speakerName').textContent;
+  document.getElementById('choicesSpeakerName').textContent = mainSpeaker;
+
+  // Sincronizar el estado del ojo en el panel de choices
+  syncEyeButtons();
+
+  const list = document.getElementById('choicesList');
+  list.innerHTML = '';
+  choices.forEach((c, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    btn.style.setProperty('--choice-color', c.color);
+    btn.innerHTML = `
+      <span class="choice-index">${i+1}</span>
+      <span class="choice-text">${c.text}</span>
+      <span class="choice-hint">${c.hint || ''}</span>
+      <span class="choice-arrow">→</span>
+    `;
+    btn.onclick = () => selectChoice(c, i);
+    list.appendChild(btn);
+  });
+  document.getElementById('dialogueBox').style.display = 'none';
+  document.getElementById('choicesPanel').classList.remove('hidden');
+}
+
+function hideChoices() {
+  document.getElementById('choicesPanel').classList.add('hidden');
+  document.getElementById('dialogueBox').style.display = '';
+}
+
+function selectChoice(choice, idx) {
+  hideChoices();
+
+  // After choice: transition to next scene
+  const feedback = choice.next === 'correct'
+    ? { speaker:'Bit-01', char:{emoji:'🤖',name:'Bit-01',color:'#00cfff'}, text:'¡<span class="highlight">Correcto</span>! Un grafo conexo es aquel donde existe un camino entre cualquier par de nodos. ¡Ahora conecta esos nodos!', expression:'ENTUSIASTA' }
+    : { speaker:'Bit-01', char:{emoji:'🤖',name:'Bit-01',color:'#00cfff'}, text:'Casi... eso no es correcto. Piénsalo de nuevo: en un grafo <span class="keyword">conexo</span>, todos los nodos deben ser <span class="highlight">alcanzables</span> entre sí.', expression:'PREOCUPADO' };
+
+  // Inject and render
+  const lines = [feedback];
+  currentMode = '_temp';
+  window._tempLines = lines;
+  currentLine = 0;
+  buildDots(1, 0);
+  renderLine(feedback);
+}
+
+// ══════════════════════════════════════════════
+//  NAVIGATION
+// ══════════════════════════════════════════════
+function nextLine() {
+  if(isTyping) {
+    // Skip typing: show full text immediately
+    clearTimeout(typeTimeout);
+    isTyping = false;
+    document.getElementById('dialogueText').innerHTML = fullText;
+    return;
+  }
+
+  const lines = currentMode === '_temp' ? window._tempLines : DIALOGUES[currentMode];
+  if(!lines) return;
+
+  currentLine++;
+  if(currentLine >= lines.length) {
+    // End of sequence
+    flashEnd();
+    currentLine = lines.length - 1;
+    return;
+  }
+
+  buildDots(lines.length, currentLine);
+  renderLine(lines[currentLine]);
+}
+
+function skipDialogue() {
+  const lines = currentMode === '_temp' ? window._tempLines : DIALOGUES[currentMode];
+  if(!lines) return;
+  currentLine = lines.length - 1;
+  buildDots(lines.length, currentLine);
+  renderLine(lines[currentLine]);
+}
+
+function flashEnd() {
+  const btn = document.getElementById('btnNext');
+  btn.textContent = '✓ FIN';
+  btn.style.borderColor = '#00e5a0';
+  btn.style.color = '#00e5a0';
+  setTimeout(() => {
+    btn.innerHTML = 'CONTINUAR <span class="btn-next-arrow">→</span>';
+    btn.style.borderColor = '';
+    btn.style.color = '';
+  }, 1500);
+}
+
+// ══════════════════════════════════════════════
+//  MODE SWITCHING
+// ══════════════════════════════════════════════
+function setMode(mode) {
+  currentMode = mode;
+  currentLine = 0;
+  document.querySelectorAll('.demo-pill[id^=pill]').forEach(p => p.classList.remove('active'));
+  const pill = document.getElementById('pill-' + mode);
+  if(pill) pill.classList.add('active');
+
+  if(mode === 'hidden') {
+    charVisible = false;
+    document.getElementById('charArea').classList.add('hidden');
+    syncEyeButtons(true);
+    setMode('narrador');
+    document.getElementById('pill-narrador').classList.add('active');
+    return;
+  }
+
+  const lines = DIALOGUES[mode];
+  if(!lines) return;
+
+  buildDots(lines.length, 0);
+  renderLine(lines[0]);
+}
+
+// ══════════════════════════════════════════════
+//  TOGGLE CHARACTER  — preferencia persiste entre líneas
+// ══════════════════════════════════════════════
+function toggleChar() {
+  const lines = currentMode === '_temp' ? window._tempLines : DIALOGUES[currentMode];
+  const line  = lines && lines[currentLine];
+
+  // No hay personaje en esta línea — no hacer nada
+  if(!line || !line.char) return;
+
+  charVisible = !charVisible;
+  const area = document.getElementById('charArea');
+
+  if(charVisible) {
+    area.classList.remove('hidden');
+  } else {
+    area.classList.add('hidden');
+  }
+
+  // Micro-animación del emoji del ojo
+  const eyeMain = document.getElementById('eyeBtn');
+  if(eyeMain) {
+    eyeMain.style.transform = 'scale(1.4)';
+    setTimeout(() => eyeMain.style.transform = '', 200);
+  }
+
+  syncEyeButtons(true);
+}
+
+// ══════════════════════════════════════════════
+//  CYCLE EXPRESSION
+// ══════════════════════════════════════════════
+function cycleExpression() {
+  currentExprIdx = (currentExprIdx + 1) % EXPRESSIONS.length;
+  const expr = EXPRESSIONS[currentExprIdx];
+  document.getElementById('charExpression').textContent = expr;
+
+  // Visual reaction
+  const emoji = document.getElementById('charEmoji');
+  const EXPR_EMOJIS = {
+    'NORMAL':'🤖','FELIZ':'😄','CURIOSO':'🤔','PREOCUPADO':'😟',
+    'EXPLICANDO':'🧑‍🏫','ENTUSIASTA':'🤩','SORPRENDIDO':'😲'
+  };
+  emoji.textContent = EXPR_EMOJIS[expr] || '🤖';
+  emoji.style.transform = 'scale(1.15)';
+  setTimeout(() => emoji.style.transform = '', 300);
+}
+
+// ══════════════════════════════════════════════
+//  KEYBOARD
+// ══════════════════════════════════════════════
+window.addEventListener('keydown', e => {
+  if(e.code === 'Space' || e.code === 'Enter') {
+    e.preventDefault();
+    nextLine();
+  }
+  if(e.code === 'KeyH') toggleChar();
+});
+
+// ══════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════
+window.addEventListener('load', () => {
+  buildParticles();
+  setMode('narrador');
+});
+</script>
+</body>
+</html>

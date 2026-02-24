@@ -1,0 +1,1587 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EDA Quest — Menú Principal</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Orbitron:wght@400;700;900&family=DM+Sans:wght@300;400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #050810;
+    --surface:   #0c1220;
+    --panel:     #111927;
+    --border:    #1e2d42;
+    --border-hi: #2e4a6a;
+    --accent:    #00d4ff;
+    --accent2:   #7c3aed;
+    --accent3:   #10b981;
+    --danger:    #ef4444;
+    --text:      #e2e8f0;
+    --muted:     #64748b;
+    --dim:       #334155;
+    --gold:      #f59e0b;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    overflow: hidden;
+  }
+
+  /* ─── SCREENS ─── */
+  .screen {
+    position: fixed;
+    inset: 0;
+    transition: opacity .4s ease, visibility .4s;
+  }
+  .screen.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+
+  /* ─── CINEMATIC BACKGROUND ─── */
+  .scene {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
+
+  .grid-bg {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,.06) 1px, transparent 1px);
+    background-size: 60px 60px;
+    animation: gridDrift 20s linear infinite;
+  }
+  @keyframes gridDrift {
+    from { background-position: 0 0; }
+    to   { background-position: 60px 60px; }
+  }
+
+  .graph-canvas { position: absolute; inset: 0; }
+
+  .g-node {
+    position: absolute;
+    border-radius: 50%;
+    border: 2px solid;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    animation: nodePulse 4s ease-in-out infinite;
+  }
+  .g-node.cyan   { background: rgba(0,212,255,.1);  border-color: rgba(0,212,255,.5);  color: #00d4ff; box-shadow: 0 0 20px rgba(0,212,255,.2); }
+  .g-node.violet { background: rgba(124,58,237,.1); border-color: rgba(124,58,237,.5); color: #7c3aed; box-shadow: 0 0 20px rgba(124,58,237,.2); }
+  .g-node.green  { background: rgba(16,185,129,.1); border-color: rgba(16,185,129,.5); color: #10b981; box-shadow: 0 0 20px rgba(16,185,129,.2); }
+  @keyframes nodePulse {
+    0%,100% { transform: scale(1); opacity:.7; }
+    50%      { transform: scale(1.06); opacity:1; }
+  }
+
+  svg.edges {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+  }
+  .edge {
+    stroke-dasharray: 8 6;
+    animation: dashFlow 3s linear infinite;
+  }
+  @keyframes dashFlow {
+    from { stroke-dashoffset: 0; }
+    to   { stroke-dashoffset: -42; }
+  }
+
+  .glow-blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: .18;
+    animation: blobDrift 8s ease-in-out infinite alternate;
+  }
+  @keyframes blobDrift {
+    from { transform: translate(0,0) scale(1); }
+    to   { transform: translate(30px,20px) scale(1.1); }
+  }
+
+  .scanlines {
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent, transparent 2px,
+      rgba(0,0,0,.08) 2px, rgba(0,0,0,.08) 4px
+    );
+    pointer-events: none;
+  }
+
+  /* ─── CAMERA INDICATOR ─── */
+  .cam-indicator {
+    position: fixed;
+    top: 20px; left: 50%;
+    transform: translateX(-50%);
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(12,18,32,.75);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 16px;
+    z-index: 20;
+    backdrop-filter: blur(10px);
+  }
+  .cam-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #ef4444;
+    animation: camBlink 1.2s ease-in-out infinite;
+  }
+  @keyframes camBlink { 0%,100%{opacity:1} 50%{opacity:.2} }
+  .cam-label { font-family:'Space Mono',monospace; font-size:10px; color:var(--muted); letter-spacing:1px; }
+  .cam-views { display:flex; gap:5px; }
+  .cam-view {
+    width:12px; height:8px; border:1px solid var(--border);
+    border-radius:2px; cursor:pointer; transition:.2s;
+    background: transparent;
+  }
+  .cam-view.active { border-color:var(--accent); background:rgba(0,212,255,.25); }
+
+  /* ─── LOGO ─── */
+  .logo-area {
+    position: fixed;
+    top: 48px; left: 56px;
+    display: flex; flex-direction: column; gap: 6px;
+    z-index: 10;
+    animation: slideInLeft .8s cubic-bezier(.16,1,.3,1) both;
+  }
+  @keyframes slideInLeft {
+    from { opacity:0; transform:translateX(-30px); }
+    to   { opacity:1; transform:translateX(0); }
+  }
+  .logo-category {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 4px;
+    color: var(--accent2);
+    text-transform: uppercase;
+    opacity: .8;
+  }
+  .logo-label {
+    font-family: 'Orbitron', monospace;
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 5px;
+    color: var(--accent);
+    text-transform: uppercase;
+    opacity: .7;
+  }
+  .logo-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 30px;
+    font-weight: 900;
+    line-height: 1.05;
+    background: linear-gradient(135deg, #fff 0%, var(--accent) 60%, var(--accent2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: 2px;
+  }
+  .logo-sub {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    max-width: 280px;
+    line-height: 1.5;
+    margin-top: 2px;
+  }
+  .logo-sub em {
+    color: var(--accent3);
+    font-style: normal;
+  }
+  .logo-badges {
+    display: flex; gap: 6px; margin-top: 4px;
+  }
+  .logo-badge {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    padding: 3px 8px;
+    border-radius: 3px;
+    border: 1px solid;
+    letter-spacing: 1px;
+  }
+  .badge-grafo { border-color: rgba(0,212,255,.4); color: var(--accent); background: rgba(0,212,255,.08); }
+  .badge-algo  { border-color: rgba(124,58,237,.4); color: var(--accent2); background: rgba(124,58,237,.08); }
+  .badge-edu   { border-color: rgba(16,185,129,.4); color: var(--accent3); background: rgba(16,185,129,.08); }
+
+  /* ─── MENU PANEL ─── */
+  .menu-panel {
+    position: fixed;
+    right: 64px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 10;
+    animation: slideInRight .9s cubic-bezier(.16,1,.3,1) .1s both;
+  }
+  @keyframes slideInRight {
+    from { opacity:0; transform:translate(30px,-50%); }
+    to   { opacity:1; transform:translate(0,-50%); }
+  }
+
+  .menu-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border-hi), transparent);
+    margin: 4px 0;
+  }
+
+  .menu-btn {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 20px;
+    background: rgba(12,18,32,.7);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all .2s;
+    backdrop-filter: blur(12px);
+    overflow: hidden;
+    color: inherit;
+  }
+  .menu-btn::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--btn-accent, var(--accent));
+    transform: scaleY(0);
+    transform-origin: center;
+    transition: transform .2s;
+  }
+  .menu-btn:hover { border-color: var(--btn-accent, var(--accent)); background: rgba(0,212,255,.05); }
+  .menu-btn:hover::before { transform: scaleY(1); }
+  .menu-btn:hover .btn-label { color: var(--btn-accent, var(--accent)); }
+  .menu-btn:hover .btn-icon  { color: var(--btn-accent, var(--accent)); }
+  .menu-btn:active { transform: scale(.98); }
+
+  .btn-icon {
+    font-size: 18px; color: var(--muted);
+    width: 20px; text-align: center;
+    transition: color .2s; flex-shrink: 0;
+  }
+  .btn-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 13px; letter-spacing: 1px;
+    font-weight: 700; text-transform: uppercase;
+    color: var(--text); transition: color .2s;
+  }
+  .btn-label small {
+    display: block; font-size: 10px;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--muted); font-weight: 300;
+    letter-spacing: 0; text-transform: none;
+    margin-top: 2px;
+  }
+  .btn-arrow {
+    margin-left: auto; color: var(--dim);
+    font-size: 12px; transition: transform .2s, color .2s;
+  }
+  .menu-btn:hover .btn-arrow { transform: translateX(4px); color: var(--btn-accent, var(--accent)); }
+
+  .btn-play     { --btn-accent: var(--accent3); padding: 18px 20px; background: rgba(16,185,129,.08); border-color: rgba(16,185,129,.3); }
+  .btn-play .btn-label { font-size: 15px; }
+  .btn-settings { --btn-accent: var(--accent); }
+  .btn-credits  { --btn-accent: var(--accent2); }
+  .btn-exit     { --btn-accent: var(--danger); }
+
+  /* ─── STATUS BAR ─── */
+  .statusbar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 32px;
+    background: rgba(9,12,20,.9);
+    border-top: 1px solid var(--border);
+    display: flex; align-items: center;
+    padding: 0 20px; gap: 24px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px; color: var(--muted);
+    z-index: 20; backdrop-filter: blur(10px);
+  }
+  .s-dot { display:inline-block; width:6px; height:6px; border-radius:50%; background: var(--accent3); margin-right:6px; }
+  .version {
+    position: fixed; bottom: 40px; right: 24px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px; color: var(--dim); z-index: 10;
+  }
+  .version span { color: var(--accent); }
+
+  .tooltip-node {
+    position: fixed; bottom: 48px; left: 50%;
+    transform: translateX(-50%);
+    background: var(--panel); border: 1px solid var(--border-hi);
+    border-radius: 4px; padding: 6px 14px;
+    font-family: 'Space Mono', monospace; font-size: 11px; color: var(--accent);
+    opacity: 0; transition: opacity .2s;
+    pointer-events: none; z-index: 100;
+    white-space: nowrap;
+  }
+
+  /* ─── MODALS ─── */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.65);
+    backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 50;
+    opacity: 0; visibility: hidden;
+    transition: opacity .25s, visibility .25s;
+  }
+  .modal-backdrop.open { opacity:1; visibility:visible; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border-hi);
+    border-radius: 12px;
+    width: 560px; max-width: 96vw; max-height: 85vh;
+    overflow-y: auto;
+    transform: translateY(20px) scale(.97);
+    transition: transform .25s cubic-bezier(.16,1,.3,1);
+    box-shadow: 0 40px 80px rgba(0,0,0,.6), 0 0 0 1px rgba(0,212,255,.06);
+  }
+  .modal-backdrop.open .modal { transform: translateY(0) scale(1); }
+  .modal::-webkit-scrollbar { width: 4px; }
+  .modal::-webkit-scrollbar-track { background: transparent; }
+  .modal::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0;
+    background: var(--surface); z-index: 1;
+  }
+  .modal-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 13px; font-weight: 700;
+    letter-spacing: 2px; color: var(--text);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .modal-title-icon { font-size: 16px; }
+  .modal-close {
+    width:30px; height:30px; border-radius:6px;
+    background:transparent; border:1px solid var(--border);
+    color:var(--muted); cursor:pointer; font-size:13px;
+    transition:.2s; display:flex; align-items:center; justify-content:center;
+  }
+  .modal-close:hover { border-color:var(--danger); color:var(--danger); background:rgba(239,68,68,.08); }
+  .modal-body { padding: 24px; display:flex; flex-direction:column; gap: 24px; }
+  .modal-footer {
+    padding: 16px 24px; border-top: 1px solid var(--border);
+    display: flex; justify-content: flex-end; gap: 10px;
+  }
+
+  /* Settings widgets */
+  .setting-group { display:flex; flex-direction:column; gap:10px; }
+  .setting-label {
+    font-family:'Space Mono',monospace; font-size:10px;
+    letter-spacing:2px; color:var(--muted); text-transform:uppercase;
+  }
+  .radio-group { display:flex; flex-direction:column; gap:6px; }
+  .radio-opt {
+    display:flex; align-items:center; gap:12px;
+    padding:10px 14px; background:var(--panel);
+    border:1px solid var(--border); border-radius:6px;
+    cursor:pointer; transition:.2s;
+  }
+  .radio-opt:hover { border-color:var(--border-hi); }
+  .radio-opt.selected { border-color:var(--accent); background:rgba(0,212,255,.06); }
+  .radio-dot {
+    width:12px; height:12px; border-radius:50%;
+    border:2px solid var(--border); flex-shrink:0; transition:.2s;
+  }
+  .radio-opt.selected .radio-dot { border-color:var(--accent); background:var(--accent); box-shadow:0 0 8px rgba(0,212,255,.5); }
+  .radio-name { font-size:13px; font-weight:500; }
+  .radio-desc { font-size:11px; color:var(--muted); margin-top:1px; }
+  .diff-info-box {
+    padding:10px 14px; border-radius:6px;
+    background:rgba(0,212,255,.05); border:1px solid rgba(0,212,255,.15);
+    font-size:12px; color:var(--muted); line-height:1.6;
+  }
+  .color-swatch { display:flex; gap:8px; flex-wrap:wrap; }
+  .swatch {
+    width:30px; height:30px; border-radius:6px;
+    cursor:pointer; border:2px solid transparent; transition:.2s;
+  }
+  .swatch:hover { transform:scale(1.1); }
+  .swatch.active { border-color:white; box-shadow:0 0 10px rgba(255,255,255,.3); }
+  .slider-row { display:flex; align-items:center; gap:12px; }
+  .slider-row input[type=range] { flex:1; accent-color:var(--accent); }
+  .slider-val { font-family:'Space Mono',monospace; font-size:11px; color:var(--accent); width:36px; text-align:right; }
+
+  /* Credits */
+  .credit-cards { display:flex; flex-direction:column; gap:12px; }
+  .credit-card {
+    display:flex; align-items:center; gap:16px;
+    padding:14px 16px; background:var(--panel);
+    border:1px solid var(--border); border-radius:8px;
+  }
+  .credit-icon { font-size:26px; flex-shrink:0; }
+  .credit-title { font-size:13px; font-weight:600; }
+  .credit-desc  { font-size:11px; color:var(--muted); margin-top:2px; line-height:1.5; }
+
+  /* Buttons */
+  .btn {
+    padding:9px 20px; border-radius:6px;
+    font-family:'Space Mono',monospace; font-size:11px;
+    font-weight:700; letter-spacing:1px;
+    cursor:pointer; transition:.2s; border:1px solid;
+  }
+  .btn-primary { background:var(--accent); border-color:var(--accent); color:#000; }
+  .btn-primary:hover { background:#22e4ff; border-color:#22e4ff; }
+  .btn-ghost   { background:transparent; border-color:var(--border); color:var(--muted); }
+  .btn-ghost:hover { border-color:var(--border-hi); color:var(--text); }
+  .btn-danger  { background:transparent; border-color:var(--danger); color:var(--danger); }
+  .btn-danger:hover { background:rgba(239,68,68,.1); }
+
+  /* ══════════════════════════════════════════════
+     LEVEL SELECT SCREEN
+  ══════════════════════════════════════════════ */
+  #screen-levels {
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    z-index: 30;
+  }
+
+  /* Animated background for level select */
+  #screen-levels .scene { opacity: .4; }
+
+  /* Top bar */
+  .ls-topbar {
+    display: flex; align-items: center; gap: 16px;
+    padding: 16px 32px;
+    background: rgba(11,16,26,.9);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+    flex-shrink: 0;
+    z-index: 2;
+  }
+  .ls-back {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px; border-radius: 6px;
+    background: transparent; border: 1px solid var(--border);
+    color: var(--muted); font-family:'Space Mono',monospace;
+    font-size: 11px; cursor: pointer; transition:.2s;
+    letter-spacing: 1px;
+  }
+  .ls-back:hover { border-color:var(--border-hi); color:var(--text); }
+  .ls-breadcrumb {
+    display:flex; align-items:center; gap:8px;
+    font-family:'Space Mono',monospace; font-size:11px;
+    color:var(--muted);
+  }
+  .ls-breadcrumb .sep { color:var(--dim); }
+  .ls-breadcrumb .cur { color:var(--text); }
+  .ls-topbar-right {
+    margin-left:auto; display:flex; align-items:center; gap:12px;
+  }
+  .ls-player-tag {
+    display:flex; align-items:center; gap:8px;
+    padding:6px 12px; border-radius:20px;
+    background: rgba(0,212,255,.08); border:1px solid rgba(0,212,255,.2);
+    font-size:12px; color:var(--accent);
+  }
+  .ls-player-avatar {
+    width:22px; height:22px; border-radius:50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display:flex; align-items:center; justify-content:center;
+    font-size:11px; font-weight:700; color:#000;
+  }
+
+  /* Main layout */
+  .ls-main {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Left: sidebar / info panel */
+  .ls-sidebar {
+    width: 320px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--border);
+    background: rgba(11,16,26,.95);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Sidebar header */
+  .ls-sidebar-head {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .ls-sidebar-title {
+    font-family:'Orbitron',monospace; font-size:12px;
+    font-weight:700; letter-spacing:3px;
+    color:var(--text); text-transform:uppercase;
+  }
+  .ls-sidebar-sub {
+    font-size:11px; color:var(--muted); margin-top:4px;
+  }
+
+  /* Sidebar: level info */
+  .ls-info-placeholder {
+    flex:1; display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    gap:12px; padding:24px; text-align:center;
+  }
+  .ls-info-placeholder .ph-icon { font-size:40px; opacity:.3; }
+  .ls-info-placeholder .ph-text { font-size:13px; color:var(--muted); line-height:1.6; }
+
+  .ls-info-content {
+    flex:1; display:flex; flex-direction:column;
+    overflow:hidden;
+  }
+
+  .ls-info-hero {
+    height: 140px; flex-shrink:0;
+    background: linear-gradient(135deg, var(--surface), #0a1628);
+    border-bottom:1px solid var(--border);
+    display:flex; align-items:center; justify-content:center;
+    position:relative; overflow:hidden;
+  }
+  .ls-info-hero-emoji { font-size:52px; position:relative; z-index:1; }
+  .ls-info-hero-glow {
+    position:absolute; width:120px; height:120px;
+    border-radius:50%; filter:blur(50px); opacity:.3;
+    background:var(--accent);
+    top:50%; left:50%; transform:translate(-50%,-50%);
+  }
+  .ls-info-hero-badge {
+    position:absolute; top:12px; right:12px;
+    padding:3px 10px; border-radius:3px;
+    font-family:'Space Mono',monospace; font-size:9px;
+    font-weight:700; letter-spacing:2px;
+    border:1px solid; text-transform:uppercase;
+  }
+  .badge-desbloqueado { color:var(--accent3); border-color:rgba(16,185,129,.4); background:rgba(16,185,129,.1); }
+  .badge-bloqueado    { color:var(--muted);   border-color:rgba(100,116,139,.3); background:rgba(100,116,139,.05); }
+  .badge-completado   { color:var(--gold);    border-color:rgba(245,158,11,.4);  background:rgba(245,158,11,.08); }
+
+  .ls-info-body {
+    flex:1; overflow-y:auto; padding:18px 22px;
+    display:flex; flex-direction:column; gap:14px;
+  }
+  .ls-info-body::-webkit-scrollbar { width:3px; }
+  .ls-info-body::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+  .ls-info-tag {
+    font-family:'Space Mono',monospace; font-size:9px;
+    letter-spacing:2px; color:var(--accent); text-transform:uppercase;
+  }
+  .ls-info-name {
+    font-family:'Orbitron',monospace; font-size:15px;
+    font-weight:700; color:var(--text); line-height:1.3;
+  }
+  .ls-info-desc { font-size:12px; color:var(--muted); line-height:1.7; }
+
+  /* Stars */
+  .ls-stars { display:flex; gap:6px; }
+  .star { font-size:20px; opacity:.2; transition:.2s; }
+  .star.earned { opacity:1; filter:drop-shadow(0 0 6px rgba(245,158,11,.8)); }
+
+  /* Stats grid */
+  .ls-stats {
+    display:grid; grid-template-columns:1fr 1fr;
+    gap:8px;
+  }
+  .ls-stat-box {
+    background:var(--panel); border:1px solid var(--border);
+    border-radius:8px; padding:10px 12px;
+    display:flex; flex-direction:column; gap:2px;
+  }
+  .ls-stat-label { font-size:9px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; font-family:'Space Mono',monospace; }
+  .ls-stat-val   { font-size:16px; font-weight:700; color:var(--text); font-family:'Space Mono',monospace; }
+  .ls-stat-val.gold   { color:var(--gold); }
+  .ls-stat-val.green  { color:var(--accent3); }
+  .ls-stat-val.red    { color:var(--danger); }
+  .ls-stat-val.accent { color:var(--accent); }
+
+  /* Algoritmos tags */
+  .ls-algo-tags { display:flex; flex-wrap:wrap; gap:6px; }
+  .algo-tag {
+    font-family:'Space Mono',monospace; font-size:9px;
+    padding:3px 8px; border-radius:3px;
+    letter-spacing:1px; text-transform:uppercase;
+    border:1px solid rgba(0,212,255,.3);
+    color:var(--accent); background:rgba(0,212,255,.07);
+  }
+
+  /* Play button in sidebar */
+  .ls-play-area {
+    padding: 14px 22px 18px;
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .ls-btn-play {
+    width:100%; padding:13px;
+    border-radius:8px; border:none;
+    font-family:'Space Mono',monospace; font-size:13px;
+    font-weight:700; letter-spacing:2px;
+    cursor:pointer; transition:.2s;
+    display:flex; align-items:center; justify-content:center; gap:10px;
+  }
+  .ls-btn-play.enabled {
+    background: linear-gradient(135deg, var(--accent3), #059669);
+    color:#000; box-shadow:0 4px 20px rgba(16,185,129,.3);
+  }
+  .ls-btn-play.enabled:hover { transform:translateY(-1px); box-shadow:0 6px 28px rgba(16,185,129,.4); }
+  .ls-btn-play.locked {
+    background:var(--panel); border:1px solid var(--border);
+    color:var(--muted); cursor:not-allowed;
+  }
+
+  /* Right: grid of level cards */
+  .ls-grid-area {
+    flex:1; overflow-y:auto;
+    padding: 28px 32px;
+    position:relative;
+  }
+  .ls-grid-area::-webkit-scrollbar { width:4px; }
+  .ls-grid-area::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+  /* Section header */
+  .ls-section-head {
+    display:flex; align-items:center; gap:14px;
+    margin-bottom:20px;
+  }
+  .ls-section-title {
+    font-family:'Space Mono',monospace; font-size:10px;
+    font-weight:700; letter-spacing:3px; color:var(--muted);
+    text-transform:uppercase;
+  }
+  .ls-section-line {
+    flex:1; height:1px;
+    background:linear-gradient(90deg, var(--border), transparent);
+  }
+  .ls-section-count {
+    font-family:'Space Mono',monospace; font-size:10px;
+    color:var(--dim);
+  }
+
+  /* Level cards grid */
+  .ls-grid {
+    display:grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap:14px;
+    margin-bottom:32px;
+  }
+
+  .level-card {
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    cursor:pointer; overflow:hidden;
+    transition: border-color .2s, transform .15s, box-shadow .2s;
+    position:relative;
+    user-select:none;
+  }
+  .level-card:hover {
+    border-color:var(--border-hi);
+    transform:translateY(-2px);
+    box-shadow:0 8px 24px rgba(0,0,0,.3);
+  }
+  .level-card.selected {
+    border-color:var(--accent);
+    box-shadow:0 0 0 1px var(--accent), 0 8px 24px rgba(0,212,255,.15);
+  }
+  .level-card.locked { opacity:.55; cursor:not-allowed; }
+  .level-card.locked:hover { transform:none; box-shadow:none; }
+
+  .card-header {
+    padding:12px 14px 0;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .card-num {
+    font-family:'Space Mono',monospace; font-size:9px;
+    font-weight:700; letter-spacing:2px; color:var(--accent);
+    text-transform:uppercase;
+  }
+  .card-status-badge {
+    font-size:9px; padding:2px 7px; border-radius:3px;
+    font-family:'Space Mono',monospace; letter-spacing:1px;
+    font-weight:700;
+  }
+  .card-status-badge.disponible { color:var(--accent3); background:rgba(16,185,129,.1); border:1px solid rgba(16,185,129,.25); }
+  .card-status-badge.completado  { color:var(--gold);    background:rgba(245,158,11,.08); border:1px solid rgba(245,158,11,.25); }
+  .card-status-badge.bloqueado   { color:var(--muted);   background:rgba(100,116,139,.06); border:1px solid rgba(100,116,139,.2); }
+
+  .card-emoji { font-size:28px; padding:10px 14px 4px; display:block; }
+
+  .card-body { padding:0 14px 12px; }
+  .card-title {
+    font-size:13px; font-weight:700; color:var(--text);
+    line-height:1.3; margin-bottom:3px;
+  }
+  .card-algo {
+    font-size:10px; color:var(--muted); margin-bottom:8px;
+    display:flex; align-items:center; gap:4px;
+  }
+  .card-algo-dot { width:4px; height:4px; border-radius:50%; background:var(--accent2); flex-shrink:0; }
+
+  .card-footer {
+    border-top:1px solid var(--border);
+    padding:8px 14px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .card-stars { display:flex; gap:2px; font-size:12px; }
+  .card-stars .s { opacity:.2; }
+  .card-stars .s.on { opacity:1; }
+  .card-score {
+    font-family:'Space Mono',monospace; font-size:10px;
+    color:var(--gold);
+  }
+
+  /* Lock overlay */
+  .card-lock-overlay {
+    position:absolute; inset:0;
+    background:rgba(5,8,16,.55);
+    display:flex; align-items:center; justify-content:center;
+    font-size:24px; border-radius:10px;
+  }
+
+  /* Progress overview bar at top of grid */
+  .ls-progress-bar-wrap {
+    background:var(--panel); border:1px solid var(--border);
+    border-radius:8px; padding:14px 18px;
+    margin-bottom:24px;
+    display:flex; align-items:center; gap:16px;
+  }
+  .ls-progress-text {
+    flex-shrink:0;
+  }
+  .ls-progress-text .big { font-family:'Orbitron',monospace; font-size:20px; font-weight:700; color:var(--text); }
+  .ls-progress-text .sm  { font-size:11px; color:var(--muted); margin-top:2px; }
+  .ls-bar-track {
+    flex:1; height:6px; background:var(--border);
+    border-radius:3px; overflow:hidden;
+  }
+  .ls-bar-fill {
+    height:100%; border-radius:3px;
+    background:linear-gradient(90deg, var(--accent3), var(--accent));
+    transition:width .5s ease;
+  }
+  .ls-progress-pct {
+    font-family:'Space Mono',monospace; font-size:12px;
+    color:var(--accent3); flex-shrink:0;
+  }
+
+  /* ─── MODAL EXIT (small) ─── */
+  .modal-sm { width:380px; }
+  .exit-body { display:flex; flex-direction:column; gap:12px; text-align:center; }
+  .exit-icon { font-size:36px; }
+  .exit-msg  { font-size:13px; color:var(--muted); line-height:1.7; }
+
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     SCREEN 1: MENÚ PRINCIPAL
+════════════════════════════════════════════ -->
+<div id="screen-menu" class="screen">
+
+  <!-- Background -->
+  <div class="scene">
+    <div class="grid-bg"></div>
+    <div class="glow-blob" style="width:500px;height:500px;left:-100px;top:-100px;background:#7c3aed"></div>
+    <div class="glow-blob" style="width:400px;height:400px;right:50px;bottom:-50px;background:#00d4ff;animation-delay:-4s"></div>
+    <div class="graph-canvas" id="graphCanvas"></div>
+    <svg class="edges" id="edgesSvg"></svg>
+    <div class="scanlines"></div>
+  </div>
+
+  <!-- Camera indicator -->
+  <div class="cam-indicator">
+    <div class="cam-dot"></div>
+    <span class="cam-label">Vista Cinemática</span>
+    <div class="cam-views">
+      <div class="cam-view active" onclick="setCam(0)"></div>
+      <div class="cam-view" onclick="setCam(1)"></div>
+      <div class="cam-view" onclick="setCam(2)"></div>
+      <div class="cam-view" onclick="setCam(3)"></div>
+    </div>
+  </div>
+
+  <!-- Logo -->
+  <div class="logo-area">
+    <div class="logo-category">Juego Serio · Aprendizaje Interactivo</div>
+    <div class="logo-label">Estructura de Datos y Algoritmos</div>
+    <div class="logo-title">EDA<br>Quest</div>
+    <div class="logo-sub">
+      Aprende <em>grafos dirigidos y no dirigidos</em><br>
+      a través de desafíos de conexión de redes
+    </div>
+    <div class="logo-badges">
+      <span class="logo-badge badge-grafo">Grafos</span>
+      <span class="logo-badge badge-algo">BFS · DFS · Dijkstra</span>
+      <span class="logo-badge badge-edu">Roblox Education</span>
+    </div>
+  </div>
+
+  <!-- Menu -->
+  <nav class="menu-panel">
+    <button class="menu-btn btn-play" onclick="openLevelSelect()">
+      <span class="btn-icon">▶</span>
+      <span class="btn-label">
+        Jugar
+        <small>Seleccionar nivel</small>
+      </span>
+      <span class="btn-arrow">→</span>
+    </button>
+
+    <div class="menu-divider"></div>
+
+    <button class="menu-btn btn-settings" onclick="openModal('settings')">
+      <span class="btn-icon">⚙</span>
+      <span class="btn-label">
+        Ajustes
+        <small>Dificultad · Colores · Audio</small>
+      </span>
+      <span class="btn-arrow">→</span>
+    </button>
+
+    <button class="menu-btn btn-credits" onclick="openModal('credits')">
+      <span class="btn-icon">ℹ</span>
+      <span class="btn-label">
+        Créditos
+        <small>Equipo y herramientas</small>
+      </span>
+      <span class="btn-arrow">→</span>
+    </button>
+
+    <div class="menu-divider"></div>
+
+    <button class="menu-btn btn-exit" onclick="openModal('exit')">
+      <span class="btn-icon">✕</span>
+      <span class="btn-label">Salir</span>
+      <span class="btn-arrow">→</span>
+    </button>
+  </nav>
+
+  <div class="version">BUILD <span>2.0.0</span></div>
+
+  <div class="statusbar">
+    <span><span class="s-dot"></span>Servidor conectado</span>
+    <span>Niveles disponibles: 5</span>
+    <span>Algoritmos: BFS · DFS · Dijkstra · Grafos No Dirigidos</span>
+  </div>
+
+  <div class="tooltip-node" id="tooltip"></div>
+</div>
+
+
+<!-- ══════════════════════════════════════════
+     SCREEN 2: SELECCIÓN DE NIVELES
+════════════════════════════════════════════ -->
+<div id="screen-levels" class="screen hidden">
+
+  <!-- Subtle background -->
+  <div class="scene" style="opacity:.3">
+    <div class="grid-bg"></div>
+    <div class="glow-blob" style="width:400px;height:400px;left:10%;top:20%;background:#00d4ff"></div>
+    <div class="glow-blob" style="width:300px;height:300px;right:15%;bottom:10%;background:#7c3aed;animation-delay:-3s"></div>
+  </div>
+
+  <!-- Top bar -->
+  <div class="ls-topbar">
+    <button class="ls-back" onclick="closeLevelSelect()">← VOLVER</button>
+    <div class="ls-breadcrumb">
+      <span>EDA Quest</span>
+      <span class="sep">›</span>
+      <span class="cur">Selección de Nivel</span>
+    </div>
+    <div class="ls-topbar-right">
+      <div class="ls-player-tag">
+        <div class="ls-player-avatar">P</div>
+        <span>Jugador_01</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main layout -->
+  <div class="ls-main">
+
+    <!-- Sidebar: level info -->
+    <div class="ls-sidebar">
+      <div class="ls-sidebar-head">
+        <div class="ls-sidebar-title">Información</div>
+        <div class="ls-sidebar-sub">Selecciona un nivel para ver detalles</div>
+      </div>
+
+      <!-- Placeholder (when no level selected) -->
+      <div class="ls-info-placeholder" id="ls-placeholder">
+        <div class="ph-icon">🗺️</div>
+        <div class="ph-text">
+          Selecciona una tarjeta de nivel<br>para ver su información,<br>estadísticas y comenzar a jugar.
+        </div>
+      </div>
+
+      <!-- Level info (shown when selected) -->
+      <div class="ls-info-content" id="ls-info-content" style="display:none">
+        <div class="ls-info-hero">
+          <div class="ls-info-hero-glow" id="hero-glow"></div>
+          <div class="ls-info-hero-emoji" id="hero-emoji">🧪</div>
+          <div class="ls-info-hero-badge badge-disponible" id="hero-badge">DISPONIBLE</div>
+        </div>
+
+        <div class="ls-info-body">
+          <div class="ls-info-tag" id="info-tag">NIVEL 0 · FUNDAMENTOS</div>
+          <div class="ls-info-name" id="info-name">Laboratorio de Grafos</div>
+          <div class="ls-info-desc" id="info-desc">Descripción del nivel...</div>
+
+          <div class="ls-stars" id="info-stars">
+            <span class="star" id="star1">⭐</span>
+            <span class="star" id="star2">⭐</span>
+            <span class="star" id="star3">⭐</span>
+          </div>
+
+          <div class="ls-stats">
+            <div class="ls-stat-box">
+              <div class="ls-stat-label">Récord</div>
+              <div class="ls-stat-val gold" id="info-score">—</div>
+            </div>
+            <div class="ls-stat-box">
+              <div class="ls-stat-label">Estado</div>
+              <div class="ls-stat-val accent" id="info-status">—</div>
+            </div>
+            <div class="ls-stat-box">
+              <div class="ls-stat-label">Aciertos</div>
+              <div class="ls-stat-val green" id="info-aciertos">—</div>
+            </div>
+            <div class="ls-stat-box">
+              <div class="ls-stat-label">Fallos</div>
+              <div class="ls-stat-val red" id="info-fallos">—</div>
+            </div>
+            <div class="ls-stat-box">
+              <div class="ls-stat-label">Mejor Tiempo</div>
+              <div class="ls-stat-val accent" id="info-tiempo">—</div>
+            </div>
+            <div class="ls-stat-box">
+              <div class="ls-stat-label">Intentos</div>
+              <div class="ls-stat-val" id="info-intentos">—</div>
+            </div>
+          </div>
+
+          <div>
+            <div class="ls-stat-label" style="margin-bottom:8px">Conceptos</div>
+            <div class="ls-algo-tags" id="info-tags"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Play button (always at bottom) -->
+      <div class="ls-play-area">
+        <button class="ls-btn-play locked" id="ls-btn-play" onclick="playLevel()">
+          🔒 &nbsp;SELECCIONA UN NIVEL
+        </button>
+      </div>
+    </div>
+
+    <!-- Grid area -->
+    <div class="ls-grid-area">
+
+      <!-- Progress bar -->
+      <div class="ls-progress-bar-wrap">
+        <div class="ls-progress-text">
+          <div class="big">2 / 5</div>
+          <div class="sm">Niveles completados</div>
+        </div>
+        <div class="ls-bar-track">
+          <div class="ls-bar-fill" style="width:40%"></div>
+        </div>
+        <div class="ls-progress-pct">40%</div>
+      </div>
+
+      <!-- Section: Introducción -->
+      <div class="ls-section-head">
+        <div class="ls-section-title">Introducción a Grafos</div>
+        <div class="ls-section-line"></div>
+        <div class="ls-section-count">2 niveles</div>
+      </div>
+
+      <div class="ls-grid" id="grid-intro"></div>
+
+      <!-- Section: Algoritmos de Búsqueda -->
+      <div class="ls-section-head">
+        <div class="ls-section-title">Algoritmos de Búsqueda</div>
+        <div class="ls-section-line"></div>
+        <div class="ls-section-count">2 niveles</div>
+      </div>
+
+      <div class="ls-grid" id="grid-busqueda"></div>
+
+      <!-- Section: Rutas Óptimas -->
+      <div class="ls-section-head">
+        <div class="ls-section-title">Rutas Óptimas</div>
+        <div class="ls-section-line"></div>
+        <div class="ls-section-count">1 nivel</div>
+      </div>
+
+      <div class="ls-grid" id="grid-rutas"></div>
+
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════ MODAL: AJUSTES ═══════════════════ -->
+<div class="modal-backdrop" id="modal-settings">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title"><span class="modal-title-icon">⚙</span> AJUSTES</div>
+      <button class="modal-close" onclick="closeModal('settings')">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- Dificultad -->
+      <div class="setting-group">
+        <div class="setting-label">🎯 Dificultad</div>
+        <div class="radio-group">
+          <div class="radio-opt selected" onclick="selectDiff(this,'normal')">
+            <div class="radio-dot"></div>
+            <div>
+              <div class="radio-name">Normal</div>
+              <div class="radio-desc">Niveles como diseñados · Guía visual activa</div>
+            </div>
+          </div>
+          <div class="radio-opt" onclick="selectDiff(this,'hard')">
+            <div class="radio-dot"></div>
+            <div>
+              <div class="radio-name">Difícil</div>
+              <div class="radio-desc">+30% nodos · Presupuesto −20% · Límite 10 min</div>
+            </div>
+          </div>
+          <div class="radio-opt" onclick="selectDiff(this,'expert')">
+            <div class="radio-dot"></div>
+            <div>
+              <div class="radio-name">Experto</div>
+              <div class="radio-desc">+60% nodos · Sin guía · Sin pistas · Límite 5 min</div>
+            </div>
+          </div>
+        </div>
+        <div class="diff-info-box" id="diff-info">
+          ℹ️ <strong style="color:var(--text)">Normal</strong>: Los niveles funcionan exactamente como están diseñados. La guía visual te muestra el camino y las zonas están iluminadas.
+        </div>
+      </div>
+
+      <!-- Color de cables -->
+      <div class="setting-group">
+        <div class="setting-label">🔌 Color de Cables</div>
+        <div class="color-swatch">
+          <div class="swatch active" style="background:#00d4ff" onclick="selectSwatch(this)" title="Clásico"></div>
+          <div class="swatch" style="background:#10b981" onclick="selectSwatch(this)" title="Neon Verde"></div>
+          <div class="swatch" style="background:#f97316" onclick="selectSwatch(this)" title="Neon Naranja"></div>
+          <div class="swatch" style="background:#a855f7" onclick="selectSwatch(this)" title="Violeta"></div>
+          <div class="swatch" style="background:linear-gradient(90deg,#ef4444,#f97316)" onclick="selectSwatch(this)" title="Fuego"></div>
+          <div class="swatch" style="background:linear-gradient(90deg,#f59e0b,#10b981,#00d4ff,#a855f7)" onclick="selectSwatch(this)" title="Arcoíris"></div>
+        </div>
+      </div>
+
+      <!-- Colores de indicadores -->
+      <div class="setting-group">
+        <div class="setting-label">🎨 Indicadores Visuales</div>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div style="display:flex; align-items:center; gap:12px; font-size:12px; color:var(--muted)">
+            <span style="width:120px">Zona activa</span>
+            <div class="color-swatch">
+              <div class="swatch active" style="background:#00d4ff;width:22px;height:22px" onclick="selectSwatch(this)"></div>
+              <div class="swatch" style="background:#10b981;width:22px;height:22px" onclick="selectSwatch(this)"></div>
+              <div class="swatch" style="background:#f59e0b;width:22px;height:22px" onclick="selectSwatch(this)"></div>
+              <div class="swatch" style="background:#a855f7;width:22px;height:22px" onclick="selectSwatch(this)"></div>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:12px; font-size:12px; color:var(--muted)">
+            <span style="width:120px">Nodo seleccionado</span>
+            <div class="color-swatch">
+              <div class="swatch active" style="background:#f59e0b;width:22px;height:22px" onclick="selectSwatch(this)"></div>
+              <div class="swatch" style="background:#10b981;width:22px;height:22px" onclick="selectSwatch(this)"></div>
+              <div class="swatch" style="background:#00d4ff;width:22px;height:22px" onclick="selectSwatch(this)"></div>
+              <div class="swatch" style="background:#ef4444;width:22px;height:22px" onclick="selectSwatch(this)"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Audio -->
+      <div class="setting-group">
+        <div class="setting-label">🔊 Audio</div>
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div>
+            <div style="font-size:12px; color:var(--muted); margin-bottom:8px">Música ambiente</div>
+            <div class="slider-row">
+              <input type="range" min="0" max="100" value="70" oninput="updateSlider(this,'vol-music')">
+              <span class="slider-val" id="vol-music">70%</span>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:12px; color:var(--muted); margin-bottom:8px">Efectos de sonido</div>
+            <div class="slider-row">
+              <input type="range" min="0" max="100" value="85" oninput="updateSlider(this,'vol-sfx')">
+              <span class="slider-val" id="vol-sfx">85%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('settings')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveSettings()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════ MODAL: CRÉDITOS ═══════════════════ -->
+<div class="modal-backdrop" id="modal-credits">
+  <div class="modal" style="width:480px">
+    <div class="modal-header">
+      <div class="modal-title"><span class="modal-title-icon">ℹ</span> CRÉDITOS</div>
+      <button class="modal-close" onclick="closeModal('credits')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="credit-cards">
+        <div class="credit-card">
+          <div class="credit-icon">👨‍💻</div>
+          <div>
+            <div class="credit-title">Desarrollo</div>
+            <div class="credit-desc">Diseño e implementación del sistema de juego serio, arquitectura de servicios, y mecánicas de grafos interactivos.</div>
+          </div>
+        </div>
+        <div class="credit-card">
+          <div class="credit-icon">🔧</div>
+          <div>
+            <div class="credit-title">Herramientas</div>
+            <div class="credit-desc">Roblox Studio · Lua 5.1 · Algoritmos de grafos (BFS, DFS, Dijkstra) · Sistema de persistencia DataStore</div>
+          </div>
+        </div>
+        <div class="credit-card">
+          <div class="credit-icon">📚</div>
+          <div>
+            <div class="credit-title">Marco Educativo</div>
+            <div class="credit-desc">Diseñado para el aprendizaje de Estructura de Datos y Algoritmos. Basado en metodologías de <em>juegos serios</em> para enseñanza interactiva de grafos dirigidos y no dirigidos.</div>
+          </div>
+        </div>
+        <div class="credit-card">
+          <div class="credit-icon">💡</div>
+          <div>
+            <div class="credit-title">Inspiración</div>
+            <div class="credit-desc">Teoría de grafos clásica · Algoritmos de Cormen et al. · Comunidad educativa de Roblox</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="closeModal('credits')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════ MODAL: SALIR ═══════════════════ -->
+<div class="modal-backdrop" id="modal-exit">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <div class="modal-title"><span class="modal-title-icon">⚠</span> SALIR DEL JUEGO</div>
+      <button class="modal-close" onclick="closeModal('exit')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="exit-body">
+        <div class="exit-icon">👋</div>
+        <div class="exit-msg">¿Seguro que deseas salir?<br>Tu progreso ha sido guardado automáticamente.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost"  onclick="closeModal('exit')">Cancelar</button>
+      <button class="btn btn-danger" onclick="confirmExit()">Salir</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+// ══════════════════════════════════════════════
+//  DATA: Niveles (basado en LevelsConfig + plan)
+// ══════════════════════════════════════════════
+const LEVELS = [
+  {
+    id: 0,
+    nombre: 'Laboratorio de Grafos',
+    seccion: 'intro',
+    descripcion: 'El laboratorio de introducción. Aprende qué es un grafo, qué son los nodos y las aristas, y cómo conectarlos para energizar la red eléctrica del nivel.',
+    emoji: '🧪',
+    algoritmo: 'Grafos No Dirigidos',
+    conceptos: ['Nodos', 'Aristas', 'Adyacencia', 'Grado'],
+    desbloqueado: true,
+    estrellas: 3,
+    highScore: 1480,
+    aciertos: 12,
+    fallos: 1,
+    tiempoMejor: '2:34',
+    intentos: 3,
+  },
+  {
+    id: 1,
+    nombre: 'La Red Desconectada',
+    seccion: 'intro',
+    descripcion: 'Una red eléctrica urbana ha perdido sus conexiones. Debes reconstruirla asegurando que todos los nodos estén conectados: grafos conexos en acción.',
+    emoji: '🏙️',
+    algoritmo: 'Conectividad',
+    conceptos: ['Grafo Conexo', 'BFS básico', 'Componentes', 'Spanning'],
+    desbloqueado: true,
+    estrellas: 2,
+    highScore: 960,
+    aciertos: 8,
+    fallos: 4,
+    tiempoMejor: '4:12',
+    intentos: 5,
+  },
+  {
+    id: 2,
+    nombre: 'La Fábrica de Señales',
+    seccion: 'busqueda',
+    descripcion: 'Las señales deben llegar desde el origen a todos los destinos de la fábrica. Aprende BFS y DFS para explorar el grafo sistemáticamente y encontrar todos los caminos.',
+    emoji: '🏭',
+    algoritmo: 'BFS · DFS',
+    conceptos: ['BFS', 'DFS', 'Árbol de búsqueda', 'Nivel de nodo'],
+    desbloqueado: true,
+    estrellas: 0,
+    highScore: 0,
+    aciertos: 0,
+    fallos: 0,
+    tiempoMejor: null,
+    intentos: 0,
+  },
+  {
+    id: 3,
+    nombre: 'El Puente Roto',
+    seccion: 'busqueda',
+    descripcion: 'Algunos puentes de la ciudad han colapsado creando un grafo dirigido. Aprende a trabajar con grafos dirigidos donde las conexiones tienen dirección y sentido.',
+    emoji: '🌉',
+    algoritmo: 'Grafos Dirigidos',
+    conceptos: ['Dígrafo', 'In-degree', 'Out-degree', 'Camino dirigido'],
+    desbloqueado: false,
+    estrellas: 0,
+    highScore: 0,
+    aciertos: 0,
+    fallos: 0,
+    tiempoMejor: null,
+    intentos: 0,
+  },
+  {
+    id: 4,
+    nombre: 'Ruta Mínima',
+    seccion: 'rutas',
+    descripcion: 'La red de transporte de la ciudad necesita optimizarse. Usa el algoritmo de Dijkstra para encontrar la ruta más corta entre cualquier par de nodos en un grafo con pesos.',
+    emoji: '🗺️',
+    algoritmo: 'Dijkstra',
+    conceptos: ['Grafo Ponderado', 'Dijkstra', 'Camino Mínimo', 'Peso de arista'],
+    desbloqueado: false,
+    estrellas: 0,
+    highScore: 0,
+    aciertos: 0,
+    fallos: 0,
+    tiempoMejor: null,
+    intentos: 0,
+  },
+];
+
+// ──────────────────────────────────────────────
+//  GRAPH BACKGROUND
+// ──────────────────────────────────────────────
+const nodes = [
+  { id:'A', x:12, y:20, type:'cyan',   label:'V₁' },
+  { id:'B', x:28, y:55, type:'violet', label:'V₂' },
+  { id:'C', x:18, y:72, type:'green',  label:'V₃' },
+  { id:'D', x:35, y:30, type:'cyan',   label:'V₄' },
+  { id:'E', x:50, y:65, type:'violet', label:'V₅' },
+  { id:'F', x:42, y:15, type:'green',  label:'V₆' },
+  { id:'G', x:60, y:35, type:'cyan',   label:'V₇' },
+  { id:'H', x:65, y:75, type:'violet', label:'V₈' },
+  { id:'I', x:75, y:20, type:'green',  label:'V₉' },
+  { id:'J', x:80, y:55, type:'cyan',   label:'V₁₀'},
+  { id:'K', x:25, y:40, type:'violet', label:'V₁₁'},
+  { id:'L', x:55, y:50, type:'green',  label:'V₁₂'},
+];
+const edges = [
+  ['A','D'],['A','K'],['K','B'],['K','D'],['B','C'],
+  ['D','F'],['D','G'],['F','G'],['G','I'],['G','L'],
+  ['L','E'],['L','J'],['E','H'],['H','J'],['I','J'],
+  ['B','E'],['C','E'],['F','I'],
+];
+const edgeColors = {
+  cyan:   'rgba(0,212,255,0.35)',
+  violet: 'rgba(124,58,237,0.35)',
+  green:  'rgba(16,185,129,0.35)',
+};
+
+function buildGraph() {
+  const canvas = document.getElementById('graphCanvas');
+  const svg    = document.getElementById('edgesSvg');
+  const W = window.innerWidth, H = window.innerHeight - 32;
+  const nodeMap = {};
+  nodes.forEach(n => {
+    const px = (n.x/100)*W, py = (n.y/100)*H;
+    nodeMap[n.id] = { px, py, type: n.type };
+    const el = document.createElement('div');
+    el.className = `g-node ${n.type}`;
+    el.style.cssText = `left:${px}px;top:${py}px;width:36px;height:36px;margin-left:-18px;margin-top:-18px;animation-delay:${Math.random()*4}s`;
+    el.textContent = n.label;
+    canvas.appendChild(el);
+  });
+  edges.forEach(([a,b]) => {
+    const na=nodeMap[a], nb=nodeMap[b];
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',na.px); line.setAttribute('y1',na.py);
+    line.setAttribute('x2',nb.px); line.setAttribute('y2',nb.py);
+    line.setAttribute('stroke', edgeColors[na.type]);
+    line.setAttribute('stroke-width','1.5');
+    line.classList.add('edge');
+    line.style.animationDelay = Math.random()*3+'s';
+    svg.appendChild(line);
+  });
+}
+
+// ──────────────────────────────────────────────
+//  CAMERA
+// ──────────────────────────────────────────────
+let currentCam = 0;
+function setCam(idx) {
+  currentCam = idx;
+  document.querySelectorAll('.cam-view').forEach((v,i) => v.classList.toggle('active', i===idx));
+}
+
+// ──────────────────────────────────────────────
+//  MODALS
+// ──────────────────────────────────────────────
+function openModal(id) { document.getElementById('modal-'+id).classList.add('open'); }
+function closeModal(id){ document.getElementById('modal-'+id).classList.remove('open'); }
+document.querySelectorAll('.modal-backdrop').forEach(bd => {
+  bd.addEventListener('click', e => { if(e.target===bd) bd.classList.remove('open'); });
+});
+
+// ──────────────────────────────────────────────
+//  SETTINGS
+// ──────────────────────────────────────────────
+const diffInfo = {
+  normal: 'ℹ️ <strong style="color:var(--text)">Normal</strong>: Los niveles funcionan exactamente como están diseñados. La guía visual te muestra el camino y las zonas están iluminadas.',
+  hard:   '⚠️ <strong style="color:#f59e0b">Difícil</strong>: Se añaden un 30% más de nodos al mapa. El presupuesto se reduce un 20% y hay un límite de <strong style="color:#f59e0b">10 minutos</strong> por nivel.',
+  expert: '🔴 <strong style="color:#ef4444">Experto</strong>: +60% de nodos. Sin guía visual, sin iluminación de zonas, sin pistas. Límite de <strong style="color:#ef4444">5 minutos</strong>. Solo para expertos.',
+};
+function selectDiff(el, key) {
+  document.querySelectorAll('.radio-opt').forEach(r => r.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('diff-info').innerHTML = diffInfo[key];
+}
+function selectSwatch(el) {
+  const group = el.closest('.color-swatch');
+  group.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+}
+function updateSlider(input, labelId) { document.getElementById(labelId).textContent = input.value+'%'; }
+function saveSettings() {
+  closeModal('settings');
+  setTimeout(() => { showToast('✓ Ajustes guardados correctamente'); }, 200);
+}
+
+// ──────────────────────────────────────────────
+//  TOOLTIP / TOAST
+// ──────────────────────────────────────────────
+function showToast(text) {
+  const t = document.getElementById('tooltip');
+  t.textContent = text; t.style.opacity='1';
+  setTimeout(() => t.style.opacity='0', 2200);
+}
+
+// ──────────────────────────────────────────────
+//  EXIT
+// ──────────────────────────────────────────────
+function confirmExit() {
+  closeModal('exit');
+  showToast('👋 Cerrando sesión...');
+}
+
+// ══════════════════════════════════════════════
+//  LEVEL SELECT
+// ══════════════════════════════════════════════
+let selectedLevel = null;
+
+function openLevelSelect() {
+  document.getElementById('screen-menu').classList.add('hidden');
+  document.getElementById('screen-levels').classList.remove('hidden');
+}
+function closeLevelSelect() {
+  document.getElementById('screen-levels').classList.add('hidden');
+  document.getElementById('screen-menu').classList.remove('hidden');
+}
+
+// Build level cards
+function buildLevelCards() {
+  const grids = { intro:'grid-intro', busqueda:'grid-busqueda', rutas:'grid-rutas' };
+
+  LEVELS.forEach(lv => {
+    const container = document.getElementById(grids[lv.seccion]);
+    if(!container) return;
+
+    const starsHtml = [1,2,3].map(i =>
+      `<span class="s${i<=lv.estrellas?' on':''}">⭐</span>`
+    ).join('');
+
+    const badge = lv.desbloqueado
+      ? (lv.estrellas > 0 ? '<span class="card-status-badge completado">✓ Completado</span>'
+                          : '<span class="card-status-badge disponible">Disponible</span>')
+      : '<span class="card-status-badge bloqueado">🔒 Bloqueado</span>';
+
+    const scoreText = lv.highScore > 0 ? lv.highScore + ' pts' : '—';
+
+    const card = document.createElement('div');
+    card.className = 'level-card' + (!lv.desbloqueado ? ' locked' : '');
+    card.dataset.id = lv.id;
+    card.innerHTML = `
+      <div class="card-header">
+        <span class="card-num">Nivel ${lv.id}</span>
+        ${badge}
+      </div>
+      <span class="card-emoji">${lv.emoji}</span>
+      <div class="card-body">
+        <div class="card-title">${lv.nombre}</div>
+        <div class="card-algo">
+          <div class="card-algo-dot"></div>
+          ${lv.algoritmo}
+        </div>
+      </div>
+      <div class="card-footer">
+        <div class="card-stars">${starsHtml}</div>
+        <div class="card-score">${scoreText}</div>
+      </div>
+      ${!lv.desbloqueado ? '<div class="card-lock-overlay">🔒</div>' : ''}
+    `;
+
+    if(lv.desbloqueado) {
+      card.addEventListener('click', () => selectLevel(lv.id));
+    }
+
+    container.appendChild(card);
+  });
+}
+
+function selectLevel(id) {
+  selectedLevel = id;
+  const lv = LEVELS.find(l => l.id === id);
+  if(!lv) return;
+
+  // Highlight card
+  document.querySelectorAll('.level-card').forEach(c => c.classList.remove('selected'));
+  document.querySelector(`.level-card[data-id="${id}"]`).classList.add('selected');
+
+  // Show info panel
+  document.getElementById('ls-placeholder').style.display = 'none';
+  document.getElementById('ls-info-content').style.display = 'flex';
+  document.getElementById('ls-info-content').style.flexDirection = 'column';
+  document.getElementById('ls-info-content').style.overflow = 'hidden';
+  document.getElementById('ls-info-content').style.flex = '1';
+
+  // Fill data
+  document.getElementById('hero-emoji').textContent = lv.emoji;
+  document.getElementById('info-tag').textContent = `NIVEL ${lv.id} · ${lv.algoritmo.toUpperCase()}`;
+  document.getElementById('info-name').textContent = lv.nombre;
+  document.getElementById('info-desc').textContent = lv.descripcion;
+
+  // Stars
+  [1,2,3].forEach(i => {
+    const s = document.getElementById('star'+i);
+    s.classList.toggle('earned', i <= lv.estrellas);
+  });
+
+  // Stats
+  document.getElementById('info-score').textContent = lv.highScore > 0 ? lv.highScore + ' pts' : '—';
+  document.getElementById('info-aciertos').textContent = lv.aciertos > 0 ? lv.aciertos : '—';
+  document.getElementById('info-fallos').textContent = lv.fallos > 0 ? lv.fallos : '—';
+  document.getElementById('info-tiempo').textContent = lv.tiempoMejor || '—';
+  document.getElementById('info-intentos').textContent = lv.intentos > 0 ? lv.intentos : '—';
+
+  // Status
+  let statusText = 'NUEVO', statusClass = 'accent';
+  if(lv.estrellas === 3) { statusText = '★★★'; statusClass = 'gold'; }
+  else if(lv.estrellas > 0) { statusText = 'PROGRESO'; statusClass = 'green'; }
+  const statusEl = document.getElementById('info-status');
+  statusEl.textContent = statusText;
+  statusEl.className = `ls-stat-val ${statusClass}`;
+
+  // Badge on hero
+  const heroBadge = document.getElementById('hero-badge');
+  if(lv.estrellas === 3) {
+    heroBadge.textContent = '★★★ COMPLETADO';
+    heroBadge.className = 'ls-info-hero-badge badge-completado';
+  } else if(lv.estrellas > 0) {
+    heroBadge.textContent = '● EN PROGRESO';
+    heroBadge.className = 'ls-info-hero-badge badge-desbloqueado';
+  } else {
+    heroBadge.textContent = '◆ DISPONIBLE';
+    heroBadge.className = 'ls-info-hero-badge badge-desbloqueado';
+  }
+
+  // Algo tags
+  const tagsEl = document.getElementById('info-tags');
+  tagsEl.innerHTML = lv.conceptos.map(c => `<span class="algo-tag">${c}</span>`).join('');
+
+  // Glow color
+  const glowColors = { cyan:'#00d4ff', violet:'#7c3aed', green:'#10b981' };
+  const glowMap = [0,1,2,3,4].map(i => ['#00d4ff','#7c3aed','#10b981','#f59e0b','#a855f7'][i]);
+  document.getElementById('hero-glow').style.background = glowMap[id] || '#00d4ff';
+
+  // Play button
+  const btn = document.getElementById('ls-btn-play');
+  btn.className = 'ls-btn-play enabled';
+  btn.innerHTML = `▶ &nbsp;JUGAR NIVEL ${id}`;
+}
+
+function playLevel() {
+  if(selectedLevel === null) return;
+  const btn = document.getElementById('ls-btn-play');
+  btn.innerHTML = '⏳ &nbsp;CARGANDO...';
+  btn.style.opacity = '.7';
+  setTimeout(() => {
+    btn.innerHTML = `▶ &nbsp;JUGAR NIVEL ${selectedLevel}`;
+    btn.style.opacity = '1';
+    showToast(`→ Iniciando Nivel ${selectedLevel}: ${LEVELS[selectedLevel].nombre}...`);
+  }, 1200);
+}
+
+// ──────────────────────────────────────────────
+//  INIT
+// ──────────────────────────────────────────────
+window.addEventListener('load', () => {
+  buildGraph();
+  buildLevelCards();
+  setInterval(() => { currentCam=(currentCam+1)%4; setCam(currentCam); }, 6000);
+});
+
+window.addEventListener('keydown', e => {
+  if(e.key === 'Escape') {
+    if(!document.getElementById('screen-levels').classList.contains('hidden')) {
+      closeLevelSelect(); return;
+    }
+    document.querySelectorAll('.modal-backdrop.open').forEach(m => m.classList.remove('open'));
+  }
+});
+</script>
+</body>
+</html>
