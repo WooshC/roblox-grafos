@@ -141,59 +141,10 @@ if RewardService then
 end
 
 -- ============================================
--- PASO 4: Crear infraestructura de eventos
+-- PASO 4: Configurando listeners globales
 -- ============================================
 
-print("\n📦 Paso 4: Creando infraestructura de eventos...")
-
--- Asegurar que la carpeta Events/Remotes/Bindables existe
-local eventsFolder = ReplicatedStorage:FindFirstChild("Events")
-if not eventsFolder then
-	eventsFolder = Instance.new("Folder")
-	eventsFolder.Name = "Events"
-	eventsFolder.Parent = ReplicatedStorage
-end
-
-local remotesFolder = eventsFolder:FindFirstChild("Remotes")
-if not remotesFolder then
-	remotesFolder = Instance.new("Folder")
-	remotesFolder.Name = "Remotes"
-	remotesFolder.Parent = eventsFolder
-end
-
-local bindablesFolder = eventsFolder:FindFirstChild("Bindables")
-if not bindablesFolder then
-	bindablesFolder = Instance.new("Folder")
-	bindablesFolder.Name = "Bindables"
-	bindablesFolder.Parent = eventsFolder
-end
-
--- Crear todos los BindableEvents necesarios (P0-5, P0-6)
-local function crearBindable(nombre)
-	if not bindablesFolder:FindFirstChild(nombre) then
-		local be = Instance.new("BindableEvent")
-		be.Name = nombre
-		be.Parent = bindablesFolder
-		print("   ✅ BindableEvent creado: " .. nombre)
-	end
-end
-
-crearBindable("RestaurarObjetos")
-crearBindable("GuardarInventario")
-crearBindable("AristaConectada")
-crearBindable("DesbloquearObjeto")
-
--- ServicesReady: señal para que los scripts dependientes sepan que _G.Services está listo (P0-2)
-local ServicesReady = Instance.new("BindableEvent")
-ServicesReady.Name = "ServicesReady"
-ServicesReady.Parent = bindablesFolder
-print("   ✅ BindableEvent creado: ServicesReady")
-
--- ============================================
--- PASO 5: Configurando listeners globales
--- ============================================
-
-print("\n📦 Paso 5: Configurando listeners de eventos...")
+print("\n📦 Paso 4: Configurando listeners de eventos...")
 
 if LevelService then
 	-- Cuando se carga un nivel, inicializar GraphService y EnergyService
@@ -210,16 +161,25 @@ if LevelService then
 	end)
 end
 
--- NOTA P0-3: El listener de RequestPlayLevel fue eliminado de aquí.
--- ManagerData.lua ya maneja RequestPlayLevel vía setupLevelForPlayer,
--- que internamente llama LevelService:loadLevel(). Tener dos listeners
--- causaba condición de carrera y posible doble carga de nivel.
+-- Listeners remotos para carga de nivel (Admin/Testing)
+local Remotes = ReplicatedStorage:WaitForChild("Events"):FindFirstChild("Remotes")
+if Remotes then
+	local requestPlay = Remotes:FindFirstChild("RequestPlayLevel")
+	if requestPlay then
+		requestPlay.OnServerEvent:Connect(function(player, nivelID)
+			print("🎮 Solicitud de nivel " .. nivelID .. " por " .. player.Name)
+			if LevelService then
+				LevelService:loadLevel(nivelID)
+			end
+		end)
+	end
+end
 
 -- ============================================
--- PASO 6: Exportar a _G (Opcional)
+-- PASO 5: Exportar a _G (Opcional)
 -- ============================================
 
-print("\n📦 Paso 6: Registrando en _G.Services...")
+print("\n📦 Paso 5: Registrando en _G.Services...")
 
 _G.Services = {
 	Graph = GraphService,
@@ -236,18 +196,16 @@ _G.Services = {
 }
 
 -- ============================================
--- PASO 7: Auto-init de Nivel (si existe en Workspace)
+-- PASO 6: Auto-init de Nivel (si existe en Workspace)
 -- ============================================
 if LevelService then
 	LevelService:init()
 end
 
+
 -- ============================================
--- FIN — Disparar ServicesReady (P0-2)
+-- FIN
 -- ============================================
--- Esto notifica a ConectarCables, GameplayEvents, SistemaUI_reinicio
--- y GraphTheoryService que pueden acceder a _G.Services de forma segura.
-ServicesReady:Fire()
 
 print("\n" .. string.rep("═", 60))
 print("✅ SERVIDOR INICIALIZADO - ARQUITECTURA SERVICIOS UNIFICADA")

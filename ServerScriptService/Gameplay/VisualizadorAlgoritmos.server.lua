@@ -388,7 +388,7 @@ local function validarRutaJugador(nivelID, player, resultadoAlgoritmo, algoritmo
 
 	estado.yaValidado = true
 
-	return {Aciertos = aciertos, Fallos = cablesFaltantes, Bonus = puntosNetos}
+	return {Aciertos = aciertos, Fallos = fallos, Bonus = puntosNetos}
 end
 
 -- Escuchar evento PRINCIPAL
@@ -515,9 +515,7 @@ evento.OnServerEvent:Connect(function(player, algoritmo, nodoInicio, nodoFin, ni
 end)
 
 -- Limpieza al reiniciar
--- P0-5: RestaurarObjetos ya es creado por Init.server.lua antes de que este script arranque.
--- Usamos WaitForChild con timeout corto como salvaguarda.
-local restaurarEvent = bindables:WaitForChild("RestaurarObjetos", 10)
+local restaurarEvent = bindables:WaitForChild("RestaurarObjetos")
 
 if restaurarEvent then
 	restaurarEvent.Event:Connect(function()
