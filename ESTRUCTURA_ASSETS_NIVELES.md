@@ -25,67 +25,75 @@
 El modelo vive en `ServerStorage` y se clona a `Workspace/NivelActual` al cargarse.
 El nombre del modelo en ServerStorage debe coincidir con el campo `Modelo` en `LevelsConfig`.
 
-Cada nivel puede tener uno o más grafos independientes. Cada grafo representa
-una zona o puzzle separado. Si un grafo requiere generador de energía, ese
-nodo vive **dentro** del propio grafo.
+Esta es la estructura **real y de referencia** confirmada en Studio. Cualquier nivel nuevo
+debe seguir exactamente esta jerarquía.
 
 ```
 ServerStorage/
 └── Nivel1/                              (Model) ← se clona como "NivelActual"
     │
-    ├── Grafos/                          (Folder) ← colección de todos los grafos del nivel
-    │   │
-    │   ├── Grafo_Zona1/                 (Folder) ← grafo independiente con generador
-    │   │   ├── Nodos/                   (Folder) ← todos los nodos de este grafo
-    │   │   │   ├── NodoA/               (Model)  ← ver sección 2 para estructura interna
-    │   │   │   ├── NodoB/               (Model)
-    │   │   │   ├── NodoC/               (Model)
-    │   │   │   └── Generador/           (Model)  ← nodo fuente de energía del grafo
-    │   │   │       ├── Part             (BasePart)   ← visual principal
-    │   │   │       ├── Attachment       (Attachment) ← anclaje para cables
-    │   │   │       └── [Tag: "Generador"]
-    │   │   ├── Conexiones/              (Folder) ← vacío; RopeConstraints se crean aquí en runtime
-    │   │   └── Meta/                    (Folder) ← metadatos del grafo
-    │   │       ├── GrafoID              (StringValue) = "Grafo_Zona1"
-    │   │       ├── Activo               (BoolValue)   = false
-    │   │       └── RequiereGenerador    (BoolValue)   = true
-    │   │
-    │   ├── Grafo_Zona2/                 (Folder) ← grafo sin generador propio
-    │   │   ├── Nodos/                   (Folder)
-    │   │   │   ├── NodoD/               (Model)
-    │   │   │   └── NodoE/               (Model)
-    │   │   ├── Conexiones/              (Folder) ← vacío al inicio
-    │   │   └── Meta/                    (Folder)
-    │   │       ├── GrafoID              (StringValue) = "Grafo_Zona2"
-    │   │       ├── Activo               (BoolValue)   = false
-    │   │       └── RequiereGenerador    (BoolValue)   = false
-    │   │
-    │   └── Grafo_ZonaN/                 (Folder) ← se añaden más grafos según el nivel
-    │       └── ...
-    │
-    ├── Zonas/                           (Folder) ← triggers para diálogos y eventos
-    │   ├── Zona1/                       (Model)
-    │   │   ├── Trigger                  (BasePart) ← Transparency=1, CanCollide=false
-    │   │   └── [Tag: "ZonaTrigger"]
-    │   ├── Zona2/                       (Model)
-    │   └── ...
-    │
-    ├── Navegacion/                      (Folder) ← puntos de referencia espaciales
-    │   ├── SpawnPoint                   (BasePart) ← donde aparece el jugador al cargar
-    │   ├── CamaraInicio                 (BasePart) ← CFrame objetivo de la cámara al entrar
-    │   └── Waypoints/                   (Folder)
-    │       ├── WP_01                    (BasePart) ← el Name define el orden de la guía
-    │       ├── WP_02                    (BasePart)
-    │       └── ...
+    ├── DialoguePrompts/                 (Folder) ← ProximityPrompts para iniciar diálogos
+    │   └── TestPrompt1/                 (Model)
+    │       └── PromptPart               (BasePart)
+    │           └── ProximityPrompt      (ProximityPrompt)
     │
     ├── Escenario/                       (Folder) ← geometría visual y colisiones
-    │   ├── Decoracion/                  (Folder) ← Parts puramente visuales
-    │   └── Colisionadores/              (Folder) ← InvisibleWalls, suelo, límites
+    │   ├── Colisionadores/              (Folder)
+    │   │   ├── Bloqueos/                (Folder) ← InvisibleWalls laterales y límites
+    │   │   └── Techos/                  (Folder)
+    │   │       └── Techo                (BasePart)
+    │   └── Decoracion/                  (Folder) ← Parts puramente visuales
     │
-    └── Meta/                            (Folder) ← metadatos del nivel
-        ├── NivelID                      (IntValue)    = 1
-        ├── NombreDisplay                (StringValue) = "El Primer Circuito"
-        └── Algoritmo                    (StringValue) = "BFS" | "DFS" | "PRIM"
+    ├── Grafos/                          (Folder) ← colección de todos los grafos del nivel
+    │   └── Grafo_Zona1/                 (Folder) ← un grafo por zona de puzzle
+    │       ├── Conexiones/              (Folder) ← vacío; RopeConstraints se crean aquí en runtime
+    │       ├── Meta/                    (Folder) ← metadatos del grafo
+    │       │   ├── Activo               (BoolValue)   = false
+    │       │   ├── GrafoID              (StringValue) = "Grafo_Zona1"
+    │       │   └── RequiereGenerador    (BoolValue)   = true/false
+    │       └── Nodos/                   (Folder) ← todos los nodos de este grafo
+    │           ├── Nodo1_z1/            (Model)  ← ver sección 2 para estructura interna
+    │           │   ├── Decoracion/      (Model)  ← visual del poste, luces, cables decorativos
+    │           │   └── Selector/        (Model)  ← hitbox de interacción
+    │           │       ├── Attachment   (Attachment) ← anclaje para RopeConstraints
+    │           │       └── ClickDetector (ClickDetector)
+    │           ├── Nodo2_z1/            (Model)
+    │           │   ├── Decoracion/      (Model)
+    │           │   └── Selector/        (Model)
+    │           │       ├── Attachment   (Attachment)
+    │           │       └── ClickDetector (ClickDetector)
+    │           └── Nodo3_z1/            (Model)
+    │               ├── Decoracion/      (Model)
+    │               └── Selector/        (Model)
+    │                   ├── Attachment   (Attachment)
+    │                   └── ClickDetector (ClickDetector)
+    │
+    ├── Meta/                            (Folder) ← metadatos del nivel
+    │   ├── Algoritmo                    (IntValue)    ← ID del algoritmo del nivel
+    │   ├── NivelID                      (IntValue)    = 1
+    │   └── NombreDisplay                (StringValue) = "El Primer Circuito"
+    │
+    ├── Navegacion/                      (Folder) ← puntos de referencia espaciales
+    │   └── Waypoints/                   (Folder) ← ver sección sobre Waypoints más abajo
+    │
+    ├── ObjetosColeccionables/           (Folder) ← objetos con los que el jugador interactúa
+    │   ├── MapaModel/                   (Model)  ← mapa físico del nivel en el mundo
+    │   └── Tablet_Algoritmos/           (Model)  ← tablet con info del algoritmo del nivel
+    │
+    ├── Zonas/                           (Folder) ← triggers de luz, eventos y gameplay
+    │   ├── Zona_luz_1/                  (Folder) ← zona que controla iluminación
+    │   │   └── Foco/                    (Model)  ← luz de la zona
+    │   ├── Zona_luz_2/                  (Folder)
+    │   │   ├── Ceiling_Light/           (Model)
+    │   │   └── Puerta/                  (Model)  ← objeto interactuable de la zona
+    │   └── Zonas_juego/                 (Folder) ← triggers invisibles de gameplay
+    │       ├── Zona_Estacion_1          (BasePart) ← Transparency=1, CanCollide=false
+    │       ├── Zona_Estacion_2          (BasePart)
+    │       ├── Zona_Estacion_3          (BasePart)
+    │       └── Zona_Estacion_4          (BasePart)
+    │
+    ├── SpawnLocation                    (SpawnLocation) ← punto de aparición del jugador
+    └── Carlos/                          (Model) ← NPC guía del nivel
 ```
 
 ---
@@ -93,32 +101,27 @@ ServerStorage/
 ## 2. Jerarquía de Nodos
 
 Cada nodo dentro de `Grafo_ZonaX/Nodos/` sigue esta estructura interna.
-El nombre del Model (`NodoA`, `NodoB`, etc.) es el identificador del nodo en el grafo.
+La convención de nombre es `NodoN_zX` donde `N` es el número del nodo y `X` el número de zona.
 
 ```
-NodoA/                                   (Model) ← PrimaryPart debe apuntar a Part
+Nodo1_z1/                                (Model) ← PrimaryPart debe apuntar a la Part del Selector
 │
-├── Part                                 (BasePart)   ← visual principal del poste
-│   └── [Attribute: "NodoID" = "NodoA"]  ← identifica el nodo desde la Part
+├── Decoracion/                          (Model) ← todo lo visual: poste, luces, adornos
+│   └── (Parts, SpecialMesh, etc.)           no afecta gameplay; solo apariencia
 │
-├── Selector                             (BasePart)      ← hitbox exclusivo para el click
-│   ├── ClickDetector                    (ClickDetector) ← detecta interacción del jugador
-│   └── [Attribute: "Seleccionable" = true]
-│
-├── Attachment                           (Attachment) ← anclaje para RopeConstraints
-│                                           debe estar dentro de Part, no suelto en el Model
-│
-├── EstadoVisual/                        (Folder)
-│   ├── LuzActiva                        (BasePart) ← visible cuando el nodo tiene energía
-│   └── LuzInactiva                      (BasePart) ← visible por defecto
-│
-└── [Tags CollectionService]
-    ├── "Nodo"                           ← todos los nodos del grafo
-    └── "NodoInteractivo"                ← nodos que el jugador puede seleccionar
+└── Selector/                            (Model) ← la parte que el juego "lee" y el jugador clickea
+    ├── Attachment                       (Attachment) ← anclaje para RopeConstraints de los cables
+    └── ClickDetector                    (ClickDetector) ← detecta interacción del jugador
 ```
 
-> **Nota**: `PrimaryPart` del Model debe apuntar a `Part` para que
-> `GraphService` pueda obtener la posición world correctamente con `:GetPivot()`.
+**Por qué está separado en Decoracion y Selector:**
+`Decoracion` puede cambiar libremente en Studio sin afectar el gameplay — se pueden
+agregar luces, cambiar colores, añadir efectos sin tocar la lógica. `Selector` es el
+contrato con el código: `GraphService` siempre busca el `ClickDetector` y el `Attachment`
+dentro de `Selector`, sin importar cómo luzca la decoración.
+
+> **Nota**: `PrimaryPart` del Model debe apuntar a la Part dentro de `Selector` para que
+> `GraphService` obtenga la posición world correctamente con `:GetPivot()`.
 
 ---
 
@@ -335,6 +338,34 @@ Los templates en `UI/` se clonan **una sola vez** al inicio del cliente y se
 muestran/ocultan según la etapa activa. No se crean nuevas instancias durante
 el gameplay para evitar memory leaks.
 
+### Waypoints — para qué sirven
+
+Los `Waypoints` dentro de `Navegacion/` son `BasePart` invisibles distribuidas por el
+nivel que definen la **ruta sugerida** que el jugador debería seguir para completar
+los objetivos en orden.
+
+`GuiaService` los lee en secuencia y mueve un indicador visual (flecha o ícono flotante)
+hacia el waypoint activo, señalando al jugador hacia dónde ir a continuación. Cuando el
+jugador llega o completa el objetivo asociado, `GuiaService` avanza al siguiente waypoint.
+
+```
+Navegacion/
+└── Waypoints/
+    ├── WP_01    ← BasePart invisible, apunta hacia la Tablet_Algoritmos al inicio
+    ├── WP_02    ← apunta hacia el Grafo_Zona1 cuando empieza el puzzle
+    ├── WP_03    ← apunta hacia un nodo específico si el jugador se pierde
+    └── WP_04    ← apunta hacia la salida cuando el nivel está completo
+```
+
+En el nivel actual no hay waypoints definidos aún — se añaden una vez que el flujo
+de misiones esté claro. Por ahora `Navegacion/Waypoints/` queda vacío como placeholder.
+
+### Separación Decoracion / Selector en nodos
+
+`Decoracion` puede modificarse libremente en Studio sin afectar gameplay.
+`Selector` es el contrato con el código — `GraphService` siempre busca
+`ClickDetector` y `Attachment` dentro de `Selector` y nunca dentro de `Decoracion`.
+
 ### Tags de CollectionService
 
 Los tags (`"Nodo"`, `"ZonaTrigger"`, `"Generador"`) se asignan directamente en Studio
@@ -378,4 +409,4 @@ Lo mínimo necesario para que `LevelService:loadLevel(nivelID)` funcione correct
 
 ---
 
-*Última actualización: Sistema 2.1 — Grafos por zona, división pre-creado vs runtime, Fase 1 (Carga de Nivel)*
+*Última actualización: Sistema 2.1 — Estructura confirmada en Studio, Waypoints explicados, Fase 1 (Carga de Nivel)*
