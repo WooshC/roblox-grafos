@@ -1,14 +1,18 @@
-# roblox-grafos — Deuda Técnica Unificada
+# roblox-grafos — Deuda Técnica Unificada (Rev. 2)
 
 > **Propósito**: Documento único que unifica `REFACTORING.md` y `roblox-grafos-deuda-tecnica.md`, incorpora todos los nuevos problemas encontrados en análisis profundo de código, y define prioridades de sprint.
 >
 > **Estado**: Los archivos anteriores (`REFACTORING.md` y `roblox-grafos-deuda-tecnica.md`) quedan obsoletos. Este es el documento de referencia.
+>
+> **Revisión 2**: Segunda revisión profunda del código. Se marcan ítems resueltos, se corrigen descripciones obsoletas y se agregan 10 nuevos errores encontrados.
+>
+> **Fase 1** (2026-02-24): Corrección de todos los bugs críticos P0. P0-1, P0-2, P0-3, P0-5, P0-6 resueltos.
 
 ---
 
 ## Tabla de contenido
 
-1. [Sprint actual — Matriz dirigida/no dirigida](#1-sprint-actual--corrección-de-la-matriz-de-adyacencia)
+1. [Sprint anterior — Matriz dirigida/no dirigida ✅ COMPLETADO](#1-sprint-anterior--corrección-de-la-matriz-de-adyacencia)
 2. [Backlog — Bugs críticos P0](#2-bugs-críticos-p0--backlog)
 3. [Backlog — Alta severidad P1](#3-problemas-de-alta-severidad-p1--backlog)
 4. [Backlog — Severidad media P2](#4-problemas-de-severidad-media-p2--backlog)
@@ -21,107 +25,44 @@
 
 ---
 
-## 1. Sprint actual — Corrección de la matriz de adyacencia
+## 1. Sprint anterior — Corrección de la matriz de adyacencia
 
-> **Objetivo del sprint**: Hacer que la matriz de adyacencia distinga correctamente grafos dirigidos (Zona 3) de grafos no dirigidos (Zonas 1 y 2). Todo lo demás va a backlog.
+> ✅ **COMPLETADO** — Los tres focos descritos abajo ya están corregidos en el código actual. Esta sección queda como referencia histórica.
 
-### Síntoma
+### Síntoma (ya resuelto)
 
-En la Zona 3 (Grafos Dirigidos), la matriz muestra `1` en ambas celdas `A[i][j]` y `A[j][i]` aunque la arista sea unidireccional (`X → Y` pero no `Y → X`). La matriz siempre aparece simétrica.
+En la Zona 3 (Grafos Dirigidos), la matriz mostraba `1` en ambas celdas `A[i][j]` y `A[j][i]` aunque la arista fuera unidireccional.
 
-### Causa raíz — tres focos encadenados
+### Lo que se corrigió
 
-#### Foco 1 — `GraphUtils.lua : getCableKey()`
-
-```lua
--- ACTUAL (ordena alfabéticamente → trata todo como no-dirigido)
-if nameA < nameB then
-    return nameA .. "_" .. nameB
-else
-    return nameB .. "_" .. nameA
-end
-```
-
-La clave aplana la dirección. La clave simétrica es correcta para **almacenar** el cable físico (objeto único), pero **no** para consultar si una arista dirigida va en un sentido concreto.
-
-#### Foco 2 — `GraphUtils.lua : getAdjacencyMatrix()`
+#### Foco 1 — `GraphUtils.lua : getAdjacencyMatrix()` ✅
 
 ```lua
--- ACTUAL (siempre pone 1 en ambas direcciones)
-matrix[idxA][idxB] = 1
-matrix[idxB][idxA] = 1
-```
-
-Sin importar la dirección de la arista, rellena ambas celdas.
-
-#### Foco 3 — `GraphTheoryService.server.lua : getAdjacencyMatrix()`
-
-```lua
--- ACTUAL (delega en areConnected, que tampoco sabe de dirección)
-if GraphUtils.areConnected(nodeA, nodeB, cables) then
-    matrix[i][j] = peso   -- y también matrix[j][i] = peso
-```
-
-### Información disponible
-
-`LevelsConfig[zonaID].Adyacencias` ya codifica la direccionalidad:
-
-```lua
--- Zona 3: cadena X → Y → Z
-["Nodo1_z3"] = {"Nodo2_z3"},
-["Nodo2_z3"] = {"Nodo3_z3"},
-["Nodo3_z3"] = {},
-```
-
-Regla de llenado:
-
-| `Ady[A]` contiene B | `Ady[B]` contiene A | Interpretación | Celdas a rellenar |
-|---|---|---|---|
-| ✅ | ✅ | Bidireccional | `M[A][B]` y `M[B][A]` |
-| ✅ | ❌ | Dirigido A → B | Solo `M[A][B]` |
-| ❌ | ✅ | Dirigido B → A | Solo `M[B][A]` |
-| ❌ | ❌ | Sin adyacencias definidas | Ambas celdas (fallback) |
-
-### Plan de corrección (3 pasos)
-
-**Paso 1 — `GraphTheoryService.server.lua`**
-
-Obtener `config.Adyacencias` desde `LevelService:getLevelConfig()` y pasarlo al constructor de la matriz. Al iterar cables:
-
-```
-Para cada cable (nodeA ↔ nodeB):
-  puedeIr_AB = Adyacencias[A.Name] contiene B.Name
-  puedeIr_BA = Adyacencias[B.Name] contiene A.Name
-
-  si puedeIr_AB  → matrix[idx_A][idx_B] = peso
-  si puedeIr_BA  → matrix[idx_B][idx_A] = peso
-  si ninguno definido → ambas celdas = peso  (fallback)
-```
-
-**Paso 2 — `GraphUtils.lua : getAdjacencyMatrix()`**
-
-Añadir parámetro opcional `adyacencias`. Si se provee, usar la lógica del Paso 1. Si no (uso genérico), mantener comportamiento bidireccional actual.
-
-```lua
+-- ACTUAL (corregido): acepta parámetro opcional adyacencias
 function GraphUtils.getAdjacencyMatrix(nodes, cables, adyacencias)
     -- ...
-    for _, info in pairs(cables) do
-        local nA, nB = info.nodeA.Name, info.nodeB.Name
-        local ady = adyacencias or {}
-        local aToB = ady[nA] and table.find(ady[nA], nB)
-        local bToA = ady[nB] and table.find(ady[nB], nA)
-        local fallback = not adyacencias or (not aToB and not bToA)
+    if adyacencias then
+        local aToB = adyacencias[nA] and table.find(adyacencias[nA], nB)
+        local bToA = adyacencias[nB] and table.find(adyacencias[nB], nA)
+        local fallback = not aToB and not bToA
         if aToB or fallback then matrix[idxA][idxB] = 1 end
         if bToA or fallback then matrix[idxB][idxA] = 1 end
+    else
+        matrix[idxA][idxB] = 1
+        matrix[idxB][idxA] = 1
     end
 end
 ```
 
-**Paso 3 — verificar `MatrixManager.lua : calcularGrados()`**
+#### Foco 2 — `GraphTheoryService.server.lua` ✅
 
-La función ya detecta dígrafos comparando `matrix[r][c]` con `matrix[c][r]`. Una vez que el servidor envíe la matriz asimétrica correcta, la detección funciona sin cambios. Verificar que `gTotal = esDigrafo and (gEntrada + gSalida) or gEntrada` es correcto (ya está bien implementado).
+Ya obtiene `levelCfg.Adyacencias` y lo pasa al llenado de la matriz, respetando direccionalidad.
 
-### Tests del sprint
+#### Foco 3 — `MatrixManager.lua : calcularGrados()` ✅
+
+Detecta dígrafos comparando `matrix[r][c]` con `matrix[c][r]`. Funciona correctamente una vez que la matriz llega asimétrica del servidor.
+
+### Tests que deben pasar (ya verificables)
 
 - **Zona 1 / 2**: La matriz sigue siendo simétrica.
 - **Zona 3**: `M[X][Y] = peso` pero `M[Y][X] = 0` cuando solo existe `X→Y`.
@@ -131,71 +72,49 @@ La función ya detecta dígrafos comparando `matrix[r][c]` con `matrix[c][r]`. U
 
 ## 2. Bugs Críticos (P0) — Backlog
 
-### P0-1 — Variable `fallos` usada sin declarar en `VisualizadorAlgoritmos`
+### ~~P0-1 — Variable `fallos` usada sin declarar en `VisualizadorAlgoritmos`~~ ✅ RESUELTO
 
-**Archivo**: `ServerScriptService/Gameplay/VisualizadorAlgoritmos.server.lua` línea 391
+> **Fase 1**: Corregido en `VisualizadorAlgoritmos.server.lua` L391: `Fallos = fallos` → `Fallos = cablesFaltantes`.
 
 ```lua
--- ACTUAL — fallos nunca fue declarada
-return {Aciertos = aciertos, Fallos = fallos, Bonus = puntosNetos}
-```
-
-En Lua, leer una local no declarada retorna `nil` silenciosamente. El campo `Fallos` siempre es `nil`.
-
-**Corrección**:
-```lua
+-- CORREGIDO
 return {Aciertos = aciertos, Fallos = cablesFaltantes, Bonus = puntosNetos}
 ```
 
 ---
 
-### P0-2 — `task.wait(1)` como mecanismo de espera de servicios (condición de carrera)
+### ~~P0-2 — `task.wait(1)` como mecanismo de espera de servicios (condición de carrera)~~ ✅ RESUELTO
 
-**Archivos**: `ConectarCables.server.lua` (L8), `GameplayEvents.server.lua` (L7), `SistemaUI_reinicio.server.lua` (L8), `GraphTheoryService.server.lua` (L8)
+> **Fase 1**: `Init.server.lua` ahora crea `ServicesReady` BindableEvent y lo dispara al final de la inicialización. Los 4 scripts dependientes reemplazaron `task.wait(1)` por `ServicesReady.Event:Wait()`.
 
-Todos leen `_G.Services.*` tras un `task.wait(1)` fijo. Si `Init.server.lua` tarda más de 1 segundo, los scripts leen `nil` y fallan silenciosamente.
-
-**Corrección** — crear `ServicesReady` BindableEvent en `Init.server.lua`:
 ```lua
--- Final de Init.server.lua
-local ServicesReady = Instance.new("BindableEvent")
-ServicesReady.Name = "ServicesReady"
-ServicesReady.Parent = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Bindables")
-ServicesReady:Fire()
-
--- En cada script dependiente, reemplazar task.wait(1) por:
+-- CORREGIDO en cada script dependiente
 ReplicatedStorage:WaitForChild("Events"):WaitForChild("Bindables"):WaitForChild("ServicesReady").Event:Wait()
 ```
 
 ---
 
-### P0-3 — Doble listener `RequestPlayLevel` — condición de carrera al iniciar nivel
+### ~~P0-3 — Doble listener `RequestPlayLevel` — condición de carrera al iniciar nivel~~ ✅ RESUELTO
 
-**Archivos**: `Init.server.lua` (~L126–132) y `ManagerData.lua`
-
-Ambos conectan `RequestPlayEvent.OnServerEvent`. Cuando el cliente dispara `RequestPlayLevel`, los dos handlers corren en orden no garantizado → condición de carrera en atributos del jugador.
-
-**Corrección**: Eliminar el listener de `Init.server.lua`. `ManagerData.lua` ya llama internamente a `LevelService:loadLevel()`.
+> **Fase 1**: Eliminado el listener de `Init.server.lua`. `ManagerData.lua::setupLevelForPlayer()` ahora llama explícitamente a `LevelService:loadLevel(levelId)` vía `_G.Services.Level` antes de buscar el modelo en Workspace, garantizando que `NivelActual` exista cuando se hace el teletransporte. (Los errores "Modelo de nivel no encontrado" y "No se encontró Spawn" quedaron resueltos con este cambio.)
 
 ---
 
-### P0-4 — `GameplayEvents` otorga recompensas dobles vía `LevelCompletedEvent`
+### ~~P0-4 — `GameplayEvents` otorga recompensas dobles vía `LevelCompletedEvent`~~ ✅ RESUELTO
 
-**Archivo**: `GameplayEvents.server.lua` y `MissionService.lua`
-
-`MissionService.checkVictoryCondition()` llama a `RewardService:giveCompletionRewards()` al detectar victoria y luego dispara `LevelCompletedEvent:FireClient()`. El cliente recibe esto y vuelve a dispara `LevelCompletedEvent` al servidor. El handler `LevelCompletedEvent.OnServerEvent` en `GameplayEvents.server.lua` llama a `giveCompletionRewards()` **por segunda vez**. El jugador recibe XP, dinero y estrellas duplicados.
-
-**Corrección**: Eliminar la llamada a `giveCompletionRewards` del handler `LevelCompletedEvent.OnServerEvent` en `GameplayEvents.server.lua` o protegerlo con el mismo atributo `VictoryProcessed`.
+> **Revisión 2**: `GameplayEvents.server.lua` ya no tiene un handler `LevelCompletedEvent.OnServerEvent`. Las recompensas se otorgan únicamente desde `MissionService.checkVictoryCondition()` mediante la guardia `VictoryProcessed`. Este bug está resuelto en la versión actual.
 
 ---
 
-### P0-5 — `VisualizadorAlgoritmos` cuelga indefinidamente en `WaitForChild("RestaurarObjetos")`
+### ~~P0-5 — `VisualizadorAlgoritmos` cuelga indefinidamente en `WaitForChild("RestaurarObjetos")`~~ ✅ RESUELTO
 
-**Archivo**: `ServerScriptService/Gameplay/VisualizadorAlgoritmos.server.lua` línea 518 (top-level)
+> **Fase 1**: `Init.server.lua` ahora crea `RestaurarObjetos`, `GuardarInventario`, `AristaConectada` y `DesbloquearObjeto` como BindableEvents antes de disparar `ServicesReady`. El `WaitForChild` en `VisualizadorAlgoritmos` ahora usa timeout de 10 s como salvaguarda.
 
-`WaitForChild("RestaurarObjetos")` bloquea el script indefinidamente. `RestaurarObjetos` no es creado por ningún script de forma garantizada antes de que arranque el visualizador.
+---
 
-**Corrección**: Crear todos los `BindableEvent`s necesarios en `Init.server.lua` antes de que arranquen los scripts dependientes (parte de la solución P0-2).
+### ~~P0-6 — `GestorEventos` también bloquea en `WaitForChild("RestaurarObjetos")`~~ ✅ RESUELTO
+
+> **Fase 1**: `GestorEventos.server.lua` reemplazó el polling infinito (`waitForService`) por `ServicesReady.Event:Wait()`. Los eventos `RestaurarObjetos` y `DesbloquearObjeto` ya existen cuando `GestorEventos` arranca porque `Init.server.lua` los crea antes de disparar `ServicesReady`.
 
 ---
 
@@ -203,7 +122,7 @@ Ambos conectan `RequestPlayEvent.OnServerEvent`. Cuando el cliente dispara `Requ
 
 ### P1-1 — `LevelService.getLevelProgress()` — `cablesPlaced` siempre es 0
 
-**Archivo**: `ServerScriptService/Services/LevelService.lua` ~L349
+**Archivo**: `ServerScriptService/Services/LevelService.lua` ~L354
 
 ```lua
 local cables = graphService:getCables()  -- tabla hash { [key] = info }
@@ -220,7 +139,12 @@ return { cablesPlaced = #cables, ... }   -- #hash siempre = 0
 
 **Archivo**: `ServerScriptService/Services/UIService.lua` ~L132, ~L155
 
-`energyService:calculateEnergy()` y `GraphUtils.bfs()` retornan `{[nodeName] = true}` — mapa hash. `#energized` siempre 0. El cliente siempre ve `NodesEnergized = 0` y `TotalEnergized = 0`.
+```lua
+NodesEnergized = #progress.energized  -- L132, hash map
+TotalEnergized = #energized           -- L155, hash map
+```
+
+`energyService:calculateEnergy()` retorna `{[nodeName] = true}` — mapa hash. `#energized` siempre 0. El cliente siempre ve `NodesEnergized = 0` y `TotalEnergized = 0`.
 
 **Corrección**: `TableUtils.countKeys(energized)`.
 
@@ -228,31 +152,31 @@ return { cablesPlaced = #cables, ... }   -- #hash siempre = 0
 
 ### P1-3 — `EnergyService.findCriticalNodes()` — nunca detecta nodos críticos
 
-**Archivo**: `ServerScriptService/Services/EnergyService.lua`
+**Archivo**: `ServerScriptService/Services/EnergyService.lua` línea 166
 
 ```lua
 local visitedWithout = GraphUtils.bfs(sourceNode, tempCables)
 local visitedWith    = GraphUtils.bfs(sourceNode, cables)
-if #visitedWithout < #visitedWith then  -- siempre false
+if #visitedWithout < #visitedWith then  -- siempre false: 0 < 0
     table.insert(critical, node)
 end
 ```
 
-Misma causa que P1-1 y P1-2: `#` sobre mapa hash retorna 0.
+Misma causa que P1-1 y P1-2: `#` sobre mapa hash retorna 0. Adicionalmente `EnergyService:debug()` imprime `"Total nodos energizados: " .. #energized` que siempre imprime 0.
 
-**Corrección**: `TableUtils.countKeys(visitedWithout) < TableUtils.countKeys(visitedWith)`.
+**Corrección**: `TableUtils.countKeys(visitedWithout) < TableUtils.countKeys(visitedWith)`
 
 ---
 
 ### P1-4 — `RewardService.giveCompletionRewards()` — acceso a `player.leaderstats` sin guardia
 
-**Archivo**: `ServerScriptService/Services/RewardService.lua` ~L386
+**Archivo**: `ServerScriptService/Services/RewardService.lua` línea 386
 
 ```lua
 local presupuestoUsado = config.DineroInicial - (player.leaderstats.Money.Value or 0)
 ```
 
-Si `player.leaderstats` es `nil` (datos aún no cargados), la línea falla con nil-index error. El `or 0` solo protege `Money.Value`, no `player.leaderstats` ni `Money`.
+Si `player.leaderstats` es `nil` (datos aún no cargados), la línea lanza nil-index error. El `or 0` solo protege `Money.Value`, no `player.leaderstats` ni `Money`.
 
 **Corrección**:
 ```lua
@@ -281,30 +205,28 @@ return TableUtils
 
 ---
 
-### P1-6 — `RunService.RenderStepped` en scripts de servidor — audio fade inoperativo
+### P1-6 — `AudioService.stopAmbiance()` es un stub vacío — sonidos de ambiente nunca se detienen
 
-**Archivo**: `ServerScriptService/Services/AudioService.lua` líneas 210, 231
+**Archivo**: `ServerScriptService/Services/AudioService.lua` líneas 298–300
 
-`RenderStepped` es un evento del cliente. En un `Script` de servidor, **nunca dispara**. Las funciones `fadeInSound` y `fadeOutSound` son silenciosamente no-operativas.
+> **Revisión 2**: En la versión anterior de `AudioService`, el bug documentado era el uso de `RunService.RenderStepped` en un script de servidor. Ese código ya fue eliminado en la refactorización. El bug actual es diferente:
 
-**Corrección**: Reemplazar `RunService.RenderStepped` por `RunService.Heartbeat`.
-
-**Adicionalmente**: las conexiones no se desconectan si el `Sound` es destruido antes de que termine el fade, acumulando conexiones huérfanas:
 ```lua
-connection = RunService.Heartbeat:Connect(function()
-    if not sound or not sound.Parent then
-        connection:Disconnect()
-        return
-    end
-    -- ... lógica de fade
-end)
+function AudioService:stopAmbiance()
+    print("🌍 AudioService: Ambiente detenido")
+    -- Sin implementación real
+end
 ```
+
+`playAmbiance()` crea un `Sound` con `Looped = true` en `workspace` pero no guarda referencia. `stopAmbiance()` solo imprime un mensaje. Los sonidos de ambiente se acumulan en workspace y nunca paran.
+
+**Corrección**: Guardar referencia al sonido de ambiente y detenerlo en `stopAmbiance()`.
 
 ---
 
 ### P1-7 — `LevelService.canConnect()` solo valida `A→B`, no `B→A`
 
-**Archivo**: `ServerScriptService/Services/LevelService.lua`
+**Archivo**: `ServerScriptService/Services/LevelService.lua` líneas 374–383
 
 ```lua
 function LevelService:canConnect(nodoA, nodoB)
@@ -312,7 +234,7 @@ function LevelService:canConnect(nodoA, nodoB)
     if not adyacentes then return false end  -- falla si solo existe Adyacencias[B]
 ```
 
-Si la conexión válida va en sentido `B→A`, `canConnect(A, B)` retorna `false` bloqueando una conexión legítima.
+Para grafos no dirigidos donde la configuración define la arista solo en un sentido (`Adyacencias[B] = {A}` pero no `Adyacencias[A]`), `canConnect(A, B)` retorna `false`, bloqueando una conexión legítima.
 
 **Corrección**:
 ```lua
@@ -329,18 +251,17 @@ end
 
 ### P1-8 — `AlgorithmService` pasa `Instance` en lugar de `string` a `GraphUtils.dijkstra`
 
-**Archivo**: `ServerScriptService/Services/AlgorithmService.lua` líneas 152, 166, 231
+**Archivo**: `ServerScriptService/Services/AlgorithmService.lua` líneas 152, 170, 235
 
 ```lua
 local distancias = GraphUtils.dijkstra(nodoInicio, cables)  -- nodoInicio es Instance
 ```
 
-`GraphUtils.dijkstra(startName, cables)` espera un `string`. `dist[Instance] = 0` se inicializa, pero los lookups posteriores usan `dist["NodeName"]` → siempre `nil`. El resultado es siempre una tabla vacía o el camino siempre se reconstruye como `{inicio, fin}` sin intermedios.
+`GraphUtils.dijkstra(startName, cables)` espera un `string`. `dist[Instance] = 0` se inicializa, pero los lookups posteriores usan `dist["NodeName"]` → siempre `nil`. El resultado es siempre una tabla vacía.
 
 **Corrección**:
 ```lua
 local distancias, prev = GraphUtils.dijkstra(nodoInicio.Name, cables)
--- Implementar reconstructPath usando la tabla `prev` real
 ```
 
 ---
@@ -349,25 +270,32 @@ local distancias, prev = GraphUtils.dijkstra(nodoInicio.Name, cables)
 
 | Módulo | Dijkstra | BFS |
 |---|---|---|
-| `Algoritmos.lua` | Peso = 1 fijo | Calcula distancia física desde Workspace |
-| `GraphUtils.lua` | Pesos desde cables | Sin distancia física |
+| `Algoritmos.lua` | Peso = 1 fijo, trabaja con `Adyacencias` de config | Calcula distancia física desde Workspace (nombre hardcodeado) |
+| `GraphUtils.lua` | Pesos desde cables, espera string | Sin distancia física |
 | `AlgorithmService.lua` | Llama `GraphUtils` con firma incorrecta (P1-8) | Llama `Algoritmos.BFSVisual()` |
 
 **Corrección**: Una sola implementación canónica en `GraphUtils.lua`. `Algoritmos.lua` pasa a ser módulo de visualización que delega en `GraphUtils`.
 
 ---
 
-### P1-10 — `GestorEventos.server.lua` — polling activo bloquea hilo indefinidamente
+### P1-10 — `GestorEventos.server.lua` — polling activo sin límite real
 
 **Archivo**: `ServerScriptService/GestorEventos.server.lua` líneas 8–18
 
 ```lua
-while not _G.Services or not _G.Services[serviceName] do
-    task.wait(0.5)  -- loop infinito si el servicio nunca carga
+local function waitForService(serviceName)
+    local attempts = 0
+    while not _G.Services or not _G.Services[serviceName] do
+        if attempts > 30 then
+            warn("..."); attempts = 0  -- Reinicia intentos, loop infinito
+        end
+        task.wait(0.5)
+        attempts = attempts + 1
+    end
 end
 ```
 
-Con el mecanismo `ServicesReady` de P0-2, este patrón desaparece completamente.
+El contador de intentos se reinicia a 0 cada 30 ciclos (15 segundos). El loop es efectivamente infinito si el servicio nunca carga. Con el mecanismo `ServicesReady` de P0-2, este patrón desaparece completamente.
 
 ---
 
@@ -394,13 +322,96 @@ local midPoint = getPos(n1):Lerp(getPos(n2), 0.5)
 
 ---
 
+### P1-12 — `GraphService.clearAllCables()` y `LevelService.resetLevel()` no destruyen cables visuales — cables permanecen al reiniciar
+
+**Archivo**: `ServerScriptService/Services/GraphService.lua` líneas 208–216 y `LevelService.lua` línea 280
+
+```lua
+-- clearAllCables(): solo limpia el diccionario, no destruye RopeConstraints
+cables = {}
+```
+
+`LevelService.resetLevel()` llama a `graphService:clearAllCables()`, que solo vacía el diccionario interno de cables. Los `RopeConstraint`s físicos en la carpeta `Conexiones` del nivel **permanecen visibles** para el jugador. Después del reinicio, el grafo visual no coincide con el estado lógico.
+
+`SistemaUI_reinicio.server.lua` limpia `CableFantasmaAlgoritmo` y `EtiquetaPeso` en workspace, pero **no** los cables reales en la carpeta `Conexiones`.
+
+**Corrección**: `clearAllCables()` debe destruir cada `cableInstance`:
+```lua
+for key, cableInfo in pairs(cables) do
+    if cableInfo.cableInstance and cableInfo.cableInstance.Parent then
+        cableInfo.cableInstance:Destroy()
+    end
+    cableRemovedEvent:Fire(cableInfo.nodeA, cableInfo.nodeB, cableInfo.cableInstance)
+end
+cables = {}
+```
+
+---
+
+### P1-13 — `ClickDetector` hijo de `RopeConstraint` es inoperante
+
+**Archivo**: `ServerScriptService/Gameplay/ConectarCables.server.lua` líneas 226–233
+
+```lua
+local cableClickDetector = Instance.new("ClickDetector")
+cableClickDetector.Parent = rope  -- rope es un RopeConstraint
+```
+
+En Roblox, `ClickDetector` solo funciona cuando es hijo de `BasePart`. Al parentarlo a un `RopeConstraint`, nunca dispara `MouseClick`. La funcionalidad de "clic en el cable para desconectarlo" está completamente rota.
+
+**Corrección**: Crear un `Part` auxiliar invisible posicionado en el centro del cable y parentar el `ClickDetector` a él, o manejar la desconexión con otro mecanismo (p. ej., UI de clic en la etiqueta de peso).
+
+---
+
+### P1-14 — `GraphService.getDistances()` y `EnergyService.getEnergyCost()` pasan `Instance` a `GraphUtils.dijkstra`
+
+**Archivos**: `ServerScriptService/Services/GraphService.lua` línea 173, `EnergyService.lua` línea 137
+
+```lua
+-- GraphService.lua L173
+function GraphService:getDistances(startNode)
+    return GraphUtils.dijkstra(startNode, cables)  -- startNode es Instance
+end
+
+-- EnergyService.lua L137
+function EnergyService:getEnergyCost(sourceNode)
+    return GraphUtils.dijkstra(sourceNode, graphService:getCables())  -- Instance
+end
+```
+
+Misma causa raíz que P1-8. `dijkstra` espera un `string`. El resultado es siempre distancias vacías (o con clave `[Instance]` inaccesible por string). Cualquier consumidor de `getDistances()` o `getEnergyCost()` recibirá datos incorrectos.
+
+**Corrección**:
+```lua
+return GraphUtils.dijkstra(startNode.Name, cables)
+```
+
+---
+
+### P1-15 — `MissionService.Validators.ARISTA_DIRIGIDA` usa clave simétrica — no puede validar dirección
+
+**Archivo**: `ServerScriptService/Services/MissionService.lua` líneas 56–63
+
+```lua
+Validators.ARISTA_DIRIGIDA = function(params, estado)
+    local k1 = origen < destino and (origen .. "_" .. destino) or (destino .. "_" .. origen)
+    return conexiones[k1] == true
+end
+```
+
+El validador usa exactamente la misma clave simétrica que `ARISTA_CREADA`. Los cables se almacenan con clave alfabética (`getCableKey`) independientemente de la dirección de conexión. Por tanto, `ARISTA_DIRIGIDA` es funcionalmente idéntico a `ARISTA_CREADA` y no puede verificar que la conexión vaya en un sentido específico.
+
+**Corrección**: El estado del juego (`estado.conexionesActivas`) debe incluir claves orientadas (separadas) para poder distinguir `A→B` de `B→A`. Alternativamente, añadir `estado.aristasDirigidas = { ["A>B"] = true }` basado en `config.Adyacencias`.
+
+---
+
 ## 4. Problemas de Severidad Media (P2) — Backlog
 
 ### P2-1 — `GraphUtils.getDistance()` no existe — llamada en 2 archivos produce error
 
 **Archivos**: `AlgorithmService.lua` y `GraphTheoryService.server.lua`
 
-`GraphUtils.lua` no define `getDistance()`. `calcularDistancia()` existe localmente en `GraphTheoryService` sin exportar.
+`GraphUtils.lua` no define `getDistance()`. `AlgorithmService.lua` la llama en líneas 204 y 219 — lanza nil-function call error. `calcularDistancia()` existe localmente en `GraphTheoryService` sin exportar.
 
 **Corrección** — añadir a `GraphUtils.lua`:
 ```lua
@@ -420,10 +431,11 @@ end
 
 ### P2-2 — `RewardService.giveCompletionRewards()` — división por cero cuando `DineroInicial = 0`
 
-**Archivo**: `ServerScriptService/Services/RewardService.lua`
+**Archivo**: `ServerScriptService/Services/RewardService.lua` línea 393
 
 ```lua
-(1 - presupuestoUsado / config.DineroInicial)  -- 0/0 = nan en Nivel 0 (Tutorial)
+local moneyReward = self:giveMoneyForLevel(player, nivelID, (1 - presupuestoUsado / config.DineroInicial))
+-- 0/0 → NaN / Inf en Nivel 0 (Tutorial con DineroInicial = 0)
 ```
 
 **Corrección**:
@@ -431,20 +443,21 @@ end
 local completionRatio = config.DineroInicial > 0
     and (1 - presupuestoUsado / config.DineroInicial)
     or 1.0
+local moneyReward = self:giveMoneyForLevel(player, nivelID, completionRatio)
 ```
 
 ---
 
 ### P2-3 — `ManagerData.lua` — llamadas a funciones inexistentes de `NivelUtils`
 
-**Archivo**: `ServerScriptService/Base_Datos/ManagerData.lua`
+**Archivo**: `ServerScriptService/Base_Datos/ManagerData.lua` líneas 195–196, 214–215
 
 ```lua
 if NivelUtils and NivelUtils.obtenerModeloNivel then  -- nunca true
-if NivelUtils and NivelUtils.obtenerPosicionSpawn then  -- nunca true
+if NivelUtils and NivelUtils.obtenerPosicionSpawn then -- nunca true
 ```
 
-`NivelUtils.lua` no define estas funciones. Las condiciones son siempre falsas; el código cae al fallback y estos TODOs nunca se resuelven.
+`NivelUtils.lua` no define estas funciones. Las condiciones son siempre falsas; el código cae al fallback. Los TODOs nunca se resuelven.
 
 ---
 
@@ -464,9 +477,9 @@ if not ok then warn("⚠️ ManagerData: NivelUtils no cargó, usando fallbacks"
 
 ### P2-5 — `MissionService` accede a `_G.Services` dentro de funciones frecuentes
 
-**Archivo**: `ServerScriptService/Services/MissionService.lua` líneas 302–304, 405–407
+**Archivo**: `ServerScriptService/Services/MissionService.lua` líneas 302–306, 405–408
 
-`checkVictoryCondition()` y `buildFullGameState()` acceden a `_G.Services.Reward`, `_G.Services.Audio`, `_G.Services.UI`, `_G.Services.Energy` en cada llamada. `setDependencies()` solo inyecta `LevelService` y `GraphService`.
+`checkVictoryCondition()` y `buildFullGameState()` acceden a `_G.Services.Energy`, `_G.Services.Reward`, `_G.Services.Audio`, `_G.Services.UI` en cada llamada (que ocurre con cada cambio de cable). `setDependencies()` solo inyecta `LevelService` y `GraphService`.
 
 **Corrección**: Añadir los 4 servicios restantes a `setDependencies()` e inyectarlos desde `Init.server.lua`.
 
@@ -474,7 +487,7 @@ if not ok then warn("⚠️ ManagerData: NivelUtils no cargó, usando fallbacks"
 
 ### P2-6 — `MissionService.buildFullGameState()` — `require()` dentro de función frecuente
 
-**Archivo**: `ServerScriptService/Services/MissionService.lua`
+**Archivo**: `ServerScriptService/Services/MissionService.lua` línea 290
 
 ```lua
 function MissionService:buildFullGameState(player)
@@ -494,35 +507,40 @@ local nivelName = (nivelID == 0) and "Nivel0_Tutorial" or ("Nivel" .. nivelID)
 local modelo = workspace:FindFirstChild(nivelName)  -- ignora "NivelActual"
 ```
 
-`LevelService.loadLevel()` renombra el nivel a `"NivelActual"`. La búsqueda siempre retorna `nil` → todas las distancias BFS son `0`.
+`LevelService.loadLevel()` renombra el nivel a `"NivelActual"`. La búsqueda siempre retorna `nil` → todas las posiciones físicas en `BFSVisual` son `Vector3.new(0,0,0)` → `distanciaTotal = 0`.
 
 ---
 
-### P2-8 — `ControladorEscenario.server.lua` — `wait()` legado
+### P2-8 — `ControladorEscenario.server.lua` — `wait()` legado y `iniciarPulsos` bloqueante en `PlayerAdded`
 
-**Archivo**: `ServerScriptService/ControladorEscenario.server.lua` línea 83
+**Archivo**: `ServerScriptService/ControladorEscenario.server.lua` líneas 83, 91
 
 ```lua
-wait(2)  -- API legada
+wait(2)  -- L83: API legada
+-- ...
+Players.PlayerAdded:Connect(iniciarPulsos)  -- L91: sin task.spawn — bloquea 2s por jugador
 ```
 
-`wait()` puede acumular delays mayores bajo carga. **Corrección**: `task.wait(2)`.
+`wait()` puede acumular delays mayores bajo carga. `iniciarPulsos` se llama directamente (no en `task.spawn`) en el handler `PlayerAdded`, bloqueando la conexión 2 segundos por cada jugador nuevo.
 
-Adicionalmente, `iniciarPulsos(p)` se llama directamente (no en `task.spawn`) en el handler `PlayerAdded` (línea 91), bloqueando esa conexión 2 segundos por cada jugador.
+**Corrección**: `task.wait(2)` y wrappear en `task.spawn`:
+```lua
+Players.PlayerAdded:Connect(function(p) task.spawn(iniciarPulsos, p) end)
+```
 
 ---
 
 ### P2-9 — `RewardService.validateAndUnlockAchievements()` — `progress.dineroRestante` no existe
 
-**Archivo**: `ServerScriptService/Services/RewardService.lua`
+**Archivo**: `ServerScriptService/Services/RewardService.lua` líneas 312–317
 
-`LevelService:getLevelProgress()` retorna `{nodesConnected, totalNodes, cablesPlaced, energized, completed}`. No incluye `dineroRestante`. El código cae al fallback y hay un comentario `-- Nota: progress debería tener dineroRestante` que indica un TODO sin resolver.
+`LevelService:getLevelProgress()` retorna `{nodesConnected, totalNodes, cablesPlaced, energized, completed}`. No incluye `dineroRestante`. El fallback en línea 316 accede a `player.leaderstats.Money` sin guardia (mismo problema que P1-4).
 
 ---
 
 ### P2-10 — `LevelService.getCables()` expone tabla interna sin copia defensiva
 
-**Archivo**: `ServerScriptService/Services/LevelService.lua`
+**Archivo**: `ServerScriptService/Services/LevelService.lua` líneas 258–262
 
 ```lua
 function LevelService:getCables()
@@ -539,13 +557,13 @@ Retorna la referencia directa a la tabla interna. Cualquier consumidor puede mut
 
 **Archivo**: `ServerScriptService/Services/UIService.lua`
 
-Estos tres métodos están definidos pero nunca se llaman desde `Init.server.lua`. El manejo real de eventos se hace directamente en `GameplayEvents.server.lua`.
+Estos tres métodos están definidos pero nunca se llaman desde `Init.server.lua`. El manejo real de eventos se hace directamente en `GameplayEvents.server.lua`. Son dead code que podría confundir en mantenimiento.
 
 ---
 
 ### P2-12 — `Enums.Colors` — `Conectado` y `Energizado` tienen el mismo color
 
-**Archivo**: `ReplicatedStorage/Shared/Enums.lua`
+**Archivo**: `ReplicatedStorage/Shared/Enums.lua` líneas 13–14
 
 ```lua
 Conectado = Color3.fromRGB(0, 255, 0),
@@ -560,7 +578,7 @@ Energizado = Color3.fromRGB(0, 255, 0),  -- idéntico
 
 **Archivo**: `ServerScriptService/Services/AudioService.lua`
 
-Los valores `bgm = 0.5`, `sfx = 0.7`, `voice = 0.8`, `ambient = 0.3` aparecen dos veces: en la inicialización (líneas 14–19) y en `unmuteAll()` (líneas 267–271). Si se cambia un valor en un lugar, el otro queda desincronizado.
+Los valores `bgm = 0.5`, `sfx = 0.7`, `voice = 0.8`, `ambient = 0.3` aparecen dos veces: en la inicialización (líneas 14–19) y en `unmuteAll()` (líneas 223–227). Si se cambia un valor en un lugar, el otro queda desincronizado.
 
 ---
 
@@ -568,7 +586,7 @@ Los valores `bgm = 0.5`, `sfx = 0.7`, `voice = 0.8`, `ambient = 0.3` aparecen do
 
 **Archivo**: `ServerScriptService/Gameplay/VisualizadorAlgoritmos.server.lua` líneas 55–74
 
-30 líneas de lógica propia que reinventa `GraphUtils.getPostesFolder()`.
+30 líneas de lógica propia que reinventa `GraphUtils.getPostesFolder()`. Incluye fallbacks hardcodeados a `"Nivel0_Tutorial"` y `"Nivel1"` que ignoran `"NivelActual"`.
 
 **Corrección**:
 ```lua
@@ -586,6 +604,78 @@ Ambos scripts verifican y crean `Events/Remotes` independientemente. No hay un �
 
 ---
 
+### P2-16 — Doble reproducción de sonido al conectar cables
+
+**Archivo**: `ServerScriptService/Gameplay/ConectarCables.server.lua` líneas 310–311
+
+```lua
+reproducirSonido(SOUND_CONNECT_NAME, att2)       -- llama AudioService:playSound()
+if AudioService then AudioService:playCableConnected() end  -- también llama AudioService:playSound("CableConnect")
+```
+
+`reproducirSonido()` ya llama a `AudioService:playSound()` internamente. `playCableConnected()` llama a `playSound("CableConnect")` de nuevo. El sonido de conexión se reproduce **dos veces** en cada cable conectado.
+
+**Corrección**: Eliminar una de las dos llamadas (preferiblemente `reproducirSonido()`).
+
+---
+
+### P2-17 — `_G.CompleteLevel` siempre sobreescribe `HighScore` aunque el nuevo sea menor
+
+**Archivo**: `ServerScriptService/Base_Datos/ManagerData.lua` líneas 309–310
+
+```lua
+lvlData.HighScore = scoreObtained  -- sin comparar con valor previo
+lvlData.Stars = starsObtained      -- sin comparar con valor previo
+```
+
+Si el jugador repite un nivel y obtiene menos puntos o estrellas que antes, el récord empeora. Viola el concepto de "high score".
+
+**Corrección**:
+```lua
+lvlData.HighScore = math.max(lvlData.HighScore or 0, scoreObtained)
+lvlData.Stars = math.max(lvlData.Stars or 0, starsObtained)
+```
+
+---
+
+### P2-18 — `AudioService.stopAmbiance()` es un stub sin implementación
+
+> **Nota**: Véase P1-6 para la descripción completa. Documentado aquí también para claridad del backlog de `AudioService`.
+
+---
+
+### P2-19 — `RewardService.debug()` — `#ACHIEVEMENTS` siempre imprime 0
+
+**Archivo**: `ServerScriptService/Services/RewardService.lua` línea 456
+
+```lua
+print("Logros disponibles: " .. #ACHIEVEMENTS)
+```
+
+`ACHIEVEMENTS` es una tabla con claves string (no secuencial). `#ACHIEVEMENTS` en Lua retorna 0. El mensaje de debug siempre imprime `"Logros disponibles: 0"` aunque haya 9 logros definidos.
+
+**Corrección**:
+```lua
+local n = 0; for _ in pairs(ACHIEVEMENTS) do n = n + 1 end
+print("Logros disponibles: " .. n)
+```
+
+---
+
+### P2-20 — `UIService.initializePlayerUI()` usa `task.wait(1)` sin `ServicesReady`
+
+**Archivo**: `ServerScriptService/Services/UIService.lua` línea 398
+
+```lua
+function UIService:initializePlayerUI(player)
+    task.wait(1)  -- Mismo antipatrón que P0-2
+    self:updateLevelUI()
+```
+
+Aunque no bloquea el hilo principal (se llama dentro de un handler de PlayerAdded), retrasa la UI del nuevo jugador en 1 segundo de forma arbitraria. Se soluciona con el mecanismo `ServicesReady` de P0-2.
+
+---
+
 ## 5. Duplicaciones de Código
 
 | ID | Descripción | Archivos afectados | Prioridad |
@@ -596,10 +686,10 @@ Ambos scripts verifican y crean `Events/Remotes` independientemente. No hay un �
 | DUP-4 | Reset de dinero/puntos/estrellas duplicado | `ManagerData.lua` (L241–253), `SistemaUI_reinicio.server.lua` (L66–77) | P2 |
 | DUP-5 | `calcularDistancia()` local sin exportar en 3 archivos | `GraphTheoryService.server.lua`, `AlgorithmService.lua` (la llama como `getDistance` inexistente), `Algoritmos.lua` (inline) | P1 |
 | DUP-6 | `require(LevelsConfig)` dentro de 4 métodos distintos de `LevelService` | `LevelService.lua` métodos `init`, `loadLevel`, `getLevelInfo`, `getAllLevels` | P2 |
-| DUP-7 | Doble `Players.PlayerAdded` para `MissionService:initializePlayer` | `MissionService.lua` (L142), `GameplayEvents.server.lua` (L215) | P2 |
+| DUP-7 | Doble `Players.PlayerAdded` para `MissionService:initializePlayer` | `MissionService.lua` (L142), `GameplayEvents.server.lua` (L218) | P2 |
 | DUP-8 | Bloque `_refreshAndRestoreSelection` duplicado en `MatrixManager` | `MatrixManager.lua` (L573–600 y L638–665) | P2 |
 | DUP-9 | `findPostes()` local en `MatrixManager` vs `GraphUtils.getPostesFolder()` | `MatrixManager.lua` (L490–498), `GraphUtils.lua` | P2 |
-| DUP-10 | Constante `4 studs = 1 metro` hardcodeada | `ConectarCables.server.lua` (L178), `AlgorithmService.lua` (L208, 221), `GraphTheoryService.server.lua` (L148), `Algoritmos.lua` (L155) | P2 |
+| DUP-10 | Constante `4 studs = 1 metro` hardcodeada | `ConectarCables.server.lua` (L192), `AlgorithmService.lua` (L208, 221), `GraphTheoryService.server.lua` (L156), `Algoritmos.lua` (L155) | P2 |
 | DUP-11 | `BrickColor` de cables hardcodeados como strings | `GameplayEvents.server.lua`, `VisualizadorAlgoritmos.server.lua`, `ControladorEscenario.server.lua`, `ConectarCables.server.lua` | P2 |
 | DUP-12 | `obtenerCarpetaPostes()` reimplementada | `VisualizadorAlgoritmos.server.lua` (L55–74), `GraphUtils.getPostesFolder()`, `LevelService.getPostes()` | P2 |
 | DUP-13 | Colores COLORES y CONFIG.CAMARA idénticos en 3 archivos de zona | `Zona1_dialogo.lua`, `Zona2_dialogo.lua`, `Zona3_dialogo.lua` | P2 |
@@ -637,6 +727,10 @@ Todos los scripts de Gameplay acceden a servicios vía `_G.Services.*` tras un `
 
 `Enums.Cable` define `NormalThickness`, `SelectedThickness`, `EnergyThickness`. Solo `ConectarCables.server.lua` los usa. `VisualizadorAlgoritmos`, `GameplayEvents` y `GraphTheoryService` usan valores hardcodeados distintos (0.4, 0.5, 0.25, 0.3, 0.2).
 
+### AP-7 — `BloqueoService` cargado en disco pero no inicializado (Revisión 2)
+
+`ServerScriptService/Services/BloqueoService.lua` existe en la carpeta pero `Init.server.lua` no lo carga con `loadService("BloqueoService")`. El servicio nunca se activa.
+
 ---
 
 ## 7. Estructura de Carpetas Recomendada
@@ -662,46 +756,53 @@ ReplicatedStorage/
 
 ServerScriptService/
 ├── Init.server.lua            ← MODIFICAR: crear ServicesReady BindableEvent y todos los
-│                                           BindableEvents necesarios; eliminar listener
-│                                           duplicado RequestPlayLevel; ser el único creador
-│                                           de Events/Remotes y Events/Bindables
-├── GestorEventos.server.lua   ← MODIFICAR: eliminar polling, usar ServicesReady
+│                                           BindableEvents necesarios (incl. RestaurarObjetos);
+│                                           eliminar listener duplicado RequestPlayLevel;
+│                                           ser el único creador de Events/Remotes y Bindables;
+│                                           cargar BloqueoService si se requiere
+├── GestorEventos.server.lua   ← MODIFICAR: eliminar WaitForChild("RestaurarObjetos"), usar ServicesReady
 ├── ControladorEscenario.server.lua ← MODIFICAR: wait() → task.wait(), spawn iniciarPulsos
 │                                               en PlayerAdded
 ├── Base_Datos/
 │   └── ManagerData.lua        ← MODIFICAR: pcall en require(NivelUtils), eliminar refs a
 │                                           funciones inexistentes de NivelUtils, centralizar
-│                                           creación de Events/Remotes en Init
+│                                           creación de Events/Remotes en Init,
+│                                           math.max en CompleteLevel para HighScore/Stars
 ├── Gameplay/
-│   ├── ConectarCables.server.lua      ← MODIFICAR: ServicesReady, Enums.STUDS_PER_METER,
-│   │                                               Enums.CableColors
-│   ├── GameplayEvents.server.lua      ← MODIFICAR: ServicesReady, Enums.CableColors,
-│   │                                               eliminar doble-reward de LevelCompletedEvent
-│   ├── GraphTheoryService.server.lua  ← MODIFICAR: fix bug matriz dirigida (SPRINT ACTUAL),
-│   │                                               eliminar safeGetNodeZone,
-│   │                                               usar AliasUtils, ServicesReady
-│   ├── SistemaUI_reinicio.server.lua  ← MODIFICAR: ServicesReady
-│   └── VisualizadorAlgoritmos.server.lua ← MODIFICAR: fix var fallos, GraphUtils.getPostesFolder,
-│                                               Heartbeat en lugar de RenderStepped,
+│   ├── ConectarCables.server.lua      ← MODIFICAR: ServicesReady, eliminar doble sonido,
+│   │                                               fix ClickDetector en RopeConstraint,
+│   │                                               Enums.STUDS_PER_METER, Enums.CableColors
+│   ├── GameplayEvents.server.lua      ← MODIFICAR: ServicesReady, Enums.CableColors
+│   ├── GraphTheoryService.server.lua  ← MODIFICAR: ServicesReady, usar AliasUtils
+│   │                                               en vez de safeGetNodeZone
+│   ├── SistemaUI_reinicio.server.lua  ← MODIFICAR: ServicesReady, limpiar Conexiones en reset
+│   └── VisualizadorAlgoritmos.server.lua ← MODIFICAR: fix var fallos,
+│                                               GraphUtils.getPostesFolder,
 │                                               ServicesReady (elimina WaitForChild bloqueante)
 └── Services/
     ├── AlgorithmService.lua   ← MODIFICAR: fix firma dijkstra (.Name), reconstructPath real,
     │                                       GraphUtils.getDistance, unificar implementaciones
-    ├── AudioService.lua       ← MODIFICAR: RenderStepped → Heartbeat, fix memory leak,
-    │                                       centralizar volúmenes por defecto
-    ├── EnergyService.lua      ← MODIFICAR: countKeys en findCriticalNodes
-    ├── GraphService.lua       ← MODIFICAR: getConnectionCount → GraphUtils.degree
+    ├── AudioService.lua       ← MODIFICAR: implementar stopAmbiance(), centralizar volúmenes
+    ├── BloqueoService.lua     ← REGISTRAR en Init.server.lua si se necesita
+    ├── EnergyService.lua      ← MODIFICAR: countKeys en findCriticalNodes,
+    │                                       fix .Name en getEnergyCost/dijkstra
+    ├── GraphService.lua       ← MODIFICAR: getConnectionCount → GraphUtils.degree,
+    │                                       clearAllCables → destruir RopeConstraints,
+    │                                       fix .Name en getDistances
     ├── InventoryService.lua   ← sin cambios
     ├── LevelService.lua       ← MODIFICAR: fix canConnect bidireccional, getCables copia
     │                                       defensiva, cablesPlaced con countKeys,
     │                                       require(LevelsConfig) al top-level
     ├── MissionService.lua     ← MODIFICAR: inyectar RewardService/UIService/AudioService/
     │                                       EnergyService via setDependencies,
-    │                                       require GraphUtils al top-level
+    │                                       require GraphUtils al top-level,
+    │                                       fix ARISTA_DIRIGIDA con claves orientadas
     ├── RewardService.lua      ← MODIFICAR: fix división por cero DineroInicial = 0,
-    │                                       fix progress.dineroRestante, guardia leaderstats
+    │                                       fix progress.dineroRestante, guardia leaderstats,
+    │                                       fix #ACHIEVEMENTS en debug
     └── UIService.lua          ← MODIFICAR: eliminar código muerto onConnectionChanged etc.,
-                                            countKeys para energized, alinear Enums.Colors
+                                            countKeys para energized, alinear Enums.Colors,
+                                            fix task.wait(1) en initializePlayerUI
 
 StarterGUI/
 ├── DialogStorage/
@@ -714,8 +815,8 @@ StarterGUI/
 │   │                                            DialogUtils.getPos, unificar OnClose
 │   ├── Zona2_dialogo.lua          ← MODIFICAR: ídem
 │   ├── Zona3_dialogo.lua          ← MODIFICAR: ídem, verificar naranja RGB
-│   ├── Zona4_dialogo.lua          ← CREAR usando SharedDialogConfig y ZoneDialogActivator
-│   │                                           desde el inicio (no reintroducir deuda)
+│   ├── Zona4_dialogo.lua          ← REVISAR: ya existe — verificar si hereda bugs de Zona1-3
+│   │                                           (boilerplate duplicado, naranja, getPos en Models)
 │   ├── Zona1_NodeFeedback.lua     ← MODIFICAR: usar AliasUtils, DialogUtils.esperarKitLibre
 │   ├── NonAdjacentFeedback.lua    ← MODIFICAR: usar DialogUtils.esperarKitLibre
 │   ├── DialogueGenerator.lua      ← sin cambios
@@ -737,90 +838,100 @@ StarterPlayer/StarterPlayerScripts/
 
 | Archivo | Acción | Prioridad | Motivos principales |
 |---|---|---|---|
-| `GraphUtils.lua` | Modificar | **SPRINT** | Fix matriz dirigida; `buildAdjList()`, `getDistance()` |
-| `GraphTheoryService.server.lua` | Modificar | **SPRINT** | Fix bug matriz + `safeGetNodeZone` |
+| `GraphUtils.lua` | Modificar | ~~SPRINT~~ ✅ | Fix matriz dirigida completado; pendiente: `getDistance()` (P2-1), `buildAdjList()` |
+| `GraphTheoryService.server.lua` | Modificar | P0 | ServicesReady, eliminar safeGetNodeZone → AliasUtils |
 | `TableUtils.lua` | **Crear** | P1 | `countKeys()` — requerido por P1-1/2/3 |
-| `Init.server.lua` | Modificar | P0 | `ServicesReady`, todos los BindableEvents, eliminar listener duplicado |
-| `GameplayEvents.server.lua` | Modificar | P0 | Eliminar doble-reward `LevelCompletedEvent` |
-| `VisualizadorAlgoritmos.server.lua` | Modificar | P0/P1 | Var `fallos`, `RenderStepped`, `WaitForChild` bloqueante |
-| `EnergyService.lua` | Modificar | P1 | `countKeys` en `findCriticalNodes` |
-| `LevelService.lua` | Modificar | P1 | `canConnect` bidireccional, `cablesPlaced` con `countKeys` |
-| `UIService.lua` | Modificar | P1 | `countKeys` para energized, eliminar código muerto |
-| `AudioService.lua` | Modificar | P1 | `Heartbeat`, memory leak, volúmenes centralizados |
-| `AlgorithmService.lua` | Modificar | P1 | Firma dijkstra `.Name`, `reconstructPath`, `getDistance` |
-| `RewardService.lua` | Modificar | P1/P2 | División por cero, guardia `leaderstats`, `dineroRestante` |
-| `GestorEventos.server.lua` | Modificar | P1 | Eliminar polling → `ServicesReady` |
-| `MissionService.lua` | Modificar | P1/P2 | Inyección completa de dependencias, `require` al top-level |
-| `Zona1_dialogo.lua` | Modificar | P1 | `getPos()` en Model, `SharedDialogConfig`, `ZoneDialogActivator` |
-| `ControladorEscenario.server.lua` | Modificar | P2 | `wait()` → `task.wait()`, spawn en `PlayerAdded` |
-| `ManagerData.lua` | Modificar | P2 | `pcall` en require, eliminar refs a funciones inexistentes |
-| `MatrixManager.lua` | Modificar | P2 | `_refreshAndRestoreSelection()`, `AliasUtils`, `getPostesFolder` |
-| `GraphService.lua` | Modificar | P2 | `getConnectionCount` → `GraphUtils.degree` |
-| `Algoritmos.lua` | Modificar | P2 | Buscar `NivelActual`, usar `GraphUtils.getDistance` |
+| `Init.server.lua` | Modificar | P0 | `ServicesReady`, todos los BindableEvents (incl. RestaurarObjetos), eliminar listener duplicado RequestPlayLevel |
+| `GameplayEvents.server.lua` | Modificar | P0 | ServicesReady |
+| `GestorEventos.server.lua` | Modificar | P0 | Eliminar WaitForChild("RestaurarObjetos") bloqueante → ServicesReady |
+| `VisualizadorAlgoritmos.server.lua` | Modificar | P0/P1 | Var `fallos` (P0-1), WaitForChild bloqueante (P0-5), usar GraphUtils.getPostesFolder |
+| `GraphService.lua` | Modificar | P1 | `clearAllCables` destruir RopeConstraints (P1-12), `getDistances` fix .Name (P1-14), `getConnectionCount` → `GraphUtils.degree` |
+| `EnergyService.lua` | Modificar | P1 | `countKeys` en `findCriticalNodes`, fix .Name en `getEnergyCost` (P1-14) |
+| `LevelService.lua` | Modificar | P1 | `canConnect` bidireccional, `cablesPlaced` con `countKeys`, `require(LevelsConfig)` al top-level |
+| `UIService.lua` | Modificar | P1 | `countKeys` para energized, eliminar código muerto, fix `task.wait(1)` en initializePlayerUI (P2-20) |
+| `AudioService.lua` | Modificar | P1 | Implementar `stopAmbiance()` (P1-6), centralizar volúmenes (P2-13) |
+| `AlgorithmService.lua` | Modificar | P1 | Firma dijkstra `.Name` (P1-8), `reconstructPath` real, `getDistance` |
+| `RewardService.lua` | Modificar | P1/P2 | División por cero (P2-2), guardia `leaderstats` (P1-4), `dineroRestante` (P2-9), fix `#ACHIEVEMENTS` (P2-19) |
+| `MissionService.lua` | Modificar | P1/P2 | Inyección completa de dependencias (P2-5), `require` al top-level (P2-6), fix `ARISTA_DIRIGIDA` (P1-15) |
+| `ConectarCables.server.lua` | Modificar | P1/P2 | ServicesReady, fix ClickDetector en RopeConstraint (P1-13), eliminar doble sonido (P2-16) |
+| `GestorEventos.server.lua` | Modificar | P1 | Eliminar polling → `ServicesReady` (P1-10) |
+| `Zona1_dialogo.lua` | Modificar | P1 | `getPos()` en Model (P1-11), `SharedDialogConfig`, `ZoneDialogActivator` |
+| `ControladorEscenario.server.lua` | Modificar | P2 | `wait()` → `task.wait()` (P2-8), spawn en `PlayerAdded` |
+| `ManagerData.lua` | Modificar | P2 | `pcall` en require (P2-4), eliminar refs a funciones inexistentes (P2-3), `math.max` en HighScore (P2-17) |
+| `MatrixManager.lua` | Modificar | P2 | `_refreshAndRestoreSelection()`, `AliasUtils`, `getPostesFolder`, eliminar `_G._matrixRefreshPending` |
+| `Algoritmos.lua` | Modificar | P2 | Buscar `NivelActual` (P2-7), usar `GraphUtils.getDistance` |
 | `LevelsConfig.lua` | Modificar | P2 | Deprecar `NombresPostes` |
-| `Enums.lua` | Modificar | P2 | `STUDS_PER_METER`, `CableColors`, alinear `Conectado ≠ Energizado` |
+| `Enums.lua` | Modificar | P2 | `STUDS_PER_METER`, `CableColors`, alinear `Conectado ≠ Energizado` (P2-12) |
 | `Zona2_dialogo.lua` | Modificar | P2 | `SharedDialogConfig`, `ZoneDialogActivator` |
 | `Zona3_dialogo.lua` | Modificar | P2 | Ídem + verificar naranja |
+| `Zona4_dialogo.lua` | **Revisar** | P2 | Ya existe — auditar si tiene bugs de Zona1-3 |
 | `Zona1_NodeFeedback.lua` | Modificar | P2 | `AliasUtils`, `DialogUtils.esperarKitLibre` |
 | `NonAdjacentFeedback.lua` | Modificar | P2 | `DialogUtils.esperarKitLibre` |
 | `SharedDialogConfig.lua` | **Crear** | P2 | Colores + cámara compartidos |
 | `ZoneDialogActivator.lua` | **Crear** | P2 | Boilerplate activación de zona |
 | `DialogUtils.lua` | **Crear** | P2 | `esperarKitLibre()`, `getPos(instance)` |
 | `Constants.lua` | **Crear** | P2 | `STUDS_PER_METER`, `TIMEOUT_DEFAULT`, `MAX_LEVELS` |
-| `Zona4_dialogo.lua` | **Crear** | P2 | Usar `SharedDialogConfig` + `ZoneDialogActivator` desde el inicio |
 | `NivelUtils.lua` | **Eliminar** | P2 | Supersedido por `AliasUtils` + `LevelService` |
 
 ---
 
 ## 9. Orden de Implementación Global
 
-### Sprint Actual
+### Fase 0 — Correcciones de sprint (ya completadas) ✅
 
-1. Fix `GraphTheoryService.server.lua` — pasar `Adyacencias` al builder de matriz, consultar direccionalidad
-2. Fix `GraphUtils.getAdjacencyMatrix()` — añadir parámetro opcional `adyacencias`
-3. Verificar `MatrixManager.calcularGrados()` — debe funcionar sin cambios una vez que la matriz llega correcta
+1. ~~Fix `GraphTheoryService.server.lua` — pasar `Adyacencias` al builder de matriz~~
+2. ~~Fix `GraphUtils.getAdjacencyMatrix()` — parámetro opcional `adyacencias`~~
+3. ~~Verificar `MatrixManager.calcularGrados()`~~
 
-### Fase 1 — Bugs críticos (P0)
+### Fase 1 — Bugs críticos (P0) ✅ COMPLETADA
 
-4. Crear `ServicesReady` BindableEvent en `Init.server.lua` + reemplazar todos los `task.wait(1)`
-5. Crear todos los BindableEvents en `Init.server.lua` (elimina el WaitForChild bloqueante de VisualizadorAlgoritmos)
-6. Eliminar listener duplicado `RequestPlayLevel` de `Init.server.lua`
-7. Fix `VisualizadorAlgoritmos` — var `fallos = cablesFaltantes`
-8. Fix `GameplayEvents` — eliminar doble-reward de `LevelCompletedEvent.OnServerEvent`
+4. ✅ Crear `ServicesReady` BindableEvent en `Init.server.lua` + reemplazar todos los `task.wait(1)` y WaitForChild bloqueantes
+5. ✅ Crear **todos** los BindableEvents en `Init.server.lua`: `RestaurarObjetos`, `GuardarInventario`, `AristaConectada`, `DesbloquearObjeto`
+6. ✅ Eliminar listener duplicado `RequestPlayLevel` de `Init.server.lua`
+7. ✅ Fix `VisualizadorAlgoritmos` — var `fallos` → `cablesFaltantes`
+8. ✅ Fix `GestorEventos` — reemplazar polling infinito + `WaitForChild("RestaurarObjetos")` bloqueante por `ServicesReady`
 
-### Fase 2 — Bugs funcionales de servicios (P1)
+### Fase 2 — Bugs funcionales graves (P1)
 
 9. Crear `TableUtils.lua` con `countKeys()`
-10. Fix `LevelService.getLevelProgress()` — `countKeys(cables)`
-11. Fix `UIService.updateEnergyStatus/updateProgress()` — `countKeys(energized)`
-12. Fix `EnergyService.findCriticalNodes()` — `countKeys`
-13. Fix `RewardService` — guardia `leaderstats`, división por cero
-14. Fix `AudioService` — `Heartbeat`, memory leak
-15. Fix `LevelService.canConnect()` — validar `B→A`
-16. Fix `AlgorithmService` — firma dijkstra `.Name`, `reconstructPath` real
-17. Exportar `GraphUtils.getDistance()`
-18. Fix `Zona1_dialogo.lua` — `getPos()` en Model
+10. Fix `GraphService.clearAllCables()` — destruir RopeConstraints físicos (P1-12)
+11. Fix `LevelService.getLevelProgress()` — `countKeys(cables)`
+12. Fix `UIService.updateEnergyStatus/updateProgress()` — `countKeys(energized)`
+13. Fix `EnergyService.findCriticalNodes()` — `countKeys`
+14. Fix `EnergyService.getEnergyCost()` y `GraphService.getDistances()` — pasar `.Name` a dijkstra (P1-14)
+15. Fix `RewardService` — guardia `leaderstats`, división por cero
+16. Fix `AudioService.stopAmbiance()` — implementación real
+17. Fix `LevelService.canConnect()` — validar `B→A`
+18. Fix `AlgorithmService` — firma dijkstra `.Name`, `reconstructPath` real
+19. Exportar `GraphUtils.getDistance()`
+20. Fix `Zona1_dialogo.lua` — `getPos()` en Model
+21. Fix `ClickDetector en RopeConstraint` — mecanismo alternativo (P1-13)
+22. Fix `MissionService.Validators.ARISTA_DIRIGIDA` — claves orientadas (P1-15)
 
 ### Fase 3 — Arquitectura y dependencias (P1/P2)
 
-19. Eliminar polling de `GestorEventos` (cubierto por ServicesReady)
-20. Migrar `MissionService` a inyección completa de dependencias
-21. Fix `ManagerData` — `pcall` en `require(NivelUtils)`
-22. Fix `Algoritmos.lua` — buscar `NivelActual`, usar `GraphUtils.getDistance`
-23. Fix `ControladorEscenario` — `wait()` → `task.wait()`, spawn en PlayerAdded
+23. ✅ Eliminar polling de `GestorEventos` (cubierto por ServicesReady — resuelto en Fase 1)
+24. Migrar `MissionService` a inyección completa de dependencias (P2-5)
+25. `require GraphUtils` al top-level en `MissionService` (P2-6)
+26. Fix `ManagerData` — `pcall` en `require(NivelUtils)`, `math.max` en HighScore (P2-17)
+27. Fix `Algoritmos.lua` — buscar `NivelActual`, usar `GraphUtils.getDistance`
+28. Fix `ControladorEscenario` — `wait()` → `task.wait()`, spawn en PlayerAdded
+29. Fix doble sonido en `ConectarCables` (P2-16)
+30. Fix `RewardService.debug()` — `#ACHIEVEMENTS` (P2-19)
 
 ### Fase 4 — Deduplicación y limpieza (P2)
 
-24. Crear `Constants.lua` con `STUDS_PER_METER`, `TIMEOUT_DEFAULT`, `MAX_LEVELS`
-25. Añadir `CableColors` y `STUDS_PER_METER` a `Enums.lua`, alinear colores
-26. Centralizar `buildAdjList()` en `GraphUtils`, eliminar duplicación DUP-17
-27. `GraphService.getConnectionCount` → `GraphUtils.degree`
-28. Extraer `_refreshAndRestoreSelection()` en `MatrixManager` + usar `AliasUtils`
-29. Crear `SharedDialogConfig.lua` + `ZoneDialogActivator.lua` + `DialogUtils.lua`
-30. Migrar `Zona1/2/3_dialogo.lua` a módulos compartidos
-31. Crear `Zona4_dialogo.lua` desde el inicio con los módulos compartidos
-32. Eliminar `NivelUtils.lua` (verificar consumidores antes con Grep)
-33. Deprecar `NombresPostes` en `LevelsConfig.lua`
+31. Crear `Constants.lua` con `STUDS_PER_METER`, `TIMEOUT_DEFAULT`, `MAX_LEVELS`
+32. Añadir `CableColors` y `STUDS_PER_METER` a `Enums.lua`, alinear colores (P2-12)
+33. Centralizar `buildAdjList()` en `GraphUtils`, eliminar duplicación DUP-17
+34. `GraphService.getConnectionCount` → `GraphUtils.degree`
+35. Extraer `_refreshAndRestoreSelection()` en `MatrixManager` + usar `AliasUtils`
+36. Crear `SharedDialogConfig.lua` + `ZoneDialogActivator.lua` + `DialogUtils.lua`
+37. Migrar `Zona1/2/3_dialogo.lua` a módulos compartidos
+38. Auditar y corregir `Zona4_dialogo.lua` (ya existe, puede heredar bugs)
+39. Eliminar `NivelUtils.lua` (verificar consumidores antes con Grep)
+40. Deprecar `NombresPostes` en `LevelsConfig.lua`
+41. Registrar/auditar `BloqueoService.lua` (AP-7)
 
 ---
 
@@ -828,9 +939,9 @@ StarterPlayer/StarterPlayerScripts/
 
 | Test | Criterio de éxito |
 |---|---|
-| Zona 1 (no dirigido) — matriz | `M[i][j] == M[j][i]` para todos los nodos conectados |
-| Zona 3 (dirigido) — matriz | `M[X][Y] = peso` y `M[Y][X] = 0` cuando solo existe `X→Y` |
-| MatrixManager — grados en dígrafo | Grado entrada ≠ grado salida para nodos asimétricos |
+| Zona 1 (no dirigido) — matriz | `M[i][j] == M[j][i]` para todos los nodos conectados ✅ |
+| Zona 3 (dirigido) — matriz | `M[X][Y] = peso` y `M[Y][X] = 0` cuando solo existe `X→Y` ✅ |
+| MatrixManager — grados en dígrafo | Grado entrada ≠ grado salida para nodos asimétricos ✅ |
 | Tutorial (Nivel 0) — recompensas | Completar sin producir `NaN`; el jugador recibe recompensas exactamente una vez |
 | `findCriticalNodes` | Crear nodo puente manualmente → aparece en la lista retornada |
 | `AlgorithmService.executeDijkstra` | El camino reconstruido contiene nodos intermedios, no solo `{inicio, fin}` |
@@ -839,4 +950,9 @@ StarterPlayer/StarterPlayerScripts/
 | Progreso de nivel | `CablesPlaced` y `NodesEnergized` muestran valores > 0 cuando hay cables conectados |
 | Recompensas únicas | Completar un nivel otorga dinero/XP/estrellas exactamente una vez (sin duplicados) |
 | Diálogo de Zona 1 | La escena de cámara en postes no lanza error de `.Position` en un Model |
-| Audio fades | El sonido hace fade in/out correctamente en el servidor (verificar con `print` en Heartbeat) |
+| Reset de nivel | Después de reiniciar, los cables visuales (RopeConstraints) desaparecen del nivel |
+| Click en cable | El cable responde al click del jugador para desconectarse (nuevo mecanismo) |
+| Desconexión única | Al conectar un cable, el sonido CableConnect se reproduce **una sola vez** |
+| HighScore acumulativo | Completar un nivel con menor puntaje no reduce el récord anterior |
+| Dijkstra (energía) | `EnergyService:getEnergyCost()` retorna distancias reales (no tabla vacía) |
+| ARISTA_DIRIGIDA | La misión solo se completa si la conexión va en el sentido configurado |

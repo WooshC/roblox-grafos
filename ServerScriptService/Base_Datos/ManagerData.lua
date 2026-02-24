@@ -4,6 +4,7 @@
 local Players = game:GetService("Players")
 local DataStoreService = game:GetService("DataStoreService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 local LevelsConfig = require(ReplicatedStorage:WaitForChild("LevelsConfig"))
 local NivelUtils = require(ReplicatedStorage:WaitForChild("Utilidades"):WaitForChild("NivelUtils"))
 
@@ -178,9 +179,18 @@ end
 -- ============================================
 
 local function setupLevelForPlayer(player, levelId, config)
+	-- P0-3: Cargar el nivel PRIMERO, antes de intentar acceder al personaje.
+	-- Si esto va después del check de rootPart, un return temprano deja el nivel sin clonar.
+	local LevelService = _G.Services and _G.Services.Level
+	if LevelService then
+		LevelService:loadLevel(levelId)
+	else
+		warn("⚠️ ManagerData: LevelService no disponible al cargar nivel " .. levelId)
+	end
+
 	local character = player.Character or player.CharacterAdded:Wait()
 	local rootPart = character:WaitForChild("HumanoidRootPart", 5) -- Timeout de 5s
-	
+
 	if not rootPart then
 		warn("⚠️ ManagerData: No se encontró HumanoidRootPart para " .. player.Name)
 		return
@@ -188,22 +198,12 @@ local function setupLevelForPlayer(player, levelId, config)
 
 	-- Asegurar que leaderstats existan antes de entrar al nivel
 	setupLeaderstats(player)
-	
-	local nivelModel = nil
 
-	-- 1. Intentar con NivelUtils
-	if NivelUtils and NivelUtils.obtenerModeloNivel then
-		nivelModel = NivelUtils.obtenerModeloNivel(levelId)
-	end
+	-- Buscar en Workspace el modelo cargado por LevelService
+	local nivelModel = Workspace:FindFirstChild("NivelActual")
+		or Workspace:FindFirstChild("Nivel" .. levelId)
+		or Workspace:FindFirstChild("Nivel" .. levelId .. "_Tutorial")
 
-	-- 2. Fallback: Buscar en Workspace directamente
-	if not nivelModel then
-		nivelModel = Workspace:FindFirstChild("Nivel" .. levelId) or
-					Workspace:FindFirstChild("Nivel" .. levelId .. "_Tutorial") or
-					Workspace:FindFirstChild("NivelActual")
-	end
-
-	-- 3. Verificar si se encontró
 	if not nivelModel then
 		warn("⚠️ ManagerData: Modelo de nivel no encontrado para ID: " .. levelId)
 	end

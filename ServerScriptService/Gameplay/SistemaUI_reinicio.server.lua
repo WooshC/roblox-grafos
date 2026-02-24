@@ -4,8 +4,8 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 
--- Esperar servicios
-task.wait(1)
+-- P0-2: Esperar señal de ServicesReady en lugar de task.wait(1) fijo
+ReplicatedStorage:WaitForChild("Events"):WaitForChild("Bindables"):WaitForChild("ServicesReady").Event:Wait()
 
 local LevelService = _G.Services.Level
 local GraphService = _G.Services.Graph

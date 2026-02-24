@@ -4,8 +4,8 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- Esperar inicialización de servicios
-task.wait(1)
+-- P0-2: Esperar señal de ServicesReady en lugar de task.wait(1) fijo
+ReplicatedStorage:WaitForChild("Events"):WaitForChild("Bindables"):WaitForChild("ServicesReady").Event:Wait()
 
 local GraphService = _G.Services.Graph
 local GraphUtils = _G.Services.GraphUtils
