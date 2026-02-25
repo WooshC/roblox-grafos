@@ -9,7 +9,7 @@
 -- Progreso descartado al salir: aciertos, fallos, tiempo, puntaje parcial.
 -- Lo que SÍ se conserva: logros permanentes (cuando se implementen en DataService).
 --
--- Ubicación Roblox: StarterGui/HUDController.client.lua  (LocalScript)
+-- Ubicación Roblox: StarterGui/EDAQuestMenu/HUDController.client.lua  (LocalScript)
 
 local Players      = game:GetService("Players")
 local TweenService = game:GetService("TweenService")

@@ -6,7 +6,7 @@
 --   · Sliders de volumen: drag funcional
 --   · Modales: Ajustes, Créditos, Confirmación de Salir
 --
--- Ubicación Roblox: StarterGui/MenuController.client.lua  (LocalScript)
+-- Ubicación Roblox: StarterGui/EDAQuestMenu/MenuController.client.lua  (LocalScript)
 
 local Players        = game:GetService("Players")
 local TweenService   = game:GetService("TweenService")
