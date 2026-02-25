@@ -23,7 +23,7 @@ Players.CharacterAutoLoads = true
 -- ── 2. Esperar EventRegistry ───────────────────────────────────────────────
 local eventsFolder = RS:WaitForChild("Events", 15)
 if not eventsFolder then
-	error("[EDA v2] Boot: EDAEvents no apareció en 15s. ¿Corrió EventRegistry?")
+	error("[EDA v2] Boot: Events no apareció en 15s. ¿Corrió EventRegistry?")
 end
 
 local remotesFolder  = eventsFolder:WaitForChild("Remotes", 5)
