@@ -106,7 +106,10 @@ function DataService:getProgressForClient(player)
 			or (estrellas > 0)            and "completado"
 			or                                 "disponible"
 
-		result[i] = {
+		-- IMPORTANTE: usar clave string ("0","1",...) en lugar de numérica (0,1,...).
+		-- Roblox descarta la clave numérica 0 al serializar tablas en RemoteFunctions
+		-- porque sus tablas empiezan desde 1. Con string keys el dato llega correctamente.
+		result[k] = {
 			nivelID      = i,
 			nombre       = cfg.Nombre   or ("Nivel " .. i),
 			algoritmo    = cfg.Algoritmo,

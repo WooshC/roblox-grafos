@@ -124,15 +124,33 @@ function LevelLoader:load(nivelID, player)
 
 		-- Cargar personaje y teleportar (en pcall para no bloquear LevelReady si falla)
 		local spawnOk, spawnErr = pcall(function()
-			if not player.Character then
-				player:LoadCharacter()
-				local t = 0
-				repeat task.wait(0.05); t = t + 0.05 until player.Character or t >= 5
+			-- Destruir siempre el personaje actual.
+			-- CharacterAutoLoads = true lo recrea automáticamente al volver al menú,
+			-- por lo que puede existir aunque el jugador no esté en un nivel.
+			-- Forzar un ciclo limpio garantiza que teleport y HRP estén disponibles.
+			if player.Character then
+				player.Character:Destroy()
+				task.wait(0.1) -- dar un frame para que Roblox procese la destrucción
 			end
 
-			local char = player.Character
-			if char and spawnLoc then
-				local hrp = char:WaitForChild("HumanoidRootPart", 5)
+			player:LoadCharacter()
+
+			-- Esperar a que el personaje esté disponible
+			local char
+			local t = 0
+			repeat
+				task.wait(0.05)
+				t = t + 0.05
+				char = player.Character
+			until char or t >= 8
+
+			if not char then
+				warn("[LevelLoader] ⚠ Personaje no cargó en 8s —", player.Name)
+				return
+			end
+
+			if spawnLoc then
+				local hrp = char:WaitForChild("HumanoidRootPart", 8)
 				if hrp then
 					hrp.CFrame = spawnLoc.CFrame * CFrame.new(0, 5, 0)
 					print("[LevelLoader] ✅ Jugador teleportado al nivel", nivelID)

@@ -24,6 +24,17 @@ if not root then
 	return
 end
 
+-- ── Guard: evitar re-ejecución duplicada ────────────────────────────────────
+-- EDAQuestMenu.ResetOnSpawn=false → el ScreenGui persiste entre respawns.
+-- Pero este script vive en StarterGui raíz → se re-clona en cada LoadCharacter().
+-- El atributo persiste con el ScreenGui y bloquea la segunda ejecución.
+-- FIX PERMANENTE: mover este LocalScript dentro de EDAQuestMenu en Studio.
+if root:GetAttribute("MenuControllerActive") then
+	print("[MenuController] Re-ejecución detectada — usando instancia anterior")
+	return
+end
+root:SetAttribute("MenuControllerActive", true)
+
 -- ── Conectar con eventos del servidor ─────────────────────────────────────
 local eventsFolder   = RS:WaitForChild("Events", 10)
 local remotesFolder  = eventsFolder and eventsFolder:WaitForChild("Remotes", 5)
@@ -33,7 +44,9 @@ local requestPlayLEv   = remotesFolder and remotesFolder:FindFirstChild("Request
 local levelReadyEv     = remotesFolder and remotesFolder:FindFirstChild("LevelReady")
 local levelUnloadedEv  = remotesFolder and remotesFolder:FindFirstChild("LevelUnloaded")
 local returnToMenuEv   = remotesFolder and remotesFolder:FindFirstChild("ReturnToMenu")
-local getProgressFn    = remotesFolder and remotesFolder:FindFirstChild("GetPlayerProgress")
+-- WaitForChild garantiza que GetPlayerProgress siempre se encuentre aunque
+-- EventRegistry termine su trabajo un frame después de que este script inicia.
+local getProgressFn    = remotesFolder and remotesFolder:WaitForChild("GetPlayerProgress", 5)
 
 -- ── Referencias a frames ───────────────────────────────────────────────────
 local S1 = root:WaitForChild("FrameMenu")
@@ -138,6 +151,16 @@ local function setupMenuCamera()
 end
 
 local function restoreGameCamera()
+	-- Asignar CameraSubject ANTES de cambiar el tipo.
+	-- Sin esto, al volver de Scriptable a Custom la cámara no sabe a quién seguir
+	-- y el jugador no puede rotar/controlar la vista aunque pueda mover el personaje.
+	local char = Players.LocalPlayer.Character
+	if char then
+		local humanoid = char:FindFirstChildOfClass("Humanoid")
+		if humanoid then
+			camera.CameraSubject = humanoid
+		end
+	end
 	camera.CameraType = Enum.CameraType.Custom
 end
 
@@ -197,20 +220,32 @@ end
 
 -- Llama GetPlayerProgress al servidor, actualiza LEVELS y refresca las tarjetas
 local function loadProgress()
-	if not getProgressFn then return end
+	if not getProgressFn then
+		warn("[MenuController] ⚠ GetPlayerProgress no encontrado — tarjetas muestran datos locales.")
+		warn("[MenuController]   Verifica que EventRegistry.server.lua esté corriendo y que los")
+		warn("[MenuController]   API Services estén habilitados en Game Settings → Security.")
+		return
+	end
 
 	local ok, progress = pcall(function()
 		return getProgressFn:InvokeServer()
 	end)
 
-	if not ok or not progress then
-		warn("[MenuController] No se pudo obtener progreso del jugador")
+	if not ok then
+		warn("[MenuController] ⚠ InvokeServer falló:", progress)
+		warn("[MenuController]   ¿Está habilitado 'Enable Studio Access to API Services'?")
+		return
+	end
+	if not progress then
+		warn("[MenuController] ⚠ El servidor devolvió nil — DataService no respondió")
 		return
 	end
 
 	-- Actualizar tabla LEVELS con datos reales del servidor
+	-- NOTA: DataService devuelve claves string ("0","1",...) porque Roblox descarta
+	-- la clave numérica 0 al serializar tablas en RemoteFunctions (tablas 1-indexed).
 	for id = 0, 4 do
-		local p = progress[id]
+		local p = progress[tostring(id)]
 		if p and LEVELS[id] then
 			LEVELS[id].status   = p.status
 			LEVELS[id].stars    = p.estrellas
@@ -245,8 +280,17 @@ local function tween(obj, props, t, style)
 end
 
 -- ── Pantalla de transición (fade negro sobre todo) ─────────────────────────
+-- Limpiar instancias de ejecuciones previas.
+-- Causa: si este script está en StarterGui (no dentro de EDAQuestMenu),
+-- Roblox lo re-ejecuta en cada respawn de personaje. Cada ejecución creaba
+-- un nuevo frame y el anterior quedaba congelado en negro con "Cargando...".
+-- SOLUCIÓN PERMANENTE: mueve este LocalScript dentro de EDAQuestMenu en Studio.
+for _, child in ipairs(root:GetChildren()) do
+	if child.Name == "NivelCargadoFrame" then child:Destroy() end
+end
+
 local transOverlay = Instance.new("Frame")
-transOverlay.Name            = "TransitionOverlay"
+transOverlay.Name            = "NivelCargadoFrame"
 transOverlay.Size            = UDim2.new(1, 0, 1, 0)
 transOverlay.BackgroundColor3 = Color3.new(0, 0, 0)
 transOverlay.BackgroundTransparency = 1
@@ -806,6 +850,9 @@ if levelReadyEv then
 		-- Nivel cargado correctamente
 		loadingLbl.Text = "✅  " .. (data.nombre or "Nivel " .. tostring(data.nivelID))
 		task.delay(0.6, function()
+			-- Restaurar cámara dinámica ANTES del fade-out → al aparecer el nivel
+			-- el jugador verá la cámara ya siguiendo al personaje, no el escenario del menú.
+			restoreGameCamera()
 			fadeOut(0.4, function()
 				-- Ocultar menú completo → el gameplay toma el control
 				root.Enabled = false
@@ -829,5 +876,34 @@ if serverReadyEv then
 		task.spawn(loadProgress)
 	end)
 end
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- NIVEL DESCARGADO (jugador salió del nivel sin completarlo)
+-- Boot.server.lua dispara este evento después de ReturnToMenu.
+-- Resetea isLoading para que el botón JUGAR vuelva a funcionar.
+-- ════════════════════════════════════════════════════════════════════════════
+
+if levelUnloadedEv then
+	levelUnloadedEv.OnClientEvent:Connect(function()
+		isLoading = false
+		-- Ocultar overlay de carga por si quedó visible
+		transOverlay.Visible = false
+		transOverlay.BackgroundTransparency = 1
+		-- Resetear sidebar y actualizar tarjetas con datos frescos del servidor
+		resetSidebar()
+		selectedLevelID = nil
+		-- Restaurar cámara del menú (el personaje fue destruido por Boot al salir del nivel)
+		setupMenuCamera()
+		task.spawn(loadProgress)
+		print("[MenuController] LevelUnloaded — estado de carga reseteado, tarjetas actualizadas")
+	end)
+end
+
+-- ── Configurar cámara del menú al iniciar ────────────────────────────────────
+-- Busca un Part/Model llamado "CamaraMenu" en Workspace y apunta la cámara ahí.
+-- Crea ese objeto en Studio (BasePart con nombre "CamaraMenu") y posiciona/rota
+-- para definir el ángulo de la cámara del menú.
+-- Si "CamaraMenu" no existe en Workspace, esta llamada no hace nada (retorna sola).
+setupMenuCamera()
 
 print("[EDA v2] ✅ MenuController activo")

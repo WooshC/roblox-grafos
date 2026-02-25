@@ -18,7 +18,7 @@ local Players = game:GetService("Players")
 -- ── 1. Sin spawn automático ────────────────────────────────────────────────
 -- El personaje se crea explícitamente en LevelLoader:load() al entrar a un nivel.
 -- En el menú el jugador no tiene personaje → no cae al vacío.
-Players.CharacterAutoLoads = true
+Players.CharacterAutoLoads = false
 
 -- ── 2. Esperar EventRegistry ───────────────────────────────────────────────
 local eventsFolder = RS:WaitForChild("Events", 15)
@@ -46,8 +46,18 @@ local function onPlayerAdded(player)
 		DataService:load(player)
 	end)
 
-	-- Notificar al cliente (delay para que la GUI termine de montar)
-	task.delay(1.5, function()
+	-- Con CharacterAutoLoads=false, StarterGui NO se replica a PlayerGui hasta
+	-- que el personaje cargue por primera vez. Este LoadCharacter() dispara esa
+	-- replicación → MenuController, HUDController y los demás LocalScripts de
+	-- StarterGui pueden ejecutarse y mostrar el menú al jugador.
+	-- LevelLoader:load() destruirá y recargará el personaje al entrar a un nivel.
+	-- Durante el menú el personaje estará en el SpawnLocation del mundo menú;
+	-- MenuController fija la cámara al escenario configurado (Part "CamaraMenu").
+	player:LoadCharacter()
+
+	-- Delay ampliado: da tiempo al personaje de cargar y a los scripts de
+	-- StarterGui de inicializarse antes de que ServerReady active la GUI.
+	task.delay(2, function()
 		if player and player.Parent then
 			serverReadyEv:FireClient(player)
 			print("[EDA v2] ServerReady →", player.Name)
@@ -105,6 +115,12 @@ returnToMenuEv.OnServerEvent:Connect(function(player)
 
 	if not ok then
 		warn("[EDA v2] Error al volver al menú:", err)
+	end
+
+	-- Notificar al cliente que el nivel fue descargado.
+	-- MenuController usa este evento para resetear isLoading y limpiar overlays.
+	if player and player.Parent then
+		levelUnloadEv:FireClient(player)
 	end
 end)
 
