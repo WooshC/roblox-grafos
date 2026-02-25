@@ -913,6 +913,132 @@ corner(guideHud, 13)
 stroke(guideHud, C.Oro, 1, 0.72)
 pad(guideHud, nil, 0, 0, 10, 10)
 
+
+-- ════════════════════════════════════════════════════════════════
+-- 12. BOTÓN SALIR (BarraBotonesMain — añadido)
+-- ════════════════════════════════════════════════════════════════
+local btnSalir = btn("BtnSalir", mainBar, "🚪 Salir",
+	UDim2.new(0, 70, 1, -10), nil,
+	Color3.fromRGB(42, 10, 10), 0, C.Rojo)
+btnSalir.LayoutOrder = 3
+corner(btnSalir, 7)
+stroke(btnSalir, C.Rojo, 1, 0.68)
+
+-- Ampliar el ancho de la barra para acomodar el nuevo botón
+mainBar.Size = UDim2.new(0, 258, 0, 40)
+
+-- ════════════════════════════════════════════════════════════════
+-- 13. MODAL DE CONFIRMACIÓN (ModalSalir)
+-- ════════════════════════════════════════════════════════════════
+local modalOverlay = frame("ModalSalirFondo", gui,
+	UDim2.new(1, 0, 1, 0), UDim2.new(0, 0, 0, 0),
+	Color3.fromRGB(0, 0, 0), 0.45)
+modalOverlay.Visible = false
+modalOverlay.ZIndex  = 30
+
+local modalPanel = frame("ModalSalir", modalOverlay,
+	UDim2.new(0, 340, 0, 210), UDim2.new(0.5, -170, 0.5, -105),
+	C.FondoBase, 0.02)
+corner(modalPanel, 14)
+stroke(modalPanel, C.Rojo, 1, 0.65)
+modalPanel.ZIndex = 31
+
+-- Cabecera roja
+local modalHead = frame("ModalHead", modalPanel,
+	UDim2.new(1, 0, 0, 52), UDim2.new(0, 0, 0, 0),
+	Color3.fromRGB(38, 8, 8), 0)
+pad(modalHead, nil, 0, 0, 16, 10)
+
+label("ModalIcono", modalHead, "🚪",
+	UDim2.new(0, 24, 1, 0), UDim2.new(0, 0, 0, 0),
+	Enum.Font.GothamBold, 20, C.Texto1)
+
+local modalTitleStack = frame("ModalTitleStack", modalHead,
+	UDim2.new(1, -34, 1, 0), UDim2.new(0, 28, 0, 0), C.FondoBase, 1)
+
+label("ModalTitulo", modalTitleStack, "¿SALIR DEL NIVEL?",
+	UDim2.new(1, 0, 0.55, 0), UDim2.new(0, 0, 0, 0),
+	Enum.Font.GothamBold, 14, C.Rojo)
+
+label("ModalSub", modalTitleStack, "Tu progreso actual no se guardará",
+	UDim2.new(1, 0, 0.45, 0), UDim2.new(0, 0, 0.55, 0),
+	Enum.Font.Gotham, 9, C.Texto2)
+
+-- Cuerpo / advertencia
+local modalBody = frame("ModalBody", modalPanel,
+	UDim2.new(1, -28, 0, 62), UDim2.new(0, 14, 0, 58),
+	C.FondoCard, 0)
+corner(modalBody, 8)
+stroke(modalBody, C.Borde, 1, 0.90)
+pad(modalBody, 10)
+
+label("ModalMsg", modalBody,
+	"Si sales ahora perderás los puntos obtenidos en esta sesión y el nivel se reiniciará desde el principio.",
+	UDim2.new(1, 0, 1, 0), UDim2.new(0, 0, 0, 0),
+	Enum.Font.Gotham, 10, C.Texto2, true)
+
+-- Botones de acción
+local modalBtns = frame("ModalBtns", modalPanel,
+	UDim2.new(1, -28, 0, 36), UDim2.new(0, 14, 0, 132),
+	C.FondoBase, 1)
+hlist(modalBtns, 10)
+
+local btnCancelarModal = btn("BtnCancelarSalir", modalBtns, "✕ Cancelar",
+	UDim2.new(0.5, -5, 1, 0), nil,
+	C.FondoEl, 0, C.Texto1)
+btnCancelarModal.LayoutOrder = 1
+corner(btnCancelarModal, 8)
+stroke(btnCancelarModal, C.Borde, 1, 0.80)
+
+local btnConfirmarModal = btn("BtnConfirmarSalir", modalBtns, "🚪 Sí, salir",
+	UDim2.new(0.5, -5, 1, 0), nil,
+	Color3.fromRGB(54, 10, 10), 0, C.Rojo)
+btnConfirmarModal.LayoutOrder = 2
+corner(btnConfirmarModal, 8)
+stroke(btnConfirmarModal, C.Rojo, 1, 0.60)
+
+-- Nota de progreso guardado (opcional, abajo del todo)
+local modalNote = frame("ModalNote", modalPanel,
+	UDim2.new(1, -28, 0, 20), UDim2.new(0, 14, 0, 178),
+	C.FondoBase, 1)
+
+label("ModalNoteLabel", modalNote,
+	"💾  Los logros permanentes sí quedan registrados",
+	UDim2.new(1, 0, 1, 0), nil,
+	Enum.Font.Gotham, 8, C.Texto3, false, Enum.TextXAlignment.Center)
+
+-- ════════════════════════════════════════════════════════════════
+-- LÓGICA DEL MODAL
+-- ════════════════════════════════════════════════════════════════
+btnSalir.MouseButton1Click:Connect(function()
+	modalOverlay.Visible = true
+end)
+
+btnCancelarModal.MouseButton1Click:Connect(function()
+	modalOverlay.Visible = false
+end)
+
+-- Cerrar también si se hace clic en el fondo oscuro
+modalOverlay.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		-- Sólo cierra si el clic fue en el fondo, no en el panel
+		modalOverlay.Visible = false
+	end
+end)
+-- Evita que el clic en el panel cierre el overlay
+modalPanel.InputBegan:Connect(function(input)
+	input.Handled = true -- consume el evento
+end)
+
+btnConfirmarModal.MouseButton1Click:Connect(function()
+	modalOverlay.Visible = false
+	-- ─── Aquí va tu lógica para salir del nivel ───
+	-- Ejemplo: game:GetService("TeleportService"):Teleport(PLACE_ID)
+	-- o: game:GetService("Players").LocalPlayer:Kick("Saliste del nivel")
+	print("🚪 El jugador confirmó salir del nivel")
+end)
+
+
 label("GuiaLabel", guideHud,
 	"🧭 Dirígete a: —",
 	UDim2.new(1, 0, 1, 0), nil,
