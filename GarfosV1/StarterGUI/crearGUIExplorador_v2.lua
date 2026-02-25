@@ -348,13 +348,17 @@ label("Titulo", mmHead, "● MINIMAPA",
 	Enum.Font.GothamBold, 9, C.Verde)
 
 local visor = Instance.new("ViewportFrame")
-visor.Name                  = "Visor"
-visor.Size                  = UDim2.new(1, 0, 0, 130)
-visor.Position              = UDim2.new(0, 0, 0, 24)
-visor.BackgroundColor3      = Color3.fromRGB(4, 8, 14)
+visor.Name                   = "Vista"          -- ← renombrado de "Visor"
+visor.Size                   = UDim2.new(1, 0, 0, 130)
+visor.Position               = UDim2.new(0, 0, 0, 24)
+visor.BackgroundColor3       = Color3.fromRGB(4, 8, 14)
 visor.BackgroundTransparency = 0
-visor.BorderSizePixel       = 0
-visor.Parent                = minimap
+visor.BorderSizePixel        = 0
+visor.Parent                 = minimap
+
+local worldModel = Instance.new("WorldModel")   -- ← NUEVO
+worldModel.Name   = "WorldModel"
+worldModel.Parent = visor
 
 local mmFoot = frame("PanelInfoGrafo", minimap,
 	UDim2.new(1, 0, 0, 38), UDim2.new(0, 0, 0, 154),

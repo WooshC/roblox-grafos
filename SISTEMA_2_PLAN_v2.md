@@ -408,12 +408,200 @@ local LevelService = ServiceLocator:waitFor("Level")
 
 ## 7. Etapa 4 — Gameplay Activo
 
-### HUD durante el gameplay (puntaje BASE visible)
+### HUD durante el gamepla
 
 ```
-┌──────────────────────────────────────────────┐
-│  ✓ Conexiones: 5   ⏱ 02:34   📊 340 pts    │
-└──────────────────────────────────────────────┘
+ScreenGui "GUIExploradorV2"
+│
+├── BarraSuperior (Frame — barra fija top, fondo oscuro semitransparente)
+│   ├── Titulo (TextLabel — oculto, compatibilidad con scripts externos)
+│   ├── TitleBadge (Frame — badge con nombre del juego, izquierda)
+│   │   ├── UICorner
+│   │   ├── UIStroke
+│   │   ├── UIPadding
+│   │   ├── IconoJuego (TextLabel — emoji 📊)
+│   │   └── TitleStack (Frame — stack vertical nombre + subtítulo)
+│   │       ├── NombreJuego (TextLabel)
+│   │       └── SubTitulo (TextLabel)
+│   ├── PanelPuntuacion (Frame — chips de stats, centro)
+│   │   ├── UIListLayout (horizontal)
+│   │   ├── ContenedorEstrellas (Frame — chip ⭐)
+│   │   │   ├── UICorner, UIStroke, UIPadding
+│   │   │   ├── Icono (TextLabel)
+│   │   │   ├── Valor (TextLabel)
+│   │   │   └── Etiqueta (TextLabel)
+│   │   ├── ContenedorPuntos (Frame — chip 🏆)
+│   │   │   └── [mismos hijos]
+│   │   └── ContenedorDinero (Frame — chip 💰)
+│   │       └── [mismos hijos]
+│   └── BarraBotonesSecundarios (Frame — botones derecha)
+│       ├── UIListLayout (horizontal)
+│       ├── BtnReiniciar (TextButton — amarillo)
+│       └── BtnFinalizar (TextButton — verde, oculto)
+│
+├── BarraBotonesMain (Frame — botones flotantes top-left)
+│   ├── UICorner, UIStroke, UIPadding
+│   ├── UIListLayout (horizontal)
+│   ├── BtnMapa (TextButton — verde)
+│   ├── BtnMisiones (TextButton — violeta)
+│   ├── BtnSalir (TextButton — rojo)
+│   ├── BtnAlgoritmo (TextButton — invisible, compatibilidad)
+│   └── BtnMatriz (TextButton — invisible, compatibilidad)
+│
+├── SelectorModos (Frame — pills de modo, bottom-left)
+│   ├── UICorner, UIStroke, UIPadding
+│   ├── UIListLayout (horizontal)
+│   ├── VisualBtn (TextButton — verde activo)
+│   ├── MatrizBtn (TextButton — azul inactivo)
+│   └── AnalisisBtn (TextButton — naranja inactivo)
+│
+├── ContenedorMiniMapa (Frame — minimapa bottom-right)
+│   ├── UICorner, UIStroke
+│   ├── Header (Frame — cabecera verde oscura)
+│   │   ├── UIPadding
+│   │   └── Titulo (TextLabel)
+│   ├── Vista (ViewportFrame — render 3D del grafo)  ← renombrado
+│   │   └── WorldModel (WorldModel — contenedor de partes 3D)  ← NUEVO
+│   └── PanelInfoGrafo (Frame — estadísticas nodos/aristas/tipo)
+│       ├── UIPadding, UIListLayout (horizontal)
+│       ├── EtiquetaInfoGrafo (TextLabel — oculto, compat.)
+│       ├── EstadisticasGrafo (TextLabel — oculto, compat.)
+│       ├── StatNodos (Frame — chip NODOS)
+│       ├── StatAristas (Frame — chip ARISTAS)
+│       └── StatTipo (Frame — chip TIPO)
+│
+├── PanelMatrizAdyacencia (Frame — panel matemático, derecha, oculto)
+│   ├── UICorner, UIStroke
+│   ├── MatrizHeader (Frame — cabecera azul)
+│   │   ├── UIPadding
+│   │   ├── TituloMatriz (TextLabel)
+│   │   └── BtnCerrarMatriz (TextButton — X rojo)
+│   ├── MarcoInfoNodo (Frame — info del nodo seleccionado)
+│   │   ├── UICorner, UIStroke, UIPadding
+│   │   ├── UIGridLayout (2×2)
+│   │   ├── FilaNodo, FilaGrado, FilaEntrada, FilaSalida (Frames)
+│   └── CuadriculaMatriz (ScrollingFrame — tabla de adyacencia)
+│
+├── MisionFrame (Frame — panel misiones, oculto)
+│   ├── UICorner, UIStroke
+│   ├── MisHeader (Frame — cabecera violeta)
+│   │   ├── UIPadding
+│   │   ├── Titulo (TextLabel)
+│   │   └── BtnCerrarMisiones (TextButton — X rojo)
+│   └── Cuerpo (ScrollingFrame — lista de misiones)
+│       ├── UIPadding
+│       └── UIListLayout (vertical)
+│
+├── PantallaMapaGrande (Frame — mapa fullscreen, ZIndex 5, oculto)
+│   ├── MapaHeader (Frame — cabecera verde oscura)
+│   │   ├── UIPadding, UIStroke
+│   │   ├── MapaTitulo (TextLabel)
+│   │   └── MapaBotones (Frame)
+│   │       ├── UIListLayout (horizontal)
+│   │       ├── BtnMisionesEnMapa (TextButton — violeta)
+│   │       ├── BtnMatematico (TextButton — azul)
+│   │       └── BtnCerrarMapa (TextButton — rojo)
+│   ├── MapaInfoStrip (Frame — banda de stats nodos/aristas/tipo)
+│   │   ├── UIPadding, UIListLayout (horizontal)
+│   │   └── MapInfoNodos, MapInfoAristas, MapInfoTipo (Frames — pills)
+│   └── VisorMapa (ViewportFrame — render 3D del mapa completo)
+│
+├── OverlayAnalisis (Frame — fondo oscuro análisis, ZIndex 15, oculto)
+│   └── PanelAnalisis (Frame — panel central, ZIndex 16)
+│       ├── UICorner, UIStroke
+│       ├── EncabezadoAnalisis (Frame — cabecera naranja)
+│       │   ├── UIPadding
+│       │   ├── TituloAnalisis (TextLabel)
+│       │   ├── SubtituloAnalisis (TextLabel)
+│       │   ├── PillsAlgo (Frame — pills BFS/DFS/Dijkstra/Prim)
+│       │   │   ├── UIListLayout (horizontal)
+│       │   │   ├── PillBFS, PillDFS, PillDijkstra, PillPrim (TextButtons)
+│       │   ├── BtnEjecutarAlgo (TextButton — naranja ▶)
+│       │   └── BtnCerrarAnalisis (TextButton — X rojo)
+│       └── PanelDatos (Frame — 3 columnas)
+│           ├── UIListLayout (horizontal)
+│           ├── ColGrafo (Frame — viewport + leyenda)
+│           │   ├── ColGrafoTitulo (TextLabel)
+│           │   ├── VisorGrafoAna (ViewportFrame)
+│           │   └── LeyendaGrafo (Frame — grid 2×2)
+│           │       ├── UIGridLayout
+│           │       └── Leg1…Leg4 (Frames — dot + label)
+│           ├── ColPasos (Frame — estado del algoritmo)
+│           │   ├── ColPasosTitulo (TextLabel)
+│           │   ├── BarraRecorrido (Frame — path actual)
+│           │   ├── TarjetaPaso (Frame — paso actual)
+│           │   ├── ScrollEstado (ScrollingFrame — log de pasos)
+│           │   └── ControlesAnalisis (Frame — controles)
+│           │       ├── UIListLayout (horizontal)
+│           │       ├── BtnAnterior (TextButton — ⬅)
+│           │       ├── BarraProgreso (Frame — barra progreso)
+│           │       │   └── RellenoProgreso (Frame — fill naranja→oro)
+│           │       │       └── UIGradient
+│           │       ├── BtnSiguiente (TextButton — naranja)
+│           │       └── BtnSalirAnalisis (TextButton — X rojo)
+│           └── ColCodigo (Frame — pseudocódigo + métricas)
+│               ├── ColCodigoTitulo (TextLabel)
+│               ├── ScrollPseudocodigo (ScrollingFrame)
+│               └── MetricasAnalisis (Frame)
+│                   ├── UIStroke, UIPadding
+│                   ├── InsigniaComplejidad (TextLabel — O(V+E))
+│                   ├── MetricaPasos (TextLabel)
+│                   └── MetricaNodos (TextLabel)
+│
+├── VictoriaFondo (Frame — overlay victoria, ZIndex 20, oculto)
+│   └── PantallaVictoria (CanvasGroup — panel central, ZIndex 21)
+│       └── ContenedorPrincipal (Frame)
+│           ├── UICorner, UIStroke
+│           ├── VictoriaHead (Frame — cabecera dorada)
+│           │   ├── UIPadding
+│           │   ├── TituloVictoria (TextLabel — ¡NIVEL COMPLETADO!)
+│           │   ├── SubtituloVictoria (TextLabel)
+│           │   └── EstrellasMostrar (Frame — 3 estrellas)
+│           │       ├── UIListLayout (horizontal)
+│           │       └── Estrella1, Estrella2, Estrella3 (ImageLabels)
+│           ├── EstadisticasFrame (Frame — filas de stats)
+│           │   ├── UIListLayout (vertical)
+│           │   ├── FilaTiempo (Frame — ⏱ Tiempo)
+│           │   ├── FilaAciertos (Frame — 🔗 Conexiones)
+│           │   ├── FilaErrores (Frame — ❌ Errores)
+│           │   └── FilaPuntaje (Frame — 🏆 Puntaje Final, dorado)
+│           └── BotonesFrame (Frame)
+│               ├── UIListLayout (horizontal)
+│               ├── BotonRepetir (TextButton — amarillo)
+│               └── BotonContinuar (TextButton — verde)
+│
+├── Leyenda (Frame — leyenda de nodos, bottom-right, oculta)
+│   ├── UICorner, UIStroke, UIPadding
+│   ├── UIListLayout (vertical)
+│   ├── LeyendaTitulo (TextLabel)
+│   ├── LegInicial (Frame — dot azul)
+│   ├── LegEnergizado (Frame — dot verde)
+│   ├── LegMeta (Frame — dot dorado)
+│   ├── LegAdyacente (Frame — dot naranja)
+│   └── LegAislado (Frame — dot rojo)
+│
+├── GuiaHUD (Frame — HUD guía navegación, oculto)
+│   ├── UICorner, UIStroke, UIPadding
+│   └── GuiaLabel (TextLabel — 🧭 Dirígete a: —)
+│
+└── ModalSalirFondo (Frame — overlay modal salir, ZIndex 30, oculto)
+    └── ModalSalir (Frame — panel central, ZIndex 31)
+        ├── UICorner, UIStroke
+        ├── ModalHead (Frame — cabecera roja)
+        │   ├── UIPadding
+        │   ├── ModalIcono (TextLabel — 🚪)
+        │   └── ModalTitleStack (Frame)
+        │       ├── ModalTitulo (TextLabel — ¿SALIR DEL NIVEL?)
+        │       └── ModalSub (TextLabel — advertencia)
+        ├── ModalBody (Frame — mensaje de advertencia)
+        │   ├── UICorner, UIStroke, UIPadding
+        │   └── ModalMsg (TextLabel — texto wrap)
+        ├── ModalBtns (Frame — botones confirmar/cancelar)
+        │   ├── UIListLayout (horizontal)
+        │   ├── BtnCancelarSalir (TextButton — neutro)
+        │   └── BtnConfirmarSalir (TextButton — rojo)
+        └── ModalNote (Frame — nota logros guardados)
+            └── ModalNoteLabel (TextLabel — 💾)
 ```
 
 > **Importante**: El HUD muestra el **puntaje base acumulado** (sin penalizaciones
