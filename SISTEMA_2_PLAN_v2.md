@@ -55,16 +55,16 @@ Ambas GUIs están creadas manualmente en Studio. **NO** generarlas por script.
 |---|---|---|
 | `ConectarCables.lua` | ✅ Implementado | Lógica pura: adyacencias, Beam celeste, disconnect penaliza |
 | `ScoreTracker.lua` | ✅ Implementado | Aciertos, fallos, desconexiones, cronómetro |
-| `VisualEffectsService.client.lua` | ✅ Implementado | SelectionBox + Selector sólido, solo flash rojo |
-| `ZoneTriggerManager.lua` | ✅ Implementado | Touched en Zonas_juego/, ZoneEntered una vez por zona |
+| `VisualEffectsService.client.lua` | ✅ Implementado | Highlight Roblox (AlwaysOnTop) + Material Neon en Selector, solo flash rojo |
+| `ZoneTriggerManager.lua` | ✅ Implementado | Touched+TouchEnded, ZoneEntered+ZoneExited, primeraVez flag |
 
 **Cambios de arquitectura aplicados (Etapa 4):**
 - **Beam en lugar de RopeConstraint** — cable siempre tenso (`CurveSize = 0`), celeste `RGB(0,200,255)`, `FaceCamera = true`
 - **Separación lógica/visual** — `ConectarCables` solo adyacencias/estado; `VisualEffectsService` todos los efectos visuales
-- **Highlight doble al seleccionar** — SelectionBox outline + BaseParts del Selector transparencia 0.10 (casi sólido) en cyan; adyacentes en dorado transparencia 0.15
+- **Highlight doble al seleccionar** — Roblox `Highlight` instance (`DepthMode = AlwaysOnTop`) + `Material = Neon` en BasePart del Selector en cyan; adyacentes en dorado. **Visible a través de paredes** (AlwaysOnTop renderiza encima de toda la geometría)
 - **Un solo tipo de error visual** — flash rojo siempre; `DireccionInvalida` solo en log de debug
 - **Disconnect penaliza puntaje** — desconectar un cable descuenta 1 conexión del puntajeBase en el HUD
-- **ZoneTriggerManager** — `Touched` en `NivelActual/Zonas/Zonas_juego/<TriggerPart>`; `ZoneEntered` BindableEvent, debounce por zona
+- **ZoneTriggerManager** — `Touched`+`TouchEnded` en `NivelActual/Zonas/Zonas_juego/<TriggerPart>`; `ZoneEntered`+`ZoneExited` BindableEvents; `primeraVez` flag; API pública: `isEnZona()`, `isZonaVisitada()`, `getZonaActual()`
 - **Zonas en LevelsConfig** — `Zonas = { { nombre, trigger } }` por nivel; añadir Parts en Studio y la entrada en config
 
 ### 🔜 PENDIENTE — Etapa 5

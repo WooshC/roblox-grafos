@@ -37,6 +37,7 @@ local EXPECTED_BINDABLES = {
 	{ name = "LevelUnloaded",     class = "BindableEvent" },
 	{ name = "ScoreChanged",      class = "BindableEvent" },
 	{ name = "ZoneEntered",       class = "BindableEvent" },
+	{ name = "ZoneExited",        class = "BindableEvent" },
 	{ name = "DialogueRequested", class = "BindableEvent" },
 	{ name = "OpenMenu",          class = "BindableEvent" },
 	{ name = "GuiaAvanzar",       class = "BindableEvent" },

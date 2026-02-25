@@ -1,23 +1,29 @@
 -- ZoneTriggerManager.lua
--- ModuleScript servidor: detecta cuando el jugador entra a zonas de gameplay.
+-- ModuleScript servidor: detecta ENTRADA y SALIDA de zonas de gameplay.
 --
 -- Estructura esperada en el nivel:
 --   NivelActual/
 --   └── Zonas/
 --       └── Zonas_juego/
 --           ├── ZonaTrigger_1  (BasePart, CanCollide=false, Transparency=1)
---           ├── ZonaTrigger_2
 --           └── ...
 --
 -- Configuración en LevelsConfig[nivelID].Zonas:
 --   { { nombre = "Zona1", trigger = "ZonaTrigger_1" }, ... }
---   Para agregar zonas nuevas: añadir la Part en Studio y la entrada aquí.
 --
--- Cuando el personaje del jugador toca un trigger:
---   1. Se registra como zona visitada (debounce — no se repite por nivel)
---   2. Se dispara BindableEvent "ZoneEntered" con datos de la zona
---      { player, nombre, trigger }
---   Quién puede escuchar: DialogueOrchestrator, MissionService, GuiaService
+-- Detección de entrada/salida (Touched + TouchEnded):
+--   El personaje tiene muchas BaseParts (torso, piernas, brazos...).
+--   Touched/TouchEnded se disparan por cada Part del personaje que entre/salga.
+--   _touchingPerZone rastrea cuáles Parts están actualmente dentro de cada zona,
+--   y solo dispara los eventos en las TRANSICIONES:
+--     ninguna → alguna  → ZoneEntered  (con { primeraVez = bool })
+--     alguna  → ninguna → ZoneExited
+--
+-- Eventos disparados (BindableEvents):
+--   ZoneEntered: { player, nombre, trigger, primeraVez }
+--   ZoneExited:  { player, nombre, trigger }
+--
+-- Quién escucha: DialogueOrchestrator, MissionService, GuiaService
 --
 -- Ubicación Roblox: ServerScriptService/ZoneTriggerManager  (ModuleScript)
 
@@ -27,13 +33,28 @@ local RS      = game:GetService("ReplicatedStorage")
 local ZoneTriggerManager = {}
 
 -- ── Estado ────────────────────────────────────────────────────────────────────
-local _active        = false
-local _player        = nil
-local _conns         = {}        -- RBXScriptConnections a limpiar en deactivate
-local _visitadas     = {}        -- { [nombreZona] = true } — evita re-disparo
-local _zoneEnteredEv = nil       -- BindableEvent "ZoneEntered"
+local _active    = false
+local _player    = nil
+local _conns     = {}    -- RBXScriptConnections a limpiar en deactivate
 
--- ── Helper: obtener la carpeta de triggers del nivel ─────────────────────────
+-- _visitadas[nombre]     = true → zona visitada al menos una vez en este nivel
+--                          (nunca se resetea durante el nivel, útil para efectos de primer encuentro)
+local _visitadas = {}
+
+-- _inZone[nombre]        = true → jugador está ACTUALMENTE dentro de la zona
+--                          (se resetea al salir, permite re-entrada)
+local _inZone    = {}
+
+-- _touchingPerZone[nombre] = { [touchedPart] = true }
+--                          Cuántas Parts del personaje están actualmente tocando la zona.
+--                          Usamos tabla (no contador) para sobrevivir a partes destruidas.
+local _touchingPerZone = {}
+
+-- BindableEvents
+local _zoneEnteredEv = nil
+local _zoneExitedEv  = nil
+
+-- ── Helper ────────────────────────────────────────────────────────────────────
 local function getZonasFolder(nivel)
 	local zonas = nivel:FindFirstChild("Zonas")
 	if not zonas then return nil end
@@ -41,9 +62,6 @@ local function getZonasFolder(nivel)
 end
 
 -- ── activate ─────────────────────────────────────────────────────────────────
--- nivel   : Model "NivelActual" en Workspace
--- zonas   : tabla de LevelsConfig[id].Zonas = { { nombre, trigger }, ... }
--- player  : Player activo en el nivel
 function ZoneTriggerManager.activate(nivel, zonas, player)
 	if _active then ZoneTriggerManager.deactivate() end
 
@@ -52,17 +70,20 @@ function ZoneTriggerManager.activate(nivel, zonas, player)
 		return
 	end
 
-	_player    = player
-	_visitadas = {}
-	_conns     = {}
-	_active    = true
+	_player          = player
+	_visitadas       = {}
+	_inZone          = {}
+	_touchingPerZone = {}
+	_conns           = {}
+	_active          = true
 
-	-- Cachear BindableEvent
+	-- Cachear BindableEvents
 	local ev = RS:FindFirstChild("Events")
 	if ev then
 		local bind = ev:FindFirstChild("Bindables")
 		if bind then
 			_zoneEnteredEv = bind:FindFirstChild("ZoneEntered")
+			_zoneExitedEv  = bind:FindFirstChild("ZoneExited")
 		end
 	end
 
@@ -78,31 +99,67 @@ function ZoneTriggerManager.activate(nivel, zonas, player)
 		if triggerPart and triggerPart:IsA("BasePart") then
 			local nombre  = zonaDef.nombre
 			local trigKey = zonaDef.trigger
+			_touchingPerZone[nombre] = {}
 
-			local conn = triggerPart.Touched:Connect(function(touchedPart)
-				-- Solo reaccionar al personaje del jugador configurado
+			-- ── Touched: alguna Part del personaje entró al trigger ────────────
+			local connEnter = triggerPart.Touched:Connect(function(touchedPart)
 				if not _active then return end
 				local character = _player and _player.Character
-				if not character then return end
-				if not touchedPart:IsDescendantOf(character) then return end
+				if not character or not touchedPart:IsDescendantOf(character) then return end
 
-				-- Debounce por zona: solo se dispara una vez por nivel
-				if _visitadas[nombre] then return end
-				_visitadas[nombre] = true
+				local touching = _touchingPerZone[nombre]
+				local wasEmpty = next(touching) == nil
+				touching[touchedPart] = true
 
-				print("[ZoneTriggerManager] ✅ Zona entrada:", nombre,
-					"/ Trigger:", trigKey, "/ Jugador:", _player.Name)
+				-- Transición: ninguna → alguna Part = el jugador acaba de entrar
+				if wasEmpty and not _inZone[nombre] then
+					_inZone[nombre] = true
 
-				if _zoneEnteredEv then
-					_zoneEnteredEv:Fire({
-						player  = _player,
-						nombre  = nombre,
-						trigger = trigKey,
-					})
+					local primeraVez = not _visitadas[nombre]
+					_visitadas[nombre] = true
+
+					print("[ZoneTriggerManager] ▶ Zona ENTRADA:", nombre,
+						"/ primeraVez:", primeraVez, "/ Jugador:", _player.Name)
+
+					if _zoneEnteredEv then
+						_zoneEnteredEv:Fire({
+							player    = _player,
+							nombre    = nombre,
+							trigger   = trigKey,
+							primeraVez = primeraVez,
+						})
+					end
 				end
 			end)
 
-			table.insert(_conns, conn)
+			-- ── TouchEnded: alguna Part del personaje salió del trigger ────────
+			local connExit = triggerPart.TouchEnded:Connect(function(touchedPart)
+				if not _active then return end
+				local character = _player and _player.Character
+				if not character or not touchedPart:IsDescendantOf(character) then return end
+
+				local touching = _touchingPerZone[nombre]
+				touching[touchedPart] = nil
+
+				-- Transición: alguna → ninguna Part = el jugador ha salido completamente
+				if next(touching) == nil and _inZone[nombre] then
+					_inZone[nombre] = nil
+
+					print("[ZoneTriggerManager] ◀ Zona SALIDA:", nombre,
+						"/ Jugador:", _player.Name)
+
+					if _zoneExitedEv then
+						_zoneExitedEv:Fire({
+							player  = _player,
+							nombre  = nombre,
+							trigger = trigKey,
+						})
+					end
+				end
+			end)
+
+			table.insert(_conns, connEnter)
+			table.insert(_conns, connExit)
 			registradas = registradas + 1
 		else
 			warn("[ZoneTriggerManager] Trigger no encontrado o no es BasePart:",
@@ -119,20 +176,29 @@ end
 function ZoneTriggerManager.deactivate()
 	_active = false
 	for _, conn in ipairs(_conns) do conn:Disconnect() end
-	_conns         = {}
-	_visitadas     = {}
-	_player        = nil
-	_zoneEnteredEv = nil
+	_conns           = {}
+	_visitadas       = {}
+	_inZone          = {}
+	_touchingPerZone = {}
+	_player          = nil
+	_zoneEnteredEv   = nil
+	_zoneExitedEv    = nil
 	print("[ZoneTriggerManager] deactivate — limpieza completa")
 end
 
 -- ── Consultas ─────────────────────────────────────────────────────────────────
--- Verifica si el jugador ya visitó una zona en este nivel
+
+-- ¿El jugador visitó esta zona al menos una vez en este nivel?
 function ZoneTriggerManager.isZonaVisitada(nombre)
 	return _visitadas[nombre] == true
 end
 
--- Devuelve lista de nombres de zonas visitadas hasta ahora
+-- ¿El jugador está AHORA MISMO dentro de esta zona?
+function ZoneTriggerManager.isEnZona(nombre)
+	return _inZone[nombre] == true
+end
+
+-- Lista de nombres de zonas visitadas al menos una vez
 function ZoneTriggerManager.getZonasVisitadas()
 	local result = {}
 	for nombre, _ in pairs(_visitadas) do
@@ -141,7 +207,15 @@ function ZoneTriggerManager.getZonasVisitadas()
 	return result
 end
 
--- Permite marcar una zona como visitada manualmente (útil para testing o tutoriales)
+-- Zona actual del jugador (nil si no está en ninguna zona reconocida)
+function ZoneTriggerManager.getZonaActual()
+	for nombre, inside in pairs(_inZone) do
+		if inside then return nombre end
+	end
+	return nil
+end
+
+-- Marcar manualmente como visitada (testing / tutoriales)
 function ZoneTriggerManager.marcarVisitada(nombre)
 	_visitadas[nombre] = true
 end
