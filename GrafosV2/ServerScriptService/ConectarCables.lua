@@ -1,28 +1,25 @@
 -- ConectarCables.lua
--- ModuleScript servidor: gestiona la conexión/desconexión de cables entre nodos.
--- Reescrito para la estructura real de niveles v2:
+-- ModuleScript servidor: SOLO lógica de conexión/desconexión entre nodos.
+-- Los efectos visuales (SelectionBox, flash) están delegados a VisualEffectsService (cliente).
 --
+-- Estructura de nivel esperada:
 --   NivelActual/Grafos/Grafo_ZonaX/
 --       ├── Nodos/
---       │   ├── Nodo1_z1/ (Model)
---       │   │   ├── Decoracion/ (Model) ← visual, NO tocado por este script
---       │   │   └── Selector/   (Model) ← hitbox de interacción
---       │   │       ├── Attachment    ← anclaje para RopeConstraints (pre-creado en Studio)
---       │   │       └── ClickDetector ← detecta clic del jugador (pre-creado en Studio)
---       └── Conexiones/ (Folder) ← vacío; RopeConstraints + hitboxes se crean aquí en runtime
+--       │   └── <NodoModel>/
+--       │       ├── Decoracion/ ← visual, NO tocado aquí
+--       │       └── Selector/   ← hitbox de interacción
+--       │           ├── Attachment    ← anclaje para Beam (pre-creado en Studio)
+--       │           └── ClickDetector ← detecta clic del jugador (pre-creado en Studio)
+--       └── Conexiones/ ← vacío; Beam + hitboxes se crean aquí en runtime
 --
 -- FLUJO:
---   Clic 1 → seleccionar nodo (SelectionBox cyan + NotificarSeleccionNodo al cliente)
+--   Clic 1 → seleccionar nodo (estado + NotificarSeleccionNodo al cliente con adyacentes)
 --   Clic 2 → intentar conectar:
---     a. Ya conectados       → desconectar
---     b. Adyacentes (válido) → crear cable + ScoreTracker.registrarConexion
---     c. No adyacentes       → flash rojo + ScoreTracker.registrarFallo
---   Clic en hitbox del cable → desconectar (sin penalización)
---
--- ADYACENCIAS (formato lista de GarfosV1/LevelsConfig):
---   { ["Nodo1_z1"] = {"Nodo2_z1"}, ["Nodo2_z1"] = {"Nodo1_z1"} }
---   Directional: Nodo1→Nodo2 existe, pero Nodo2→Nodo1 puede no estar → grafo dirigido.
---   Si adjacencias = nil → modo permisivo (cualquier par es válido).
+--     a. Mismo nodo       → deseleccionar
+--     b. Ya conectados    → desconectar + descontar puntos
+--     c. Adyacente válido → Beam celeste + sumar puntos
+--     d. No adyacente     → fallo + notificar cliente para flash rojo
+--   Clic en hitbox cable → desconectar + descontar puntos
 --
 -- Ubicación Roblox: ServerScriptService/ConectarCables  (ModuleScript)
 
@@ -31,31 +28,29 @@ local Workspace = game:GetService("Workspace")
 
 local ConectarCables = {}
 
--- ── Eventos remotos (se obtienen internamente) ───────────────────────────────
-local _notifyEv = nil   -- NotificarSeleccionNodo
-local _dragEv   = nil   -- CableDragEvent
-local _pulseEv  = nil   -- PulseEvent
+-- ── Eventos remotos (cacheados en activate) ──────────────────────────────────
+local _notifyEv = nil   -- NotificarSeleccionNodo  (visual events al cliente)
+local _dragEv   = nil   -- CableDragEvent          (preview de arrastre)
+local _pulseEv  = nil   -- PulseEvent              (flujo de energía)
 
 -- ── Estado interno ───────────────────────────────────────────────────────────
-local _active      = false
-local _nivel       = nil    -- Model "NivelActual" en Workspace
-local _player      = nil    -- jugador activo
-local _tracker     = nil    -- ScoreTracker
-local _adjLookup   = nil    -- { [nomA] = { [nomB] = true } } o nil (permisivo)
+local _active         = false
+local _nivel          = nil    -- Model "NivelActual" en Workspace
+local _player         = nil    -- jugador activo (single-player)
+local _tracker        = nil    -- ScoreTracker
+local _adjLookup      = nil    -- { [nomA] = { [nomB] = true } } o nil (permisivo)
+local _selected       = nil    -- Selector Model actualmente seleccionado
+local _selectorByName = {}     -- { [nomNodo] = Selector Model } — para lookup O(1)
 
-local _selected    = nil    -- Selector Model seleccionado actualmente (o nil)
-local _selBox      = nil    -- SelectionBox activo
+-- { key, beam, hitbox, nomA, nomB }
+local _cables = {}
+-- RBXScriptConnections a desconectar en deactivate()
+local _conns  = {}
 
--- { key, rope, hitbox }
-local _cables      = {}
--- RBXScriptConnection para limpiar en deactivate()
-local _conns       = {}
-
--- ── Constantes visuales ──────────────────────────────────────────────────────
-local COLOR_SELECT  = Color3.fromRGB(0, 212, 255)   -- cyan: nodo seleccionado
-local COLOR_ERROR   = Color3.fromRGB(239, 68, 68)   -- rojo: conexión inválida
-local CABLE_THICK   = 0.07                          -- studs
-local CD_DIST       = 25                            -- MaxActivationDistance
+-- ── Constantes ───────────────────────────────────────────────────────────────
+local CABLE_COLOR = Color3.fromRGB(0, 200, 255)   -- celeste brillante
+local CABLE_WIDTH = 0.13                          -- studs
+local CD_DIST     = 25                            -- MaxActivationDistance
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- HELPERS
@@ -67,17 +62,14 @@ local function pairKey(nomA, nomB)
 	return nomA .. "|" .. nomB
 end
 
--- Nombre del nodo a partir de su Selector (selector.Parent = nodo Model)
 local function getNombreNodo(selector)
 	return selector.Parent.Name
 end
 
--- Attachment dentro del Selector (puede estar en una BasePart hija del Model)
 local function getAttachment(selector)
 	return selector:FindFirstChild("Attachment", true)
 end
 
--- ClickDetector dentro del Selector
 local function getClickDetector(selector)
 	return selector:FindFirstChild("ClickDetector", true)
 end
@@ -85,7 +77,7 @@ end
 -- Carpeta Conexiones del grafo al que pertenece este selector
 -- Ruta: Selector → Nodo → Nodos → Grafo_ZonaX → Conexiones
 local function getConexionesFolder(selector)
-	local grafo = selector.Parent.Parent.Parent   -- Grafo_ZonaX (Folder)
+	local grafo = selector.Parent.Parent.Parent
 	if not grafo then return nil end
 	local c = grafo:FindFirstChild("Conexiones")
 	if not c then
@@ -96,9 +88,7 @@ local function getConexionesFolder(selector)
 	return c
 end
 
--- ── Construir lookup O(1) desde el formato lista de LevelsConfig ─────────────
--- Input:  { ["Nodo1_z1"] = {"Nodo2_z1", ...}, ... }
--- Output: { ["Nodo1_z1"] = { ["Nodo2_z1"] = true, ... }, ... }
+-- Construir lookup O(1) desde formato lista de LevelsConfig
 local function buildLookup(ady)
 	if not ady then return nil end
 	local t = {}
@@ -111,18 +101,15 @@ local function buildLookup(ady)
 	return t
 end
 
--- ── Verificar adyacencia (respeta dirección) ────────────────────────────────
 local function isAdjacent(nomA, nomB)
-	if _adjLookup == nil then return true end  -- modo permisivo
+	if _adjLookup == nil then return true end
 	return (_adjLookup[nomA] and _adjLookup[nomA][nomB]) == true
 end
 
--- ── Detectar si la arista es bidireccional (grafo no dirigido) ──────────────
 local function isBidireccional(nomA, nomB)
 	return isAdjacent(nomA, nomB) and isAdjacent(nomB, nomA)
 end
 
--- ── Buscar cable existente entre dos nodos ───────────────────────────────────
 local function findCableIndex(nomA, nomB)
 	local key = pairKey(nomA, nomB)
 	for i, c in ipairs(_cables) do
@@ -131,11 +118,11 @@ local function findCableIndex(nomA, nomB)
 	return nil
 end
 
--- ── Recolectar todos los Selectors del nivel activo ─────────────────────────
--- Itera NivelActual/Grafos/Grafo_ZonaX/Nodos/<NodoModel>/Selector
+-- Recolectar todos los Selectors del nivel y poblar _selectorByName
 local function getAllSelectors()
+	_selectorByName = {}
 	if not _nivel then return {} end
-	local selectors = {}
+	local selectors    = {}
 	local grafosFolder = _nivel:FindFirstChild("Grafos")
 	if not grafosFolder then
 		warn("[ConectarCables] ⚠ No se encontró carpeta 'Grafos' en NivelActual")
@@ -149,6 +136,7 @@ local function getAllSelectors()
 					local sel = nodo:FindFirstChild("Selector")
 					if sel then
 						table.insert(selectors, sel)
+						_selectorByName[nodo.Name] = sel
 					else
 						warn("[ConectarCables] Nodo sin Selector:", nodo:GetFullName())
 					end
@@ -159,33 +147,22 @@ local function getAllSelectors()
 	return selectors
 end
 
--- ════════════════════════════════════════════════════════════════════════════
--- VISUAL
--- ════════════════════════════════════════════════════════════════════════════
-
-local function selectNodo(selector)
-	if _selBox then _selBox:Destroy(); _selBox = nil end
-	_selected = nil
-	if selector then
-		_selected          = selector
-		_selBox            = Instance.new("SelectionBox")
-		_selBox.Adornee    = selector.Parent    -- resaltar el nodo Model completo
-		_selBox.Color3     = COLOR_SELECT
-		_selBox.LineThickness         = 0.05
-		_selBox.SurfaceTransparency   = 0.85
-		_selBox.SurfaceColor3         = COLOR_SELECT
-		_selBox.Parent     = Workspace
+-- Obtener Models de los nodos adyacentes (para highlight en el cliente)
+local function getAdjModels(nomA)
+	if not _adjLookup or not _adjLookup[nomA] then return {} end
+	local models = {}
+	for nomVecino, _ in pairs(_adjLookup[nomA]) do
+		local adjSel = _selectorByName[nomVecino]
+		if adjSel then
+			table.insert(models, adjSel.Parent)
+		end
 	end
+	return models
 end
 
-local function flashError(selector)
-	local part = selector:FindFirstChildOfClass("BasePart")
-	if not part then return end
-	local original = part.Color
-	part.Color = COLOR_ERROR
-	task.delay(0.3, function()
-		if part and part.Parent then part.Color = original end
-	end)
+-- Estado de selección (sin lógica visual — delegada al cliente)
+local function selectNodo(selector)
+	_selected = selector
 end
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -193,78 +170,84 @@ end
 -- ════════════════════════════════════════════════════════════════════════════
 
 local function crearCable(selector1, selector2)
-	local nomA  = getNombreNodo(selector1)
-	local nomB  = getNombreNodo(selector2)
-	local key   = pairKey(nomA, nomB)
-	local att1  = getAttachment(selector1)
-	local att2  = getAttachment(selector2)
-	local cxns  = getConexionesFolder(selector1)
+	local nomA = getNombreNodo(selector1)
+	local nomB = getNombreNodo(selector2)
+	local key  = pairKey(nomA, nomB)
+	local att1 = getAttachment(selector1)
+	local att2 = getAttachment(selector2)
+	local cxns = getConexionesFolder(selector1)
 
 	if not att1 or not att2 then
 		warn("[ConectarCables] Faltan Attachments:", nomA, nomB)
 		return
 	end
 	if not cxns then
-		warn("[ConectarCables] No se encontró carpeta Conexiones para", nomA)
+		warn("[ConectarCables] No se encontró Conexiones para", nomA)
 		return
 	end
 
-	-- RopeConstraint (visual del cable)
-	local rope          = Instance.new("RopeConstraint")
-	rope.Name           = "Cable_" .. nomA .. "_" .. nomB
-	rope.Attachment0    = att1
-	rope.Attachment1    = att2
-	rope.Visible        = true
-	rope.Thickness      = CABLE_THICK
-	rope.Color          = BrickColor.new("Black")
-	rope.Length         = (att1.WorldPosition - att2.WorldPosition).Magnitude + 0.1
-	rope.Restitution    = 0
-	rope.Parent         = cxns
-
-	-- Hitbox invisible en el punto medio (para desconectar haciendo clic)
+	-- Hitbox invisible para click-to-disconnect
 	local mid    = (att1.WorldPosition + att2.WorldPosition) / 2
 	local dist   = (att1.WorldPosition - att2.WorldPosition).Magnitude
 	local hitbox = Instance.new("Part")
-	hitbox.Name         = "Hitbox_" .. key
-	hitbox.Size         = Vector3.new(0.3, 0.3, dist)
-	hitbox.CFrame       = CFrame.new(mid, att2.WorldPosition)
+	hitbox.Name        = "Hitbox_" .. key
+	hitbox.Size        = Vector3.new(0.3, 0.3, dist)
+	hitbox.CFrame      = CFrame.new(mid, att2.WorldPosition)
 	hitbox.Transparency = 1
-	hitbox.CanCollide   = false
-	hitbox.Anchored     = true
-	hitbox.Parent       = cxns
+	hitbox.CanCollide  = false
+	hitbox.Anchored    = true
+	hitbox.Parent      = cxns
+
+	-- Beam visual: siempre tenso, color celeste brillante
+	-- CurveSize 0 = línea recta sin caída de gravedad
+	local beam              = Instance.new("Beam")
+	beam.Name               = "Cable_" .. key
+	beam.Attachment0        = att1
+	beam.Attachment1        = att2
+	beam.Color              = ColorSequence.new(CABLE_COLOR)
+	beam.Width0             = CABLE_WIDTH
+	beam.Width1             = CABLE_WIDTH
+	beam.CurveSize0         = 0
+	beam.CurveSize1         = 0
+	beam.LightEmission      = 0.6
+	beam.LightInfluence     = 0.4
+	beam.Transparency       = NumberSequence.new(0)
+	beam.FaceCamera         = true   -- siempre visible desde cualquier ángulo
+	beam.Segments           = 10
+	beam.Parent             = hitbox -- se destruye junto con el hitbox
 
 	local cd = Instance.new("ClickDetector")
 	cd.MaxActivationDistance = CD_DIST
 	cd.Parent                = hitbox
 
-	local entry = { key = key, rope = rope, hitbox = hitbox }
+	local entry = { key = key, beam = beam, hitbox = hitbox, nomA = nomA, nomB = nomB }
 	table.insert(_cables, entry)
 
-	-- Clic en hitbox → desconectar (sin penalización)
-	local conn = cd.MouseClick:Connect(function(player)
-		if player ~= _player then return end
+	-- Clic en hitbox → desconectar y descontar puntos
+	local conn = cd.MouseClick:Connect(function(pl)
+		if pl ~= _player then return end
 		for i, e in ipairs(_cables) do
 			if e.hitbox == hitbox then
-				e.rope:Destroy()
-				e.hitbox:Destroy()
+				e.hitbox:Destroy()   -- destruye beam y cd también (son hijos)
 				table.remove(_cables, i)
-				print("[ConectarCables] Cable desconectado (hitbox):", key)
+				if _tracker then _tracker:registrarDesconexion(pl) end
+				if _notifyEv then
+					_notifyEv:FireClient(pl, "CableDesconectado", e.nomA, e.nomB)
+				end
+				print("[ConectarCables] Cable desconectado (hitbox):", e.key)
 				break
 			end
 		end
 	end)
 	table.insert(_conns, conn)
 
-	-- Pulso visual (opcional; el cliente puede ignorarlo si no tiene handler aún)
+	-- Pulso de energía (VisualEffectsService puede animar el flujo)
 	if _pulseEv then
 		local bidir   = isBidireccional(nomA, nomB)
 		local origen  = selector1.Parent
 		local destino = selector2.Parent
-		if not bidir then
-			-- Asegurarse de que el origen sea el que tiene la dirección A→B
-			if not isAdjacent(nomA, nomB) then
-				origen, destino = destino, origen
-			end
+		if not bidir and not isAdjacent(nomA, nomB) then
+			origen, destino = destino, origen
 		end
 		_pulseEv:FireAllClients("StartPulse", origen, destino, bidir)
 	end
@@ -275,8 +258,9 @@ end
 local function eliminarCable(idx)
 	local e = _cables[idx]
 	if e then
-		if e.rope   and e.rope.Parent   then e.rope:Destroy()   end
-		if e.hitbox and e.hitbox.Parent then e.hitbox:Destroy() end
+		if e.hitbox and e.hitbox.Parent then
+			e.hitbox:Destroy()   -- beam y cd son hijos → destruidos automáticamente
+		end
 		table.remove(_cables, idx)
 	end
 end
@@ -289,20 +273,30 @@ local function tryConnect(player, selector1, selector2)
 	local nomA = getNombreNodo(selector1)
 	local nomB = getNombreNodo(selector2)
 
-	-- Mismo nodo → deseleccionar
-	if nomA == nomB then
+	-- Helper: limpiar selección y detener arrastre
+	local function finalize()
 		selectNodo(nil)
 		if _dragEv then _dragEv:FireClient(player, "Stop") end
+	end
+
+	-- Mismo nodo → deseleccionar
+	if nomA == nomB then
+		if _notifyEv then _notifyEv:FireClient(player, "SeleccionCancelada") end
+		finalize()
 		return
 	end
 
-	-- ¿Ya conectados? → desconectar
+	-- ¿Ya conectados? → desconectar y descontar puntos
 	local idx = findCableIndex(nomA, nomB)
 	if idx then
+		local cEntry = _cables[idx]    -- capturar ANTES de eliminar
 		eliminarCable(idx)
-		selectNodo(nil)
-		if _dragEv then _dragEv:FireClient(player, "Stop") end
-		print("[ConectarCables] Desconectado al reconectar:", pairKey(nomA, nomB))
+		if _tracker then _tracker:registrarDesconexion(player) end
+		if _notifyEv then
+			_notifyEv:FireClient(player, "CableDesconectado", cEntry.nomA, cEntry.nomB)
+		end
+		print("[ConectarCables] Desconectado al reconectar:", cEntry.key)
+		finalize()
 		return
 	end
 
@@ -310,55 +304,51 @@ local function tryConnect(player, selector1, selector2)
 	if isAdjacent(nomA, nomB) then
 		crearCable(selector1, selector2)
 		_tracker:registrarConexion(player)
-
 		if _notifyEv then
 			_notifyEv:FireClient(player, "ConexionCompletada", nomA, nomB)
 		end
 	else
-		-- Detectar si es error de dirección (la arista existe pero en sentido contrario)
-		local tipoError = "ConexionInvalida"
-		if isAdjacent(nomB, nomA) then
-			tipoError = "DireccionInvalida"
-		end
-		flashError(selector2)
+		-- Detectar si la arista existe en sentido contrario (error de dirección)
+		local tipoError = isAdjacent(nomB, nomA) and "DireccionInvalida" or "ConexionInvalida"
 		_tracker:registrarFallo(player)
-
 		if _notifyEv then
-			_notifyEv:FireClient(player, tipoError, nomA, nomB)
+			-- Enviamos el Model del nodo destino para que el cliente lo flashee
+			_notifyEv:FireClient(player, tipoError, selector2.Parent)
 		end
 		print("[ConectarCables] Fallo (" .. tipoError .. "):", nomA, "→", nomB)
 	end
 
-	selectNodo(nil)
-	if _dragEv then _dragEv:FireClient(player, "Stop") end
+	finalize()
 end
 
--- ── Handler de clic en un Selector ──────────────────────────────────────────
+-- ── Handler de clic en Selector ──────────────────────────────────────────────
 local function onSelectorClicked(player, selector)
 	if player ~= _player then return end
 	if not _active then return end
 
 	if _selected == nil then
-		-- Primer clic: seleccionar
+		-- Primer clic: seleccionar nodo
 		selectNodo(selector)
 
-		local nomA  = getNombreNodo(selector)
-		local att1  = getAttachment(selector)
+		local nomA      = getNombreNodo(selector)
+		local nodoModel = selector.Parent
+		local adjModels = getAdjModels(nomA)
 
+		-- Notificar al cliente: destacar nodo seleccionado + adyacentes
 		if _notifyEv then
-			_notifyEv:FireClient(player, "NodoSeleccionado", nomA)
+			_notifyEv:FireClient(player, "NodoSeleccionado", nodoModel, adjModels)
 		end
 
-		-- Enviar vecinos al cliente para el efecto de arrastre visual
-		if _dragEv and att1 and _adjLookup then
+		-- Enviar info de arrastre (drag visual, sin ID de adyacentes)
+		if _dragEv then
+			local att1    = getAttachment(selector)
 			local vecinos = {}
-			local adjA = _adjLookup[nomA]
-			if adjA then
-				for nomVecino, _ in pairs(adjA) do
-					table.insert(vecinos, nomVecino)
+			if _adjLookup and _adjLookup[nomA] then
+				for nomV, _ in pairs(_adjLookup[nomA]) do
+					table.insert(vecinos, nomV)
 				end
 			end
-			_dragEv:FireClient(player, "Start", att1, vecinos)
+			if att1 then _dragEv:FireClient(player, "Start", att1, vecinos) end
 		end
 
 	elseif _selected == selector then
@@ -366,6 +356,7 @@ local function onSelectorClicked(player, selector)
 		selectNodo(nil)
 		if _notifyEv then _notifyEv:FireClient(player, "SeleccionCancelada") end
 		if _dragEv   then _dragEv:FireClient(player, "Stop") end
+
 	else
 		-- Segundo clic en nodo distinto → intentar conectar
 		tryConnect(player, _selected, selector)
@@ -376,11 +367,6 @@ end
 -- INTERFAZ PÚBLICA
 -- ════════════════════════════════════════════════════════════════════════════
 
--- ── activate ─────────────────────────────────────────────────────────────────
--- nivel        : Model "NivelActual" en Workspace
--- adjacencias  : tabla lista de LevelsConfig (nil = modo permisivo)
--- player       : Player activo en el nivel
--- tracker      : módulo ScoreTracker (ya inicializado con init())
 function ConectarCables.activate(nivel, adjacencias, player, tracker)
 	if _active then ConectarCables.deactivate() end
 
@@ -393,7 +379,7 @@ function ConectarCables.activate(nivel, adjacencias, player, tracker)
 	_active    = true
 	_adjLookup = buildLookup(adjacencias)
 
-	-- Obtener eventos remotos (solo la primera vez — están cacheados después)
+	-- Cachear eventos remotos
 	local ev = RS:FindFirstChild("Events")
 	if ev then
 		local rem = ev:FindFirstChild("Remotes")
@@ -405,7 +391,7 @@ function ConectarCables.activate(nivel, adjacencias, player, tracker)
 	end
 
 	local selectors = getAllSelectors()
-	print("[ConectarCables] activate — nodos encontrados:", #selectors,
+	print("[ConectarCables] activate — nodos:", #selectors,
 		"/ modo:", adjacencias == nil and "PERMISIVO" or "ADYACENCIAS")
 
 	for _, selector in ipairs(selectors) do
@@ -421,50 +407,36 @@ function ConectarCables.activate(nivel, adjacencias, player, tracker)
 	end
 end
 
--- ── deactivate ───────────────────────────────────────────────────────────────
 function ConectarCables.deactivate()
 	_active = false
-
-	-- Limpiar selección visual
 	selectNodo(nil)
 
-	-- Desconectar todos los listeners
-	for _, conn in ipairs(_conns) do
-		conn:Disconnect()
-	end
+	-- Desconectar todos los listeners de ClickDetectors
+	for _, conn in ipairs(_conns) do conn:Disconnect() end
 	_conns = {}
 
-	-- Destruir cables (limpiando cada Conexiones folder por grafo)
-	-- Los ropes y hitboxes están en NivelActual/Grafos/Grafo_ZonaX/Conexiones/
-	-- Se limpian automáticamente cuando LevelLoader destruye el modelo,
-	-- pero los eliminamos explícitamente aquí para el caso de RestartLevel.
+	-- Destruir cables (hitbox destruye beam y cd automáticamente)
 	for _, e in ipairs(_cables) do
-		if e.rope   and e.rope.Parent   then e.rope:Destroy()   end
 		if e.hitbox and e.hitbox.Parent then e.hitbox:Destroy() end
 	end
 	_cables = {}
 
-	-- Detener pulsos si se dejó alguno activo
-	if _pulseEv then
-		_pulseEv:FireAllClients("StopAll")
-	end
+	-- Detener todos los pulsos visuales
+	if _pulseEv then _pulseEv:FireAllClients("StopAll") end
 
-	_nivel     = nil
-	_player    = nil
-	_tracker   = nil
-	_adjLookup = nil
-	_selected  = nil
+	_nivel          = nil
+	_player         = nil
+	_tracker        = nil
+	_adjLookup      = nil
+	_selected       = nil
+	_selectorByName = {}
 
 	print("[ConectarCables] deactivate — limpieza completa")
 end
 
--- ── getConnections ───────────────────────────────────────────────────────────
--- Devuelve lista de claves "NomA|NomB" de cables activos.
 function ConectarCables.getConnections()
 	local result = {}
-	for _, c in ipairs(_cables) do
-		table.insert(result, c.key)
-	end
+	for _, c in ipairs(_cables) do table.insert(result, c.key) end
 	return result
 end
 

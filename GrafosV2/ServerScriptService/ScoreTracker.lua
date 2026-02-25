@@ -64,6 +64,16 @@ function ScoreTracker:registrarFallo(player)
 	-- Intencional: sin _notify → el jugador no ve la penalización en vivo
 end
 
+-- ── registrarDesconexion ──────────────────────────────────────────────────────
+-- Llamado por ConectarCables al eliminar un cable (clic en hitbox o reconectar).
+-- Descuenta 1 conexión del puntaje base visible en el HUD.
+function ScoreTracker:registrarDesconexion(player)
+	local d = _data[player.UserId]
+	if not d then return end
+	d.conexiones = math.max(0, d.conexiones - 1)
+	self:_notify(player)
+end
+
 -- ── finalize ─────────────────────────────────────────────────────────────────
 -- Devuelve snapshot completo para VictoryScreen / RewardService.
 -- Llamado cuando MissionService o GameplayManager detecta victoria.
