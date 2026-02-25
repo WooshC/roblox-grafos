@@ -1,65 +1,77 @@
 -- Boot.server.lua
 -- Punto de entrada único del servidor para EDA Quest v2.
 -- Secuencia garantizada:
---   1. Espera que EventRegistry haya creado los eventos
---   2. Carga LevelLoader (el único servicio necesario en Fase 0)
---   3. Notifica a jugadores conectados que el servidor está listo
---   4. Escucha RequestPlayLevel y delega a LevelLoader
+--   1. CharacterAutoLoads = false  (personaje solo aparece al entrar a un nivel)
+--   2. Espera EventRegistry
+--   3. Carga LevelLoader + DataService
+--   4. Pre-carga datos del jugador al unirse
+--   5. Responde GetPlayerProgress (RemoteFunction)
+--   6. Escucha RequestPlayLevel → LevelLoader:load()
+--   7. Escucha ReturnToMenu → unload + destruir personaje
+--   8. Guarda datos al desconectarse
 --
 -- Ubicación Roblox: ServerScriptService/Boot.server.lua
--- IMPORTANTE: EventRegistry debe ejecutarse antes. En Studio, asegúrate de que
--- EventRegistry esté por encima de Boot en el explorador, o usa un nombre
--- que lo ponga primero alfabéticamente (ej: "00_EventRegistry.server.lua").
 
 local RS      = game:GetService("ReplicatedStorage")
-local SSS     = game:GetService("ServerScriptService")
 local Players = game:GetService("Players")
 
--- ── 1. Esperar EventRegistry ───────────────────────────────────────────────
-local eventsFolder = RS:WaitForChild("EDAEvents", 15)
+-- ── 1. Sin spawn automático ────────────────────────────────────────────────
+-- El personaje se crea explícitamente en LevelLoader:load() al entrar a un nivel.
+-- En el menú el jugador no tiene personaje → no cae al vacío.
+Players.CharacterAutoLoads = true
+
+-- ── 2. Esperar EventRegistry ───────────────────────────────────────────────
+local eventsFolder = RS:WaitForChild("Events", 15)
 if not eventsFolder then
 	error("[EDA v2] Boot: EDAEvents no apareció en 15s. ¿Corrió EventRegistry?")
 end
 
-local remotesFolder = eventsFolder:WaitForChild("Remotes", 5)
-local serverReadyEv  = remotesFolder:WaitForChild("ServerReady",      5)
+local remotesFolder  = eventsFolder:WaitForChild("Remotes", 5)
+local serverReadyEv  = remotesFolder:WaitForChild("ServerReady",       5)
 local requestPlayLEv = remotesFolder:WaitForChild("RequestPlayLevel",  5)
+local levelReadyEv   = remotesFolder:WaitForChild("LevelReady",        5)
+local levelUnloadEv  = remotesFolder:WaitForChild("LevelUnloaded",     5)
 local returnToMenuEv = remotesFolder:WaitForChild("ReturnToMenu",      5)
+local getProgressFn  = remotesFolder:WaitForChild("GetPlayerProgress", 5)
 
--- ── 2. Cargar servicios ────────────────────────────────────────────────────
--- LevelLoader es el único servicio de Fase 0.
--- En fases futuras aquí se cargarán GraphService, ScoreTracker, etc.
---
--- Buscamos LevelLoader en la misma carpeta que este script (script.Parent),
--- sin asumir ningún nombre de carpeta concreto.
+-- ── 3. Cargar servicios ────────────────────────────────────────────────────
 local LevelLoader = require(script.Parent:WaitForChild("LevelLoader", 10))
-print("[EDA v2] ✅ LevelLoader cargado")
+local DataService = require(script.Parent:WaitForChild("DataService", 10))
+print("[EDA v2] ✅ LevelLoader + DataService cargados")
 
--- ── 3. Notificar jugadores cuando el servidor está listo ───────────────────
-local function notifyPlayerReady(player)
-	-- Pequeña espera para que el cliente cargue la GUI primero
-	task.delay(1, function()
+-- ── 4. Jugador conectado: pre-cargar datos + notificar GUI ─────────────────
+local function onPlayerAdded(player)
+	-- Pre-cargar datos del DataStore para que GetPlayerProgress responda rápido
+	task.spawn(function()
+		DataService:load(player)
+	end)
+
+	-- Notificar al cliente (delay para que la GUI termine de montar)
+	task.delay(1.5, function()
 		if player and player.Parent then
 			serverReadyEv:FireClient(player)
-			print("[EDA v2] ServerReady → ", player.Name)
+			print("[EDA v2] ServerReady →", player.Name)
 		end
 	end)
 end
 
--- Jugadores que se unan después del boot
-Players.PlayerAdded:Connect(notifyPlayerReady)
+Players.PlayerAdded:Connect(onPlayerAdded)
 
--- Jugadores que ya estaban conectados cuando arrancó el boot
 for _, player in ipairs(Players:GetPlayers()) do
-	task.spawn(notifyPlayerReady, player)
+	task.spawn(onPlayerAdded, player)
 end
 
--- ── 4. Manejar RequestPlayLevel ────────────────────────────────────────────
+-- ── 5. GetPlayerProgress ───────────────────────────────────────────────────
+getProgressFn.OnServerInvoke = function(player)
+	return DataService:getProgressForClient(player)
+end
+
+-- ── 6. RequestPlayLevel ────────────────────────────────────────────────────
 requestPlayLEv.OnServerEvent:Connect(function(player, nivelID)
 	print("[EDA v2] RequestPlayLevel — Jugador:", player.Name, "/ Nivel:", nivelID)
 
 	if type(nivelID) ~= "number" then
-		warn("[EDA v2] RequestPlayLevel: nivelID inválido recibido:", tostring(nivelID))
+		warn("[EDA v2] RequestPlayLevel: nivelID inválido:", tostring(nivelID))
 		return
 	end
 
@@ -69,20 +81,36 @@ requestPlayLEv.OnServerEvent:Connect(function(player, nivelID)
 
 	if not ok then
 		warn("[EDA v2] Error al cargar nivel:", err)
+		-- Desbloquear al cliente: sin este Fire la pantalla quedaría en negro
+		if player and player.Parent then
+			levelReadyEv:FireClient(player, {
+				nivelID = nivelID,
+				error   = "Error interno al cargar el nivel.",
+			})
+		end
 	end
 end)
 
--- ── 5. Manejar ReturnToMenu ────────────────────────────────────────────────
+-- ── 7. ReturnToMenu ────────────────────────────────────────────────────────
 returnToMenuEv.OnServerEvent:Connect(function(player)
 	print("[EDA v2] ReturnToMenu — Jugador:", player.Name)
-	-- Fase 0: solo descargar el nivel
-	-- Fases futuras: GameplayManager:deactivate(), ScoreTracker:reset(), etc.
+
 	local ok, err = pcall(function()
 		LevelLoader:unload()
+		-- Destruir personaje al volver al menú → no flota en el mundo vacío
+		if player.Character then
+			player.Character:Destroy()
+		end
 	end)
+
 	if not ok then
-		warn("[EDA v2] Error al descargar nivel:", err)
+		warn("[EDA v2] Error al volver al menú:", err)
 	end
+end)
+
+-- ── 8. Guardar al desconectarse ────────────────────────────────────────────
+Players.PlayerRemoving:Connect(function(player)
+	DataService:onPlayerLeaving(player)
 end)
 
 print("[EDA v2] ✅ Boot completo — Servidor EDA Quest v2 listo")

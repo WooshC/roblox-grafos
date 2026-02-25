@@ -25,13 +25,15 @@ if not root then
 end
 
 -- ── Conectar con eventos del servidor ─────────────────────────────────────
-local eventsFolder   = RS:WaitForChild("EDAEvents", 10)
+local eventsFolder   = RS:WaitForChild("Events", 10)
 local remotesFolder  = eventsFolder and eventsFolder:WaitForChild("Remotes", 5)
 
 local serverReadyEv    = remotesFolder and remotesFolder:FindFirstChild("ServerReady")
 local requestPlayLEv   = remotesFolder and remotesFolder:FindFirstChild("RequestPlayLevel")
 local levelReadyEv     = remotesFolder and remotesFolder:FindFirstChild("LevelReady")
+local levelUnloadedEv  = remotesFolder and remotesFolder:FindFirstChild("LevelUnloaded")
 local returnToMenuEv   = remotesFolder and remotesFolder:FindFirstChild("ReturnToMenu")
+local getProgressFn    = remotesFolder and remotesFolder:FindFirstChild("GetPlayerProgress")
 
 -- ── Referencias a frames ───────────────────────────────────────────────────
 local S1 = root:WaitForChild("FrameMenu")
@@ -116,7 +118,123 @@ local C = {
 -- ── Estado global ──────────────────────────────────────────────────────────
 local selectedLevelID   = nil
 local isLoading         = false
+local loadStartTime     = 0          -- usado por el watchdog de timeout
 local currentDifficulty = "Normal"  -- Normal / Difícil / Experto
+
+-- ── Cámara del menú ────────────────────────────────────────────────────────
+local camera = workspace.CurrentCamera
+
+local function setupMenuCamera()
+	-- Busca un Part/Model llamado "CamaraMenu" en el Workspace.
+	-- Su CFrame define la posición y orientación de la cámara del menú.
+	local camObj = workspace:FindFirstChild("CamaraMenu", true)
+	if not camObj then return end
+	local part = camObj:IsA("BasePart") and camObj
+		or (camObj:IsA("Model") and camObj.PrimaryPart)
+	if not part then return end
+	camera.CameraType = Enum.CameraType.Scriptable
+	camera.CFrame     = part.CFrame
+	print("[MenuController] Cámara del menú configurada desde CamaraMenu")
+end
+
+local function restoreGameCamera()
+	camera.CameraType = Enum.CameraType.Custom
+end
+
+-- ── Helpers ────────────────────────────────────────────────────────────────
+
+-- Convierte segundos a "mm:ss" (p.e. 272 → "4:32")
+local function formatTime(seconds)
+	if not seconds or seconds == 0 then return "—" end
+	local m = math.floor(seconds / 60)
+	local s = seconds % 60
+	return string.format("%d:%02d", m, s)
+end
+
+-- Actualiza los elementos visuales de una tarjeta con datos frescos del servidor
+local function updateCardVisuals(card, lv)
+	local sColors = { completado=C.gold, disponible=C.accent3, bloqueado=C.muted }
+	local sTexts  = { completado="✓ COMPLETADO", disponible="DISPONIBLE", bloqueado="🔒 BLOQUEADO" }
+	local sc      = sColors[lv.status] or C.muted
+
+	-- Borde exterior de la tarjeta
+	local cardStroke = card:FindFirstChildOfClass("UIStroke")
+	if cardStroke then
+		cardStroke.Color = lv.status == "completado" and C.gold or C.border
+	end
+
+	-- Badge de estado
+	local badge = card:FindFirstChild("StatusBadge")
+	if badge then
+		badge.BackgroundColor3 = sc
+		local bs = badge:FindFirstChildOfClass("UIStroke")
+		if bs then bs.Color = sc end
+		local txt = badge:FindFirstChild("StatusText")
+		if txt then txt.Text = sTexts[lv.status] or "—"; txt.TextColor3 = sc end
+	end
+
+	-- Footer: estrellas + puntaje
+	local footer = card:FindFirstChild("CardFooter")
+	if footer then
+		local starsLbl = footer:FindFirstChild("CardStars")
+		local scoreLbl = footer:FindFirstChild("CardScore")
+		if starsLbl then
+			local ss = ""
+			for i = 1, 3 do ss = ss .. (i <= lv.stars and "★" or "☆") end
+			starsLbl.Text = ss
+		end
+		if scoreLbl then
+			scoreLbl.Text = lv.score > 0 and (lv.score .. " pts") or "—"
+		end
+	end
+
+	-- Overlay de candado
+	local lockOv = card:FindFirstChild("LockOverlay")
+	if lockOv then
+		lockOv.Visible = lv.status == "bloqueado"
+	end
+end
+
+-- Llama GetPlayerProgress al servidor, actualiza LEVELS y refresca las tarjetas
+local function loadProgress()
+	if not getProgressFn then return end
+
+	local ok, progress = pcall(function()
+		return getProgressFn:InvokeServer()
+	end)
+
+	if not ok or not progress then
+		warn("[MenuController] No se pudo obtener progreso del jugador")
+		return
+	end
+
+	-- Actualizar tabla LEVELS con datos reales del servidor
+	for id = 0, 4 do
+		local p = progress[id]
+		if p and LEVELS[id] then
+			LEVELS[id].status   = p.status
+			LEVELS[id].stars    = p.estrellas
+			LEVELS[id].score    = p.highScore
+			LEVELS[id].aciertos = p.aciertos
+			LEVELS[id].fallos   = p.fallos
+			LEVELS[id].tiempo   = formatTime(p.tiempoMejor)
+			LEVELS[id].intentos = p.intentos
+		end
+	end
+
+	-- Refrescar visualmente cada tarjeta en el grid
+	local gridArea = S2:FindFirstChild("GridArea", true)
+	if gridArea then
+		for id = 0, 4 do
+			local card = gridArea:FindFirstChild("Card"..id, true)
+			if card and LEVELS[id] then
+				updateCardVisuals(card, LEVELS[id])
+			end
+		end
+	end
+
+	print("[MenuController] ✅ Progreso del jugador actualizado en tarjetas")
+end
 
 -- ── Utilidades de animación ────────────────────────────────────────────────
 local function tween(obj, props, t, style)
@@ -195,6 +313,8 @@ local function goToLevels()
 	S2.Visible = true
 	resetSidebar()
 	selectedLevelID = nil
+	-- Pedir progreso actualizado al servidor (async, no bloquea la navegación)
+	task.spawn(loadProgress)
 	-- Highlight: desmarcar todas las tarjetas
 	local gridArea = S2:FindFirstChild("GridArea", true)  -- búsqueda recursiva: GridArea está dentro de lsMain
 	if gridArea then
@@ -433,9 +553,27 @@ if playBtnSidebar then
 		isLoading = true
 		loadingLbl.Text = "Cargando  " .. lv.name .. "..."
 
+		local thisLoad = os.clock()
+		loadStartTime  = thisLoad
+
 		fadeIn(0.4, function()
 			if requestPlayLEv then
 				requestPlayLEv:FireServer(selectedLevelID)
+
+				-- Watchdog: si LevelReady no llega en 10 s, recuperar la pantalla
+				task.spawn(function()
+					task.wait(10)
+					if isLoading and loadStartTime == thisLoad then
+						warn("[MenuController] ⏱ Timeout — LevelReady no llegó en 10 s")
+						loadingLbl.Text = "⏱ Sin respuesta del servidor"
+						task.delay(1.5, function()
+							if isLoading and loadStartTime == thisLoad then
+								isLoading = false
+								fadeOut(0.35, function() goToLevels() end)
+							end
+						end)
+					end
+				end)
 			else
 				-- Sin servidor (Studio en modo local sin server): simular carga
 				warn("[MenuController] requestPlayLEv no disponible — modo sin servidor")
@@ -686,7 +824,9 @@ end
 if serverReadyEv then
 	serverReadyEv.OnClientEvent:Connect(function()
 		print("[MenuController] ServerReady recibido — servidor listo")
-		-- En Fase 2 aquí se llamará GetPlayerProgress para cargar datos del jugador
+		-- Pre-cargar progreso en background para que las tarjetas ya estén
+		-- actualizadas si el jugador abre el selector rápidamente
+		task.spawn(loadProgress)
 	end)
 end
 

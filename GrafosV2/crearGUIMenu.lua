@@ -211,17 +211,17 @@ local function levelCard(lv,xi,cont)
 	local card=n("TextButton",{Name="Card"..lv.id,Size=UDim2.new(0,200,0,165),Position=UDim2.new(0,xi*214,0,0),BackgroundColor3=C.panel,Text="",AutoButtonColor=false,BorderSizePixel=0,ZIndex=4},cont)
 	corner(10,card) stroke(lv.status=="completado" and C.gold or C.border,1,card)
 	n("TextLabel",{Size=UDim2.new(0,60,0,14),Position=UDim2.new(0,12,0,10),BackgroundTransparency=1,Text="Nivel "..lv.id,TextColor3=C.accent,Font=F.mono,TextSize=9,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5},card)
-	local sbg=n("Frame",{Size=UDim2.new(0,90,0,16),Position=UDim2.new(1,-98,0,9),BackgroundColor3=sc,BackgroundTransparency=0.88,BorderSizePixel=0,ZIndex=5},card) corner(3,sbg) stroke(sc,1,sbg)
-	n("TextLabel",{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Text=sT[lv.status],TextColor3=sc,Font=F.mono,TextSize=8,ZIndex=6},sbg)
+	local sbg=n("Frame",{Name="StatusBadge",Size=UDim2.new(0,90,0,16),Position=UDim2.new(1,-98,0,9),BackgroundColor3=sc,BackgroundTransparency=0.88,BorderSizePixel=0,ZIndex=5},card) corner(3,sbg) stroke(sc,1,sbg)
+	n("TextLabel",{Name="StatusText",Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Text=sT[lv.status],TextColor3=sc,Font=F.mono,TextSize=8,ZIndex=6},sbg)
 	n("TextLabel",{Size=UDim2.new(1,0,0,40),Position=UDim2.new(0,0,0,26),BackgroundTransparency=1,Text=lv.emoji,Font=F.body,TextSize=28,ZIndex=5},card)
 	n("TextLabel",{Size=UDim2.new(1,-24,0,32),Position=UDim2.new(0,12,0,68),BackgroundTransparency=1,Text=lv.name,TextColor3=lv.status=="bloqueado" and C.muted or C.text,Font=F.bold,TextSize=12,TextXAlignment=Enum.TextXAlignment.Left,TextWrapped=true,ZIndex=5},card)
 	n("TextLabel",{Size=UDim2.new(1,-24,0,14),Position=UDim2.new(0,12,0,102),BackgroundTransparency=1,Text="· "..lv.algo,TextColor3=C.muted,Font=F.mono,TextSize=9,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5},card)
-	local ft=n("Frame",{Size=UDim2.new(1,0,0,28),Position=UDim2.new(0,0,1,-28),BackgroundTransparency=1,ZIndex=5},card) stroke(C.border,1,ft)
+	local ft=n("Frame",{Name="CardFooter",Size=UDim2.new(1,0,0,28),Position=UDim2.new(0,0,1,-28),BackgroundTransparency=1,ZIndex=5},card) stroke(C.border,1,ft)
 	local ss="" for i=1,3 do ss=ss..(i<=lv.stars and "★" or "☆") end
-	n("TextLabel",{Size=UDim2.new(0,56,1,0),Position=UDim2.new(0,12,0,0),BackgroundTransparency=1,Text=ss,TextColor3=C.gold,Font=F.body,TextSize=13,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=6},ft)
-	n("TextLabel",{Size=UDim2.new(0,70,1,0),Position=UDim2.new(1,-78,0,0),BackgroundTransparency=1,Text=lv.score>0 and lv.score.." pts" or "—",TextColor3=C.gold,Font=F.mono,TextSize=10,TextXAlignment=Enum.TextXAlignment.Right,ZIndex=6},ft)
+	n("TextLabel",{Name="CardStars",Size=UDim2.new(0,56,1,0),Position=UDim2.new(0,12,0,0),BackgroundTransparency=1,Text=ss,TextColor3=C.gold,Font=F.body,TextSize=13,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=6},ft)
+	n("TextLabel",{Name="CardScore",Size=UDim2.new(0,70,1,0),Position=UDim2.new(1,-78,0,0),BackgroundTransparency=1,Text=lv.score>0 and lv.score.." pts" or "—",TextColor3=C.gold,Font=F.mono,TextSize=10,TextXAlignment=Enum.TextXAlignment.Right,ZIndex=6},ft)
 	if lv.status=="bloqueado" then
-		local ov=n("Frame",{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(4,6,12),BackgroundTransparency=0.45,BorderSizePixel=0,ZIndex=7},card) corner(10,ov)
+		local ov=n("Frame",{Name="LockOverlay",Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(4,6,12),BackgroundTransparency=0.45,BorderSizePixel=0,ZIndex=7},card) corner(10,ov)
 		n("TextLabel",{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Text="🔒",Font=F.body,TextSize=26,ZIndex=8},ov)
 	end
 end

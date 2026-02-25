@@ -194,30 +194,33 @@ StarterGui/
 ### `EventRegistry.server.lua` (corre PRIMERO)
 
 ```
-ReplicatedStorage/Events/
-├── Remotes/
-│   ├── GetPlayerProgress   (RemoteFunction)
-│   ├── RequestPlayLevel    (RemoteEvent)
-│   ├── CableDragEvent      (RemoteEvent)
-│   ├── LevelReady          (RemoteEvent)
-│   ├── LevelCompleted      (RemoteEvent)
-│   ├── UpdateScore         (RemoteEvent)   ← puntaje BASE en tiempo real
-│   ├── UpdateScoreFinal    (RemoteEvent)   ← NUEVO: puntaje final al cerrar nivel
-│   ├── PulseEvent          (RemoteEvent)
-│   ├── NotificarSeleccionNodo (RemoteEvent)
-│   ├── PlayEffect          (RemoteEvent)
-│   └── ApplyDifficulty     (RemoteEvent)   ← NUEVO: aplica config de dificultad
-└── Bindables/
-    ├── ServerReady         (BindableEvent)
-    ├── LevelLoaded         (BindableEvent)
-    ├── LevelUnloaded       (BindableEvent)
-    ├── ScoreChanged        (BindableEvent)
-    ├── ZoneEntered         (BindableEvent)
-    ├── DialogueRequested   (BindableEvent)
-    ├── OpenMenu            (BindableEvent)
-    ├── GuiaAvanzar         (BindableEvent)
-    └── RestaurarObjetos    (BindableEvent)
-```
+ReplicatedStorage/
+└── Events/
+    ├── Remotes/
+    │   ├── GetPlayerProgress (RemoteFunction)
+    │   ├── RequestPlayLevel (RemoteEvent)
+    │   ├── CableDragEvent (RemoteEvent)
+    │   ├── LevelReady (RemoteEvent)
+    │   ├── LevelCompleted (RemoteEvent)
+    │   ├── UpdateScore (RemoteEvent)
+    │   ├── UpdateScoreFinal (RemoteEvent)
+    │   ├── PulseEvent (RemoteEvent)
+    │   ├── NotificarSeleccionNodo (RemoteEvent)
+    │   ├── PlayEffect (RemoteEvent)
+    │   ├── ApplyDifficulty (RemoteEvent)
+    │   ├── ServerReady (RemoteEvent)
+    │   ├── ReturnToMenu (RemoteEvent)
+    │   └── LevelUnloaded (RemoteEvent)
+    └── Bindables/
+        ├── ServerReady (BindableEvent)
+        ├── LevelLoaded (BindableEvent)
+        ├── LevelUnloaded (BindableEvent)
+        ├── ScoreChanged (BindableEvent)
+        ├── ZoneEntered (BindableEvent)
+        ├── DialogueRequested (BindableEvent)
+        ├── OpenMenu (BindableEvent)
+        ├── GuiaAvanzar (BindableEvent)
+        └── RestaurarObjetos (BindableEvent)
 
 ### `Boot.server.lua` — Secuencia garantizada
 
