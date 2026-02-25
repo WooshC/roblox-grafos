@@ -30,14 +30,15 @@ local getProgressFn  = remotesFolder:WaitForChild("GetPlayerProgress", 5)
 local updateScoreEv  = remotesFolder:WaitForChild("UpdateScore",       5)
 
 -- ── 3. Cargar servicios ────────────────────────────────────────────────────
-local LevelLoader    = require(script.Parent:WaitForChild("LevelLoader",    10))
-local DataService    = require(script.Parent:WaitForChild("DataService",    10))
-local ScoreTracker   = require(script.Parent:WaitForChild("ScoreTracker",   10))
-local ConectarCables = require(script.Parent:WaitForChild("ConectarCables", 10))
-local LevelsConfig   = require(RS:WaitForChild("Config", 5):WaitForChild("LevelsConfig", 5))
+local LevelLoader        = require(script.Parent:WaitForChild("LevelLoader",        10))
+local DataService        = require(script.Parent:WaitForChild("DataService",        10))
+local ScoreTracker       = require(script.Parent:WaitForChild("ScoreTracker",       10))
+local ConectarCables     = require(script.Parent:WaitForChild("ConectarCables",     10))
+local ZoneTriggerManager = require(script.Parent:WaitForChild("ZoneTriggerManager", 10))
+local LevelsConfig       = require(RS:WaitForChild("Config", 5):WaitForChild("LevelsConfig", 5))
 
 ScoreTracker:init(updateScoreEv)
-print("[EDA v2] ✅ LevelLoader + DataService + ScoreTracker + ConectarCables cargados")
+print("[EDA v2] ✅ LevelLoader + DataService + ScoreTracker + ConectarCables + ZoneTriggerManager cargados")
 
 -- ── 4. Copiar StarterGui → PlayerGui manualmente ──────────────────────────
 -- Roblox solo hace esto automáticamente al spawnear el personaje.
@@ -116,7 +117,8 @@ requestPlayLEv.OnServerEvent:Connect(function(player, nivelID)
 
 			ScoreTracker:startLevel(player, nivelID, puntosConexion, penaFallo)
 			ConectarCables.activate(nivelActual, adjacencias, player, ScoreTracker)
-			print("[EDA v2] ✅ ScoreTracker + ConectarCables activos — Nivel", nivelID,
+			ZoneTriggerManager.activate(nivelActual, config and config.Zonas or {}, player)
+			print("[EDA v2] ✅ ScoreTracker + ConectarCables + ZoneTriggerManager activos — Nivel", nivelID,
 				"/ adyacencias:", adjacencias ~= nil and "definidas" or "modo permisivo")
 		else
 			warn("[EDA v2] NivelActual no encontrado en Workspace tras cargar")
@@ -138,6 +140,7 @@ returnToMenuEv.OnServerEvent:Connect(function(player)
 
 	-- Desactivar gameplay ANTES de destruir el nivel
 	ConectarCables.deactivate()
+	ZoneTriggerManager.deactivate()
 	ScoreTracker:reset(player)
 
 	local ok, err = pcall(function()

@@ -70,6 +70,15 @@ return {
 			["PostePanel"]      = {"toma_corriente"},
 			["toma_corriente"]  = {"PostePanel"},
 		},
+
+		-- Triggers de zona: Parts dentro de NivelActual/Zonas/Zonas_juego/
+		-- Añadir/renombrar aquí cuando se creen las Parts en Studio.
+		Zonas = {
+			{ nombre = "Zona1", trigger = "ZonaTrigger_1" },
+			{ nombre = "Zona2", trigger = "ZonaTrigger_2" },
+			{ nombre = "Zona3", trigger = "ZonaTrigger_3" },
+			{ nombre = "Zona4", trigger = "ZonaTrigger_4" },
+		},
 	},
 
 	-- ══════════════════════════════════════════════════════════════

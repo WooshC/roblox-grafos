@@ -55,22 +55,24 @@ Ambas GUIs están creadas manualmente en Studio. **NO** generarlas por script.
 |---|---|---|
 | `ConectarCables.lua` | ✅ Implementado | Lógica pura: adyacencias, Beam celeste, disconnect penaliza |
 | `ScoreTracker.lua` | ✅ Implementado | Aciertos, fallos, desconexiones, cronómetro |
-| `VisualEffectsService.client.lua` | ✅ Implementado | SelectionBox selected+adjacent, flash error/dirección |
+| `VisualEffectsService.client.lua` | ✅ Implementado | SelectionBox + Selector sólido, solo flash rojo |
+| `ZoneTriggerManager.lua` | ✅ Implementado | Touched en Zonas_juego/, ZoneEntered una vez por zona |
 
 **Cambios de arquitectura aplicados (Etapa 4):**
-- **Beam en lugar de RopeConstraint** — cable siempre tenso (`CurveSize = 0`), color celeste brillante `RGB(0,200,255)`, `FaceCamera = true`
-- **Separación lógica/visual** — `ConectarCables` solo maneja adyacencias y estado; `VisualEffectsService` maneja SelectionBox y flashes
-- **Selección muestra adyacentes** — al hacer clic en un nodo se destacan en dorado todos sus vecinos válidos
-- **Disconnect penaliza puntaje** — desconectar un cable descuenta 1 conexión del puntajeBase visible en el HUD
-- **Tipos de error diferenciados** — `ConexionInvalida` (flash rojo) vs `DireccionInvalida` (flash naranja, arista existe al revés)
+- **Beam en lugar de RopeConstraint** — cable siempre tenso (`CurveSize = 0`), celeste `RGB(0,200,255)`, `FaceCamera = true`
+- **Separación lógica/visual** — `ConectarCables` solo adyacencias/estado; `VisualEffectsService` todos los efectos visuales
+- **Highlight doble al seleccionar** — SelectionBox outline + BaseParts del Selector transparencia 0.10 (casi sólido) en cyan; adyacentes en dorado transparencia 0.15
+- **Un solo tipo de error visual** — flash rojo siempre; `DireccionInvalida` solo en log de debug
+- **Disconnect penaliza puntaje** — desconectar un cable descuenta 1 conexión del puntajeBase en el HUD
+- **ZoneTriggerManager** — `Touched` en `NivelActual/Zonas/Zonas_juego/<TriggerPart>`; `ZoneEntered` BindableEvent, debounce por zona
+- **Zonas en LevelsConfig** — `Zonas = { { nombre, trigger } }` por nivel; añadir Parts en Studio y la entrada en config
 
-### 🔜 PENDIENTE — Etapa 4 y 5
+### 🔜 PENDIENTE — Etapa 5
 
 Próximos archivos a crear (en orden):
-1. `ZoneTriggerManager.lua` — desbloqueo progresivo de zonas — Stage 4
-2. `GameplayManager.server.lua` — orquesta activate/deactivate — Stage 4
-3. `VictoryScreen.lua` — pantalla de resultados con desglose — Stage 5
-4. `MissionService.lua` — valida misiones por zona (condición de victoria) — Stage 5
+1. `GameplayManager.server.lua` — orquesta activate/deactivate de todos los módulos
+2. `MissionService.lua` — valida misiones por zona (condición de victoria)
+3. `VictoryScreen.lua` — pantalla de resultados con desglose completo
 
 ---
 

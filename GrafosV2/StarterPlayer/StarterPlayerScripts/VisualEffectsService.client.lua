@@ -1,39 +1,41 @@
 -- VisualEffectsService.client.lua
 -- Módulo cliente: gestiona TODOS los efectos visuales del gameplay.
--- ConectarCables.lua (servidor) delega aquí toda la lógica visual.
 --
--- Efectos gestionados:
---   · SelectionBox cyan      → nodo seleccionado por el jugador
---   · SelectionBox dorado    → nodos adyacentes al seleccionado (conexiones válidas posibles)
---   · Flash rojo             → conexión inválida (nodos no adyacentes)
---   · Flash naranja          → dirección incorrecta (arista existe pero en sentido opuesto)
---   · Limpieza de highlights → al completar conexión, deseleccionar o desconectar
+-- Al seleccionar un nodo el módulo busca la Part/Model llamada "Selector"
+-- dentro del Nodo (nodoModel/Selector). Sobre ella aplica:
+--   1. Instancia Highlight (Roblox native) — outline + fill de color
+--   2. BasePart del Selector → Color, Material = Neon, Transparency casi sólida
+-- El mismo efecto se aplica a los nodos adyacentes (color dorado).
 --
--- Los Beams (cables) son creados server-side y replican automáticamente al cliente.
--- Este módulo NO crea Beams — solo gestiona SelectionBoxes y flashes.
+-- Estructura esperada (compatible con BasePart o Model):
+--   NodoModel/
+--   ├── Decoracion/   (NO se toca)
+--   └── Selector      (BasePart o Model) ← ÚNICO objetivo de los efectos
+--       ├── Attachment
+--       └── ClickDetector
+--
+-- Los Beams (cables) son server-side y replican automáticamente.
+-- Este módulo NO toca Beams ni Decoracion.
 --
 -- Eventos escuchados (NotificarSeleccionNodo):
 --   "NodoSeleccionado",   nodoModel, adjModels[]  → highlight seleccionado + adyacentes
---   "SeleccionCancelada"                          → limpiar highlights
---   "ConexionCompletada", nomA, nomB              → limpiar highlights
+--   "SeleccionCancelada"                          → limpiar todo
+--   "ConexionCompletada", nomA, nomB              → limpiar todo
 --   "ConexionInvalida",   nodoModel               → limpiar + flash rojo
---   "DireccionInvalida",  nodoModel               → limpiar + flash naranja
---   "CableDesconectado",  nomA, nomB              → limpiar highlights
+--   "CableDesconectado",  nomA, nomB              → limpiar todo
 --
 -- Ubicación Roblox: StarterPlayer/StarterPlayerScripts/VisualEffectsService  (LocalScript)
 
-local Players      = game:GetService("Players")
-local RS           = game:GetService("ReplicatedStorage")
-local TweenService = game:GetService("TweenService")
-local Workspace    = game:GetService("Workspace")
+local Players   = game:GetService("Players")
+local RS        = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 
 local player = Players.LocalPlayer
 
 -- ── Eventos ──────────────────────────────────────────────────────────────────
 local eventsFolder  = RS:WaitForChild("Events", 10)
 local remotesFolder = eventsFolder and eventsFolder:WaitForChild("Remotes", 5)
-
-local notifyEv = remotesFolder and remotesFolder:WaitForChild("NotificarSeleccionNodo", 5)
+local notifyEv      = remotesFolder and remotesFolder:WaitForChild("NotificarSeleccionNodo", 5)
 
 if not notifyEv then
 	warn("[VisualEffectsService] ❌ NotificarSeleccionNodo no encontrado — módulo inactivo")
@@ -41,38 +43,88 @@ if not notifyEv then
 end
 
 -- ── Colores ──────────────────────────────────────────────────────────────────
-local COLOR_SELECTED  = Color3.fromRGB(0,   212, 255)  -- cyan: nodo seleccionado
-local COLOR_ADJACENT  = Color3.fromRGB(255, 200,  50)  -- dorado: nodos adyacentes válidos
-local COLOR_INVALID   = Color3.fromRGB(239,  68,  68)  -- rojo: conexión inválida
-local COLOR_DIRECTION = Color3.fromRGB(255, 140,   0)  -- naranja: dirección incorrecta
+local COLOR_SELECTED = Color3.fromRGB(0,   212, 255)  -- cyan:  nodo seleccionado
+local COLOR_ADJACENT = Color3.fromRGB(255, 200,  50)  -- dorado: nodos adyacentes válidos
+local COLOR_INVALID  = Color3.fromRGB(239,  68,  68)  -- rojo:  conexión inválida
 
--- ── Estado activo ────────────────────────────────────────────────────────────
-local _selBox   = nil   -- SelectionBox del nodo seleccionado
-local _adjBoxes = {}    -- { SelectionBox } de los nodos adyacentes
+-- ── Estado activo ─────────────────────────────────────────────────────────────
+-- Instancias Highlight creadas (se destruyen en clearAll)
+local _highlights  = {}
+-- Estado original de cada BasePart modificada (se restaura en clearAll)
+-- { part, origColor, origMaterial, origTransparency }
+local _savedStates = {}
 
 -- ── Helpers ──────────────────────────────────────────────────────────────────
 
-local function makeSelectionBox(adornee, color, surfAlpha)
-	local box                = Instance.new("SelectionBox")
-	box.Adornee              = adornee
-	box.Color3               = color
-	box.LineThickness        = 0.06
-	box.SurfaceTransparency  = surfAlpha or 0.88
-	box.SurfaceColor3        = color
-	box.Parent               = Workspace
-	return box
-end
-
-local function clearSelection()
-	if _selBox and _selBox.Parent then _selBox:Destroy() end
-	_selBox = nil
-	for _, box in ipairs(_adjBoxes) do
-		if box and box.Parent then box:Destroy() end
+-- Devuelve (selectorAdornee, selectorBasePart) para un nodoModel.
+-- selectorAdornee → lo que se usa como Adornee del Highlight
+-- selectorBasePart → la BasePart a la que se cambian Material/Color/Transparency
+-- Soporta Selector como BasePart directa O como Model que contiene una BasePart.
+local function getSelectorTarget(nodoModel)
+	local selector = nodoModel:FindFirstChild("Selector")
+	if not selector then return nil, nil end
+	if selector:IsA("BasePart") then
+		return selector, selector
 	end
-	_adjBoxes = {}
+	-- Selector es un Model → buscar la BasePart dentro (hitbox)
+	local part = selector:FindFirstChildOfClass("BasePart")
+	return selector, part
 end
 
--- Colorea brevemente todos los BaseParts de un Model y luego restaura los originales.
+-- Crea un Highlight de Roblox sobre el adornee y lo registra para limpieza.
+local function addHighlight(adornee, color)
+	local h                   = Instance.new("Highlight")
+	h.Adornee                 = adornee
+	h.FillColor               = color
+	h.FillTransparency        = 0.45    -- relleno semitransparente
+	h.OutlineColor            = color
+	h.OutlineTransparency     = 0       -- outline sólido
+	h.DepthMode               = Enum.HighlightDepthMode.AlwaysOnTop
+	h.Parent                  = Workspace  -- local-only (LocalScript)
+	table.insert(_highlights, h)
+end
+
+-- Cambia Material, Color y Transparency de una BasePart.
+-- Guarda el estado original para restaurarlo después.
+local function styleBasePart(part, color)
+	if not part then return end
+	table.insert(_savedStates, {
+		part     = part,
+		origColor  = part.Color,
+		origMat    = part.Material,
+		origTransp = part.Transparency,
+	})
+	part.Color        = color
+	part.Material     = Enum.Material.Neon  -- brilla en el oscuro
+	part.Transparency = 0.10                -- casi sólido
+end
+
+-- Aplica Highlight + estilo a la Part "Selector" de un nodoModel.
+local function highlightNode(nodoModel, color)
+	local adornee, basePart = getSelectorTarget(nodoModel)
+	if adornee   then addHighlight(adornee, color) end
+	if basePart  then styleBasePart(basePart, color) end
+end
+
+-- Destruye todos los Highlights y restaura las BaseParts a su estado original.
+local function clearAll()
+	for _, h in ipairs(_highlights) do
+		if h and h.Parent then h:Destroy() end
+	end
+	_highlights = {}
+
+	for _, state in ipairs(_savedStates) do
+		if state.part and state.part.Parent then
+			state.part.Color        = state.origColor
+			state.part.Material     = state.origMat
+			state.part.Transparency = state.origTransp
+		end
+	end
+	_savedStates = {}
+end
+
+-- Flash de color en todos los BaseParts de un Model (error visual breve).
+-- Solo modifica Color, no Material ni Transparency.
 local function flashModel(model, flashColor, duration)
 	if not model then return end
 	local parts     = {}
@@ -96,41 +148,33 @@ end
 -- ── Handler principal ─────────────────────────────────────────────────────────
 notifyEv.OnClientEvent:Connect(function(eventType, arg1, arg2)
 
-	-- ── Nodo seleccionado: highlight seleccionado + adyacentes ──────────────
+	-- ── Nodo seleccionado ──────────────────────────────────────────────────
+	-- arg1 = nodoModel (Model del nodo seleccionado)
+	-- arg2 = adjModels (array de Models adyacentes)
 	if eventType == "NodoSeleccionado" then
-		-- arg1 = nodoModel  (Model del nodo seleccionado)
-		-- arg2 = adjModels  (array de Models adyacentes)
-		clearSelection()
+		clearAll()
 		if arg1 then
-			_selBox = makeSelectionBox(arg1, COLOR_SELECTED, 0.82)
+			highlightNode(arg1, COLOR_SELECTED)
 		end
-		local adjModels = arg2
-		if type(adjModels) == "table" then
-			for _, adjModel in ipairs(adjModels) do
+		if type(arg2) == "table" then
+			for _, adjModel in ipairs(arg2) do
 				if adjModel and adjModel ~= arg1 then
-					local box = makeSelectionBox(adjModel, COLOR_ADJACENT, 0.90)
-					table.insert(_adjBoxes, box)
+					highlightNode(adjModel, COLOR_ADJACENT)
 				end
 			end
 		end
 
-	-- ── Deselección / conexión completada / cable desconectado ──────────────
+	-- ── Limpiar highlights ─────────────────────────────────────────────────
 	elseif eventType == "SeleccionCancelada"
 		or eventType == "ConexionCompletada"
 		or eventType == "CableDesconectado" then
-		clearSelection()
+		clearAll()
 
-	-- ── Conexión inválida: flash rojo en el nodo destino ────────────────────
+	-- ── Conexión inválida: flash rojo en nodo destino ─────────────────────
+	-- arg1 = nodoModel del segundo nodo
 	elseif eventType == "ConexionInvalida" then
-		-- arg1 = nodoModel del segundo nodo (el que recibió el intento inválido)
-		clearSelection()
+		clearAll()
 		flashModel(arg1, COLOR_INVALID, 0.35)
-
-	-- ── Dirección incorrecta: flash naranja en el nodo destino ──────────────
-	elseif eventType == "DireccionInvalida" then
-		-- arg1 = nodoModel del segundo nodo (arista existe pero en sentido contrario)
-		clearSelection()
-		flashModel(arg1, COLOR_DIRECTION, 0.35)
 
 	end
 end)

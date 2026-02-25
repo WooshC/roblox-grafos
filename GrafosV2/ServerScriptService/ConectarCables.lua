@@ -308,12 +308,12 @@ local function tryConnect(player, selector1, selector2)
 			_notifyEv:FireClient(player, "ConexionCompletada", nomA, nomB)
 		end
 	else
-		-- Detectar si la arista existe en sentido contrario (error de dirección)
+		-- Registrar tipo de error en log (sin distinción visual en el cliente)
 		local tipoError = isAdjacent(nomB, nomA) and "DireccionInvalida" or "ConexionInvalida"
 		_tracker:registrarFallo(player)
 		if _notifyEv then
-			-- Enviamos el Model del nodo destino para que el cliente lo flashee
-			_notifyEv:FireClient(player, tipoError, selector2.Parent)
+			-- Siempre "ConexionInvalida" → flash rojo, sin distinción naranja
+			_notifyEv:FireClient(player, "ConexionInvalida", selector2.Parent)
 		end
 		print("[ConectarCables] Fallo (" .. tipoError .. "):", nomA, "→", nomB)
 	end
