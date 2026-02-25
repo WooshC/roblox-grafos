@@ -10,6 +10,7 @@
 local RS         = game:GetService("ReplicatedStorage")
 local Players    = game:GetService("Players")
 local StarterGui = game:GetService("StarterGui")
+local Workspace  = game:GetService("Workspace")
 
 -- ── 1. Sin spawn automático ────────────────────────────────────────────────
 Players.CharacterAutoLoads = false
@@ -26,11 +27,17 @@ local requestPlayLEv = remotesFolder:WaitForChild("RequestPlayLevel",  5)
 local levelReadyEv   = remotesFolder:WaitForChild("LevelReady",        5)
 local returnToMenuEv = remotesFolder:WaitForChild("ReturnToMenu",      5)
 local getProgressFn  = remotesFolder:WaitForChild("GetPlayerProgress", 5)
+local updateScoreEv  = remotesFolder:WaitForChild("UpdateScore",       5)
 
 -- ── 3. Cargar servicios ────────────────────────────────────────────────────
-local LevelLoader = require(script.Parent:WaitForChild("LevelLoader", 10))
-local DataService = require(script.Parent:WaitForChild("DataService", 10))
-print("[EDA v2] ✅ LevelLoader + DataService cargados")
+local LevelLoader    = require(script.Parent:WaitForChild("LevelLoader",    10))
+local DataService    = require(script.Parent:WaitForChild("DataService",    10))
+local ScoreTracker   = require(script.Parent:WaitForChild("ScoreTracker",   10))
+local ConectarCables = require(script.Parent:WaitForChild("ConectarCables", 10))
+local LevelsConfig   = require(RS:WaitForChild("Config", 5):WaitForChild("LevelsConfig", 5))
+
+ScoreTracker:init(updateScoreEv)
+print("[EDA v2] ✅ LevelLoader + DataService + ScoreTracker + ConectarCables cargados")
 
 -- ── 4. Copiar StarterGui → PlayerGui manualmente ──────────────────────────
 -- Roblox solo hace esto automáticamente al spawnear el personaje.
@@ -97,7 +104,24 @@ requestPlayLEv.OnServerEvent:Connect(function(player, nivelID)
 		LevelLoader:load(nivelID, player)
 	end)
 
-	if not ok then
+	if ok then
+		-- LevelLoader colocó el nivel en Workspace como "NivelActual"
+		-- y ya disparó LevelReady al cliente. Ahora activamos el gameplay.
+		local nivelActual = Workspace:FindFirstChild("NivelActual")
+		if nivelActual then
+			local config         = LevelsConfig[nivelID]
+			local adjacencias    = config and config.Adyacencias or nil
+			local puntosConexion = config and config.Puntuacion and config.Puntuacion.PuntosConexion or 50
+			local penaFallo      = config and config.Puntuacion and config.Puntuacion.PenaFallo      or 10
+
+			ScoreTracker:startLevel(player, nivelID, puntosConexion, penaFallo)
+			ConectarCables.activate(nivelActual, adjacencias, player, ScoreTracker)
+			print("[EDA v2] ✅ ScoreTracker + ConectarCables activos — Nivel", nivelID,
+				"/ adyacencias:", adjacencias ~= nil and "definidas" or "modo permisivo")
+		else
+			warn("[EDA v2] NivelActual no encontrado en Workspace tras cargar")
+		end
+	else
 		warn("[EDA v2] Error al cargar nivel:", err)
 		if player and player.Parent then
 			levelReadyEv:FireClient(player, {
@@ -111,6 +135,10 @@ end)
 -- ── 8. ReturnToMenu ────────────────────────────────────────────────────────
 returnToMenuEv.OnServerEvent:Connect(function(player)
 	print("[EDA v2] ReturnToMenu — Jugador:", player.Name)
+
+	-- Desactivar gameplay ANTES de destruir el nivel
+	ConectarCables.deactivate()
+	ScoreTracker:reset(player)
 
 	local ok, err = pcall(function()
 		LevelLoader:unload()

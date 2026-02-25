@@ -45,8 +45,9 @@ if not remotesFolder then
 	return
 end
 
-local levelReadyEv = remotesFolder:WaitForChild("LevelReady",   5)
-local returnMenuEv = remotesFolder:WaitForChild("ReturnToMenu",  5)
+local levelReadyEv = remotesFolder:WaitForChild("LevelReady", 5)
+-- ReturnToMenu: Boot.server.lua NUNCA dispara este evento al cliente.
+-- El flujo de vuelta al menú lo maneja HUDController.doReturnToMenu() directamente.
 
 -- ── Helper: obtener GUIExploradorV2 (puede no existir al inicio) ───────────
 local function getExplorador()
@@ -84,24 +85,8 @@ else
 	warn("[ClientBoot] LevelReady RemoteEvent no encontrado")
 end
 
--- ── 4. Al volver al menú → swap inverso ───────────────────────────────────
-if returnMenuEv then
-	returnMenuEv.OnClientEvent:Connect(function()
-		-- Desactivar GUI de gameplay
-		local explorador = getExplorador()
-		if explorador then
-			explorador.Enabled = false
-			print("[ClientBoot] GUIExploradorV2 desactivada (vuelta al menú)")
-		end
-
-		-- Reactivar menú
-		if menu then
-			menu.Enabled = true
-			print("[ClientBoot] ✅ EDAQuestMenu reactivada")
-		end
-	end)
-else
-	warn("[ClientBoot] ReturnToMenu RemoteEvent no encontrado")
-end
+-- ── 4. Vuelta al menú ──────────────────────────────────────────────────────
+-- El swap de GUIs al volver al menú lo gestiona HUDController.doReturnToMenu().
+-- ClientBoot solo es responsable de activar GUIs al cargar un nivel (paso 3 arriba).
 
 print("[ClientBoot] ✅ Activo — gestionando ciclo de vida de GUIs")

@@ -24,6 +24,7 @@ local remotesFolder = eventsFolder and eventsFolder:WaitForChild("Remotes", 5)
 
 local returnToMenuEv = remotesFolder and remotesFolder:FindFirstChild("ReturnToMenu")
 local levelReadyEv   = remotesFolder and remotesFolder:FindFirstChild("LevelReady")
+local updateScoreEv  = remotesFolder and remotesFolder:FindFirstChild("UpdateScore")
 
 -- ── Esperar ambas GUIs ───────────────────────────────────────────────────────
 local menu = playerGui:WaitForChild("EDAQuestMenu",    30)
@@ -152,16 +153,41 @@ if btnSalir     then btnSalir.MouseButton1Click:Connect(showModal)          end
 if btnCancelar  then btnCancelar.MouseButton1Click:Connect(hideModal)        end
 if btnConfirmar then btnConfirmar.MouseButton1Click:Connect(doReturnToMenu)  end
 
--- ── Activar HUD cuando el nivel está listo ───────────────────────────────────
+-- ── Preparar HUD cuando el nivel está listo ──────────────────────────────────
+-- ClientBoot es quien activa hud.Enabled = true.
+-- Aquí solo reseteamos estado interno (fade y flag de retorno).
 if levelReadyEv then
 	levelReadyEv.OnClientEvent:Connect(function(data)
-		if data and data.error then return end  -- nivel no encontrado, no activar HUD
+		if data and data.error then return end  -- nivel no encontrado, no hacer nada
 
 		resetFade()
-		hud.Enabled = false  -- asegurar estado limpio antes de activar
-		hud.Enabled = true
 		isReturning = false
-		print("[HUDController] HUD activado — Nivel", data and data.nivelID)
+		print("[HUDController] HUD preparado — Nivel", data and data.nivelID)
+	end)
+end
+
+-- ── Actualizar puntaje en el HUD (puntajeBase, sin penalizaciones) ───────────
+-- ScoreTracker dispara UpdateScore cada vez que hay una conexión válida.
+-- El HUD muestra SOLO puntajeBase (la sorpresa de bonus/penal es en la pantalla final).
+if updateScoreEv then
+	-- Buscar el TextLabel de puntaje dentro de GUIExploradorV2
+	-- Ruta esperada según el plan: BarraSuperior/PanelPuntuacion/ContenedorPuntos/Valor
+	local function getScoreLabel()
+		local barra = hud:FindFirstChild("BarraSuperior")
+		if not barra then return nil end
+		local panel = barra:FindFirstChild("PanelPuntuacion")
+		if not panel then return nil end
+		local chip = panel:FindFirstChild("ContenedorPuntos")
+		if not chip then return nil end
+		return chip:FindFirstChild("Valor")
+	end
+
+	updateScoreEv.OnClientEvent:Connect(function(data)
+		if not hud.Enabled then return end  -- ignorar si el HUD no está activo
+		local label = getScoreLabel()
+		if label then
+			label.Text = tostring(data.puntajeBase or 0)
+		end
 	end)
 end
 

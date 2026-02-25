@@ -11,6 +11,55 @@
 
 ---
 
+## Estado de Implementación (actualizado 2026-02-25)
+
+### ✅ COMPLETADO — Etapas 0 a 3
+
+| Archivo | Ubicación | Estado |
+|---|---|---|
+| `EventRegistry.server.lua` | ServerScriptService/ | ✅ Implementado |
+| `Boot.server.lua` | ServerScriptService/ | ✅ Implementado |
+| `DataService.lua` | ServerScriptService/ | ✅ Implementado |
+| `LevelLoader.lua` | ServerScriptService/ | ✅ Implementado |
+| `CamaraMenuSetup.lua` | ServerScriptService/ | ✅ Implementado |
+| `crearGUIMenu.lua` | GrafosV2/ (raíz) | ✅ Funciona — ver nota ① |
+| `LevelsConfig.lua` | ReplicatedStorage/Config/ | ✅ Implementado |
+| `ClientBoot.lua` | StarterPlayer/StarterPlayerScripts/ | ✅ Implementado |
+| `MenuController.client.lua` | StarterPlayer/StarterPlayerScripts/ | ✅ Implementado |
+| `HUDController.client.lua` | StarterPlayer/StarterPlayerScripts/ | ✅ Implementado |
+
+### 🖥️ GUIs pre-construidas (YA EXISTEN en Roblox Studio)
+
+Ambas GUIs están creadas manualmente en Studio. **NO** generarlas por script.
+
+| GUI | Ubicación en Studio | Notas |
+|---|---|---|
+| `EDAQuestMenu` (ScreenGui) | StarterGui/ | Menú principal, ya existe |
+| `GUIExploradorV2` (ScreenGui) | StarterGui/ | HUD de gameplay, ya existe |
+
+`Boot.server.lua` copia StarterGui → PlayerGui manualmente (CharacterAutoLoads = false).
+
+### ✅ Fixes aplicados (2026-02-25)
+
+**Fix ①: Solapamiento LevelReady**
+- `ClientBoot` es la única autoridad en activar/desactivar ScreenGuis al recibir LevelReady.
+- `HUDController` ya NO hace `hud.Enabled = true/false` en LevelReady — solo resetea `isReturning` y `fadeOverlay`.
+
+**Fix ②: Listener muerto de ReturnToMenu eliminado de ClientBoot**
+- `ClientBoot` eliminó su listener de `ReturnToMenu` (Boot.server.lua nunca lo dispara al cliente).
+- `HUDController.doReturnToMenu()` es el dueño del flujo completo: fade → FireServer → swap GUI.
+
+### 🔜 PENDIENTE — Etapa 4 en adelante
+
+Próximos archivos a crear (en orden):
+1. `ConectarCables.lua` (ModuleScript con `activate/deactivate`) — Stage 4
+2. `ScoreTracker.lua` (aciertos/fallos/cronómetro) — Stage 4
+3. `GameplayManager.server.lua` — Stage 4
+4. `ZoneTriggerManager.lua` — Stage 4
+5. `VictoryScreen.lua` — Stage 5
+
+---
+
 ## Tabla de Contenido
 
 1. [Visión general del flujo](#1-visión-general-del-flujo)
