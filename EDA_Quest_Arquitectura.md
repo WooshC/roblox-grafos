@@ -143,12 +143,12 @@ EDAQuestMenu  (ScreenGui)
 │   │       ├── InfoTag, InfoName, InfoDesc
 │   │       ├── Stars  (Star1, Star2, Star3)
 │   │       ├── StatsGrid
-│   │       │   ├── StatScore   →  Val  (TextLabel)
-│   │       │   ├── StatStatus  →  Val
-│   │       │   ├── StatAciert  →  Val
-│   │       │   ├── StatFallos  →  Val
-│   │       │   ├── StatTiempo  →  Val
-│   │       │   └── StatInten   →  Val
+│   │       │   ├── StatScore   →  Valor  (TextLabel)
+│   │       │   ├── StatStatus  →  Valor
+│   │       │   ├── StatAciert  →  Valor
+│   │       │   ├── StatFallos  →  Valor
+│   │       │   ├── StatTiempo  →  Valor
+│   │       │   └── StatInten   →  Valor
 │   │       └── Tags
 │   └── PlayButton
 ├── FrameSettings  (S3 — modal ajustes)
