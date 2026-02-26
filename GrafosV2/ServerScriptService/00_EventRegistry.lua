@@ -29,6 +29,9 @@ local EXPECTED_REMOTES = {
 	{ name = "ServerReady",            class = "RemoteEvent" },
 	{ name = "ReturnToMenu",           class = "RemoteEvent" },
 	{ name = "LevelUnloaded",          class = "RemoteEvent" },
+	{ name = "UpdateMissions",         class = "RemoteEvent" },  -- MissionService → cliente
+	{ name = "LevelCompleted",         class = "RemoteEvent" },  -- victoria → VictoriaFondo
+	{ name = "RestartLevel",           class = "RemoteEvent" },  -- cliente → servidor: reiniciar
 }
 
 local EXPECTED_BINDABLES = {

@@ -29,9 +29,10 @@ local Workspace = game:GetService("Workspace")
 local ConectarCables = {}
 
 -- ── Eventos remotos (cacheados en activate) ──────────────────────────────────
-local _notifyEv = nil   -- NotificarSeleccionNodo  (visual events al cliente)
-local _dragEv   = nil   -- CableDragEvent          (preview de arrastre)
-local _pulseEv  = nil   -- PulseEvent              (flujo de energía)
+local _notifyEv      = nil   -- NotificarSeleccionNodo  (visual events al cliente)
+local _dragEv        = nil   -- CableDragEvent          (preview de arrastre)
+local _pulseEv       = nil   -- PulseEvent              (flujo de energía)
+local _missionService = nil  -- MissionService (opcional, inyectado en activate)
 
 -- ── Estado interno ───────────────────────────────────────────────────────────
 local _active         = false
@@ -223,6 +224,9 @@ local function crearCable(selector1, selector2)
 	local entry = { key = key, beam = beam, hitbox = hitbox, nomA = nomA, nomB = nomB }
 	table.insert(_cables, entry)
 
+	-- Notificar MissionService (cable creado)
+	if _missionService then _missionService.onCableCreated(nomA, nomB) end
+
 	-- Clic en hitbox → desconectar y descontar puntos
 	local conn = cd.MouseClick:Connect(function(pl)
 		if pl ~= _player then return end
@@ -261,6 +265,8 @@ local function eliminarCable(idx)
 		if e.hitbox and e.hitbox.Parent then
 			e.hitbox:Destroy()   -- beam y cd son hijos → destruidos automáticamente
 		end
+		-- Notificar MissionService (cable eliminado)
+		if _missionService then _missionService.onCableRemoved(e.nomA, e.nomB) end
 		table.remove(_cables, idx)
 	end
 end
@@ -334,6 +340,9 @@ local function onSelectorClicked(player, selector)
 		local nodoModel = selector.Parent
 		local adjModels = getAdjModels(nomA)
 
+		-- Notificar MissionService (nodo seleccionado)
+		if _missionService then _missionService.onNodeSelected(nomA) end
+
 		-- Notificar al cliente: destacar nodo seleccionado + adyacentes
 		if _notifyEv then
 			_notifyEv:FireClient(player, "NodoSeleccionado", nodoModel, adjModels)
@@ -367,17 +376,18 @@ end
 -- INTERFAZ PÚBLICA
 -- ════════════════════════════════════════════════════════════════════════════
 
-function ConectarCables.activate(nivel, adjacencias, player, tracker)
+function ConectarCables.activate(nivel, adjacencias, player, tracker, missionService)
 	if _active then ConectarCables.deactivate() end
 
-	_nivel     = nivel
-	_player    = player
-	_tracker   = tracker
-	_selected  = nil
-	_cables    = {}
-	_conns     = {}
-	_active    = true
-	_adjLookup = buildLookup(adjacencias)
+	_nivel          = nivel
+	_player         = player
+	_tracker        = tracker
+	_missionService = missionService or nil
+	_selected       = nil
+	_cables         = {}
+	_conns          = {}
+	_active         = true
+	_adjLookup      = buildLookup(adjacencias)
 
 	-- Cachear eventos remotos
 	local ev = RS:FindFirstChild("Events")
@@ -427,6 +437,7 @@ function ConectarCables.deactivate()
 	_nivel          = nil
 	_player         = nil
 	_tracker        = nil
+	_missionService = nil
 	_adjLookup      = nil
 	_selected       = nil
 	_selectorByName = {}

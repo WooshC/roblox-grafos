@@ -84,12 +84,63 @@ Ambas GUIs están creadas manualmente en Studio. **NO** generarlas por script.
 - **ZoneTriggerManager** — `Touched`+`TouchEnded` en `NivelActual/Zonas/Zonas_juego/<TriggerPart>`; `ZoneEntered`+`ZoneExited` BindableEvents; `primeraVez` flag; API pública: `isEnZona()`, `isZonaVisitada()`, `getZonaActual()`
 - **Zonas en LevelsConfig** — `Zonas = { { nombre, trigger } }` por nivel; añadir Parts en Studio y la entrada en config
 
-### 🔜 PENDIENTE — Etapa 5
+### ✅ COMPLETADO — Etapa 5 (2026-02-26)
 
-Próximos archivos a crear (en orden):
-1. `GameplayManager.server.lua` — orquesta activate/deactivate de todos los módulos
-2. `MissionService.lua` — valida misiones por zona (condición de victoria)
-3. `VictoryScreen.lua` — pantalla de resultados con desglose completo
+| Archivo | Estado | Notas |
+|---|---|---|
+| `MissionService.lua` | ✅ Implementado | Valida misiones en tiempo real; permanentes una vez completadas |
+| `HUDController.client.lua` | ✅ Actualizado | Panel de misiones dinámico + pantalla de victoria |
+| `ConectarCables.lua` | ✅ Actualizado | Llama callbacks de MissionService al crear/eliminar cables |
+| `Boot.server.lua` | ✅ Actualizado | Carga MissionService, conecta ZoneEntered/ZoneExited, RestartLevel |
+| `00_EventRegistry.lua` | ✅ Actualizado | Añadidos UpdateMissions, LevelCompleted, RestartLevel |
+| `LevelsConfig.lua` | ✅ Actualizado | Misiones añadidas, NombresPostes → NombresNodos |
+| `VisualEffectsService.client.lua` | ✅ Actualizado | Billboard muestra nombre del nodo (NombresNodos) |
+
+**Arquitectura implementada:**
+
+```
+ConectarCables ─── onCableCreated(A,B) ──────┐
+               ─── onCableRemoved(A,B) ──────►│ MissionService
+               ─── onNodeSelected(nom) ────────│  · Evalúa misiones pendientes
+                                               │  · Misiones permanentes (no se deshacen)
+Boot ── ZoneEntered ────────────────────────►│  · Fires UpdateMissions → cliente
+Boot ── ZoneExited  ────────────────────────►│  · Fires LevelCompleted cuando allComplete
+                                               └─────────────────────────────────────────
+                                                   ↓ UpdateMissions (RemoteEvent)
+                                             HUDController
+                                               · rebuildMisionPanel(data)
+                                               · Panel por zonas: resumen → detalle al entrar
+                                               · Misiones tachadas cuando completas (RichText)
+                                               · LevelCompleted → showVictory(snap)
+```
+
+**Panel de misiones (BtnMisiones → MisionFrame):**
+- **Vista resumen**: cabecera por zona con contador `x/total ✅`
+- **Vista detalle**: al entrar a una zona (`zonaActual ≠ nil`) sus misiones se expanden con texto completo
+- Misiones completadas: icono ✅ + texto tachado `<s>texto</s>` (RichText)
+- Misiones pendientes: icono ◻ + texto normal; puntos en dorado
+- Reconstrucción total en cada `UpdateMissions` (dinámico, sin estado acumulado en cliente)
+
+**Tipos de misión implementados en MissionService:**
+| Tipo | Condición |
+|---|---|
+| `ARISTA_CREADA` | Cable entre NodoA y NodoB existe |
+| `ARISTA_DIRIGIDA` | Cable entre NodoOrigen y NodoDestino existe |
+| `GRADO_NODO` | Nodo tiene ≥ GradoRequerido cables |
+| `NODO_SELECCIONADO` | Nodo fue clickeado al menos una vez |
+| `GRAFO_CONEXO` | BFS desde nodos[1] alcanza todos los nodos listados |
+
+**Pantalla de victoria (VictoriaFondo en GUIExploradorV2):**
+- Aparece al completar todas las misiones del nivel (`allComplete = true` en `UpdateMissions`)
+- Muestra estadísticas: tiempo, conexiones, errores, puntaje base
+- BotonRepetir → `RestartLevel` RemoteEvent → Boot recarga el mismo nivel
+- BotonContinuar → `ReturnToMenu` → vuelve al selector de niveles
+
+### 🔜 PENDIENTE — Etapa 6
+
+1. `DataService` — guardar resultado del nivel al completarse (llamar `saveResult` desde Boot al recibir `LevelCompleted`)
+2. `VictoryScreen` — calcular estrellas y mostrar `TresEstrellas/DosEstrellas` según puntaje final
+3. Ajustar `RewardService` para calcular bonus de tiempo y penalización
 
 ---
 

@@ -35,10 +35,30 @@ local DataService        = require(script.Parent:WaitForChild("DataService",    
 local ScoreTracker       = require(script.Parent:WaitForChild("ScoreTracker",       10))
 local ConectarCables     = require(script.Parent:WaitForChild("ConectarCables",     10))
 local ZoneTriggerManager = require(script.Parent:WaitForChild("ZoneTriggerManager", 10))
+local MissionService     = require(script.Parent:WaitForChild("MissionService",     10))
 local LevelsConfig       = require(RS:WaitForChild("Config", 5):WaitForChild("LevelsConfig", 5))
 
+-- Cachear RemoteEvents y BindableEvents de zonas para conectar MissionService
+local bindablesFolder = eventsFolder:WaitForChild("Bindables", 5)
+local zoneEnteredEv   = bindablesFolder and bindablesFolder:FindFirstChild("ZoneEntered")
+local zoneExitedEv    = bindablesFolder and bindablesFolder:FindFirstChild("ZoneExited")
+local restartLevelEv  = remotesFolder:WaitForChild("RestartLevel", 5)
+local levelCompletedEv = remotesFolder:WaitForChild("LevelCompleted", 5)
+
+-- Conectar ZoneEntered/ZoneExited → MissionService
+if zoneEnteredEv then
+	zoneEnteredEv.Event:Connect(function(data)
+		MissionService.onZoneEntered(data and data.nombre)
+	end)
+end
+if zoneExitedEv then
+	zoneExitedEv.Event:Connect(function(data)
+		MissionService.onZoneExited(data and data.nombre)
+	end)
+end
+
 ScoreTracker:init(updateScoreEv)
-print("[EDA v2] ✅ LevelLoader + DataService + ScoreTracker + ConectarCables + ZoneTriggerManager cargados")
+print("[EDA v2] ✅ LevelLoader + DataService + ScoreTracker + ConectarCables + ZoneTriggerManager + MissionService cargados")
 
 -- ── 4. Copiar StarterGui → PlayerGui manualmente ──────────────────────────
 -- Roblox solo hace esto automáticamente al spawnear el personaje.
@@ -130,7 +150,8 @@ requestPlayLEv.OnServerEvent:Connect(function(player, nivelID)
 			local zonasArr = buildZonasArray(config and config.Zonas)
 
 			ScoreTracker:startLevel(player, nivelID, puntosConexion, penaFallo)
-			ConectarCables.activate(nivelActual, adjacencias, player, ScoreTracker)
+			MissionService.activate(config, nivelID, player, remotesFolder, ScoreTracker)
+			ConectarCables.activate(nivelActual, adjacencias, player, ScoreTracker, MissionService)
 			ZoneTriggerManager.activate(nivelActual, zonasArr, player)
 			print("[EDA v2] ✅ ScoreTracker + ConectarCables + ZoneTriggerManager activos — Nivel", nivelID,
 				"/ adyacencias:", adjacencias ~= nil and "definidas" or "modo permisivo",
@@ -154,6 +175,7 @@ returnToMenuEv.OnServerEvent:Connect(function(player)
 	print("[EDA v2] ReturnToMenu — Jugador:", player.Name)
 
 	-- Desactivar gameplay ANTES de destruir el nivel
+	MissionService.deactivate()
 	ConectarCables.deactivate()
 	ZoneTriggerManager.deactivate()
 	ScoreTracker:reset(player)
@@ -171,7 +193,60 @@ returnToMenuEv.OnServerEvent:Connect(function(player)
 	end
 end)
 
--- ── 9. Guardar al desconectarse ────────────────────────────────────────────
+-- ── 9. RestartLevel ────────────────────────────────────────────────────────
+-- Cliente pide reiniciar el mismo nivel desde la pantalla de victoria.
+if restartLevelEv then
+	restartLevelEv.OnServerEvent:Connect(function(player, nivelID)
+		if type(nivelID) ~= "number" then return end
+		print("[EDA v2] RestartLevel — Jugador:", player.Name, "/ Nivel:", nivelID)
+
+		-- Limpiar todo primero (igual que ReturnToMenu)
+		MissionService.deactivate()
+		ConectarCables.deactivate()
+		ZoneTriggerManager.deactivate()
+		ScoreTracker:reset(player)
+
+		local ok, err = pcall(function()
+			LevelLoader:unload()
+			if player.Character then
+				player.Character:Destroy()
+				player.Character = nil
+			end
+		end)
+
+		-- Re-cargar el mismo nivel
+		local ok2, err2 = pcall(function()
+			LevelLoader:load(nivelID, player)
+		end)
+
+		if ok2 then
+			local nivelActual = Workspace:FindFirstChild("NivelActual")
+			if nivelActual then
+				local config         = LevelsConfig[nivelID]
+				local adjacencias    = config and config.Adyacencias or nil
+				local puntosConexion = config and config.Puntuacion and config.Puntuacion.PuntosConexion or 50
+				local penaFallo      = config and config.Puntuacion and config.Puntuacion.PenaFallo      or 10
+				local function buildZonasArray(zonasDict)
+					local arr = {}
+					for nombre, cfg in pairs(zonasDict or {}) do
+						if cfg.Trigger then table.insert(arr, { nombre = nombre, trigger = cfg.Trigger }) end
+					end
+					return arr
+				end
+				local zonasArr = buildZonasArray(config and config.Zonas)
+				ScoreTracker:startLevel(player, nivelID, puntosConexion, penaFallo)
+				MissionService.activate(config, nivelID, player, remotesFolder, ScoreTracker)
+				ConectarCables.activate(nivelActual, adjacencias, player, ScoreTracker, MissionService)
+				ZoneTriggerManager.activate(nivelActual, zonasArr, player)
+				print("[EDA v2] ✅ RestartLevel completado — Nivel", nivelID)
+			end
+		else
+			warn("[EDA v2] RestartLevel: error al re-cargar nivel:", err2)
+		end
+	end)
+end
+
+-- ── 10. Guardar al desconectarse ────────────────────────────────────────────
 Players.PlayerRemoving:Connect(function(player)
 	DataService:onPlayerLeaving(player)
 end)

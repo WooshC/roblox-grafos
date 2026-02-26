@@ -32,6 +32,25 @@ local Workspace = game:GetService("Workspace")
 
 local player = Players.LocalPlayer
 
+-- ── LevelsConfig (para NombresNodos en billboards) ───────────────────────────
+local LevelsConfig   = require(RS:WaitForChild("Config", 5):WaitForChild("LevelsConfig", 5))
+local _nivelID       = nil   -- se actualiza al recibir LevelReady
+local _nombresNodos  = {}    -- { [nomNodo] = "Nombre amigable" }
+
+-- Actualizar tabla de nombres cuando carga un nivel
+local remotesForLevelReady = RS:WaitForChild("Events", 10)
+	and RS:WaitForChild("Events", 10):WaitForChild("Remotes", 5)
+local levelReadyForNames = remotesForLevelReady and remotesForLevelReady:FindFirstChild("LevelReady")
+if levelReadyForNames then
+	levelReadyForNames.OnClientEvent:Connect(function(data)
+		if data and data.nivelID ~= nil then
+			_nivelID = data.nivelID
+			local cfg = LevelsConfig[_nivelID]
+			_nombresNodos = (cfg and cfg.NombresNodos) or {}
+		end
+	end)
+end
+
 -- ── Eventos ──────────────────────────────────────────────────────────────────
 local eventsFolder  = RS:WaitForChild("Events", 10)
 local remotesFolder = eventsFolder and eventsFolder:WaitForChild("Remotes", 5)
@@ -105,35 +124,59 @@ local function styleBasePart(part, color)
 end
 
 -- BillboardGui flotante con AlwaysOnTop = true sobre la BasePart.
+-- Muestra el nombre amigable del nodo (desde LevelsConfig.NombresNodos).
 -- Visible a través de paredes y a distancia arbitraria (cross-room).
-local function addBillboard(part, color)
+local function addBillboard(part, color, nodeName)
 	if not part or not part:IsA("BasePart") then return end
-	local bb                      = Instance.new("BillboardGui")
-	bb.Adornee                    = part
-	bb.StudsOffsetWorldSpace      = Vector3.new(0, 4, 0)  -- siempre vertical en world-space
-	bb.AlwaysOnTop                = true   -- visible a través de paredes ✅
-	bb.Size                       = UDim2.fromOffset(50, 50)
-	bb.ResetOnSpawn               = false
-	bb.Parent                     = Workspace
+	local displayName = nodeName or ""
 
-	local icon                    = Instance.new("TextLabel")
-	icon.Size                     = UDim2.fromScale(1, 1)
-	icon.BackgroundTransparency   = 1
-	icon.Text                     = "●"
-	icon.TextColor3               = color
-	icon.TextScaled               = true
-	icon.Parent                   = bb
+	local bb                   = Instance.new("BillboardGui")
+	bb.Adornee                 = part
+	bb.StudsOffsetWorldSpace   = Vector3.new(0, 4.5, 0)
+	bb.AlwaysOnTop             = true
+	bb.Size                    = UDim2.fromOffset(120, 32)
+	bb.ResetOnSpawn            = false
+	bb.Parent                  = Workspace
+
+	-- Fondo semitransparente con bordes redondeados
+	local bg                   = Instance.new("Frame")
+	bg.Size                    = UDim2.fromScale(1, 1)
+	bg.BackgroundColor3        = Color3.new(0, 0, 0)
+	bg.BackgroundTransparency  = 0.45
+	bg.BorderSizePixel         = 0
+	bg.Parent                  = bb
+	local corner               = Instance.new("UICorner")
+	corner.CornerRadius        = UDim.new(0, 6)
+	corner.Parent              = bg
+
+	-- Borde de color
+	local stroke               = Instance.new("UIStroke")
+	stroke.Color               = color
+	stroke.Thickness           = 2
+	stroke.Parent              = bg
+
+	-- Texto del nombre
+	local label                = Instance.new("TextLabel")
+	label.Size                 = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Text                 = displayName
+	label.TextColor3           = color
+	label.TextScaled           = true
+	label.Font                 = Enum.Font.GothamBold
+	label.Parent               = bg
 
 	table.insert(_billboards, bb)
 end
 
 -- Aplica Highlight + estilo a la Part "Selector" de un nodoModel.
+-- Muestra el nombre amigable en el BillboardGui.
 local function highlightNode(nodoModel, color)
 	local adornee, basePart = getSelectorTarget(nodoModel)
 	if adornee  then addHighlight(adornee, color) end
 	if basePart then
+		local nodeName = _nombresNodos[nodoModel.Name] or nodoModel.Name
 		styleBasePart(basePart, color)
-		addBillboard(basePart, color)   -- cross-room: visible a través de paredes
+		addBillboard(basePart, color, nodeName)
 	end
 end
 
