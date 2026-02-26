@@ -1,92 +1,79 @@
 -- ClientBoot.client.lua
--- Gestiona el ciclo de vida de las GUIs del cliente para EDA Quest v2.
+-- Ubicación: StarterPlayer > StarterPlayerScripts > ClientBoot
+-- Tipo: LocalScript
 --
--- Responsabilidades:
---   1. Activar EDAQuestMenu al inicio (estaba desactivada por defecto)
---   2. Al recibir LevelReady → apagar EDAQuestMenu + encender GUIExploradorV2
---   3. Al recibir señal de volver al menú → apagar GUIExploradorV2 + encender EDAQuestMenu
+-- ÚNICO responsable de:
+--   · Activar/desactivar EDAQuestMenu y GUIExploradorV2
+--   · Cambiar CameraType entre Scriptable (menú) y Custom (gameplay)
 --
--- Ubicación Roblox: StarterPlayerScripts/ClientBoot.client.lua  (LocalScript)
--- ⚠️ Debe existir en StarterPlayerScripts (NO en StarterGui), ya que lee PlayerGui.
+-- HUDController y MenuController NUNCA tocan .Enabled ni CameraType.
 
 local Players = game:GetService("Players")
 local RS      = game:GetService("ReplicatedStorage")
+local UIS     = game:GetService("UserInputService")
 
 local player    = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
--- ── 1. Esperar y activar EDAQuestMenu ─────────────────────────────────────
--- MenuController.client.lua (en StarterGui) genera la GUI; esperamos a que exista.
-local menu = playerGui:WaitForChild("EDAQuestMenu", 20)
-if not menu then
-	warn("[ClientBoot] ❌ EDAQuestMenu no encontrada en PlayerGui después de 20 s.")
-	warn("[ClientBoot]    Verifica que crearGUIMenu.lua esté en StarterGui y corra correctamente.")
-	-- Intentar encontrarla de todas formas (puede aparecer tarde)
-	menu = playerGui:FindFirstChild("EDAQuestMenu")
+local menu = playerGui:WaitForChild("EDAQuestMenu",    20)
+local hud  = playerGui:WaitForChild("GUIExploradorV2", 20)
+
+if not menu then warn("[ClientBoot] ❌ EDAQuestMenu no encontrada");    return end
+if not hud  then warn("[ClientBoot] ❌ GUIExploradorV2 no encontrada"); return end
+
+-- Estado inicial
+menu.Enabled = true
+hud.Enabled  = false
+
+-- ── Cámara ─────────────────────────────────────────────────────────────────
+local camera = workspace.CurrentCamera
+
+local function setCameraMenu()
+	local camObj = workspace:FindFirstChild("CamaraMenu", true)
+	local part   = camObj and (
+		(camObj:IsA("BasePart") and camObj) or
+		(camObj:IsA("Model")    and camObj.PrimaryPart)
+	)
+	if part then
+		camera.CameraType = Enum.CameraType.Scriptable
+		camera.CFrame     = part.CFrame
+		print("[ClientBoot] Cámara → Scriptable (menú)")
+	end
 end
 
-if menu then
-	menu.Enabled = true
-	print("[ClientBoot] ✅ EDAQuestMenu activada")
-else
-	warn("[ClientBoot] ⚠ EDAQuestMenu no encontrada — el menú no será visible")
+local function setCameraGame()
+	-- Forzar Custom para que Roblox siga al personaje.
+	-- CRÍTICO en RestartLevel: la cámara queda en Scriptable del menú si no se fuerza aquí.
+	camera.CameraType = Enum.CameraType.Custom
+	print("[ClientBoot] Cámara → Custom (gameplay)")
 end
 
--- ── 2. Conectar con eventos del servidor ───────────────────────────────────
-local eventsFolder = RS:WaitForChild("Events", 15)
-if not eventsFolder then
-	warn("[ClientBoot] ❌ Carpeta Events no encontrada. ¿Están creados los RemoteEvents en Studio?")
-	return
-end
+-- ── Eventos ────────────────────────────────────────────────────────────────
+local eventsFolder  = RS:WaitForChild("Events", 15)
+local remotesFolder = eventsFolder and eventsFolder:WaitForChild("Remotes", 5)
 
-local remotesFolder = eventsFolder:WaitForChild("Remotes", 5)
-if not remotesFolder then
-	warn("[ClientBoot] ❌ Carpeta Remotes no encontrada dentro de Events.")
-	return
-end
+local levelReadyEv    = remotesFolder and remotesFolder:WaitForChild("LevelReady",    10)
+local levelUnloadedEv = remotesFolder and remotesFolder:WaitForChild("LevelUnloaded", 10)
 
-local levelReadyEv = remotesFolder:WaitForChild("LevelReady", 5)
--- ReturnToMenu: Boot.server.lua NUNCA dispara este evento al cliente.
--- El flujo de vuelta al menú lo maneja HUDController.doReturnToMenu() directamente.
-
--- ── Helper: obtener GUIExploradorV2 (puede no existir al inicio) ───────────
-local function getExplorador()
-	return playerGui:FindFirstChild("GUIExploradorV2")
-end
-
--- ── 3. Al cargar nivel → swap de GUIs ─────────────────────────────────────
 if levelReadyEv then
 	levelReadyEv.OnClientEvent:Connect(function(data)
-		-- Si hay error en la carga, MenuController ya maneja el fallback.
-		-- ClientBoot NO debe activar GUIExploradorV2 en ese caso.
-		if data and data.error then
-			print("[ClientBoot] LevelReady con error — no se activa GUIExploradorV2")
-			return
-		end
-
-		-- Desactivar menú
-		-- MenuController ya hace root.Enabled = false, pero lo reforzamos aquí.
-		if menu then
-			menu.Enabled = false
-			print("[ClientBoot] EDAQuestMenu desactivada (nivel cargado)")
-		end
-
-		-- Activar GUI de gameplay
-		local explorador = getExplorador()
-		if explorador then
-			explorador.Enabled = true
-			print("[ClientBoot] ✅ GUIExploradorV2 activada — nivel:", data and data.nivelID or "?")
-		else
-			warn("[ClientBoot] ⚠ GUIExploradorV2 no encontrada en PlayerGui.")
-			warn("[ClientBoot]   Asegúrate de que GUIExploradorV2 esté en StarterGui con Enabled=false.")
-		end
+		if data and data.error then return end
+		menu.Enabled = false
+		hud.Enabled  = true
+		setCameraGame()
+		print("[ClientBoot] ✅ LevelReady → menú OFF | HUD ON")
 	end)
-else
-	warn("[ClientBoot] LevelReady RemoteEvent no encontrado")
 end
 
--- ── 4. Vuelta al menú ──────────────────────────────────────────────────────
--- El swap de GUIs al volver al menú lo gestiona HUDController.doReturnToMenu().
--- ClientBoot solo es responsable de activar GUIs al cargar un nivel (paso 3 arriba).
+if levelUnloadedEv then
+	levelUnloadedEv.OnClientEvent:Connect(function()
+		hud.Enabled  = false
+		menu.Enabled = true
+		setCameraMenu()
+		UIS.MouseBehavior = Enum.MouseBehavior.Default
+		print("[ClientBoot] ✅ LevelUnloaded → HUD OFF | menú ON")
+	end)
+end
 
-print("[ClientBoot] ✅ Activo — gestionando ciclo de vida de GUIs")
+setCameraMenu()
+print("[ClientBoot] ✅ Activo")
