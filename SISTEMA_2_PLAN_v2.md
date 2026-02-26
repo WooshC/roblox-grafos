@@ -11,6 +11,71 @@
 
 ---
 
+## Estado de Implementación (actualizado 2026-02-25)
+
+### ✅ COMPLETADO — Etapas 0 a 3
+
+| Archivo | Ubicación | Estado |
+|---|---|---|
+| `EventRegistry.server.lua` | ServerScriptService/ | ✅ Implementado |
+| `Boot.server.lua` | ServerScriptService/ | ✅ Implementado |
+| `DataService.lua` | ServerScriptService/ | ✅ Implementado |
+| `LevelLoader.lua` | ServerScriptService/ | ✅ Implementado |
+| `CamaraMenuSetup.lua` | ServerScriptService/ | ✅ Implementado |
+| `crearGUIMenu.lua` | GrafosV2/ (raíz) | ✅ Funciona — ver nota ① |
+| `LevelsConfig.lua` | ReplicatedStorage/Config/ | ✅ Implementado |
+| `ClientBoot.lua` | StarterPlayer/StarterPlayerScripts/ | ✅ Implementado |
+| `MenuController.client.lua` | StarterPlayer/StarterPlayerScripts/ | ✅ Implementado |
+| `HUDController.client.lua` | StarterPlayer/StarterPlayerScripts/ | ✅ Implementado |
+
+### 🖥️ GUIs pre-construidas (YA EXISTEN en Roblox Studio)
+
+Ambas GUIs están creadas manualmente en Studio. **NO** generarlas por script.
+
+| GUI | Ubicación en Studio | Notas |
+|---|---|---|
+| `EDAQuestMenu` (ScreenGui) | StarterGui/ | Menú principal, ya existe |
+| `GUIExploradorV2` (ScreenGui) | StarterGui/ | HUD de gameplay, ya existe |
+
+`Boot.server.lua` copia StarterGui → PlayerGui manualmente (CharacterAutoLoads = false).
+
+### ✅ Fixes aplicados (2026-02-25)
+
+**Fix ①: Solapamiento LevelReady**
+- `ClientBoot` es la única autoridad en activar/desactivar ScreenGuis al recibir LevelReady.
+- `HUDController` ya NO hace `hud.Enabled = true/false` en LevelReady — solo resetea `isReturning` y `fadeOverlay`.
+
+**Fix ②: Listener muerto de ReturnToMenu eliminado de ClientBoot**
+- `ClientBoot` eliminó su listener de `ReturnToMenu` (Boot.server.lua nunca lo dispara al cliente).
+- `HUDController.doReturnToMenu()` es el dueño del flujo completo: fade → FireServer → swap GUI.
+
+### ✅ Completado — Etapa 4 (2026-02-25)
+
+| Archivo | Estado | Notas |
+|---|---|---|
+| `ConectarCables.lua` | ✅ Implementado | Lógica pura: adyacencias, Beam celeste, disconnect penaliza |
+| `ScoreTracker.lua` | ✅ Implementado | Aciertos, fallos, desconexiones, cronómetro |
+| `VisualEffectsService.client.lua` | ✅ Implementado | Highlight Roblox (AlwaysOnTop) + Material Neon en Selector, solo flash rojo |
+| `ZoneTriggerManager.lua` | ✅ Implementado | Touched+TouchEnded, ZoneEntered+ZoneExited, primeraVez flag |
+
+**Cambios de arquitectura aplicados (Etapa 4):**
+- **Beam en lugar de RopeConstraint** — cable siempre tenso (`CurveSize = 0`), celeste `RGB(0,200,255)`, `FaceCamera = true`
+- **Separación lógica/visual** — `ConectarCables` solo adyacencias/estado; `VisualEffectsService` todos los efectos visuales
+- **Highlight doble al seleccionar** — Roblox `Highlight` instance (`DepthMode = AlwaysOnTop`) + `Material = Neon` en BasePart del Selector en cyan; adyacentes en dorado. **Visible a través de paredes** (AlwaysOnTop renderiza encima de toda la geometría)
+- **Un solo tipo de error visual** — flash rojo siempre; `DireccionInvalida` solo en log de debug
+- **Disconnect penaliza puntaje** — desconectar un cable descuenta 1 conexión del puntajeBase en el HUD
+- **ZoneTriggerManager** — `Touched`+`TouchEnded` en `NivelActual/Zonas/Zonas_juego/<TriggerPart>`; `ZoneEntered`+`ZoneExited` BindableEvents; `primeraVez` flag; API pública: `isEnZona()`, `isZonaVisitada()`, `getZonaActual()`
+- **Zonas en LevelsConfig** — `Zonas = { { nombre, trigger } }` por nivel; añadir Parts en Studio y la entrada en config
+
+### 🔜 PENDIENTE — Etapa 5
+
+Próximos archivos a crear (en orden):
+1. `GameplayManager.server.lua` — orquesta activate/deactivate de todos los módulos
+2. `MissionService.lua` — valida misiones por zona (condición de victoria)
+3. `VictoryScreen.lua` — pantalla de resultados con desglose completo
+
+---
+
 ## Tabla de Contenido
 
 1. [Visión general del flujo](#1-visión-general-del-flujo)
@@ -611,14 +676,29 @@ ScreenGui "GUIExploradorV2"
 
 ```lua
 -- Al conectar exitosamente:
-ScoreTracker:registrarConexion()      -- +1 conexión válida
+ScoreTracker:registrarConexion()      -- +1 conexión → puntajeBase sube en HUD
 
 -- Al intentar conexión inválida:
-ScoreTracker:registrarFallo()         -- +1 fallo (resta puntos al final)
+ScoreTracker:registrarFallo()         -- +1 fallo (resta puntos al final, NO en HUD)
 
--- Al desconectar un cable:
--- No afecta el conteo de fallos (el jugador puede reajustar libremente)
+-- Al desconectar un cable (hitbox click o reconectar el mismo par):
+ScoreTracker:registrarDesconexion()   -- -1 conexión → puntajeBase baja en HUD
 ```
+
+### `VisualEffectsService.client.lua` — Efectos de selección
+
+Escucha `NotificarSeleccionNodo` (RemoteEvent) y aplica efectos localmente:
+
+```
+NodoSeleccionado → SelectionBox CYAN en nodo seleccionado
+                 → SelectionBox DORADO en cada nodo adyacente
+SeleccionCancelada / ConexionCompletada / CableDesconectado → limpiar todo
+ConexionInvalida   → limpiar + flash ROJO   en nodo destino (no son adyacentes)
+DireccionInvalida  → limpiar + flash NARANJA en nodo destino (arista existe al revés)
+```
+
+Los Beams (cables conectados) son creados server-side con color celeste brillante
+`RGB(0, 200, 255)`, `CurveSize = 0` (siempre tenso), `FaceCamera = true`.
 
 ### `GuiaService.lua` — Consciente de zonas y dificultad
 
@@ -1002,34 +1082,20 @@ MissionService:onMissionCompleted(function(id, pts)
 end)
 ```
 
-### 13.4 ConectarCables — ClickDetector en RopeConstraint es frágil
+### 13.4 ConectarCables — Cable visual y hitbox ✅ RESUELTO
 
-**Problema actual**: `ConectarCables` coloca un `ClickDetector` dentro de un
-`RopeConstraint`. Los `ClickDetector` solo funcionan correctamente en `BasePart`,
-no en `RopeConstraint`. La desconexión por click en el cable puede fallar.
-
-**Solución**: Usar una `BasePart` invisible y delgada como hitbox del cable,
-o usar `UserInputService` + raycasting para detectar clicks en cables.
+**Solución implementada**:
+- Cable visual: **`Beam`** (no `RopeConstraint`). Siempre tenso (`CurveSize0/1 = 0`),
+  color celeste brillante, `FaceCamera = true`.
+- Click-to-disconnect: `BasePart` hitbox invisible centrado en el cable con `ClickDetector`.
+- El `Beam` es hijo del hitbox → ambos se destruyen juntos con `hitbox:Destroy()`.
+- Desconectar llama `ScoreTracker:registrarDesconexion()` (descuenta del puntaje base visible).
 
 ```lua
--- ✅ Hitbox para el cable
-local hitbox = Instance.new("Part")
-hitbox.Name = "CableHitbox_" .. poste1.Name .. "_" .. poste2.Name
-hitbox.Size = Vector3.new(0.3, 0.3, distanciaStuds)
-hitbox.CFrame = CFrame.new(midPoint, att2.WorldPosition)
-hitbox.Transparency = 1
-hitbox.CanCollide = false
-hitbox.Anchored = true
-hitbox.Parent = carpetaConexiones
-
-local cd = Instance.new("ClickDetector")
-cd.MaxActivationDistance = 20
-cd.Parent = hitbox
-
-cd.MouseClick:Connect(function(player)
-  desconectarPostes(poste1, poste2, player)
-  hitbox:Destroy()
-end)
+-- Estructura en Conexiones/
+-- ├── Hitbox_NomA_NomB (Part, invisible, anchored)
+-- │   ├── Cable_NomA_NomB (Beam, celeste, CurveSize=0)
+-- │   └── ClickDetector
 ```
 
 ### 13.5 GuiaService — Debería avanzar por zonas completadas
