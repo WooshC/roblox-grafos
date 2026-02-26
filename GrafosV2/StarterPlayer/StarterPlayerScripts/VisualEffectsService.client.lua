@@ -36,6 +36,8 @@ local player = Players.LocalPlayer
 local eventsFolder  = RS:WaitForChild("Events", 10)
 local remotesFolder = eventsFolder and eventsFolder:WaitForChild("Remotes", 5)
 local notifyEv      = remotesFolder and remotesFolder:WaitForChild("NotificarSeleccionNodo", 5)
+-- PlayEffect: efectos adicionales disparados por VisualEffectsManager (servidor)
+local playEffectEv  = remotesFolder and remotesFolder:WaitForChild("PlayEffect", 5)
 
 if not notifyEv then
 	warn("[VisualEffectsService] ❌ NotificarSeleccionNodo no encontrado — módulo inactivo")
@@ -45,7 +47,8 @@ end
 -- ── Colores ──────────────────────────────────────────────────────────────────
 local COLOR_SELECTED = Color3.fromRGB(0,   212, 255)  -- cyan:  nodo seleccionado
 local COLOR_ADJACENT = Color3.fromRGB(255, 200,  50)  -- dorado: nodos adyacentes válidos
-local COLOR_INVALID  = Color3.fromRGB(239,  68,  68)  -- rojo:  conexión inválida
+local COLOR_INVALID   = Color3.fromRGB(239,  68,  68)  -- rojo:  conexión inválida
+local COLOR_ENERGIZED = Color3.fromRGB(0,   200, 255)  -- cian:  nodo energizado pulsante
 
 -- ── Estado activo ─────────────────────────────────────────────────────────────
 -- Instancias Highlight creadas (se destruyen en clearAll)
@@ -53,6 +56,8 @@ local _highlights  = {}
 -- Estado original de cada BasePart modificada (se restaura en clearAll)
 -- { part, origColor, origMaterial, origTransparency }
 local _savedStates = {}
+-- BillboardGui cross-room creados (se destruyen en clearAll)
+local _billboards  = {}
 
 -- ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -99,19 +104,50 @@ local function styleBasePart(part, color)
 	part.Transparency = 0.10                -- casi sólido
 end
 
+-- BillboardGui flotante con AlwaysOnTop = true sobre la BasePart.
+-- Visible a través de paredes y a distancia arbitraria (cross-room).
+local function addBillboard(part, color)
+	if not part or not part:IsA("BasePart") then return end
+	local bb                      = Instance.new("BillboardGui")
+	bb.Adornee                    = part
+	bb.StudsOffsetWorldSpace      = Vector3.new(0, 4, 0)  -- siempre vertical en world-space
+	bb.AlwaysOnTop                = true   -- visible a través de paredes ✅
+	bb.Size                       = UDim2.fromOffset(50, 50)
+	bb.ResetOnSpawn               = false
+	bb.Parent                     = Workspace
+
+	local icon                    = Instance.new("TextLabel")
+	icon.Size                     = UDim2.fromScale(1, 1)
+	icon.BackgroundTransparency   = 1
+	icon.Text                     = "●"
+	icon.TextColor3               = color
+	icon.TextScaled               = true
+	icon.Parent                   = bb
+
+	table.insert(_billboards, bb)
+end
+
 -- Aplica Highlight + estilo a la Part "Selector" de un nodoModel.
 local function highlightNode(nodoModel, color)
 	local adornee, basePart = getSelectorTarget(nodoModel)
-	if adornee   then addHighlight(adornee, color) end
-	if basePart  then styleBasePart(basePart, color) end
+	if adornee  then addHighlight(adornee, color) end
+	if basePart then
+		styleBasePart(basePart, color)
+		addBillboard(basePart, color)   -- cross-room: visible a través de paredes
+	end
 end
 
--- Destruye todos los Highlights y restaura las BaseParts a su estado original.
+-- Destruye todos los Highlights, BillboardGuis y restaura las BaseParts.
 local function clearAll()
 	for _, h in ipairs(_highlights) do
 		if h and h.Parent then h:Destroy() end
 	end
 	_highlights = {}
+
+	for _, b in ipairs(_billboards) do
+		if b and b.Parent then b:Destroy() end
+	end
+	_billboards = {}
 
 	for _, state in ipairs(_savedStates) do
 		if state.part and state.part.Parent then
@@ -178,5 +214,47 @@ notifyEv.OnClientEvent:Connect(function(eventType, arg1, arg2)
 
 	end
 end)
+
+-- ── Handler PlayEffect ────────────────────────────────────────────────────────
+-- Efectos adicionales disparados por VisualEffectsManager (servidor).
+-- Complementa NotificarSeleccionNodo con nuevos tipos de efecto.
+if playEffectEv then
+	playEffectEv.OnClientEvent:Connect(function(effectType, arg1, arg2)
+
+		if effectType == "NodeSelected" then
+			-- arg1 = nodoModel, arg2 = adjModels[] (mismo formato que NodoSeleccionado)
+			clearAll()
+			if arg1 then highlightNode(arg1, COLOR_SELECTED) end
+			if type(arg2) == "table" then
+				for _, adjModel in ipairs(arg2) do
+					if adjModel and adjModel ~= arg1 then
+						highlightNode(adjModel, COLOR_ADJACENT)
+					end
+				end
+			end
+
+		elseif effectType == "NodeError" then
+			-- arg1 = nodoModel → flash rojo breve
+			clearAll()
+			flashModel(arg1, COLOR_INVALID, 0.35)
+
+		elseif effectType == "NodeEnergized" then
+			-- arg1 = nodoModel → glow cian pulsante (permanente hasta ClearAll)
+			clearAll()
+			if arg1 then highlightNode(arg1, COLOR_ENERGIZED) end
+
+		elseif effectType == "CableConnected"
+			or effectType == "CableRemoved"
+			or effectType == "ZoneComplete"
+			or effectType == "ClearAll" then
+			-- Limpiar efectos activos en cualquiera de estos eventos
+			clearAll()
+
+		end
+	end)
+	print("[EDA v2] ✅ VisualEffectsService — PlayEffect conectado")
+else
+	warn("[EDA v2] ⚠ PlayEffect no encontrado — efectos adicionales desactivados")
+end
 
 print("[EDA v2] ✅ VisualEffectsService activo")

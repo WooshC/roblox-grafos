@@ -115,11 +115,26 @@ requestPlayLEv.OnServerEvent:Connect(function(player, nivelID)
 			local puntosConexion = config and config.Puntuacion and config.Puntuacion.PuntosConexion or 50
 			local penaFallo      = config and config.Puntuacion and config.Puntuacion.PenaFallo      or 10
 
+			-- FIX: convertir dict Zonas → array { {nombre, trigger} }
+			-- ZoneTriggerManager usa #zonas == 0 como guarda; #dict == 0 siempre en Lua
+			-- → sin esta conversión ninguna zona se registra jamás
+			local function buildZonasArray(zonasDict)
+				local arr = {}
+				for nombre, cfg in pairs(zonasDict or {}) do
+					if cfg.Trigger then
+						table.insert(arr, { nombre = nombre, trigger = cfg.Trigger })
+					end
+				end
+				return arr
+			end
+			local zonasArr = buildZonasArray(config and config.Zonas)
+
 			ScoreTracker:startLevel(player, nivelID, puntosConexion, penaFallo)
 			ConectarCables.activate(nivelActual, adjacencias, player, ScoreTracker)
-			ZoneTriggerManager.activate(nivelActual, config and config.Zonas or {}, player)
+			ZoneTriggerManager.activate(nivelActual, zonasArr, player)
 			print("[EDA v2] ✅ ScoreTracker + ConectarCables + ZoneTriggerManager activos — Nivel", nivelID,
-				"/ adyacencias:", adjacencias ~= nil and "definidas" or "modo permisivo")
+				"/ adyacencias:", adjacencias ~= nil and "definidas" or "modo permisivo",
+				"/ zonas:", #zonasArr)
 		else
 			warn("[EDA v2] NivelActual no encontrado en Workspace tras cargar")
 		end
