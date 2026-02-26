@@ -324,10 +324,10 @@ GUIExploradorV2  (ScreenGui)
 │           │   ├── TituloVictoria
 │           │   └── EstrellasMostrar  (Estrella1, Estrella2, Estrella3)
 │           ├── EstadisticasFrame
-│           │   ├── FilaTiempo   →  Val  (TextLabel)
-│           │   ├── FilaAciertos →  Val
-│           │   ├── FilaErrores  →  Val
-│           │   └── FilaPuntaje  →  Val
+│           │   ├── FilaTiempo   →  Valor  (TextLabel)
+│           │   ├── FilaAciertos →  Valor
+│           │   ├── FilaErrores  →  Valor
+│           │   └── FilaPuntaje  →  Valor
 │           └── BotonesFrame
 │               ├── BotonRepetir    →  RestartLevel:FireServer(nivelID)
 │               └── BotonContinuar  →  ReturnToMenu:FireServer()
@@ -338,8 +338,8 @@ GUIExploradorV2  (ScreenGui)
 ```
 
 > **Regla — nombre del TextLabel de valores:**
-> Todos los labels que muestran valores se llaman `Val` (no `Valor`).
-> Los scripts buscan `"Val"` primero con fallback a `"Valor"` por compatibilidad.
+> Todos los labels que muestran valores se llaman `Valor` (no `Val` o 'V').
+> Los scripts deben buscar `"Valor"` primero con fallback a `"Val"` por compatibilidad.
 > Aplica a: `ContenedorPuntos`, `FilaTiempo`, `FilaAciertos`, `FilaErrores`, `FilaPuntaje`,
 > y todos los hijos de `StatsGrid` (`StatScore`, `StatAciert`, `StatFallos`, etc.).
 
