@@ -164,14 +164,14 @@ notifyEv.OnClientEvent:Connect(function(eventType, arg1, arg2)
 			end
 		end
 
-	-- ── Limpiar highlights ─────────────────────────────────────────────────
+		-- ── Limpiar highlights ─────────────────────────────────────────────────
 	elseif eventType == "SeleccionCancelada"
 		or eventType == "ConexionCompletada"
 		or eventType == "CableDesconectado" then
 		clearAll()
 
-	-- ── Conexión inválida: flash rojo en nodo destino ─────────────────────
-	-- arg1 = nodoModel del segundo nodo
+		-- ── Conexión inválida: flash rojo en nodo destino ─────────────────────
+		-- arg1 = nodoModel del segundo nodo
 	elseif eventType == "ConexionInvalida" then
 		clearAll()
 		flashModel(arg1, COLOR_INVALID, 0.35)
