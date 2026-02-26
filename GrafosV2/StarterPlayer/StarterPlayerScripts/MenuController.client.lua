@@ -1,29 +1,30 @@
 -- MenuController.client.lua
--- Ubicación Roblox: StarterPlayerScripts/MenuController  (LocalScript)
+-- Ubicación Roblox: StarterGui  (LocalScript)
+--
+-- Correcciones en esta versión:
+-- 1. Hero muestra ImageLabel con lv.imageId (además del emoji se reemplaza por imagen)
+-- 2. updateSidebar usa nombres correctos: highScore, estrellas, tiempoMejor, conceptos
+-- 3. Tras ReturnToMenu: loadProgress recarga datos Y re-llama updateSidebar si hay
+--    un nivel seleccionado, para que StatsGrid.Val se vea actualizado inmediatamente
+-- 4. buildGrid/loadProgress siempre reconstruye LEVELS desde el servidor
 
-local Players          = game:GetService("Players")
-local TweenService     = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
-local RS               = game:GetService("ReplicatedStorage")
+local Players      = game:GetService("Players")
+local RS           = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 
-local player    = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
-
-local root = playerGui:WaitForChild("EDAQuestMenu", 30)
-if not root then
-	warn("[MenuController] ❌ EDAQuestMenu no encontrado en PlayerGui.")
-	return
-end
-print("[MenuController] ✅ EDAQuestMenu encontrada")
+local player = Players.LocalPlayer
+local root   = player.PlayerGui:WaitForChild("EDAQuestMenu", 15)
+if not root then warn("[MenuController] EDAQuestMenu no encontrado"); return end
 
 -- ── Eventos ────────────────────────────────────────────────────────────────
 local eventsFolder  = RS:WaitForChild("Events", 10)
-local remotesFolder = eventsFolder:WaitForChild("Remotes", 5)
+local remotesFolder = eventsFolder and eventsFolder:WaitForChild("Remotes", 5)
 
-local serverReadyEv  = remotesFolder:FindFirstChild("ServerReady")
-local requestPlayLEv = remotesFolder:FindFirstChild("RequestPlayLevel")
-local levelReadyEv   = remotesFolder:FindFirstChild("LevelReady")
-local getProgressFn  = remotesFolder:FindFirstChild("GetPlayerProgress")
+local serverReadyEv  = remotesFolder and remotesFolder:FindFirstChild("ServerReady")
+local requestPlayLEv = remotesFolder and remotesFolder:FindFirstChild("RequestPlayLevel")
+local levelReadyEv   = remotesFolder and remotesFolder:FindFirstChild("LevelReady")
+local returnToMenuEv = remotesFolder and remotesFolder:FindFirstChild("ReturnToMenu")
+local getProgressFn  = remotesFolder and remotesFolder:FindFirstChild("GetPlayerProgress")
 
 -- ── Frames ─────────────────────────────────────────────────────────────────
 local S1 = root:WaitForChild("FrameMenu")
@@ -32,434 +33,465 @@ local S3 = root:WaitForChild("FrameSettings")
 local S4 = root:WaitForChild("FrameCredits")
 local S5 = root:WaitForChild("FrameExit")
 
--- ── Colores / fuentes ──────────────────────────────────────────────────────
+-- ── Paleta ─────────────────────────────────────────────────────────────────
 local C = {
 	accent  = Color3.fromRGB(0,   212, 255),
 	accent3 = Color3.fromRGB(16,  185, 129),
 	panel   = Color3.fromRGB(17,  25,  39),
+	bg      = Color3.fromRGB(4,   7,   14),
 	border  = Color3.fromRGB(30,  45,  66),
 	muted   = Color3.fromRGB(100, 116, 139),
+	dim     = Color3.fromRGB(55,  65,  81),
 	gold    = Color3.fromRGB(245, 158, 11),
 	text    = Color3.fromRGB(226, 232, 240),
 	black   = Color3.fromRGB(0,   0,   0),
 	danger  = Color3.fromRGB(239, 68,  68),
-	dim     = Color3.fromRGB(51,  65,  85),
 }
 local F = {
-	title = Enum.Font.GothamBlack,
 	mono  = Enum.Font.RobotoMono,
-	body  = Enum.Font.Gotham,
 	bold  = Enum.Font.GothamBold,
+	body  = Enum.Font.Gotham,
+	title = Enum.Font.GothamBlack,
 }
-
 local STATUS_COLORS = { completado=C.gold, disponible=C.accent3, bloqueado=C.muted }
-local STATUS_TEXTS  = { completado="✓ COMPLETADO", disponible="DISPONIBLE", bloqueado="🔒 BLOQUEADO" }
+local STATUS_TEXTS  = { completado="◆ COMPLETADO", disponible="◆ DISPONIBLE", bloqueado="🔒 BLOQUEADO" }
 
--- ── Estado ─────────────────────────────────────────────────────────────────
-local LEVELS          = {}   -- llenado desde servidor, nunca hardcodeado
+-- ── Helpers UI ─────────────────────────────────────────────────────────────
+local function n(class, props, parent)
+	local inst = Instance.new(class)
+	for k, v in pairs(props) do inst[k] = v end
+	if parent then inst.Parent = parent end
+	return inst
+end
+local function corner(r, p) n("UICorner", {CornerRadius=UDim.new(0,r)}, p) end
+local function stroke(c, t, p) return n("UIStroke", {Color=c, Thickness=t}, p) end
+local function pad(t, b, l, r, p)
+	local pd = Instance.new("UIPadding")
+	pd.PaddingTop=UDim.new(0,t); pd.PaddingBottom=UDim.new(0,b)
+	pd.PaddingLeft=UDim.new(0,l); pd.PaddingRight=UDim.new(0,r)
+	pd.Parent=p
+end
+local function tween(obj, props, t)
+	TweenService:Create(obj, TweenInfo.new(t or 0.3), props):Play()
+end
+
+-- ── Estado global ──────────────────────────────────────────────────────────
+local LEVELS          = {}
 local selectedLevelID = nil
 local isLoading       = false
 local loadStartTime   = 0
--- Bandera para evitar doble carga (ServerReady + task.delay de respaldo)
 local progressLoaded  = false
+local menuCameraActive = false
 
--- ── Helpers UI ────────────────────────────────────────────────────────────
-local function n(cls, props, par)
-	local o = Instance.new(cls)
-	for k,v in pairs(props) do o[k]=v end
-	if par then o.Parent=par end
-	return o
-end
-local function corner(r,p) n("UICorner",{CornerRadius=UDim.new(0,r)},p) end
-local function stroke(col,th,p) n("UIStroke",{Color=col,Thickness=th},p) end
-
-local function tween(obj, props, t, style)
-	local tw = TweenService:Create(obj,
-		TweenInfo.new(t or 0.15, style or Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		props)
-	tw:Play(); return tw
-end
-
-local function formatTime(s)
-	if not s or s==0 then return "—" end
-	return string.format("%d:%02d", math.floor(s/60), s%60)
-end
+-- forward declarations
+local updateSidebar
+local connectLevelCards
 
 -- ── Cámara ─────────────────────────────────────────────────────────────────
 local camera = workspace.CurrentCamera
-
 local function setupMenuCamera()
+	local camObj = workspace:FindFirstChild("CamaraMenu", true)
+	if not camObj then menuCameraActive=false; return end
+	local part = (camObj:IsA("BasePart") and camObj)
+		or (camObj:IsA("Model") and camObj.PrimaryPart)
+	if not part then menuCameraActive=false; return end
 	camera.CameraType = Enum.CameraType.Scriptable
-
-	-- Buscar primero en ReplicatedStorage (recomendado: sin personaje el
-	-- Workspace puede no estar listo en el cliente al arrancar el menú).
-	-- Si no está ahí, buscar en Workspace como fallback.
-	local camPart = nil
-
-	local camRS = RS:FindFirstChild("CamaraMenu")
-	if camRS then
-		camPart = camRS:IsA("BasePart") and camRS
-			or (camRS:IsA("Model") and camRS.PrimaryPart)
-	end
-
-	if not camPart then
-		local camWS = workspace:FindFirstChild("CamaraMenu", true)
-		if camWS then
-			camPart = camWS:IsA("BasePart") and camWS
-				or (camWS:IsA("Model") and camWS.PrimaryPart)
-		end
-	end
-
-	if camPart then
-		camera.CFrame = camPart.CFrame
-	else
-		-- Fallback neutro si no existe CamaraMenu en ningún lugar
-		camera.CFrame = CFrame.new(0, 20, 40) * CFrame.Angles(math.rad(-15), math.rad(180), 0)
-	end
+	camera.CFrame     = part.CFrame
+	menuCameraActive  = true
 end
-
 local function restoreGameCamera()
 	camera.CameraType = Enum.CameraType.Custom
+	menuCameraActive  = false
 end
 
-setupMenuCamera()  -- inmediato al arrancar
-
--- ── Transición ─────────────────────────────────────────────────────────────
-local transOverlay = n("Frame",{
-	Name="TransitionOverlay", Size=UDim2.new(1,0,1,0),
-	BackgroundColor3=Color3.new(0,0,0), BackgroundTransparency=1,
-	BorderSizePixel=0, ZIndex=200, Visible=false,
-}, root)
-local loadingLbl = n("TextLabel",{
-	Size=UDim2.new(0.6,0,0,30), Position=UDim2.new(0.2,0,0.5,-15),
-	BackgroundTransparency=1, Text="Cargando...",
-	TextColor3=Color3.fromRGB(226,232,240), Font=F.mono,
-	TextSize=14, TextXAlignment=Enum.TextXAlignment.Center, ZIndex=201,
-}, transOverlay)
-
-local function fadeIn(dur, cb)
-	transOverlay.BackgroundTransparency=1; transOverlay.Visible=true
-	local tw=tween(transOverlay,{BackgroundTransparency=0},dur or 0.35,Enum.EasingStyle.Linear)
-	if cb then tw.Completed:Connect(cb) end
+-- ── Fade ───────────────────────────────────────────────────────────────────
+local loadingScreen = S2:FindFirstChild("LoadingFrame", true)
+local loadingLbl    = loadingScreen and loadingScreen:FindFirstChild("LoadingText")
+local function fadeIn(t, cb)
+	if loadingScreen then
+		loadingScreen.Visible=true; loadingScreen.BackgroundTransparency=1
+		tween(loadingScreen, {BackgroundTransparency=0}, t)
+	end
+	task.delay(t, function() if cb then cb() end end)
 end
-local function fadeOut(dur, cb)
-	local tw=tween(transOverlay,{BackgroundTransparency=1},dur or 0.35,Enum.EasingStyle.Linear)
-	tw.Completed:Connect(function() transOverlay.Visible=false; if cb then cb() end end)
-end
-
--- ════════════════════════════════════════════════════════════════════
--- GRID DINÁMICO
--- ════════════════════════════════════════════════════════════════════
-
-local connectLevelCards  -- forward declaration
-
--- Limpia TODO el contenido dinámico del grid, preservando solo
--- ProgressBar, LoadingFrame y el UIListLayout.
-local function clearGrid(gridScroll)
-	local KEEP = { ProgressBar=true, LoadingFrame=true, UIListLayout=true }
-	for _, child in ipairs(gridScroll:GetChildren()) do
-		if not KEEP[child.Name] and not child:IsA("UIListLayout") then
-			child:Destroy()
-		end
+local function fadeOut(t, cb)
+	if loadingScreen then
+		tween(loadingScreen, {BackgroundTransparency=1}, t)
+		task.delay(t, function() loadingScreen.Visible=false; if cb then cb() end end)
+	else
+		if cb then cb() end
 	end
 end
 
+-- ── Formato tiempo ─────────────────────────────────────────────────────────
+local function formatTime(s)
+	if not s or s <= 0 then return "—" end
+	return string.format("%d:%02d", math.floor(s/60), math.floor(s%60))
+end
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- TARJETA DE NIVEL
+-- Mitad superior: ImageZone (imagen del nivel)
+-- Mitad inferior: badge estado, nombre, algoritmo, footer estrellas/score
+-- ════════════════════════════════════════════════════════════════════════════
+local CARD_W = 200
+local CARD_H = 200
+local IMG_H  = 90
+
 local function buildLevelCard(lv, col, row, cont)
-	local sc = STATUS_COLORS[lv.status] or C.muted
-	local card = n("TextButton",{
+	local sc   = STATUS_COLORS[lv.status] or C.muted
+	local card = n("TextButton", {
 		Name="Card"..lv.nivelID,
-		Size=UDim2.new(0,200,0,165),
-		Position=UDim2.new(0, col*214, 0, row*175),
+		Size=UDim2.new(0,CARD_W,0,CARD_H),
+		Position=UDim2.new(0, col*(CARD_W+14), 0, row*(CARD_H+14)),
 		BackgroundColor3=C.panel, Text="", AutoButtonColor=false,
 		BorderSizePixel=0, ZIndex=4,
 	}, cont)
-	corner(10,card); stroke(lv.status=="completado" and C.gold or C.border, 1, card)
+	corner(10, card)
+	stroke(lv.status=="completado" and C.gold or C.border, 1, card)
 
-	-- Etiqueta nivel
-	n("TextLabel",{Size=UDim2.new(0,60,0,14),Position=UDim2.new(0,12,0,10),
-		BackgroundTransparency=1,Text="Nivel "..lv.nivelID,TextColor3=C.accent,
-		Font=F.mono,TextSize=9,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5},card)
+	-- Zona imagen
+	local imgZone = n("Frame", {
+		Name="ImageZone",
+		Size=UDim2.new(1,0,0,IMG_H),
+		BackgroundColor3=Color3.fromRGB(8,14,26),
+		BorderSizePixel=0, ZIndex=5, ClipsDescendants=true,
+	}, card)
+	corner(10, imgZone)
+	-- Cuadrar esquinas inferiores del frame de imagen
+	n("Frame",{Size=UDim2.new(1,0,0,10),Position=UDim2.new(0,0,1,-10),
+		BackgroundColor3=Color3.fromRGB(8,14,26),BorderSizePixel=0,ZIndex=6},imgZone)
+
+	if lv.imageId and lv.imageId ~= "" then
+		n("ImageLabel",{
+			Name="LevelImage", Size=UDim2.new(1,0,1,0),
+			BackgroundTransparency=1, Image=lv.imageId,
+			ScaleType=Enum.ScaleType.Crop, ZIndex=7,
+		}, imgZone)
+	else
+		local fb=n("Frame",{Size=UDim2.new(1,0,1,0),BackgroundColor3=C.accent,
+			BackgroundTransparency=0.82,BorderSizePixel=0,ZIndex=7},imgZone)
+		n("TextLabel",{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,
+			Text=tostring(lv.nivelID),TextColor3=C.accent,Font=F.title,TextSize=36,ZIndex=8},fb)
+	end
+
+	-- Divisor
+	n("Frame",{Size=UDim2.new(1,0,0,1),Position=UDim2.new(0,0,0,IMG_H),
+		BackgroundColor3=C.border,BorderSizePixel=0,ZIndex=5},card)
+
+	local cY = IMG_H+1
 
 	-- Badge estado
-	local sbg=n("Frame",{Name="StatusBadge",Size=UDim2.new(0,90,0,16),
-		Position=UDim2.new(1,-98,0,9),BackgroundColor3=sc,
-		BackgroundTransparency=0.88,BorderSizePixel=0,ZIndex=5},card)
+	local sbg=n("Frame",{Name="StatusBadge",Size=UDim2.new(1,-24,0,16),
+		Position=UDim2.new(0,12,0,cY+8),BackgroundColor3=sc,
+		BackgroundTransparency=0.85,BorderSizePixel=0,ZIndex=5},card)
 	corner(3,sbg); stroke(sc,1,sbg)
 	n("TextLabel",{Name="StatusText",Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,
 		Text=STATUS_TEXTS[lv.status] or "—",TextColor3=sc,Font=F.mono,TextSize=8,ZIndex=6},sbg)
 
-	-- Emoji
-	n("TextLabel",{Size=UDim2.new(1,0,0,40),Position=UDim2.new(0,0,0,26),
-		BackgroundTransparency=1,Text=lv.emoji or "🔵",Font=F.body,TextSize=28,ZIndex=5},card)
-
 	-- Nombre
-	n("TextLabel",{Size=UDim2.new(1,-24,0,32),Position=UDim2.new(0,12,0,68),
-		BackgroundTransparency=1,Text=lv.nombre,
-		TextColor3=lv.status=="bloqueado" and C.muted or C.text,
-		Font=F.bold,TextSize=12,TextXAlignment=Enum.TextXAlignment.Left,
+	n("TextLabel",{Name="CardName",Size=UDim2.new(1,-24,0,30),
+		Position=UDim2.new(0,12,0,cY+28),BackgroundTransparency=1,
+		Text=lv.nombre or "",TextColor3=lv.status=="bloqueado" and C.muted or C.text,
+		Font=F.bold,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,
 		TextWrapped=true,ZIndex=5},card)
 
 	-- Algoritmo
-	n("TextLabel",{Size=UDim2.new(1,-24,0,14),Position=UDim2.new(0,12,0,102),
+	n("TextLabel",{Size=UDim2.new(1,-24,0,14),Position=UDim2.new(0,12,0,cY+60),
 		BackgroundTransparency=1,Text="· "..(lv.algoritmo or "—"),
 		TextColor3=C.muted,Font=F.mono,TextSize=9,
 		TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5},card)
 
 	-- Footer
-	local ft=n("Frame",{Name="CardFooter",Size=UDim2.new(1,0,0,28),
-		Position=UDim2.new(0,0,1,-28),BackgroundTransparency=1,ZIndex=5},card)
+	local ft=n("Frame",{Name="CardFooter",Size=UDim2.new(1,0,0,26),
+		Position=UDim2.new(0,0,1,-26),BackgroundTransparency=1,ZIndex=5},card)
 	stroke(C.border,1,ft)
-	local ss="" for i=1,3 do ss=ss..(i<=lv.estrellas and "★" or "☆") end
-	n("TextLabel",{Name="CardStars",Size=UDim2.new(0,56,1,0),Position=UDim2.new(0,12,0,0),
-		BackgroundTransparency=1,Text=ss,TextColor3=C.gold,Font=F.body,TextSize=13,
+	local ss="" for i=1,3 do ss=ss..(i<=(lv.estrellas or 0) and "★" or "☆") end
+	n("TextLabel",{Name="CardStars",Size=UDim2.new(0,52,1,0),Position=UDim2.new(0,10,0,0),
+		BackgroundTransparency=1,Text=ss,TextColor3=C.gold,Font=F.body,TextSize=12,
 		TextXAlignment=Enum.TextXAlignment.Left,ZIndex=6},ft)
-	n("TextLabel",{Name="CardScore",Size=UDim2.new(0,70,1,0),Position=UDim2.new(1,-78,0,0),
-		BackgroundTransparency=1,Text=lv.highScore>0 and (lv.highScore.." pts") or "—",
-		TextColor3=C.gold,Font=F.mono,TextSize=10,
+	n("TextLabel",{Name="CardScore",Size=UDim2.new(0,72,1,0),Position=UDim2.new(1,-80,0,0),
+		BackgroundTransparency=1,
+		Text=(lv.highScore or 0)>0 and (lv.highScore.." pts") or "—",
+		TextColor3=C.gold,Font=F.mono,TextSize=9,
 		TextXAlignment=Enum.TextXAlignment.Right,ZIndex=6},ft)
 
 	-- Overlay candado
 	if lv.status=="bloqueado" then
 		local ov=n("Frame",{Name="LockOverlay",Size=UDim2.new(1,0,1,0),
 			BackgroundColor3=Color3.fromRGB(4,6,12),BackgroundTransparency=0.45,
-			BorderSizePixel=0,ZIndex=7},card)
+			BorderSizePixel=0,ZIndex=9},card)
 		corner(10,ov)
 		n("TextLabel",{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,
-			Text="🔒",Font=F.body,TextSize=26,ZIndex=8},ov)
+			Text="🔒",Font=F.body,TextSize=28,ZIndex=10},ov)
 	end
 	return card
 end
 
+-- ── updateCardVisuals ──────────────────────────────────────────────────────
+local function updateCardVisuals(card, lv)
+	local sc = STATUS_COLORS[lv.status] or C.muted
+	local st = card:FindFirstChildOfClass("UIStroke")
+	if st then st.Color = lv.status=="completado" and C.gold or C.border end
+
+	local imgZone = card:FindFirstChild("ImageZone")
+	if imgZone then
+		local imgLbl = imgZone:FindFirstChild("LevelImage")
+		if imgLbl and lv.imageId and lv.imageId~="" then imgLbl.Image=lv.imageId end
+	end
+
+	local sbg = card:FindFirstChild("StatusBadge",true)
+	if sbg then
+		sbg.BackgroundColor3=sc
+		local stk=sbg:FindFirstChildOfClass("UIStroke"); if stk then stk.Color=sc end
+		local stxt=sbg:FindFirstChild("StatusText"); if stxt then stxt.Text=STATUS_TEXTS[lv.status] or "—"; stxt.TextColor3=sc end
+	end
+	local nm=card:FindFirstChild("CardName",true); if nm then nm.TextColor3=lv.status=="bloqueado" and C.muted or C.text end
+	local ss="" for i=1,3 do ss=ss..(i<=(lv.estrellas or 0) and "★" or "☆") end
+	local stars=card:FindFirstChild("CardStars",true); if stars then stars.Text=ss end
+	local score=card:FindFirstChild("CardScore",true)
+	if score then score.Text=(lv.highScore or 0)>0 and (lv.highScore.." pts") or "—" end
+
+	local ov=card:FindFirstChild("LockOverlay")
+	if lv.status=="bloqueado" then
+		if not ov then
+			ov=n("Frame",{Name="LockOverlay",Size=UDim2.new(1,0,1,0),
+				BackgroundColor3=Color3.fromRGB(4,6,12),BackgroundTransparency=0.45,
+				BorderSizePixel=0,ZIndex=9},card)
+			corner(10,ov)
+			n("TextLabel",{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Text="🔒",Font=F.body,TextSize=28,ZIndex=10},ov)
+		end
+	else
+		if ov then ov:Destroy() end
+	end
+end
+
+-- ── Separador de sección ───────────────────────────────────────────────────
 local function buildSectionHeader(title, count, lo, parent)
-	local sh=n("Frame",{Size=UDim2.new(1,0,0,24),BackgroundTransparency=1,
-		ZIndex=4,LayoutOrder=lo},parent)
-	n("TextLabel",{Size=UDim2.new(0,210,1,0),BackgroundTransparency=1,Text=title,
-		TextColor3=C.muted,Font=F.bold,TextSize=10,
+	local sh=n("Frame",{Name="SecH_"..lo,Size=UDim2.new(1,0,0,28),
+		BackgroundTransparency=1,ZIndex=4,LayoutOrder=lo},parent)
+	n("TextLabel",{Size=UDim2.new(0,220,1,0),BackgroundTransparency=1,
+		Text=title:upper(),TextColor3=C.accent,Font=F.mono,TextSize=9,
 		TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5},sh)
 	n("Frame",{Size=UDim2.new(1,-230,0,1),Position=UDim2.new(0,220,0.5,0),
 		BackgroundColor3=C.border,BorderSizePixel=0,ZIndex=5},sh)
-	n("TextLabel",{Size=UDim2.new(0,80,1,0),Position=UDim2.new(1,-80,0,0),
-		BackgroundTransparency=1,Text=count.." niveles",TextColor3=C.dim,
-		Font=F.mono,TextSize=9,TextXAlignment=Enum.TextXAlignment.Right,ZIndex=5},sh)
+	n("TextLabel",{Size=UDim2.new(0,60,1,0),Position=UDim2.new(1,-60,0,0),
+		BackgroundTransparency=1,Text=count..(count==1 and " nivel" or " niveles"),
+		TextColor3=C.dim,Font=F.mono,TextSize=9,
+		TextXAlignment=Enum.TextXAlignment.Right,ZIndex=5},sh)
 end
 
+-- ── buildGrid ──────────────────────────────────────────────────────────────
 local function buildGrid(progressData)
-	local gridScroll = S2:FindFirstChild("GridArea", true)
+	local gridScroll = S2:FindFirstChild("GridArea",true)
 	if not gridScroll then warn("[MenuController] GridArea no encontrado"); return end
 
-	-- ── Limpiar TODO el contenido dinámico anterior ──────────────────────
-	clearGrid(gridScroll)
+	-- Limpiar contenido dinámico
+	local KEEP = {ProgressBar=true, LoadingFrame=true}
+	for _, child in ipairs(gridScroll:GetChildren()) do
+		if not KEEP[child.Name] and not child:IsA("UIListLayout") and not child:IsA("UIPadding") then
+			child:Destroy()
+		end
+	end
+	local lf=gridScroll:FindFirstChild("LoadingFrame"); if lf then lf.Visible=false end
 
-	-- Ocultar spinner
-	local loadingFrame = gridScroll:FindFirstChild("LoadingFrame")
-	if loadingFrame then loadingFrame.Visible=false end
-
-	-- ── Poblar LEVELS desde claves STRING del servidor ───────────────────
-	-- DataService envía {"0":{...},"1":{...},...} porque Roblox descarta la
-	-- clave numérica [0] al serializar RemoteFunctions. Convertimos aquí.
+	-- Reconstruir LEVELS desde datos del servidor (claves STRING)
 	LEVELS = {}
 	local totalNiveles = 0
 	for k, datos in pairs(progressData) do
 		local id = tonumber(k)
 		if id ~= nil and datos then
 			datos.nivelID = id
-			LEVELS[id]    = datos
-			totalNiveles += 1
+			LEVELS[id] = datos
+			totalNiveles = totalNiveles + 1
 		end
 	end
-	print("[MenuController] Niveles recibidos del servidor:", totalNiveles)
+	print("[MenuController] Niveles recibidos:", totalNiveles)
 
-	-- ── Agrupar por sección en orden numérico ─────────────────────────────
-	local secciones      = {}
-	local ordenSecciones = {}
-
+	-- Agrupar por sección
+	local secciones = {}
+	local ordenSec  = {}
 	for i = 0, 4 do
-		local datos = LEVELS[i]
-		if datos then
-			local sec = datos.seccion or "NIVELES"
-			if not secciones[sec] then
-				secciones[sec] = {}
-				table.insert(ordenSecciones, sec)
-			end
-			table.insert(secciones[sec], datos)
-		end
+		local d = LEVELS[i]; if not d then continue end
+		local sec = d.seccion or "NIVELES"
+		if not secciones[sec] then secciones[sec]={}; table.insert(ordenSec, sec) end
+		table.insert(secciones[sec], d)
 	end
-
-	-- Ordenar secciones por nivelID mínimo que contienen
-	table.sort(ordenSecciones, function(a,b)
+	table.sort(ordenSec, function(a,b)
 		local ma = secciones[a][1] and secciones[a][1].nivelID or 999
 		local mb = secciones[b][1] and secciones[b][1].nivelID or 999
 		return ma < mb
 	end)
 
-	-- ── Crear frames en el grid ───────────────────────────────────────────
-	-- ProgressBar ya tiene LayoutOrder=1, el spacer tras él tiene LayoutOrder=2.
-	-- Las secciones empiezan en 3 y van subiendo.
+	-- ProgressBar=LayoutOrder 1, spacer=2, secciones desde 3
 	local lo = 3
+	local cols = 2
 
-	for secIdx, secNombre in ipairs(ordenSecciones) do
+	for secIdx, secNombre in ipairs(ordenSec) do
 		local niveles = secciones[secNombre]
+		buildSectionHeader(secNombre, #niveles, lo, gridScroll); lo=lo+1
 
-		buildSectionHeader(secNombre, #niveles, lo, gridScroll)
-		lo += 1
-
-		local rows = math.ceil(#niveles / 2)
-		local cont = n("Frame",{
-			Name="Sec_"..secIdx,
-			Size=UDim2.new(1,0,0, rows*175),
-			BackgroundTransparency=1, ZIndex=4, LayoutOrder=lo,
-		}, gridScroll)
-		lo += 1
+		local rows  = math.ceil(#niveles/cols)
+		local contH = rows*(CARD_H+14)
+		local cont  = n("Frame",{Name="Sec_"..secIdx,Size=UDim2.new(1,0,0,contH),
+			BackgroundTransparency=1,ZIndex=4,LayoutOrder=lo},gridScroll); lo=lo+1
 
 		for i, lv in ipairs(niveles) do
-			buildLevelCard(lv, (i-1)%2, math.floor((i-1)/2), cont)
+			buildLevelCard(lv, (i-1)%cols, math.floor((i-1)/cols), cont)
 		end
 
-		-- Espaciador entre secciones
-		n("Frame",{Name="Gap_"..secIdx,Size=UDim2.new(1,0,0,22),
-			BackgroundTransparency=1, LayoutOrder=lo}, gridScroll)
-		lo += 1
+		n("Frame",{Name="Gap_"..secIdx,Size=UDim2.new(1,0,0,18),
+			BackgroundTransparency=1,LayoutOrder=lo},gridScroll); lo=lo+1
 	end
 
-	-- Actualizar CanvasSize después de que el layout procese
-	local layout = gridScroll:FindFirstChildOfClass("UIListLayout")
+	-- Ajustar CanvasSize
+	local layout=gridScroll:FindFirstChildOfClass("UIListLayout")
 	if layout then
 		task.defer(function()
-			gridScroll.CanvasSize = UDim2.new(0,0,0, layout.AbsoluteContentSize.Y+60)
+			gridScroll.CanvasSize=UDim2.new(0,0,0,layout.AbsoluteContentSize.Y+60)
 		end)
 	end
 
 	connectLevelCards()
-	print("[MenuController] ✅ Grid listo —", #ordenSecciones, "secciones,", totalNiveles, "niveles")
+	print("[MenuController] ✅ Grid listo —", #ordenSec, "secciones")
 end
 
-local function updateProgressBar(progressData)
-	local total, completed = 0, 0
-	for i=0,4 do
-		local lv = progressData[i]
-		if lv then
-			total += 1
-			if lv.status=="completado" then completed += 1 end
-		end
-	end
-	local progWrap = S2:FindFirstChild("ProgressBar", true)
-	if not progWrap then return end
-	local pct = total>0 and (completed/total) or 0
-	local pt  = progWrap:FindFirstChild("ProgText")
-	local pf  = progWrap:FindFirstChild("ProgFill")
-	local pp  = progWrap:FindFirstChild("ProgPct")
-	if pt then pt.Text=completed.." / "..total end
-	if pp then pp.Text=math.floor(pct*100).."%" end
-	if pf then tween(pf,{Size=UDim2.new(pct,0,1,0)},0.4) end
+-- ── updateProgressBar ──────────────────────────────────────────────────────
+local function updateProgressBar()
+	local total, completados = 0, 0
+	for i=0,4 do if LEVELS[i] then total=total+1; if LEVELS[i].status=="completado" then completados=completados+1 end end end
+	local gs=S2:FindFirstChild("GridArea",true); if not gs then return end
+	local pb=gs:FindFirstChild("ProgressBar"); if not pb then return end
+	local pct=total>0 and (completados/total) or 0
+	local pt=pb:FindFirstChild("ProgText"); if pt then pt.Text=completados.." / "..total end
+	local pp=pb:FindFirstChild("ProgPct");  if pp then pp.Text=math.floor(pct*100).."%" end
+	local pf=pb:FindFirstChild("ProgFill",true); if pf then tween(pf,{Size=UDim2.new(pct,0,1,0)},0.4) end
 end
 
-local function loadProgress()
-	-- Evitar doble ejecución
-	if progressLoaded then return end
-	progressLoaded = true
-
-	if not getProgressFn then
-		warn("[MenuController] GetPlayerProgress no disponible"); return
-	end
-
-	local ok, data = pcall(function() return getProgressFn:InvokeServer() end)
-
-	if not ok or not data then
-		warn("[MenuController] ❌ Error al obtener progreso del servidor")
-		progressLoaded = false   -- permitir reintento
-		local lf = S2:FindFirstChild("LoadingFrame", true)
-		if lf then
-			local t = lf:FindFirstChild("LoadingText")
-			if t then t.Text="❌ Error al cargar niveles. Reintentando..." end
-		end
-		-- Reintentar en 3 segundos
-		task.delay(3, loadProgress)
-		return
-	end
-
-	local playerTag = S2:FindFirstChild("PlayerTag", true)
-	if playerTag then playerTag.Text = player.DisplayName end
-
-	buildGrid(data)
-	updateProgressBar(data)
-end
-
--- ════════════════════════════════════════════════════════════════════
--- SIDEBAR
--- ════════════════════════════════════════════════════════════════════
-
-local function updateSidebar(lv)
-	local placeholder = S2:FindFirstChild("Placeholder", true)
-	local infoContent = S2:FindFirstChild("InfoContent", true)
+-- ════════════════════════════════════════════════════════════════════════════
+-- SIDEBAR — updateSidebar
+-- Actualiza: Hero con ImageLabel, badge, InfoBody (tag/nombre/desc/estrellas),
+--            StatsGrid (todos los Val), Tags/conceptos, botón de jugar
+-- ════════════════════════════════════════════════════════════════════════════
+updateSidebar = function(lv)
+	local placeholder = S2:FindFirstChild("Placeholder",true)
+	local infoContent = S2:FindFirstChild("InfoContent",true)
 	if not infoContent then return end
-	placeholder.Visible=false; infoContent.Visible=true
+	if placeholder then placeholder.Visible=false end
+	infoContent.Visible=true
 
-	local hero    = infoContent:FindFirstChild("Hero")
-	local sc      = STATUS_COLORS[lv.status] or C.muted
-	local heroEmoji    = hero and hero:FindFirstChild("HeroEmoji")
-	local heroBadge    = hero and hero:FindFirstChild("HeroBadge")
-	local heroBadgeTxt = heroBadge and heroBadge:FindFirstChild("HeroBadgeText")
-	local heroGlow     = hero and hero:FindFirstChild("HeroGlow")
+	local sc = STATUS_COLORS[lv.status] or C.muted
 
-	if heroEmoji then heroEmoji.Text=lv.emoji or "🔵" end
-	local bgColor = lv.status=="completado" and Color3.fromRGB(26,18,4)
-		or lv.status=="disponible" and Color3.fromRGB(4,26,18)
-		or Color3.fromRGB(14,14,20)
-	if heroBadge then
-		heroBadge.BackgroundColor3=bgColor
-		local stk=heroBadge:FindFirstChildOfClass("UIStroke")
-		if stk then stk.Color=sc end
+	-- ── Hero ─────────────────────────────────────────────────────────────
+	local hero = infoContent:FindFirstChild("Hero")
+	if hero then
+		-- Color de fondo del hero según estado
+		local bgColor = lv.status=="completado" and Color3.fromRGB(26,18,4)
+			or lv.status=="disponible" and Color3.fromRGB(4,26,18)
+			or Color3.fromRGB(14,14,20)
+		hero.BackgroundColor3 = bgColor
+
+		-- HeroGlow tween al color del estado
+		local heroGlow = hero:FindFirstChild("HeroGlow")
+		if heroGlow then tween(heroGlow, {BackgroundColor3=sc}, 0.2) end
+
+		-- [CORRECCIÓN] HeroEmoji: ocultar si hay imagen, mostrar si no
+		local heroEmoji = hero:FindFirstChild("HeroEmoji")
+
+		-- Buscar o crear HeroImage
+		local heroImage = hero:FindFirstChild("HeroImage")
+		if lv.imageId and lv.imageId ~= "" then
+			-- Usar imagen
+			if heroEmoji then heroEmoji.Visible=false end
+			if not heroImage then
+				heroImage = n("ImageLabel",{
+					Name="HeroImage",
+					Size=UDim2.new(1,0,1,0),
+					Position=UDim2.new(0,0,0,0),
+					BackgroundTransparency=1,
+					Image=lv.imageId,
+					ScaleType=Enum.ScaleType.Crop,
+					ZIndex=6,
+				}, hero)
+			else
+				heroImage.Image   = lv.imageId
+				heroImage.Visible = true
+			end
+		else
+			-- Sin imagen: mostrar emoji
+			if heroImage then heroImage.Visible=false end
+			if heroEmoji then heroEmoji.Visible=true end
+		end
+
+		-- Badge de estado en Hero
+		local heroBadge    = hero:FindFirstChild("HeroBadge")
+		local heroBadgeTxt = heroBadge and heroBadge:FindFirstChild("HeroBadgeText")
+		if heroBadge then
+			heroBadge.BackgroundColor3 = bgColor
+			local stk=heroBadge:FindFirstChildOfClass("UIStroke"); if stk then stk.Color=sc end
+		end
+		if heroBadgeTxt then
+			heroBadgeTxt.Text      = STATUS_TEXTS[lv.status] or "—"
+			heroBadgeTxt.TextColor3 = sc
+		end
 	end
-	if heroBadgeTxt then heroBadgeTxt.Text=STATUS_TEXTS[lv.status] or "—"; heroBadgeTxt.TextColor3=sc end
-	if heroGlow then tween(heroGlow,{BackgroundColor3=sc},0.2) end
 
-	local ib = infoContent:FindFirstChild("InfoBody")
-	if not ib then return end
+	-- ── InfoBody ──────────────────────────────────────────────────────────
+	local infoBody = infoContent:FindFirstChild("InfoBody")
+	if not infoBody then return end
 
-	local function set(name, val)
-		local e=ib:FindFirstChild(name); if e then e.Text=tostring(val) end
-	end
-	set("InfoTag",  lv.tag        or "")
-	set("InfoName", lv.nombre     or "")
-	set("InfoDesc", lv.descripcion or "")
+	local infoTag  = infoBody:FindFirstChild("InfoTag")
+	local infoName = infoBody:FindFirstChild("InfoName")
+	local infoDesc = infoBody:FindFirstChild("InfoDesc")
+	if infoTag  then infoTag.Text  = lv.tag         or "" end
+	if infoName then infoName.Text = lv.nombre       or "" end
+	if infoDesc then infoDesc.Text = lv.descripcion  or "" end
 
-	local sf = ib:FindFirstChild("Stars")
-	if sf then
+	-- Estrellas
+	local starsFrame = infoBody:FindFirstChild("Stars")
+	if starsFrame then
 		for i=1,3 do
-			local s=sf:FindFirstChild("Star"..i)
-			if s then s.TextTransparency=i<=lv.estrellas and 0 or 0.7 end
+			local s=starsFrame:FindFirstChild("Star"..i)
+			if s then s.TextTransparency = i<=(lv.estrellas or 0) and 0 or 0.7 end
 		end
 	end
 
-	local sg = ib:FindFirstChild("StatsGrid")
-	if sg then
-		local function sv(nm, v)
-			local b=sg:FindFirstChild(nm); local l=b and b:FindFirstChild("Val")
-			if l then l.Text=tostring(v) end
+	-- ── StatsGrid — CORRECCIÓN PRINCIPAL ─────────────────────────────────
+	-- Nombres de campo que llegan del servidor: highScore, aciertos, fallos,
+	-- tiempoMejor, intentos (NO score/stars/tiempo como en versiones anteriores)
+	local statsGrid = infoBody:FindFirstChild("StatsGrid")
+	if statsGrid then
+		local function sv(nm, val)
+			local box = statsGrid:FindFirstChild(nm)
+			local lbl = box and box:FindFirstChild("Val")
+			if lbl then lbl.Text = tostring(val) end
 		end
-		sv("StatScore",  lv.highScore>0   and (lv.highScore.." pts")     or "—")
+		sv("StatScore",  (lv.highScore  or 0)>0 and (lv.highScore.." pts")      or "—")
 		sv("StatStatus", lv.status=="completado" and "✓ Completado"
 			or lv.status=="disponible" and "Disponible" or "🔒 Bloqueado")
-		sv("StatAciert", lv.aciertos>0    and lv.aciertos                or "—")
-		sv("StatFallos", lv.fallos>0      and lv.fallos                  or "—")
-		sv("StatTiempo", lv.tiempoMejor>0 and formatTime(lv.tiempoMejor) or "—")
-		sv("StatInten",  lv.intentos>0    and lv.intentos                or "—")
+		sv("StatAciert", (lv.aciertos   or 0)>0 and tostring(lv.aciertos)       or "—")
+		sv("StatFallos", (lv.fallos     or 0)>0 and tostring(lv.fallos)         or "—")
+		sv("StatTiempo", (lv.tiempoMejor or 0)>0 and formatTime(lv.tiempoMejor) or "—")
+		sv("StatInten",  (lv.intentos   or 0)>0 and tostring(lv.intentos)       or "—")
 	end
 
-	local tf = ib:FindFirstChild("Tags")
-	if tf then
-		for _,c in ipairs(tf:GetChildren()) do if c:IsA("TextButton") then c:Destroy() end end
+	-- Tags/conceptos
+	local tagsFrame = infoBody:FindFirstChild("Tags")
+	if tagsFrame then
+		for _, c in ipairs(tagsFrame:GetChildren()) do
+			if c:IsA("TextButton") then c:Destroy() end
+		end
 		for _, concept in ipairs(lv.conceptos or {}) do
 			local tb=n("TextButton",{Size=UDim2.new(0,0,0,22),AutomaticSize=Enum.AutomaticSize.X,
 				BackgroundColor3=Color3.fromRGB(0,20,30),Text=concept,
-				TextColor3=Color3.fromRGB(0,138,170),Font=F.mono,TextSize=9,BorderSizePixel=0},tf)
+				TextColor3=Color3.fromRGB(0,138,170),Font=F.mono,TextSize=9,BorderSizePixel=0},tagsFrame)
 			corner(3,tb); stroke(Color3.fromRGB(0,62,90),1,tb)
-			n("UIPadding",{PaddingTop=UDim.new(0,3),PaddingBottom=UDim.new(0,3),
-				PaddingLeft=UDim.new(0,8),PaddingRight=UDim.new(0,8)},tb)
+			pad(3,3,8,8,tb)
 		end
 	end
 
-	local pb = S2:FindFirstChild("PlayButton", true)
+	-- Botón jugar
+	local pb=S2:FindFirstChild("PlayButton",true)
 	if pb then
 		if lv.status=="bloqueado" then
 			pb.Text="🔒  NIVEL BLOQUEADO"; pb.TextColor3=C.muted; pb.BackgroundColor3=C.panel
@@ -472,48 +504,11 @@ local function updateSidebar(lv)
 	end
 end
 
--- ════════════════════════════════════════════════════════════════════
--- CONEXIÓN DE TARJETAS
--- ════════════════════════════════════════════════════════════════════
-
-connectLevelCards = function()
-	local gridArea = S2:FindFirstChild("GridArea", true)
-	if not gridArea then return end
-	local connected=0
-	for i=0,4 do
-		local lv   = LEVELS[i]
-		local card = lv and gridArea:FindFirstChild("Card"..i, true)
-		if card and card:IsA("TextButton") then
-			connected += 1
-			card.MouseButton1Click:Connect(function()
-				if isLoading then return end
-				selectedLevelID=i
-				updateSidebar(lv)
-				-- Highlight borde
-				for j=0,4 do
-					local c=gridArea:FindFirstChild("Card"..j, true)
-					if c then
-						local st=c:FindFirstChildOfClass("UIStroke")
-						if st then
-							st.Color     = j==i and C.accent or (LEVELS[j] and LEVELS[j].status=="completado" and C.gold or C.border)
-							st.Thickness = j==i and 2 or 1
-						end
-					end
-				end
-			end)
-		end
-	end
-	print("[MenuController] Tarjetas conectadas:", connected)
-end
-
--- ════════════════════════════════════════════════════════════════════
--- NAVEGACIÓN
--- ════════════════════════════════════════════════════════════════════
-
+-- ── resetSidebar ───────────────────────────────────────────────────────────
 local function resetSidebar()
 	local ph=S2:FindFirstChild("Placeholder",true)
 	local ic=S2:FindFirstChild("InfoContent",true)
-	if ph then ph.Visible=true end
+	if ph then ph.Visible=true  end
 	if ic then ic.Visible=false end
 	local pb=S2:FindFirstChild("PlayButton",true)
 	if pb then
@@ -522,62 +517,107 @@ local function resetSidebar()
 	end
 end
 
+-- ── connectLevelCards ──────────────────────────────────────────────────────
+connectLevelCards = function()
+	local gridScroll=S2:FindFirstChild("GridArea",true); if not gridScroll then return end
+	local count=0
+	for id=0,4 do
+		local card=gridScroll:FindFirstChild("Card"..id,true)
+		if card and card:IsA("TextButton") and LEVELS[id] then
+			count=count+1
+			card.MouseButton1Click:Connect(function()
+				if isLoading then return end
+				selectedLevelID=id
+				updateSidebar(LEVELS[id])
+				for i=0,4 do
+					local c=gridScroll:FindFirstChild("Card"..i,true)
+					if c then
+						local st=c:FindFirstChildOfClass("UIStroke")
+						if st then
+							st.Color    = i==id and C.accent or (LEVELS[i] and LEVELS[i].status=="completado" and C.gold or C.border)
+							st.Thickness= i==id and 2 or 1
+						end
+					end
+				end
+			end)
+		end
+	end
+	print("[MenuController] Tarjetas conectadas:", count, "/ 5")
+end
+
+-- ── loadProgress ───────────────────────────────────────────────────────────
+local function loadProgress()
+	if progressLoaded then return end
+	progressLoaded = true
+	if not getProgressFn then warn("[MenuController] GetPlayerProgress no disponible"); return end
+
+	local ok, data = pcall(function() return getProgressFn:InvokeServer() end)
+	if not ok or not data then
+		warn("[MenuController] ❌ Error al obtener progreso"); progressLoaded=false; return
+	end
+
+	buildGrid(data)
+	updateProgressBar()
+
+	-- [CORRECCIÓN] Si hay un nivel seleccionado, refrescar sidebar con datos nuevos
+	-- Esto actualiza los StatsGrid.Val tras volver de una partida
+	if selectedLevelID ~= nil and LEVELS[selectedLevelID] then
+		updateSidebar(LEVELS[selectedLevelID])
+	end
+
+	-- Nombre del jugador
+	local playerTag=S2:FindFirstChild("PlayerTag",true)
+	if playerTag then playerTag.Text = player.DisplayName or player.Name end
+
+	print("[MenuController] ✅ Progreso cargado")
+end
+
+-- ── Navegación ─────────────────────────────────────────────────────────────
 local function goToMenu()
-	S1.Visible=true; S2.Visible=false; selectedLevelID=nil
+	S1.Visible=true; S2.Visible=false; selectedLevelID=nil; setupMenuCamera()
 end
 
 local function goToLevels()
 	S1.Visible=false; S2.Visible=true
 	resetSidebar(); selectedLevelID=nil
-	-- Recargar progreso si ya se había cargado antes (para reflejar cambios)
 	progressLoaded=false
 	task.spawn(loadProgress)
 end
 
-local function openModal(f)  f.Visible=true  end
-local function closeModal(f) f.Visible=false end
+local function openModal(f)  if f then f.Visible=true  end end
+local function closeModal(f) if f then f.Visible=false end end
 
--- ════════════════════════════════════════════════════════════════════
--- MENÚ PRINCIPAL (S1)
--- ════════════════════════════════════════════════════════════════════
+-- ── Menú principal (S1) ────────────────────────────────────────────────────
+local mp = S1:FindFirstChild("MenuPanel")
+local Bp = mp and mp:FindFirstChild("BtnPlay")
+local Bs = mp and mp:FindFirstChild("BtnSettings")
+local Bc = mp and mp:FindFirstChild("BtnCredits")
+local Be = mp and mp:FindFirstChild("BtnExit")
+if Bp then Bp.MouseButton1Click:Connect(goToLevels) end
+if Bs then Bs.MouseButton1Click:Connect(function() openModal(S3) end) end
+if Bc then Bc.MouseButton1Click:Connect(function() openModal(S4) end) end
+if Be then Be.MouseButton1Click:Connect(function() openModal(S5) end) end
 
-local mp  = S1:FindFirstChild("MenuPanel")
-local Bp  = mp and mp:FindFirstChild("BtnPlay")
-local Bs  = mp and mp:FindFirstChild("BtnSettings")
-local Bc  = mp and mp:FindFirstChild("BtnCredits")
-local Be  = mp and mp:FindFirstChild("BtnExit")
-
-if Bp then Bp.MouseButton1Click:Connect(goToLevels)                       end
-if Bs then Bs.MouseButton1Click:Connect(function() openModal(S3) end)     end
-if Bc then Bc.MouseButton1Click:Connect(function() openModal(S4) end)     end
-if Be then Be.MouseButton1Click:Connect(function() openModal(S5) end)     end
-
-local function addHover(btn, hov, nor)
-	if not btn then return end
-	btn.MouseEnter:Connect(function() tween(btn,{BackgroundColor3=hov},0.1) end)
-	btn.MouseLeave:Connect(function() tween(btn,{BackgroundColor3=nor},0.1) end)
+for _, frame in ipairs({S3, S4, S5}) do
+	local bc=frame:FindFirstChild("BtnClose",true)
+	if bc then bc.MouseButton1Click:Connect(function() closeModal(frame) end) end
 end
-addHover(Bs, Color3.fromRGB(24,34,52), Color3.fromRGB(8,14,24))
-addHover(Bc, Color3.fromRGB(24,34,52), Color3.fromRGB(8,14,24))
-addHover(Be, Color3.fromRGB(40,10,10), Color3.fromRGB(8,14,24))
 
--- ════════════════════════════════════════════════════════════════════
--- SELECTOR (S2)
--- ════════════════════════════════════════════════════════════════════
-
-local backBtn = S2:FindFirstChild("BackBtn", true)
+-- ── Selector de niveles (S2) ───────────────────────────────────────────────
+local backBtn = S2:FindFirstChild("BackBtn",true) or S2:FindFirstChild("BtnBack",true)
 if backBtn then backBtn.MouseButton1Click:Connect(goToMenu) end
 
-local playBtn = S2:FindFirstChild("PlayButton", true)
-if playBtn then
-	playBtn.MouseButton1Click:Connect(function()
+-- Botón jugar en sidebar
+local playBtnSidebar = S2:FindFirstChild("PlayButton",true)
+if playBtnSidebar then
+	playBtnSidebar.MouseButton1Click:Connect(function()
 		if isLoading or selectedLevelID==nil then return end
 		local lv=LEVELS[selectedLevelID]
 		if not lv or lv.status=="bloqueado" then return end
 
 		isLoading=true
-		loadingLbl.Text="Cargando  "..lv.nombre.."..."
 		local thisLoad=os.clock(); loadStartTime=thisLoad
+		if loadingLbl then loadingLbl.Text="Cargando  "..(lv.nombre or "").."..." end
 
 		fadeIn(0.4, function()
 			if requestPlayLEv then
@@ -585,132 +625,53 @@ if playBtn then
 				task.spawn(function()
 					task.wait(10)
 					if isLoading and loadStartTime==thisLoad then
-						warn("[MenuController] ⏱ Timeout")
-						loadingLbl.Text="⏱ Sin respuesta del servidor"
+						if loadingLbl then loadingLbl.Text="⏱ Sin respuesta del servidor" end
 						task.delay(1.5, function()
 							if isLoading and loadStartTime==thisLoad then
-								isLoading=false; fadeOut(0.35, goToLevels)
+								fadeOut(0.4, function() isLoading=false; goToLevels() end)
 							end
 						end)
 					end
-				end)
-			else
-				task.delay(1.5, function()
-					fadeOut(0.4, function() root.Enabled=false; isLoading=false end)
 				end)
 			end
 		end)
 	end)
 end
 
--- ════════════════════════════════════════════════════════════════════
--- AJUSTES (S3)
--- ════════════════════════════════════════════════════════════════════
-do
-	local function close() closeModal(S3) end
-	local cb=S3:FindFirstChild("CloseBtn",true)
-	local cn=S3:FindFirstChild("CancelBtn",true)
-	local sv=S3:FindFirstChild("SaveBtn",true)
-	if cb then cb.MouseButton1Click:Connect(close) end
-	if cn then cn.MouseButton1Click:Connect(close) end
-	if sv then sv.MouseButton1Click:Connect(close) end
-end
-
-local function connectSlider(row, onChange)
-	if not row then return end
-	local track=row:FindFirstChild("Track")
-	local fill =row:FindFirstChild("Fill")
-	local pct  =row:FindFirstChild("Pct")
-	if not track or not fill then return end
-	local drag=false
-	local function upd(sx)
-		local v=math.clamp((sx-track.AbsolutePosition.X)/math.max(track.AbsoluteSize.X,1),0,1)
-		fill.Size=UDim2.new(v,0,1,0)
-		if pct then pct.Text=math.floor(v*100).."%" end
-		if onChange then onChange(v) end
-	end
-	track.MouseButton1Down:Connect(function(rx) drag=true; upd(track.AbsolutePosition.X+rx) end)
-	UserInputService.InputEnded:Connect(function(i)
-		if i.UserInputType==Enum.UserInputType.MouseButton1 then drag=false end
-	end)
-	UserInputService.InputChanged:Connect(function(i)
-		if drag and i.UserInputType==Enum.UserInputType.MouseMovement then upd(i.Position.X) end
-	end)
-end
-connectSlider(S3:FindFirstChild("AmbientSlider",true))
-connectSlider(S3:FindFirstChild("SFXSlider",true))
-
--- ════════════════════════════════════════════════════════════════════
--- CRÉDITOS (S4)
--- ════════════════════════════════════════════════════════════════════
-do
-	local cb=S4:FindFirstChild("CloseBtn",true); local ok=S4:FindFirstChild("OkBtn",true)
-	if cb then cb.MouseButton1Click:Connect(function() closeModal(S4) end) end
-	if ok then ok.MouseButton1Click:Connect(function() closeModal(S4) end) end
-end
-
--- ════════════════════════════════════════════════════════════════════
--- SALIR (S5)
--- ════════════════════════════════════════════════════════════════════
-do
-	local cb=S5:FindFirstChild("CloseBtn",true)
-	local cn=S5:FindFirstChild("CancelBtn",true)
-	local cf=S5:FindFirstChild("ConfirmBtn",true)
-	if cb then cb.MouseButton1Click:Connect(function() closeModal(S5) end) end
-	if cn then cn.MouseButton1Click:Connect(function() closeModal(S5) end) end
-	if cf then cf.MouseButton1Click:Connect(function()
-			player:Kick("¡Hasta pronto! Gracias por jugar EDA Quest.")
-		end) end
-end
-
--- ════════════════════════════════════════════════════════════════════
--- ReturnToMenu — restaurar cámara y reactivar menú
--- ════════════════════════════════════════════════════════════════════
--- ClientBoot reactiva root.Enabled, pero la cámara queda en el estado
--- del gameplay. Escuchamos el mismo evento para restaurarla aquí.
-local returnToMenuEv = remotesFolder:FindFirstChild("ReturnToMenu")
-if returnToMenuEv then
-	returnToMenuEv.OnClientEvent:Connect(function()
-		-- Pequeño delay para que ClientBoot termine de reactivar la GUI primero
-		task.delay(0.1, function()
-			root.Enabled = true
-			setupMenuCamera()
-			-- Liberar el mouse por si el gameplay lo había bloqueado
-			local UIS = game:GetService("UserInputService")
-			UIS.MouseBehavior = Enum.MouseBehavior.Default
-			-- Resetear progreso para recargar tarjetas con datos frescos
-			progressLoaded = false
-			task.spawn(loadProgress)
-			print("[MenuController] Menú restaurado tras ReturnToMenu")
-		end)
-	end)
-end
-
--- ════════════════════════════════════════════════════════════════════
--- LevelReady
--- ════════════════════════════════════════════════════════════════════
+-- ── LevelReady ─────────────────────────────────────────────────────────────
 if levelReadyEv then
 	levelReadyEv.OnClientEvent:Connect(function(data)
-		if data.error then
-			loadingLbl.Text="❌ "..data.error
-			task.delay(2.5, function()
-				fadeOut(0.4, function() isLoading=false; goToLevels() end)
-			end)
+		if data and data.error then
+			if loadingLbl then loadingLbl.Text="❌ "..data.error end
+			task.delay(2.5, function() fadeOut(0.4, function() isLoading=false; goToLevels() end) end)
 			return
 		end
-		loadingLbl.Text="✅  "..(data.nombre or "Nivel "..tostring(data.nivelID))
+		if loadingLbl then loadingLbl.Text="✅  "..(data and data.nombre or "Nivel cargado") end
 		task.delay(0.6, function()
 			fadeOut(0.4, function()
-				root.Enabled=false; isLoading=false
-				restoreGameCamera()
+				root.Enabled=false; isLoading=false; restoreGameCamera()
 			end)
 		end)
 	end)
 end
 
--- ════════════════════════════════════════════════════════════════════
--- ServerReady → carga inicial (una sola vez)
--- ════════════════════════════════════════════════════════════════════
+-- ── ReturnToMenu ───────────────────────────────────────────────────────────
+if returnToMenuEv then
+	returnToMenuEv.OnClientEvent:Connect(function()
+		task.delay(0.1, function()
+			root.Enabled=true
+			setupMenuCamera()
+			game:GetService("UserInputService").MouseBehavior=Enum.MouseBehavior.Default
+			-- Forzar recarga completa para mostrar datos frescos del último intento
+			-- selectedLevelID se conserva para que updateSidebar lo use tras buildGrid
+			progressLoaded=false
+			task.spawn(loadProgress)
+			print("[MenuController] Menú restaurado — recargando progreso y sidebar")
+		end)
+	end)
+end
+
+-- ── ServerReady ────────────────────────────────────────────────────────────
 if serverReadyEv then
 	serverReadyEv.OnClientEvent:Connect(function()
 		print("[MenuController] ServerReady recibido")
@@ -718,13 +679,17 @@ if serverReadyEv then
 	end)
 end
 
--- Respaldo por si ServerReady llegó antes de que este script corriera.
--- La bandera progressLoaded evita doble ejecución.
+-- Respaldo si ServerReady llegó antes que este script
 task.delay(5, function()
 	if not progressLoaded then
-		print("[MenuController] Respaldo: ServerReady no recibido, cargando igual")
+		print("[MenuController] Respaldo: cargando progreso")
 		task.spawn(loadProgress)
 	end
 end)
 
+-- Nombre del jugador inicial
+local playerTag=S2:FindFirstChild("PlayerTag",true)
+if playerTag then playerTag.Text = player.DisplayName or player.Name end
+
+setupMenuCamera()
 print("[EDA v2] ✅ MenuController activo")

@@ -105,24 +105,24 @@ n("TextLabel",{Name="Version",Size=UDim2.new(0,100,0,18),Position=UDim2.new(1,-1
 -- ════════════════════════════════════════════
 local S2=n("Frame",{Name="FrameLevels",Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(4,7,14),BackgroundTransparency=0.05,BorderSizePixel=0,Visible=false},root)
 
-local lsTop=n("Frame",{Size=UDim2.new(1,0,0,60),BackgroundColor3=Color3.fromRGB(6,10,20),BackgroundTransparency=0.05,BorderSizePixel=0,ZIndex=2},S2)
+local lsTop=n("Frame",{Name="LevelTopBar",Size=UDim2.new(1,0,0,60),BackgroundColor3=Color3.fromRGB(6,10,20),BackgroundTransparency=0.05,BorderSizePixel=0,ZIndex=2},S2)
 stroke(C.border,1,lsTop)
 local backBtn=n("TextButton",{Name="BackBtn",Size=UDim2.new(0,110,0,36),Position=UDim2.new(0,20,0.5,-18),BackgroundColor3=C.panel,Text="← VOLVER",TextColor3=C.muted,Font=F.mono,TextSize=11,BorderSizePixel=0,ZIndex=3},lsTop)
 corner(6,backBtn) stroke(C.border,1,backBtn)
 n("TextLabel",{Size=UDim2.new(0,80,1,0),Position=UDim2.new(0,148,0,0),BackgroundTransparency=1,Text="EDA Quest",TextColor3=C.muted,Font=F.mono,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=3},lsTop)
 n("TextLabel",{Size=UDim2.new(0,14,1,0),Position=UDim2.new(0,232,0,0),BackgroundTransparency=1,Text="›",TextColor3=C.dim,Font=F.bold,TextSize=14,ZIndex=3},lsTop)
 n("TextLabel",{Size=UDim2.new(0,180,1,0),Position=UDim2.new(0,252,0,0),BackgroundTransparency=1,Text="Selección de Nivel",TextColor3=C.text,Font=F.mono,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=3},lsTop)
-local ptag=n("Frame",{Size=UDim2.new(0,140,0,34),Position=UDim2.new(1,-156,0.5,-17),BackgroundColor3=Color3.fromRGB(0,20,30),BorderSizePixel=0,ZIndex=3},lsTop)
+local ptag=n("Frame",{Name="PlayerTagBox",Size=UDim2.new(0,140,0,34),Position=UDim2.new(1,-156,0.5,-17),BackgroundColor3=Color3.fromRGB(0,20,30),BorderSizePixel=0,ZIndex=3},lsTop)
 corner(17,ptag) stroke(Color3.fromRGB(0,70,90),1,ptag)
-local pav=n("Frame",{Size=UDim2.new(0,22,0,22),Position=UDim2.new(0,6,0.5,-11),BackgroundColor3=C.accent,BorderSizePixel=0,ZIndex=4},ptag) corner(11,pav)
+local pav=n("Frame",{Name="PlayerAvatar",Size=UDim2.new(0,22,0,22),Position=UDim2.new(0,6,0.5,-11),BackgroundColor3=C.accent,BorderSizePixel=0,ZIndex=4},ptag) corner(11,pav)
 n("TextLabel",{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Text="P",TextColor3=C.bg,Font=F.bold,TextSize=12,ZIndex=5},pav)
 n("TextLabel",{Name="PlayerTag",Size=UDim2.new(1,-36,1,0),Position=UDim2.new(0,32,0,0),BackgroundTransparency=1,Text="Cargando...",TextColor3=C.accent,Font=F.body,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=4},ptag)
 
-local lsMain=n("Frame",{Size=UDim2.new(1,0,1,-60),Position=UDim2.new(0,0,0,60),BackgroundTransparency=1,ZIndex=2},S2)
-local sidebar=n("Frame",{Size=UDim2.new(0,320,1,0),BackgroundColor3=Color3.fromRGB(6,10,20),BackgroundTransparency=0.05,BorderSizePixel=0,ZIndex=3},lsMain)
+local lsMain=n("Frame",{Name="LevelMainArea",Size=UDim2.new(1,0,1,-60),Position=UDim2.new(0,0,0,60),BackgroundTransparency=1,ZIndex=2},S2)
+local sidebar=n("Frame",{Name="LevelSidebar",Size=UDim2.new(0,320,1,0),BackgroundColor3=Color3.fromRGB(6,10,20),BackgroundTransparency=0.05,BorderSizePixel=0,ZIndex=3},lsMain)
 stroke(C.border,1,sidebar)
 
-local sideHead=n("Frame",{Size=UDim2.new(1,0,0,56),BackgroundTransparency=1,ZIndex=4},sidebar) stroke(C.border,1,sideHead)
+local sideHead=n("Frame",{Name="SidebarHeader",Size=UDim2.new(1,0,0,56),BackgroundTransparency=1,ZIndex=4},sidebar) stroke(C.border,1,sideHead)
 n("TextLabel",{Size=UDim2.new(1,-40,0,20),Position=UDim2.new(0,20,0,10),BackgroundTransparency=1,Text="INFORMACIÓN",TextColor3=C.text,Font=F.bold,TextSize=12,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5},sideHead)
 n("TextLabel",{Size=UDim2.new(1,-40,0,16),Position=UDim2.new(0,20,0,32),BackgroundTransparency=1,Text="Selecciona un nivel para ver detalles",TextColor3=C.muted,Font=F.body,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5},sideHead)
 

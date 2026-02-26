@@ -25,6 +25,7 @@ local remotesFolder  = eventsFolder:WaitForChild("Remotes", 5)
 local serverReadyEv  = remotesFolder:WaitForChild("ServerReady",       5)
 local requestPlayLEv = remotesFolder:WaitForChild("RequestPlayLevel",  5)
 local levelReadyEv   = remotesFolder:WaitForChild("LevelReady",        5)
+local levelUnloadedEv = remotesFolder:WaitForChild("LevelUnloaded", 5)  -- servidor→cliente tras volver al menú
 local returnToMenuEv = remotesFolder:WaitForChild("ReturnToMenu",      5)
 local getProgressFn  = remotesFolder:WaitForChild("GetPlayerProgress", 5)
 local updateScoreEv  = remotesFolder:WaitForChild("UpdateScore",       5)
@@ -150,7 +151,7 @@ requestPlayLEv.OnServerEvent:Connect(function(player, nivelID)
 			local zonasArr = buildZonasArray(config and config.Zonas)
 
 			ScoreTracker:startLevel(player, nivelID, puntosConexion, penaFallo)
-			MissionService.activate(config, nivelID, player, remotesFolder, ScoreTracker)
+			MissionService.activate(config, nivelID, player, remotesFolder, ScoreTracker, DataService)
 			ConectarCables.activate(nivelActual, adjacencias, player, ScoreTracker, MissionService)
 			ZoneTriggerManager.activate(nivelActual, zonasArr, player)
 			print("[EDA v2] ✅ ScoreTracker + ConectarCables + ZoneTriggerManager activos — Nivel", nivelID,
@@ -173,6 +174,14 @@ end)
 -- ── 8. ReturnToMenu ────────────────────────────────────────────────────────
 returnToMenuEv.OnServerEvent:Connect(function(player)
 	print("[EDA v2] ReturnToMenu — Jugador:", player.Name)
+
+	-- Notificar al cliente INMEDIATAMENTE para que MenuController refresque los datos
+	-- antes de que el jugador pueda hacer clic en "Jugar" de nuevo.
+	-- Se hace aquí al inicio porque el caché de DataService ya fue actualizado
+	-- cuando MissionService guardó el resultado al completar las misiones.
+	if levelUnloadedEv and player and player.Parent then
+		levelUnloadedEv:FireClient(player)
+	end
 
 	-- Desactivar gameplay ANTES de destruir el nivel
 	MissionService.deactivate()
@@ -235,7 +244,7 @@ if restartLevelEv then
 				end
 				local zonasArr = buildZonasArray(config and config.Zonas)
 				ScoreTracker:startLevel(player, nivelID, puntosConexion, penaFallo)
-				MissionService.activate(config, nivelID, player, remotesFolder, ScoreTracker)
+				MissionService.activate(config, nivelID, player, remotesFolder, ScoreTracker, DataService)
 				ConectarCables.activate(nivelActual, adjacencias, player, ScoreTracker, MissionService)
 				ZoneTriggerManager.activate(nivelActual, zonasArr, player)
 				print("[EDA v2] ✅ RestartLevel completado — Nivel", nivelID)

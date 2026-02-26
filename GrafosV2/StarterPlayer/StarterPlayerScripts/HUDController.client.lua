@@ -424,7 +424,7 @@ local function showVictory(snap)
 				warn("[HUDController] showVictory: fila no encontrada →", filaName)
 				return
 			end
-			local lbl = fila:FindFirstChild("V")
+			local lbl = fila:FindFirstChild("Valor") or fila:FindFirstChild("V")
 			if not lbl then
 				warn("[HUDController] showVictory: 'Valor' no encontrado en", filaName)
 				return
@@ -537,9 +537,6 @@ if levelCompletedEv then
 	end)
 end
 
--- Botones de victoria
-if botonRepetir   then botonRepetir.MouseButton1Click:Connect(doRestartLevel)  end
-if botonContinuar then botonContinuar.MouseButton1Click:Connect(doReturnToMenu) end
 
 -- UpdateScore → mostrar puntaje base en HUD
 if updateScoreEv then

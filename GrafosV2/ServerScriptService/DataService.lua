@@ -96,10 +96,11 @@ function DataService:getProgressForClient(player)
 		result[k] = {
 			nivelID      = i,            -- el ID numérico real va dentro del valor
 			nombre       = cfg.Nombre      or ("Nivel " .. i),
+			imageId      = cfg.ImageId     or "",
 			algoritmo    = cfg.Algoritmo,
 			tag          = cfg.Tag         or ("NIVEL " .. i),
 			emoji        = cfg.Emoji       or "🔵",
-			descripcion  = cfg.Descripcion or "",
+			descripcion  = cfg.Descripcion or cfg.DescripcionCorta or "",
 			conceptos    = cfg.Conceptos   or {},
 			seccion      = cfg.Seccion     or "NIVELES",
 			status       = status,
@@ -121,15 +122,13 @@ function DataService:saveResult(player, nivelID, result)
 	local k    = tostring(nivelID)
 	local ld   = data[k] or {}
 
-	ld.intentos = (ld.intentos or 0) + 1
-
-	if (result.highScore or 0) > (ld.highScore or 0) then
-		ld.highScore   = result.highScore
-		ld.estrellas   = result.estrellas
-		ld.aciertos    = result.aciertos
-		ld.fallos      = result.fallos
-		ld.tiempoMejor = result.tiempoMejor
-	end
+	-- Siempre guardar el intento actual (el usuario ve estadísticas del intento, no el mejor)
+	ld.intentos    = (ld.intentos or 0) + 1
+	ld.highScore   = result.highScore   or 0
+	ld.estrellas   = result.estrellas   or 0
+	ld.aciertos    = result.aciertos    or 0
+	ld.fallos      = result.fallos      or 0
+	ld.tiempoMejor = result.tiempoMejor or 0
 
 	if (result.estrellas or 0) > 0 and nivelID < 4 then
 		local nextK = tostring(nivelID + 1)

@@ -23,6 +23,8 @@ local _puntosAcum    = 0    -- puntos acumulados por misiones completadas
 local _updateMissionsEv = nil
 local _levelCompletedEv = nil
 local _scoreTracker     = nil
+local _dataService      = nil
+local _config           = nil
 
 -- Tipos que no se revocan una vez completados
 local TIPOS_PERMANENTES = {
@@ -145,6 +147,25 @@ local function checkAndNotify()
 			local snap = _scoreTracker:finalize(_player)
 			print(string.format("[MissionService] Snapshot → puntaje=%d / conexiones=%d / fallos=%d / tiempo=%d",
 				snap.puntajeBase, snap.conexiones, snap.fallos, snap.tiempo))
+
+			-- Guardar resultado en DataStore antes de mostrar victoria al cliente
+			if _dataService and _nivelID ~= nil then
+				local puntuacion = _config and _config.Puntuacion or {}
+				local estrellas  = 0
+				if     snap.puntajeBase >= (puntuacion.TresEstrellas or 999999) then estrellas = 3
+				elseif snap.puntajeBase >= (puntuacion.DosEstrellas  or 999999) then estrellas = 2
+				elseif snap.puntajeBase >  0                                    then estrellas = 1
+				end
+				_dataService:saveResult(_player, _nivelID, {
+					highScore   = snap.puntajeBase,
+					estrellas   = estrellas,
+					aciertos    = snap.conexiones,
+					fallos      = snap.fallos,
+					tiempoMejor = snap.tiempo,
+				})
+				print("[MissionService] 💾 Resultado guardado — estrellas:", estrellas)
+			end
+
 			_levelCompletedEv:FireClient(_player, snap)
 		end
 		_active = false
@@ -155,10 +176,11 @@ end
 -- API PÚBLICA
 -- ════════════════════════════════════════════════════════════════════════════
 
-function MissionService.activate(config, nivelID, player, remotes, scoreTracker)
+function MissionService.activate(config, nivelID, player, remotes, scoreTracker, dataService)
 	_active        = true
 	_player        = player
 	_nivelID       = nivelID
+	_config        = config
 	_misiones      = (config and config.Misiones) or {}
 	_completadas   = {}
 	_permanentes   = {}
@@ -166,6 +188,7 @@ function MissionService.activate(config, nivelID, player, remotes, scoreTracker)
 	_seleccionados = {}
 	_zonaActual    = nil
 	_scoreTracker  = scoreTracker
+	_dataService   = dataService
 	_puntosAcum    = 0
 
 	if remotes then
@@ -187,6 +210,7 @@ function MissionService.deactivate()
 	_cables={}; _seleccionados={}; _zonaActual=nil
 	_scoreTracker=nil; _puntosAcum=0
 	_updateMissionsEv=nil; _levelCompletedEv=nil
+	_dataService=nil; _config=nil
 	print("[MissionService] deactivate")
 end
 
