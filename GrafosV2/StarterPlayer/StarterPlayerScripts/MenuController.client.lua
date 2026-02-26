@@ -138,150 +138,322 @@ local function fadeOut(t, cb)
 	end
 end
 
--- ── Tarjetas de nivel ───────────────────────────────────────────────────────
-local CARD_H = 110
+-- ── Configuración de tarjetas ─────────────────────────────────────────────
+local CARD_H = 140  -- Aumentado de 110 a 140
+local CARD_W = 0.5  -- Ancho relativo (50% del contenedor menos gap)
 
+-- ── Tarjetas de nivel ─────────────────────────────────────────────────────
 local function buildLevelCard(lv, col, row, parent)
 	local sc   = STATUS_COLORS[lv.status] or C.muted
-	local xOff = col == 1 and 5 or 0
+	local xOff = col == 1 and 8 or 0  -- Aumentado gap entre columnas
 	local card = n("TextButton", {
 		Name             = "Card"..lv.nivelID,
-		Size             = UDim2.new(0.5, -5, 0, CARD_H),
-		Position         = UDim2.new(col==1 and 0.5 or 0, xOff, 0, row*(CARD_H+14)),
+		Size             = UDim2.new(CARD_W, -8, 0, CARD_H),  -- Más ancho y alto
+		Position         = UDim2.new(col==1 and 0.5 or 0, xOff, 0, row*(CARD_H+16)),  -- Más espaciado
 		BackgroundColor3 = C.panel, Text="", BorderSizePixel=0, ZIndex=5,
 	}, parent)
-	corner(8, card); stroke(C.border, 1, card)
+	corner(10, card); stroke(C.border, 1, card)  -- Esquinas más redondeadas
 
+	-- Área de imagen más grande
 	if lv.imageId and lv.imageId ~= "" then
 		local img = n("ImageLabel", {
-			Size=UDim2.new(1,0,0,54), BackgroundTransparency=1,
-			Image=lv.imageId, ScaleType=Enum.ScaleType.Crop, ZIndex=6,
+			Size=UDim2.new(1,0,0,70),  -- Aumentado de 54 a 70
+			BackgroundTransparency=1,
+			Image=lv.imageId, 
+			ScaleType=Enum.ScaleType.Crop, 
+			ZIndex=6,
 		}, card)
-		corner(8, img)
+		corner(10, img)
 	end
 
+	-- Badge de estado reposicionado
 	local badge = n("Frame", {
-		Size=UDim2.new(0,80,0,16), Position=UDim2.new(0,6,0,58),
-		BackgroundColor3=C.bg, BorderSizePixel=0, ZIndex=7,
+		Size=UDim2.new(0,90,0,18),  -- Más grande
+		Position=UDim2.new(0,8,0,74),  -- Ajustado por imagen más grande
+		BackgroundColor3=C.bg, 
+		BorderSizePixel=0, 
+		ZIndex=7,
 	}, card)
-	corner(4, badge); n("UIStroke", {Color=sc, Thickness=1}, badge)
+	corner(6, badge); 
+	n("UIStroke", {Color=sc, Thickness=1}, badge)
 	n("TextLabel", {
-		Size=UDim2.new(1,0,1,0), BackgroundTransparency=1,
+		Size=UDim2.new(1,0,1,0), 
+		BackgroundTransparency=1,
 		Text=STATUS_TEXTS[lv.status] or "—",
-		TextColor3=sc, Font=F.mono, TextSize=8, ZIndex=8,
+		TextColor3=sc, 
+		Font=F.mono, 
+		TextSize=9,  -- Ligeramente más grande
+		ZIndex=8,
 	}, badge)
 
+	-- Título del nivel
 	n("TextLabel", {
-		Size=UDim2.new(1,-12,0,22), Position=UDim2.new(0,6,0,78),
-		BackgroundTransparency=1, Text=lv.nombre or "Nivel "..lv.nivelID,
-		TextColor3=C.text, Font=F.bold, TextSize=11,
+		Size=UDim2.new(1,-16,0,26),  -- Más espacio
+		Position=UDim2.new(0,8,0,96),  -- Ajustado
+		BackgroundTransparency=1, 
+		Text=lv.nombre or "Nivel "..lv.nivelID,
+		TextColor3=C.text, 
+		Font=F.bold, 
+		TextSize=12,  -- Ligeramente más grande
 		TextXAlignment=Enum.TextXAlignment.Left,
-		TextTruncate=Enum.TextTruncate.AtEnd, ZIndex=6,
+		TextTruncate=Enum.TextTruncate.AtEnd, 
+		ZIndex=6,
 	}, card)
 
+	-- Footer con estrellas y score
 	local footer = n("Frame", {
-		Size=UDim2.new(1,0,0,18), Position=UDim2.new(0,0,1,-18),
-		BackgroundColor3=Color3.fromRGB(10,10,18), BorderSizePixel=0, ZIndex=6,
+		Size=UDim2.new(1,0,0,22),  -- Más alto
+		Position=UDim2.new(0,0,1,-22),
+		BackgroundColor3=Color3.fromRGB(10,10,18), 
+		BorderSizePixel=0, 
+		ZIndex=6,
 	}, card)
-	corner(8, footer)
+	corner(10, footer)
+
 	local st = lv.estrellas or 0
 	n("TextLabel", {
-		Size=UDim2.new(0,54,1,0), Position=UDim2.new(0,4,0,0),
+		Size=UDim2.new(0,60,1,0), 
+		Position=UDim2.new(0,6,0,0),
 		BackgroundTransparency=1,
 		Text=(st>=1 and "⭐" or "☆")..(st>=2 and "⭐" or "☆")..(st>=3 and "⭐" or "☆"),
-		TextColor3=C.gold, Font=F.body, TextSize=11, ZIndex=7,
+		TextColor3=C.gold, 
+		Font=F.body, 
+		TextSize=12,  -- Ligeramente más grande
+		ZIndex=7,
 	}, footer)
+
 	n("TextLabel", {
-		Size=UDim2.new(0,50,1,0), Position=UDim2.new(1,-54,0,0),
+		Size=UDim2.new(0,60,1,0), 
+		Position=UDim2.new(1,-66,0,0),
 		BackgroundTransparency=1,
 		Text=(lv.highScore or 0)>0 and (lv.highScore.." pts") or "—",
-		TextColor3=C.dim, Font=F.mono, TextSize=9, ZIndex=7,
+		TextColor3=C.dim, 
+		Font=F.mono, 
+		TextSize=10,  -- Ligeramente más grande
+		ZIndex=7,
 		TextXAlignment=Enum.TextXAlignment.Right,
 	}, footer)
+
 	return card
 end
 
+-- ── Loading overlay dentro de tarjeta ─────────────────────────────────────
+local function showCardLoading(card)
+	-- Remover loading previo si existe
+	local old = card:FindFirstChild("CardLoading")
+	if old then old:Destroy() end
+
+	local loading = n("Frame", {
+		Name = "CardLoading",
+		Size = UDim2.new(1,0,1,0),
+		BackgroundColor3 = Color3.fromRGB(0,0,0),
+		BackgroundTransparency = 0.4,
+		BorderSizePixel = 0,
+		ZIndex = 20,  -- Por encima de todo en la tarjeta
+	}, card)
+	corner(10, loading)
+
+	-- Spinner animado
+	local spinner = n("ImageLabel", {
+		Name = "Spinner",
+		Size = UDim2.new(0,32,0,32),
+		Position = UDim2.new(0.5,-16,0.5,-16),
+		BackgroundTransparency = 1,
+		Image = "rbxassetid://6031094670",  -- Icono de carga de Roblox (o tu propio asset)
+		ZIndex = 21,
+	}, loading)
+
+	-- Animación de rotación
+	task.spawn(function()
+		while spinner and spinner.Parent do
+			spinner.Rotation = (spinner.Rotation + 12) % 360
+			task.wait(0.03)
+		end
+	end)
+
+	n("TextLabel", {
+		Size = UDim2.new(1,0,0,20),
+		Position = UDim2.new(0,0,0.5,20),
+		BackgroundTransparency = 1,
+		Text = "Cargando...",
+		TextColor3 = C.text,
+		Font = F.mono,
+		TextSize = 10,
+		ZIndex = 21,
+	}, loading)
+
+	return loading
+end
+
+local function hideCardLoading(card)
+	local loading = card:FindFirstChild("CardLoading")
+	if loading then
+		loading:Destroy()
+	end
+end
+
+-- ── Header de sección ─────────────────────────────────────────────────────
 local function buildSectionHeader(title, count, lo, parent)
 	local sh = n("Frame", {
-		Name="SecH_"..lo, Size=UDim2.new(1,0,0,28),
-		BackgroundTransparency=1, ZIndex=4, LayoutOrder=lo,
+		Name="SecH_"..lo, 
+		Size=UDim2.new(1,0,0,32),  -- Ligeramente más alto
+		BackgroundTransparency=1, 
+		ZIndex=4, 
+		LayoutOrder=lo,
 	}, parent)
+
 	n("TextLabel", {
-		Size=UDim2.new(0,220,1,0), BackgroundTransparency=1,
-		Text=title:upper(), TextColor3=C.accent, Font=F.mono, TextSize=9,
-		TextXAlignment=Enum.TextXAlignment.Left, ZIndex=5,
+		Size=UDim2.new(0,220,1,0), 
+		BackgroundTransparency=1,
+		Text=title:upper(), 
+		TextColor3=C.accent, 
+		Font=F.mono, 
+		TextSize=10,  -- Ligeramente más grande
+		TextXAlignment=Enum.TextXAlignment.Left, 
+		ZIndex=5,
 	}, sh)
+
 	n("Frame", {
-		Size=UDim2.new(1,-230,0,1), Position=UDim2.new(0,220,0.5,0),
-		BackgroundColor3=C.border, BorderSizePixel=0, ZIndex=5,
+		Size=UDim2.new(1,-230,0,1), 
+		Position=UDim2.new(0,220,0.5,0),
+		BackgroundColor3=C.border, 
+		BorderSizePixel=0, 
+		ZIndex=5,
 	}, sh)
+
 	n("TextLabel", {
-		Size=UDim2.new(0,60,1,0), Position=UDim2.new(1,-60,0,0),
+		Size=UDim2.new(0,70,1,0), 
+		Position=UDim2.new(1,-70,0,0),
 		BackgroundTransparency=1,
 		Text=count..(count==1 and " nivel" or " niveles"),
-		TextColor3=C.dim, Font=F.mono, TextSize=9,
-		TextXAlignment=Enum.TextXAlignment.Right, ZIndex=5,
+		TextColor3=C.dim, 
+		Font=F.mono, 
+		TextSize=10,  -- Ligeramente más grande
+		TextXAlignment=Enum.TextXAlignment.Right, 
+		ZIndex=5,
 	}, sh)
 end
 
--- ── buildGrid ──────────────────────────────────────────────────────────────
+-- ── buildGrid ─────────────────────────────────────────────────────────────
 local function buildGrid(progressData)
 	local gridScroll = S2:FindFirstChild("GridArea", true)
-	if not gridScroll then warn("[MenuController] GridArea no encontrado"); return end
+	if not gridScroll then 
+		warn("[MenuController] GridArea no encontrado"); 
+		return 
+	end
 
+	-- Limpiar contenido anterior (manteniendo layout y padding)
 	local KEEP = {ProgressBar=true, LoadingFrame=true}
 	for _, child in ipairs(gridScroll:GetChildren()) do
 		if not KEEP[child.Name] and not child:IsA("UIListLayout") and not child:IsA("UIPadding") then
 			child:Destroy()
 		end
 	end
-	local lf = gridScroll:FindFirstChild("LoadingFrame"); if lf then lf.Visible = false end
 
+	-- Ocultar loading global si existe
+	local lf = gridScroll:FindFirstChild("LoadingFrame")
+	if lf then 
+		lf.Visible = false 
+	end
+
+	-- Procesar datos de niveles
 	LEVELS = {}
 	for k, datos in pairs(progressData) do
 		local id = tonumber(k)
-		if id ~= nil and datos then datos.nivelID = id; LEVELS[id] = datos end
+		if id ~= nil and datos then 
+			datos.nivelID = id
+			LEVELS[id] = datos 
+		end
 	end
 
+	-- Agrupar por secciones
 	local secciones, ordenSec = {}, {}
 	for i = 0, 4 do
-		local d = LEVELS[i]; if not d then continue end
+		local d = LEVELS[i]
+		if not d then continue end
 		local sec = d.seccion or "NIVELES"
-		if not secciones[sec] then secciones[sec] = {}; table.insert(ordenSec, sec) end
+		if not secciones[sec] then 
+			secciones[sec] = {}
+			table.insert(ordenSec, sec) 
+		end
 		table.insert(secciones[sec], d)
 	end
+
+	-- Ordenar secciones por ID de primer nivel
 	table.sort(ordenSec, function(a, b)
 		return (secciones[a][1] and secciones[a][1].nivelID or 999) <
 			(secciones[b][1] and secciones[b][1].nivelID or 999)
 	end)
 
+	-- Construir grid
 	local lo, cols = 3, 2
 	for secIdx, secNombre in ipairs(ordenSec) do
 		local niveles = secciones[secNombre]
-		buildSectionHeader(secNombre, #niveles, lo, gridScroll); lo = lo + 1
-		local contH = math.ceil(#niveles / cols) * (CARD_H + 14)
-		local cont  = n("Frame", {
-			Name="Sec_"..secIdx, Size=UDim2.new(1,0,0,contH),
-			BackgroundTransparency=1, ZIndex=4, LayoutOrder=lo,
-		}, gridScroll); lo = lo + 1
+
+		-- Header de sección
+		buildSectionHeader(secNombre, #niveles, lo, gridScroll)
+		lo = lo + 1
+
+		-- Contenedor de tarjetas
+		local contH = math.ceil(#niveles / cols) * (CARD_H + 16)
+		local cont = n("Frame", {
+			Name="Sec_"..secIdx, 
+			Size=UDim2.new(1,0,0,contH),
+			BackgroundTransparency=1, 
+			ZIndex=4, 
+			LayoutOrder=lo,
+		}, gridScroll)
+		lo = lo + 1
+
+		-- Crear tarjetas
 		for i, lv in ipairs(niveles) do
-			buildLevelCard(lv, (i-1) % cols, math.floor((i-1) / cols), cont)
+			local card = buildLevelCard(lv, (i-1) % cols, math.floor((i-1) / cols), cont)
+
+			-- Guardar referencia al nivel en la tarjeta para el loading
+			card:SetAttribute("NivelID", lv.nivelID)
 		end
+
+		-- Gap entre secciones
 		n("Frame", {
-			Name="Gap_"..secIdx, Size=UDim2.new(1,0,0,18),
-			BackgroundTransparency=1, LayoutOrder=lo,
-		}, gridScroll); lo = lo + 1
+			Name="Gap_"..secIdx, 
+			Size=UDim2.new(1,0,0,20),  -- Más espacio entre secciones
+			BackgroundTransparency=1, 
+			LayoutOrder=lo,
+		}, gridScroll)
+		lo = lo + 1
 	end
 
+	-- Ajustar canvas size
 	local layout = gridScroll:FindFirstChildOfClass("UIListLayout")
 	if layout then
 		task.defer(function()
-			gridScroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 60)
+			gridScroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 80)
 		end)
 	end
 
 	connectLevelCards()
 	print("[MenuController] Grid listo —", #ordenSec, "secciones,", #LEVELS, "niveles cargados")
+end
+
+-- ── Funciones exportadas para loading por tarjeta ─────────────────────────
+local function showLevelLoading(nivelID)
+	local gridScroll = S2:FindFirstChild("GridArea", true)
+	if not gridScroll then return end
+
+	local card = gridScroll:FindFirstChild("Card"..nivelID, true)
+	if card then
+		return showCardLoading(card)
+	end
+end
+
+local function hideLevelLoading(nivelID)
+	local gridScroll = S2:FindFirstChild("GridArea", true)
+	if not gridScroll then return end
+
+	local card = gridScroll:FindFirstChild("Card"..nivelID, true)
+	if card then
+		hideCardLoading(card)
+	end
 end
 
 -- ── updateProgressBar ──────────────────────────────────────────────────────
@@ -554,20 +726,44 @@ if playBtnSidebar then
 
 		isLoading = true
 		local thisLoad = os.clock(); loadStartTime = thisLoad
-		if loadingLbl then loadingLbl.Text = "Cargando  "..(lv.nombre or "").."..." end
 
-		fadeIn(0.4, function()
+		-- Mostrar loading DENTRO de la tarjeta seleccionada, no el LoadingFrame global
+		local cardLoading = showLevelLoading(selectedLevelID)
+
+		-- Opcional: pequeño delay visual para que el usuario vea el feedback
+		task.delay(0.3, function()
+			if not isLoading or loadStartTime ~= thisLoad then return end
+
 			if requestPlayLEv then
 				requestPlayLEv:FireServer(selectedLevelID)
+
+				-- Timeout de 10s
 				task.spawn(function()
 					task.wait(10)
 					if isLoading and loadStartTime == thisLoad then
-						if loadingLbl then loadingLbl.Text = "⏱ Sin respuesta del servidor" end
-						task.delay(1.5, function()
-							if isLoading and loadStartTime == thisLoad then
-								fadeOut(0.4, function() isLoading = false; goToLevels() end)
-							end
-						end)
+						-- Remover loading de tarjeta y mostrar error
+						hideLevelLoading(selectedLevelID)
+						-- Opcional: mostrar notificación de error en la tarjeta
+						local gridScroll = S2:FindFirstChild("GridArea", true)
+						local card = gridScroll and gridScroll:FindFirstChild("Card"..selectedLevelID, true)
+						if card then
+							local errLbl = card:FindFirstChild("ErrorLabel") or n("TextLabel", {
+								Name = "ErrorLabel",
+								Size = UDim2.new(1, 0, 0, 20),
+								Position = UDim2.new(0, 0, 1, -20),
+								BackgroundColor3 = C.danger,
+								BackgroundTransparency = 0.2,
+								Text = "⏱ Timeout",
+								TextColor3 = C.text,
+								Font = F.mono,
+								TextSize = 9,
+								ZIndex = 25,
+							}, card)
+							corner(4, errLbl)
+							task.delay(2, function() if errLbl then errLbl:Destroy() end end)
+						end
+
+						isLoading = false
 					end
 				end)
 			end
@@ -575,24 +771,46 @@ if playBtnSidebar then
 	end)
 end
 
-local backBtn = S2:FindFirstChild("BackBtn", true) or S2:FindFirstChild("BtnBack", true)
-if backBtn then backBtn.MouseButton1Click:Connect(goToMenu) end
-
--- ── LevelReady → solo cerrar pantalla de carga ─────────────────────────────
--- ClientBoot gestiona .Enabled y cámara. Aquí solo cerramos el LoadingFrame.
+-- ── LevelReady → ocultar loading de tarjeta ────────────────────────────────
 if levelReadyEv then
 	levelReadyEv.OnClientEvent:Connect(function(data)
+		-- Siempre ocultar el loading de la tarjeta primero
+		if selectedLevelID then
+			hideLevelLoading(selectedLevelID)
+		end
+
 		if data and data.error then
-			if loadingLbl then loadingLbl.Text = "❌ "..data.error end
-			task.delay(2.5, function()
-				fadeOut(0.4, function() isLoading = false; goToLevels() end)
-			end)
+			-- Mostrar error en la tarjeta o sidebar
+			local gridScroll = S2:FindFirstChild("GridArea", true)
+			local card = gridScroll and gridScroll:FindFirstChild("Card"..selectedLevelID, true)
+			if card then
+				local errOverlay = n("Frame", {
+					Name = "ErrorOverlay",
+					Size = UDim2.new(1, 0, 0, 30),
+					Position = UDim2.new(0, 0, 0.5, -15),
+					BackgroundColor3 = C.danger,
+					BackgroundTransparency = 0.3,
+					ZIndex = 25,
+				}, card)
+				corner(6, errOverlay)
+				n("TextLabel", {
+					Size = UDim2.new(1, 0, 1, 0),
+					BackgroundTransparency = 1,
+					Text = "❌ "..(data.error or "Error"),
+					TextColor3 = C.text,
+					Font = F.bold,
+					TextSize = 10,
+					ZIndex = 26,
+				}, errOverlay)
+				task.delay(2.5, function() if errOverlay then errOverlay:Destroy() end end)
+			end
+
+			isLoading = false
 			return
 		end
-		if loadingLbl then loadingLbl.Text = "✅  "..(data and data.nombre or "Nivel cargado") end
-		task.delay(0.6, function()
-			fadeOut(0.4, function() isLoading = false end)
-		end)
+
+		-- Éxito: el ClientBoot manejará la transición de cámara y GUI
+		isLoading = false
 	end)
 end
 

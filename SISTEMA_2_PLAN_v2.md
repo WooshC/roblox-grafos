@@ -694,12 +694,28 @@ ScreenGui "GUIExploradorV2"
 │           │   └── EstrellasMostrar (Frame — 3 estrellas)
 │           │       ├── UIListLayout (horizontal)
 │           │       └── Estrella1, Estrella2, Estrella3 (ImageLabels)
-│           ├── EstadisticasFrame (Frame — filas de stats)
-│           │   ├── UIListLayout (vertical)
-│           │   ├── FilaTiempo (Frame — ⏱ Tiempo)
-│           │   ├── FilaAciertos (Frame — 🔗 Conexiones)
-│           │   ├── FilaErrores (Frame — ❌ Errores)
-│           │   └── FilaPuntaje (Frame — 🏆 Puntaje Final, dorado)
+│           ├── 🖼️ EstadisticasFrame (Frame — filas de stats)
+│           │   ├── 📏 UIListLayout (Vertical)
+│           │   ├── ⏱️ FilaTiempo (Frame)
+│           │   │   ├── 🔳 UICorner
+│           │   │   ├── ➖ UIStroke
+│           │   │   ├── 🔤 K (TextLabel - "Tiempo:")
+│           │   │   └── 🔢 Valor (TextLabel - "00:00")
+│           │   ├── 🔗 FilaAciertos (Frame)
+│           │   │   ├── 🔳 UICorner
+│           │   │   ├── ➖ UIStroke
+│           │   │   ├── 🔤 K (TextLabel - "Aciertos:")
+│           │   │   └── 🔢 Valor (TextLabel - "0")
+│           │   ├── ❌ FilaErrores (Frame)
+│           │   │   ├── 🔳 UICorner
+│           │   │   ├── ➖ UIStroke
+│           │   │   ├── 🔤 K (TextLabel - "Errores:")
+│           │   │   └── 🔢 Valor (TextLabel - "0")
+│           │   └── 🏆 FilaPuntaje (Frame - Dorado)
+│           │       ├── 🔳 UICorner
+│           │       ├── ➖ UIStroke
+│           │       ├── 🔤 K (TextLabel - "Puntaje:")
+│           │       └── 🔢 Valor (TextLabel - "0000")
 │           └── BotonesFrame (Frame)
 │               ├── UIListLayout (horizontal)
 │               ├── BotonRepetir (TextButton — amarillo)
@@ -739,36 +755,6 @@ ScreenGui "GUIExploradorV2"
             └── ModalNoteLabel (TextLabel — 💾)
 ```
 
-> **Importante**: El HUD muestra el **puntaje base acumulado** (sin penalizaciones
-> ni bonus de tiempo). El desglose completo aparece SOLO en la pantalla de victoria.
-
-### `ConectarCables.lua` — Integración con ScoreTracker
-
-```lua
--- Al conectar exitosamente:
-ScoreTracker:registrarConexion()      -- +1 conexión → puntajeBase sube en HUD
-
--- Al intentar conexión inválida:
-ScoreTracker:registrarFallo()         -- +1 fallo (resta puntos al final, NO en HUD)
-
--- Al desconectar un cable (hitbox click o reconectar el mismo par):
-ScoreTracker:registrarDesconexion()   -- -1 conexión → puntajeBase baja en HUD
-```
-
-### `VisualEffectsService.client.lua` — Efectos de selección
-
-Escucha `NotificarSeleccionNodo` (RemoteEvent) y aplica efectos localmente:
-
-```
-NodoSeleccionado → SelectionBox CYAN en nodo seleccionado
-                 → SelectionBox DORADO en cada nodo adyacente
-SeleccionCancelada / ConexionCompletada / CableDesconectado → limpiar todo
-ConexionInvalida   → limpiar + flash ROJO   en nodo destino (no son adyacentes)
-DireccionInvalida  → limpiar + flash NARANJA en nodo destino (arista existe al revés)
-```
-
-Los Beams (cables conectados) son creados server-side con color celeste brillante
-`RGB(0, 200, 255)`, `CurveSize = 0` (siempre tenso), `FaceCamera = true`.
 
 ### `GuiaService.lua` — Consciente de zonas y dificultad
 
