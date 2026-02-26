@@ -23,7 +23,7 @@ LevelsConfig[0] = {
 	Modelo           = "Nivel0",
 
 	Puntuacion = {
-		TresEstrellas  = 1000,
+		TresEstrellas  = 1250,
 		DosEstrellas   = 600,
 		RecompensaXP   = 500,
 		PuntosConexion = 50,
@@ -84,16 +84,6 @@ LevelsConfig[0] = {
 	Misiones = {
 		{ ID=1, Zona="Zona_Estacion_1", Texto="Selecciona cualquier nodo",                   Tipo="NODO_SELECCIONADO", Puntos=100, Parametros={Nodo="Nodo1_z1"} },
 		{ ID=2, Zona="Zona_Estacion_1", Texto="Conecta Nodo 1 con Nodo 2 (crea una arista)", Tipo="ARISTA_CREADA",     Puntos=150, Parametros={NodoA="Nodo1_z1", NodoB="Nodo2_z1"} },
-
-		{ ID=3, Zona="Zona_Estacion_2", Texto="Conecta un vecino al centro (grado ≥ 1)",     Tipo="GRADO_NODO",        Puntos=150, Parametros={Nodo="Nodo1_z2", GradoRequerido=1} },
-		{ ID=4, Zona="Zona_Estacion_2", Texto="Conecta los 3 vecinos al centro (grado = 3)", Tipo="GRADO_NODO",        Puntos=300, Parametros={Nodo="Nodo1_z2", GradoRequerido=3} },
-
-		{ ID=5, Zona="Zona_Estacion_3", Texto="Crea la arista Nodo X → Nodo Y",             Tipo="ARISTA_DIRIGIDA",   Puntos=150, Parametros={NodoOrigen="Nodo1_z3", NodoDestino="Nodo2_z3"} },
-		{ ID=6, Zona="Zona_Estacion_3", Texto="Completa la cadena: Nodo Y → Nodo Z",         Tipo="ARISTA_DIRIGIDA",   Puntos=150, Parametros={NodoOrigen="Nodo2_z3", NodoDestino="Nodo3_z3"} },
-
-		{ ID=7, Zona="Zona_Estacion_4", Texto="Construye un grafo conexo (todos conectados)", Tipo="GRAFO_CONEXO",     Puntos=250, Parametros={Nodos={"Nodo1_z4","Nodo2_z4","Nodo3_z4"}} },
-
-		{ ID=8, Zona=nil, Texto="BONUS: Conecta la Tableta con el Panel", Tipo="ARISTA_CREADA", Puntos=500, Parametros={NodoA="PostePanel", NodoB="toma_corriente"} },
 	},
 }
 

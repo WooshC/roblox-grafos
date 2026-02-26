@@ -185,8 +185,38 @@ local function makeLabel(parent, text, color, size, bold, richText)
 	return lbl
 end
 
--- Reconstruye todo el panel de misiones con los datos del servidor.
--- data = { misiones = [...], completadas = [...], zonaActual = str|nil }
+-- ════════════════════════════════════════════════════════════════════════════
+-- PANEL DE MISIONES — rebuildMisionPanel (reemplaza la función actual)
+-- ════════════════════════════════════════════════════════════════════════════
+--
+-- Comportamiento:
+--   · Sin zona activa  → vista RESUMEN: una fila por zona con contador (0/n) o ✅
+--   · Con zona activa  → vista DETALLE: SOLO las misiones de esa zona, con
+--                        descripción completa y tachado si están completadas.
+--                        Las demás zonas NO aparecen.
+--
+-- Este bloque reemplaza la función rebuildMisionPanel en HUDController.client.lua
+
+local COLOR_COMPLETA  = Color3.fromRGB(80, 200, 120)
+local COLOR_PENDIENTE = Color3.fromRGB(200, 200, 200)
+local COLOR_ZONA_BG   = Color3.fromRGB(30, 30, 50)
+local COLOR_ZONA_ACT  = Color3.fromRGB(30, 50, 90)
+
+local function makeLabel(parent, text, color, size, bold, richText)
+	local lbl                   = Instance.new("TextLabel")
+	lbl.Size                    = size or UDim2.new(1, 0, 0, 24)
+	lbl.BackgroundTransparency  = 1
+	lbl.Text                    = text
+	lbl.TextColor3              = color or Color3.new(1, 1, 1)
+	lbl.TextScaled              = false
+	lbl.TextSize                = 14
+	lbl.Font                    = bold and Enum.Font.GothamBold or Enum.Font.Gotham
+	lbl.TextXAlignment          = Enum.TextXAlignment.Left
+	lbl.RichText                = richText or false
+	lbl.Parent                  = parent
+	return lbl
+end
+
 local function rebuildMisionPanel(data)
 	if not misionCuerpo then return end
 
@@ -200,11 +230,11 @@ local function rebuildMisionPanel(data)
 	local misiones    = data.misiones   or {}
 	local completadas = {}
 	for _, id in ipairs(data.completadas or {}) do completadas[id] = true end
-	local zonaActual  = data.zonaActual
+	local zonaActual  = data.zonaActual   -- nil si el jugador no está en ninguna zona
 
-	-- Agrupar misiones por zona
-	local zonas      = {}  -- { [zona] = { {mision}, ... } }
-	local zonasOrder = {}  -- orden de aparición
+	-- Agrupar misiones por zona (respetando orden de aparición)
+	local zonas      = {}  -- { [zona] = { mision, ... } }
+	local zonasOrder = {}
 
 	for _, m in ipairs(misiones) do
 		local zona = m.Zona or "BONUS"
@@ -217,161 +247,223 @@ local function rebuildMisionPanel(data)
 
 	local ROW_H = 26
 
-	for _, zona in ipairs(zonasOrder) do
-		local listaZona   = zonas[zona]
-		local total       = #listaZona
-		local completadas_count = 0
-		for _, m in ipairs(listaZona) do
-			if completadas[m.ID] then completadas_count = completadas_count + 1 end
-		end
-		local allZonaDone = (completadas_count >= total)
-		local esActual    = (zona == zonaActual)
+	-- ══════════════════════════════════════════════════════════════════════
+	-- VISTA DETALLE: jugador dentro de una zona
+	-- Muestra SOLO las misiones de esa zona con descripción completa.
+	-- ══════════════════════════════════════════════════════════════════════
+	if zonaActual and zonas[zonaActual] then
+		local listaZona = zonas[zonaActual]
 
-		-- ── Cabecera de zona ──────────────────────────────────────────────────
+		-- Cabecera de la zona actual
 		local header          = Instance.new("Frame")
 		header.Size           = UDim2.new(1, 0, 0, ROW_H + 4)
-		header.BackgroundColor3 = esActual and COLOR_ZONA_ACT or COLOR_ZONA_BG
+		header.BackgroundColor3 = COLOR_ZONA_ACT
 		header.BorderSizePixel  = 0
 		header.Parent           = misionCuerpo
-
 		local hPad = Instance.new("UIPadding")
-		hPad.PaddingLeft  = UDim.new(0, 8)
+		hPad.PaddingLeft = UDim.new(0, 8)
 		hPad.PaddingRight = UDim.new(0, 8)
 		hPad.Parent = header
-
 		local hCorner = Instance.new("UICorner")
 		hCorner.CornerRadius = UDim.new(0, 4)
 		hCorner.Parent = header
 
-		-- Nombre de zona + contador
-		local nombreZona = zona == "BONUS" and "⭐ BONUS" or zona:gsub("_", " ")
-		local contadorStr = allZonaDone and "✅" or (completadas_count .. "/" .. total)
-		local headerText = string.format("%s  ·  %s", nombreZona, contadorStr)
-		local headerLbl  = makeLabel(header, headerText,
-			allZonaDone and COLOR_COMPLETA or Color3.fromRGB(220, 220, 255),
+		local nombreZona = zonaActual == "BONUS" and "⭐ BONUS" or zonaActual:gsub("_", " ")
+		makeLabel(header, "📍 " .. nombreZona,
+			Color3.fromRGB(255, 220, 100),
 			UDim2.new(1, -16, 1, 0), true, false)
-		headerLbl.TextSize = 15
-		headerLbl.Position = UDim2.new(0, 0, 0, 0)
 
-		-- Flecha indicador de zona actual
-		if esActual then
-			headerLbl.Text = "▶ " .. headerText
-		end
-
-		-- ── Misiones de esta zona (expandidas si es la zona actual, resumidas si no) ──
+		-- Misiones de la zona con descripción completa
 		for _, m in ipairs(listaZona) do
 			local done = completadas[m.ID] == true
 
-			if esActual or done then
-				-- Mostrar misión completa con texto detallado
-				local rowH = done and ROW_H or ROW_H + 6
-				local row          = Instance.new("Frame")
-				row.Size           = UDim2.new(1, 0, 0, rowH)
-				row.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
-				row.BorderSizePixel  = 0
-				row.Parent           = misionCuerpo
+			local row          = Instance.new("Frame")
+			row.Size           = UDim2.new(1, 0, 0, ROW_H + 8)
+			row.BackgroundColor3 = done
+				and Color3.fromRGB(20, 50, 30)
+				or  Color3.fromRGB(25, 25, 45)
+			row.BorderSizePixel  = 0
+			row.Parent           = misionCuerpo
 
-				local rPad = Instance.new("UIPadding")
-				rPad.PaddingLeft  = UDim.new(0, 16)
-				rPad.PaddingRight = UDim.new(0, 8)
-				rPad.Parent = row
+			local rPad = Instance.new("UIPadding")
+			rPad.PaddingLeft  = UDim.new(0, 14)
+			rPad.PaddingRight = UDim.new(0, 8)
+			rPad.Parent = row
 
-				local rCorner = Instance.new("UICorner")
-				rCorner.CornerRadius = UDim.new(0, 4)
-				rCorner.Parent = row
+			local rCorner = Instance.new("UICorner")
+			rCorner.CornerRadius = UDim.new(0, 4)
+			rCorner.Parent = row
 
-				-- Icono estado + texto
-				local icono = done and "✅ " or "◻ "
-				local texto = m.Texto or ""
-				-- Tachado para completadas usando RichText
-				local displayTexto
-				if done then
-					displayTexto = icono .. "<s>" .. texto .. "</s>"
-				else
-					displayTexto = icono .. texto
-				end
+			local puntos = m.Puntos and m.Puntos > 0 and (" (+%d pts)"):format(m.Puntos) or ""
+			local icono  = done and "✅ " or "○ "
 
-				local mLbl = makeLabel(row, displayTexto,
-					done and COLOR_COMPLETA or COLOR_PENDIENTE,
-					UDim2.new(1, -24, 1, 0), false, true)
-				mLbl.TextSize = 13
-				mLbl.TextWrapped = true
-
-				-- Puntos
-				local ptsLbl = Instance.new("TextLabel")
-				ptsLbl.Size  = UDim2.new(0, 50, 1, 0)
-				ptsLbl.Position = UDim2.new(1, -54, 0, 0)
-				ptsLbl.BackgroundTransparency = 1
-				ptsLbl.Text  = "+" .. (m.Puntos or 0)
-				ptsLbl.TextColor3 = done and COLOR_COMPLETA or Color3.fromRGB(180, 180, 100)
-				ptsLbl.TextSize = 12
-				ptsLbl.Font  = Enum.Font.GothamBold
-				ptsLbl.TextXAlignment = Enum.TextXAlignment.Right
-				ptsLbl.Parent = row
+			if done then
+				-- Tachado con RichText
+				makeLabel(row,
+					string.format('<s>%s%s%s</s>', icono, m.Texto, puntos),
+					COLOR_COMPLETA,
+					UDim2.new(1, -22, 1, 0), false, true)
+			else
+				makeLabel(row,
+					icono .. m.Texto .. puntos,
+					COLOR_PENDIENTE,
+					UDim2.new(1, -22, 1, 0), false, false)
 			end
 		end
 
-		-- Separador
-		local sep = Instance.new("Frame")
-		sep.Size  = UDim2.new(1, 0, 0, 2)
-		sep.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
-		sep.BorderSizePixel  = 0
-		sep.Parent           = misionCuerpo
-	end
+		-- ══════════════════════════════════════════════════════════════════════
+		-- VISTA RESUMEN: jugador fuera de toda zona
+		-- Muestra una fila por zona con contador (0/n) o ✅
+		-- ══════════════════════════════════════════════════════════════════════
+	else
+		for _, zona in ipairs(zonasOrder) do
+			local listaZona = zonas[zona]
+			local total     = #listaZona
+			local complCount = 0
+			for _, m in ipairs(listaZona) do
+				if completadas[m.ID] then complCount = complCount + 1 end
+			end
+			local allZonaDone = (complCount >= total)
 
-	-- Ajustar tamaño del ScrollingFrame al contenido
-	if misionCuerpo:IsA("ScrollingFrame") then
-		local layout = misionCuerpo:FindFirstChildOfClass("UIListLayout")
-		if layout then
-			misionCuerpo.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 8)
+			local header          = Instance.new("Frame")
+			header.Size           = UDim2.new(1, 0, 0, ROW_H + 4)
+			header.BackgroundColor3 = COLOR_ZONA_BG
+			header.BorderSizePixel  = 0
+			header.Parent           = misionCuerpo
+
+			local hPad = Instance.new("UIPadding")
+			hPad.PaddingLeft  = UDim.new(0, 8)
+			hPad.PaddingRight = UDim.new(0, 8)
+			hPad.Parent = header
+
+			local hCorner = Instance.new("UICorner")
+			hCorner.CornerRadius = UDim.new(0, 4)
+			hCorner.Parent = header
+
+			local nombreZona  = zona == "BONUS" and "⭐ BONUS" or zona:gsub("_", " ")
+			local contadorStr = allZonaDone and "✅" or (complCount .. "/" .. total)
+			makeLabel(header,
+				string.format("%s  ·  %s", nombreZona, contadorStr),
+				allZonaDone and COLOR_COMPLETA or Color3.fromRGB(220, 220, 255),
+				UDim2.new(1, -16, 1, 0), true, false)
 		end
 	end
+
+	-- Actualizar canvas
+	local layout = misionCuerpo:FindFirstChildOfClass("UIListLayout")
+	if layout then
+		misionCuerpo.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 8)
+	end
 end
-
 -- ════════════════════════════════════════════════════════════════════════════
--- PANTALLA DE VICTORIA
+-- PANTALLA DE VICTORIA — showVictory (reemplaza la función actual)
+-- ════════════════════════════════════════════════════════════════════════════
+--
+-- Jerarquía esperada (según GUIExploradorV2):
+--
+--   VictoriaFondo (Frame)
+--   └── PantallaVictoria (CanvasGroup)
+--       └── ContenedorPrincipal (Frame)
+--           ├── VictoriaHead (Frame)
+--           │   └── EstrellasMostrar (Frame)
+--           │       └── Estrella1, Estrella2, Estrella3 (ImageLabel)
+--           ├── EstadisticasFrame (Frame)
+--           │   ├── FilaTiempo   (Frame) → Valor (TextLabel)
+--           │   ├── FilaAciertos (Frame) → Valor (TextLabel)
+--           │   ├── FilaErrores  (Frame) → Valor (TextLabel)
+--           │   └── FilaPuntaje  (Frame) → Valor (TextLabel)
+--           └── BotonesFrame (Frame)
+--               ├── BotonRepetir   (TextButton)
+--               └── BotonContinuar (TextButton)
+--
+-- REEMPLAZA en HUDController.client.lua:
+--   1. Las referencias de botonRepetir y botonContinuar en la sección de referencias
+--   2. La función showVictory completa
+--   3. Las conexiones de botones de victoria al final del script
 -- ════════════════════════════════════════════════════════════════════════════
 
+-- ── Referencias a la pantalla de victoria ────────────────────────────────────
+-- Reemplaza estas líneas en la sección "Referencias a elementos del HUD":
+--
+--   local victoriaFondo    = hud:FindFirstChild("VictoriaFondo",     true)
+--   local botonRepetir     = victoriaFondo and victoriaFondo:FindFirstChild("BotonRepetir",   true)
+--   local botonContinuar   = victoriaFondo and victoriaFondo:FindFirstChild("BotonContinuar", true)
+--   local victoriaStats    = victoriaFondo and victoriaFondo:FindFirstChild("EstadisticasFrame", true)
+--
+-- Por estas:
+
+local victoriaFondo = hud:FindFirstChild("VictoriaFondo", true)
+
+-- Navegar la jerarquía exacta para no confundir elementos
+local _pantalla     = victoriaFondo
+	and victoriaFondo:FindFirstChild("PantallaVictoria")
+local _contenedor   = _pantalla
+	and _pantalla:FindFirstChild("ContenedorPrincipal")
+local victoriaStats = _contenedor
+	and _contenedor:FindFirstChild("EstadisticasFrame")
+local _botonesFrame = _contenedor
+	and _contenedor:FindFirstChild("BotonesFrame")
+local botonRepetir   = _botonesFrame and _botonesFrame:FindFirstChild("BotonRepetir")
+local botonContinuar = _botonesFrame and _botonesFrame:FindFirstChild("BotonContinuar")
+local _victoriaHead  = _contenedor and _contenedor:FindFirstChild("VictoriaHead")
+local _estrellasMostrar = _victoriaHead and _victoriaHead:FindFirstChild("EstrellasMostrar")
+
+-- ── showVictory ───────────────────────────────────────────────────────────────
 local function showVictory(snap)
 	if not victoriaFondo then
 		warn("[HUDController] VictoriaFondo no encontrado en GUIExploradorV2")
 		return
 	end
 
-	-- Rellenar estadísticas si los elementos existen
 	if victoriaStats and snap then
-		-- Tiempo formateado
-		local function getRow(name)
-			return victoriaStats:FindFirstChild(name, true)
-		end
 
-		local function setValor(rowName, valor)
-			local row = getRow(rowName)
-			if not row then return end
-			-- Buscar un TextLabel llamado "Valor" o el segundo TextLabel
-			local lbl = row:FindFirstChild("Valor")
-			if not lbl then
-				for _, c in ipairs(row:GetDescendants()) do
-					if c:IsA("TextLabel") and c.Name ~= "Etiqueta" and c.Name ~= "Icono" then
-						lbl = c; break
-					end
-				end
+		-- Helper: encuentra el TextLabel "Valor" como hijo DIRECTO de la fila
+		local function setValor(filaName, texto)
+			local fila = victoriaStats:FindFirstChild(filaName)
+			if not fila then
+				warn("[HUDController] showVictory: fila no encontrada →", filaName)
+				return
 			end
-			if lbl then lbl.Text = tostring(valor) end
+			local lbl = fila:FindFirstChild("V")
+			if not lbl then
+				warn("[HUDController] showVictory: 'Valor' no encontrado en", filaName)
+				return
+			end
+			lbl.Text = tostring(texto)
 		end
 
+		-- Tiempo formateado mm:ss
 		local t   = snap.tiempo or 0
 		local min = math.floor(t / 60)
 		local seg = t % 60
 		setValor("FilaTiempo",    string.format("%d:%02d", min, seg))
-		setValor("FilaAciertos",  tostring(snap.conexiones or 0))
-		setValor("FilaErrores",   tostring(snap.fallos or 0))
+		setValor("FilaAciertos",  tostring(snap.conexiones  or 0))
+		setValor("FilaErrores",   tostring(snap.fallos      or 0))
 		setValor("FilaPuntaje",   tostring(snap.puntajeBase or 0))
 	end
 
+	-- Estrellas (opcional: mostrar según puntaje si tienes umbrales)
+	-- Por ahora las muestra todas activas. Adaptar si LevelsConfig tiene TresEstrellas/DosEstrellas.
+	if _estrellasMostrar then
+		-- Aquí podrías apagar estrellas según snap.puntajeBase vs config.
+		-- Por defecto dejamos las 3 visibles (ya deben estar así en Studio).
+	end
+
 	victoriaFondo.Visible = true
-	print("[HUDController] 🏆 Pantalla de victoria mostrada")
+	print("[HUDController] 🏆 Pantalla de victoria mostrada — puntaje:", snap and snap.puntajeBase or "?")
 end
+
+-- ── Conexiones de botones de victoria ────────────────────────────────────────
+-- Reemplaza las líneas al final de HUDController:
+--
+--   if botonRepetir   then botonRepetir.MouseButton1Click:Connect(doRestartLevel)  end
+--   if botonContinuar then botonContinuar.MouseButton1Click:Connect(doReturnToMenu) end
+--
+-- Por estas (ya son idénticas en lógica, pero ahora botonRepetir/botonContinuar
+-- apuntan a los nodos correctos dentro de BotonesFrame):
+
+if botonRepetir   then botonRepetir.MouseButton1Click:Connect(doRestartLevel)   end
+if botonContinuar then botonContinuar.MouseButton1Click:Connect(doReturnToMenu)  end
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- SCORE EN HUD
