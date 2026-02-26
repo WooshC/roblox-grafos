@@ -772,7 +772,7 @@ function GuiaService:activate(dificultad)
 end
 ```
 
-### `ZoneTriggerManager.lua` — Detección de zonas
+### `ZoneTriggerManager.lua` — Detección de zonas 
 
 ```lua
 -- Al entrar a una zona:

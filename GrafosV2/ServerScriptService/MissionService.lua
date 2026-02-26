@@ -75,6 +75,15 @@ Validators.GRADO_NODO = function(params)
 end
 
 Validators.NODO_SELECCIONADO = function(params)
+	-- Si Nodo es "ANY" o nil, cualquier nodo seleccionado cuenta
+	if params.Nodo == "ANY" or params.Nodo == nil or params.Nodo == "" then
+		-- Verificar si hay ALGÚN nodo seleccionado
+		for nodo, seleccionado in pairs(_seleccionados) do
+			if seleccionado then return true end
+		end
+		return false
+	end
+	-- Modo específico: solo ese nodo cuenta
 	return _seleccionados[params.Nodo] == true
 end
 

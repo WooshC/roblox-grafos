@@ -78,9 +78,24 @@ LevelsConfig[0] = {
 		["toma_corriente"] = "Tableta Especial",
 	},
 
+	-- LevelsConfig.lua (misión 1 corregida)
 	Misiones = {
-		{ ID=1, Zona="Zona_Estacion_1", Texto="Selecciona cualquier nodo",                   Tipo="NODO_SELECCIONADO", Puntos=100, Parametros={Nodo="Nodo1_z1"} },
-		{ ID=2, Zona="Zona_Estacion_1", Texto="Conecta Nodo 1 con Nodo 2 (crea una arista)", Tipo="ARISTA_CREADA",     Puntos=150, Parametros={NodoA="Nodo1_z1", NodoB="Nodo2_z1"} },
+		{ 
+			ID=1, 
+			Zona="Zona_Estacion_1", 
+			Texto="Selecciona cualquier nodo",
+			Tipo="NODO_SELECCIONADO", 
+			Puntos=100, 
+			Parametros={ Nodo="ANY" }
+		},
+		{ 
+			ID=2, 
+			Zona="Zona_Estacion_1", 
+			Texto="Conecta Nodo 1 con Nodo 2",
+			Tipo="ARISTA_CREADA",     
+			Puntos=150, 
+			Parametros={ NodoA="Nodo1_z1", NodoB="Nodo2_z1" } 
+		},
 	},
 }
 
