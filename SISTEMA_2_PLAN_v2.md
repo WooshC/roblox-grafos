@@ -49,6 +49,23 @@ Ambas GUIs están creadas manualmente en Studio. **NO** generarlas por script.
 - `ClientBoot` eliminó su listener de `ReturnToMenu` (Boot.server.lua nunca lo dispara al cliente).
 - `HUDController.doReturnToMenu()` es el dueño del flujo completo: fade → FireServer → swap GUI.
 
+### 🔄 CAMBIOS PENDIENTES — Etapa 4 (identificados 2026-02-26)
+
+**Cambio ①: ZoneTriggerManager — formato de zonas incompatible con LevelsConfig**
+- `LevelsConfig[n].Zonas` es un diccionario `{ [nombre] = { Modo, NodosRequeridos } }` **sin campo `Trigger`**.
+- `ZoneTriggerManager.activate(nivel, zonas, player)` espera un array `{ { nombre, trigger } }`.
+- Resultado: **ninguna zona se registra** — ZoneEntered/ZoneExited nunca se disparan.
+- **Fix**: añadir `Trigger = "NombrePart"` en cada entrada de `LevelsConfig.Zonas` y convertir el dict → array en `GameplayManager`. Ver §13.9.
+
+**Cambio ②: Highlight visible a través de paredes (cross-room)**
+- `Highlight` con `DepthMode = AlwaysOnTop` ya penetra paredes por diseño de Roblox.
+- Para garantizar visibilidad total (habitaciones separadas, distancias arbitrarias), añadir un `BillboardGui` con `AlwaysOnTop = true` como complemento visual. Ver §13.10.
+
+**Cambio ③: Módulo VisualEffects compartido cliente/servidor**
+- Crear `ReplicatedStorage/Shared/VisualEffectsConfig.lua` — constantes de colores y tipos de efecto; requerido desde servidor **y** cliente.
+- Crear `ServerScriptService/Services/VisualEffectsManager.lua` — API servidor que dispara `PlayEffect` (RemoteEvent) al cliente.
+- Expandir `VisualEffectsService.client.lua` para escuchar `PlayEffect` además de `NotificarSeleccionNodo`, añadir BillboardGui y nuevos tipos de efecto. Ver §11.3.
+
 ### ✅ Completado — Etapa 4 (2026-02-25)
 
 | Archivo | Estado | Notas |
@@ -184,6 +201,7 @@ ReplicatedStorage/
 ├── Shared/
 │   ├── Constants.lua             ← STUDS_PER_METER, TIMEOUTS, MAX_STARS
 │   ├── Enums.lua                 ← (existente, corregido)
+│   ├── VisualEffectsConfig.lua   ← NUEVO: colores y tipos de efecto (accesible cliente+servidor)
 │   └── Utils/
 │       ├── GraphUtils.lua        ← (existente, corregido)
 │       ├── TableUtils.lua        ← countKeys, deepCopy, shallowMerge
@@ -211,6 +229,7 @@ ServerScriptService/
 │   ├── RewardService.lua         ← (existente, corregido)
 │   ├── AudioService.lua          ← (existente, Heartbeat fix)
 │   ├── EffectsService.lua        ← NUEVO: efectos server-side
+│   ├── VisualEffectsManager.lua  ← NUEVO: API servidor → dispara PlayEffect al cliente
 │   └── DifficultyService.lua     ← NUEVO: aplica modificadores de dificultad
 │
 └── Gameplay/
@@ -918,6 +937,103 @@ VisualEffects:victoryConfetti()
 VisualEffects:starPopIn(count)
 ```
 
+### 11.3 Módulo Compartido de Efectos Visuales
+
+Los efectos visuales se dividen en tres capas para que **cualquier script del servidor o del cliente** pueda solicitar efectos sin acoplarse a la implementación.
+
+#### Estructura de archivos
+
+```
+ReplicatedStorage/Shared/
+└── VisualEffectsConfig.lua         ← NUEVO: constantes (requerido desde cliente Y servidor)
+
+ServerScriptService/Services/
+└── VisualEffectsManager.lua        ← NUEVO: API servidor — dispara PlayEffect (RemoteEvent)
+
+StarterPlayerScripts/Client/Services/
+└── VisualEffectsService.client.lua ← ACTUALIZADO: escucha PlayEffect + NotificarSeleccionNodo
+```
+
+#### `VisualEffectsConfig.lua` — Constantes compartidas
+
+```lua
+-- ReplicatedStorage/Shared/VisualEffectsConfig.lua
+-- Sin llamadas a API de Roblox → seguro desde servidor y cliente
+return {
+  Colors = {
+    Selected  = Color3.fromRGB(0,   212, 255),  -- cyan   (nodo seleccionado)
+    Adjacent  = Color3.fromRGB(255, 200,  50),  -- dorado (adyacentes)
+    Invalid   = Color3.fromRGB(239,  68,  68),  -- rojo   (error)
+    Connected = Color3.fromRGB(80,  255, 120),  -- verde  (conexión exitosa)
+    Energized = Color3.fromRGB(0,   200, 255),  -- cian   (nodo energizado pulsante)
+  },
+  Durations = { Flash = 0.35, Pulse = 1.2, FadeIn = 0.2 },
+  Effects = {
+    -- Strings usados como primer argumento en PlayEffect RemoteEvent
+    NODE_SELECTED   = "NodeSelected",   -- arg1=nodoModel, arg2=adjModels[]
+    NODE_ERROR      = "NodeError",      -- arg1=nodoModel  (flash rojo)
+    NODE_ENERGIZED  = "NodeEnergized",  -- arg1=nodoModel  (glow cian pulsante)
+    CABLE_CONNECTED = "CableConnected", -- arg1=nomA, arg2=nomB
+    CABLE_REMOVED   = "CableRemoved",   -- arg1=nomA, arg2=nomB
+    ZONE_COMPLETE   = "ZoneComplete",   -- arg1=zonaID
+    CLEAR_ALL       = "ClearAll",
+  },
+}
+```
+
+#### `VisualEffectsManager.lua` — API del servidor
+
+```lua
+-- ServerScriptService/Services/VisualEffectsManager.lua
+-- El servidor NUNCA aplica efectos visuales directamente.
+-- Solo dispara PlayEffect (RemoteEvent) al cliente correspondiente.
+local VEM = {}
+local _ev = nil
+
+function VEM.init(remotes)
+  _ev = remotes:FindFirstChild("PlayEffect")
+end
+-- Efecto para un jugador específico
+function VEM.fire(player, effectType, ...)
+  if _ev then _ev:FireClient(player, effectType, ...) end
+end
+-- Efecto para todos los jugadores
+function VEM.fireAll(effectType, ...)
+  if _ev then _ev:FireAllClients(effectType, ...) end
+end
+return VEM
+```
+
+#### `VisualEffectsService.client.lua` — Ampliaciones
+
+Escucha **dos** RemoteEvents:
+- `NotificarSeleccionNodo` — selección/cancelación de nodos (sin cambios, compatibilidad total)
+- `PlayEffect` — todos los demás efectos disparados por cualquier sistema del servidor
+
+| Efecto nuevo | Implementación cliente |
+|---|---|
+| **Cross-room highlight** | `BillboardGui` con `AlwaysOnTop = true` sobre el Selector |
+| **Energized glow** | `Highlight` cian + TweenService en `FillTransparency` (pulso) |
+| **Zone complete** | Partícula dorada sobre el centro de la zona |
+| **Cable flash verde** | Flash verde breve en ambos nodos al conectar |
+
+`clearAll()` destruye `_billboards[]` junto con `_highlights[]` y restaura `_savedStates[]`.
+
+#### Cómo usar desde cualquier sistema servidor
+
+```lua
+local VEM = require(ServerScriptService.Services.VisualEffectsManager)
+local VEC = require(RS.Shared.VisualEffectsConfig)
+
+-- Desde ConectarCables: error de conexión
+VEM.fire(player, VEC.Effects.NODE_ERROR, nodoModel)
+
+-- Desde MissionService: zona completada
+VEM.fireAll(VEC.Effects.ZONE_COMPLETE, "Zona_Estacion_1")
+```
+
+> **Regla de seguridad**: Solo el servidor dispara `PlayEffect:FireClient`. El RemoteEvent es de solo lectura para el cliente — no puede abusar de él para forzar efectos en otros jugadores.
+
 ---
 
 ## 12. Menú Principal — Ventanas Modales
@@ -1189,6 +1305,102 @@ se inicializó correctamente.
 }
 ```
 
+### 13.9 ZoneTriggerManager — Formato incompatible con LevelsConfig
+
+**Problema detectado**:
+
+`LevelsConfig[n].Zonas` es un diccionario sin campo `Trigger`:
+
+```lua
+Zonas = {
+  ["Zona_Estacion_1"] = { Modo = "ALL", NodosRequeridos = {...} },  -- ❌ sin Trigger
+}
+```
+
+`ZoneTriggerManager.activate(nivel, zonas, player)` espera un **array** con el nombre de la `BasePart` trigger:
+
+```lua
+{ { nombre = "Zona_Estacion_1", trigger = "ZonaTrigger_Estacion1" } }
+```
+
+Sin ese campo, `triggerPart` es `nil` para todas las zonas y **ningún detector Touched/TouchEnded se registra**.
+
+**Solución**:
+
+1. Añadir campo `Trigger` en cada entrada de `LevelsConfig.Zonas` que deba detectarse físicamente:
+
+```lua
+["Zona_Estacion_1"] = {
+  Modo = "ALL", Descripcion = "...", NodosRequeridos = {...},
+  Trigger = "ZonaTrigger_Estacion1",  -- ← NUEVO: nombre de la BasePart en Zonas_juego/
+},
+```
+
+2. En `GameplayManager`, convertir el dict al array antes de llamar `ZoneTriggerManager.activate()`:
+
+```lua
+local zonasArray = {}
+for nombre, cfg in pairs(levelCfg.Zonas or {}) do
+  if cfg.Trigger then  -- zonas con Oculta=true o sin trigger se omiten
+    table.insert(zonasArray, { nombre = nombre, trigger = cfg.Trigger })
+  end
+end
+ZoneTriggerManager.activate(nivel, zonasArray, player)
+```
+
+3. Crear en Studio las `BasePart` (`CanCollide = false`, `Transparency = 1`) dentro de `NivelActual/Zonas/Zonas_juego/` con los nombres correspondientes.
+
+### 13.10 VisualEffectsService — Highlight visible a través de paredes (cross-room)
+
+**Situación actual**:
+`Highlight` con `DepthMode = AlwaysOnTop` renderiza sobre toda la geometría de Roblox, incluyendo paredes. Sin embargo, el icono puede pasar desapercibido si el nodo está en otra habitación o a gran distancia.
+
+**Mejora — BillboardGui pulsante complementario**:
+
+```lua
+-- En VisualEffectsService: addBillboard(selectorBasePart, color)
+local _billboards = {}
+
+local function addBillboard(part, color)
+  if not part or not part:IsA("BasePart") then return end
+  local bb = Instance.new("BillboardGui")
+  bb.Adornee               = part
+  bb.StudsOffset           = Vector3.new(0, 4, 0)
+  bb.StudsOffsetWorldSpace = true    -- siempre vertical, ignora rotación del nodo
+  bb.AlwaysOnTop           = true    -- ✅ visible a través de paredes y geometría
+  bb.Size                  = UDim2.fromOffset(50, 50)
+  bb.ResetOnSpawn          = false
+  bb.Parent                = Workspace
+
+  local icon = Instance.new("TextLabel")
+  icon.Size                = UDim2.fromScale(1, 1)
+  icon.BackgroundTransparency = 1
+  icon.Text                = "●"
+  icon.TextColor3          = color
+  icon.TextScaled          = true
+  icon.Parent              = bb
+  table.insert(_billboards, bb)
+end
+
+-- clearAll() ampliado:
+local function clearAll()
+  for _, h in ipairs(_highlights)  do if h.Parent then h:Destroy() end end
+  for _, b in ipairs(_billboards)  do if b.Parent then b:Destroy() end end
+  for _, s in ipairs(_savedStates) do
+    if s.part and s.part.Parent then
+      s.part.Color        = s.origColor
+      s.part.Material     = s.origMat
+      s.part.Transparency = s.origTransp
+    end
+  end
+  _highlights, _billboards, _savedStates = {}, {}, {}
+end
+```
+
+`highlightNode()` llama también a `addBillboard(basePart, color)` junto con `addHighlight()` y `styleBasePart()`.
+
+**Resultado**: El jugador ve el outline del `Highlight` **+** el ícono flotante del `BillboardGui` con `AlwaysOnTop`, independientemente de su posición en el mapa.
+
 ---
 
 ## 14. Patrones de Diseño Utilizados
@@ -1267,6 +1479,14 @@ Los diálogos son **tablas de datos**, no código. `DialogueOrchestrator` es el 
 21. Crear `DialogueOrchestrator.lua` con formato de datos
 22. Migrar diálogos de Zona 1 al nuevo formato (prueba piloto)
 23. Migrar Zonas 2, 3 y 4
+
+### Fase 3b — Módulo VisualEffects compartido y fixes de zonas (Etapa 4)
+
+24. **FIX §13.9** — Añadir campo `Trigger` en cada entrada de `LevelsConfig.Zonas` + conversión dict→array en `GameplayManager` antes de llamar `ZoneTriggerManager.activate()`
+25. Crear `ReplicatedStorage/Shared/VisualEffectsConfig.lua` — constantes compartidas (colores, tipos de efecto)
+26. Crear `ServerScriptService/Services/VisualEffectsManager.lua` — API servidor (`VEM.fire`, `VEM.fireAll`)
+27. Expandir `VisualEffectsService.client.lua`: escuchar `PlayEffect` RemoteEvent, añadir `addBillboard()` con `AlwaysOnTop = true` (§13.10), implementar efectos `NODE_ENERGIZED`, `CABLE_CONNECTED`, `ZONE_COMPLETE`
+28. Actualizar `ConectarCables.lua` para usar `VEM.fire(player, VEC.Effects.NODE_ERROR, nodoModel)` y `VEM.fire(player, VEC.Effects.CABLE_CONNECTED, nomA, nomB)` en lugar de `NotificarSeleccionNodo` directo para estos eventos
 
 ### Fase 4 — Menú y Ajustes
 

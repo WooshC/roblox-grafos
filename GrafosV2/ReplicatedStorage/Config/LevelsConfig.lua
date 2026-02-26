@@ -45,19 +45,24 @@ LevelsConfig[0] = {
 	Adyacencias = {
 		["Nodo1_z1"] = {"Nodo2_z1"},
 		["Nodo2_z1"] = {"Nodo1_z1"},
-		["Nodo1_z2"] = {"Nodo2_z2","Nodo3_z2","Nodo4_z2"},
+
+		["Nodo1_z2"] = {"Nodo2_z2", "Nodo3_z2","Nodo4_z2"},
 		["Nodo2_z2"] = {"Nodo1_z2"},
 		["Nodo3_z2"] = {"Nodo1_z2"},
 		["Nodo4_z2"] = {"Nodo1_z2"},
+
+
 		["Nodo1_z3"] = {"Nodo2_z3"},
 		["Nodo2_z3"] = {"Nodo3_z3"},
 		["Nodo3_z3"] = {},
-		["Nodo1_z4"] = {"Nodo2_z4","Nodo3_z4"},
-		["Nodo2_z4"] = {"Nodo1_z4","Nodo3_z4"},
-		["Nodo3_z4"] = {"Nodo1_z4","Nodo2_z4"},
-		["Nodo4_z4"] = {"Nodo3_z4","Nodo2_z4"},
-		["PostePanel"]      = {"toma_corriente"},
-		["toma_corriente"]  = {"PostePanel"},
+
+		["Nodo1_z4"] = {"Nodo2_z4", "Nodo3_z4"},
+		["Nodo2_z4"] = {"Nodo1_z4", "Nodo3_z4"},
+		["Nodo3_z4"] = {"Nodo1_z4", "Nodo2_z4"},
+		["Nodo4_z4"] = {"Nodo3_z4", "Nodo2_z4"},
+
+		["PostePanel"] = {"toma_corriente"},
+		["toma_corriente"] = {"PostePanel"},
 	},
 
 	Misiones = {
@@ -96,11 +101,13 @@ LevelsConfig[0] = {
 		toma_corriente  = { Zona=nil, Alias="⭐ Tableta Especial", Descripcion="BONUS: Conecta esta tableta." },
 	},
 
+	-- Trigger = nombre de la BasePart en NivelActual/Zonas/Zonas_juego/
+	-- Zonas con Oculta=true no tienen Trigger (GameplayManager las omite)
 	Zonas = {
-		["Zona_Estacion_1"] = { Modo="ALL", Descripcion="🟢 ZONA 1: Nodos y Aristas",    Color=Color3.fromRGB(65,105,225),  Concepto="Fundamentos",        NodosRequeridos={"Nodo1_z1","Nodo2_z1"} },
-		["Zona_Estacion_2"] = { Modo="ALL", Descripcion="🔵 ZONA 2: Grado de Nodo",       Color=Color3.fromRGB(34,139,34),   Concepto="Propiedades Locales", NodosRequeridos={"Nodo1_z2","Nodo2_z2","Nodo3_z2"} },
-		["Zona_Estacion_3"] = { Modo="ALL", Descripcion="🟡 ZONA 3: Grafos Dirigidos",    Color=Color3.fromRGB(220,20,60),   Concepto="Direccionalidad",    NodosRequeridos={"Nodo1_z3","Nodo2_z3","Nodo3_z3"} },
-		["Zona_Estacion_4"] = { Modo="ALL", Descripcion="🔴 ZONA 4: Conectividad",         Color=Color3.fromRGB(184,134,11),  Concepto="Propiedades Globales",NodosRequeridos={"Nodo1_z4","Nodo2_z4","Nodo3_z4"} },
+		["Zona_Estacion_1"] = { Modo="ALL", Descripcion="🟢 ZONA 1: Nodos y Aristas",    Color=Color3.fromRGB(65,105,225),  Concepto="Fundamentos",        NodosRequeridos={"Nodo1_z1","Nodo2_z1"},            Trigger="ZonaTrigger_Estacion1" },
+		["Zona_Estacion_2"] = { Modo="ALL", Descripcion="🔵 ZONA 2: Grado de Nodo",       Color=Color3.fromRGB(34,139,34),   Concepto="Propiedades Locales", NodosRequeridos={"Nodo1_z2","Nodo2_z2","Nodo3_z2"}, Trigger="ZonaTrigger_Estacion2" },
+		["Zona_Estacion_3"] = { Modo="ALL", Descripcion="🟡 ZONA 3: Grafos Dirigidos",    Color=Color3.fromRGB(220,20,60),   Concepto="Direccionalidad",    NodosRequeridos={"Nodo1_z3","Nodo2_z3","Nodo3_z3"}, Trigger="ZonaTrigger_Estacion3" },
+		["Zona_Estacion_4"] = { Modo="ALL", Descripcion="🔴 ZONA 4: Conectividad",         Color=Color3.fromRGB(184,134,11),  Concepto="Propiedades Globales",NodosRequeridos={"Nodo1_z4","Nodo2_z4","Nodo3_z4"}, Trigger="ZonaTrigger_Estacion4" },
 		["Zona_luz_1"]      = { Modo="ALL", Descripcion="Sector principal: Torre de Control", NodosRequeridos={"toma_corriente"}, Oculta=true },
 		["Zona_luz_2"]      = { Modo="ANY", Descripcion="Sector secundario: Puerta",          NodosRequeridos={"toma_corriente"}, Oculta=true },
 	},
