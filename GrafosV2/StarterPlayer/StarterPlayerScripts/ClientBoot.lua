@@ -6,11 +6,19 @@
 --   · Activar/desactivar EDAQuestMenu y GUIExploradorV2
 --   · Cambiar CameraType entre Scriptable (menú) y Custom (gameplay)
 --
--- HUDController y MenuController NUNCA tocan .Enabled ni CameraType.
+-- BUGS CORREGIDOS:
+--
+-- [BUG CÁMARA RESTARTLEVEL] Al reiniciar el nivel, LevelLoader destruye y
+--   recrea el personaje DESPUÉS de disparar LevelReady. Cuando Roblox crea
+--   el nuevo personaje, fuerza CameraType = Custom automáticamente, pero si
+--   el Subject (a quién sigue la cámara) no está seteado, la cámara flota.
+--   FIX: En LevelReady, además de setCameraGame(), escuchar CharacterAdded
+--   y reasignar camera.CameraSubject al Humanoid del nuevo personaje, con
+--   un pequeño delay para que el personaje esté completamente cargado.
 
-local Players = game:GetService("Players")
-local RS      = game:GetService("ReplicatedStorage")
-local UIS     = game:GetService("UserInputService")
+local Players  = game:GetService("Players")
+local RS       = game:GetService("ReplicatedStorage")
+local UIS      = game:GetService("UserInputService")
 
 local player    = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -32,7 +40,7 @@ local function setCameraMenu()
 	local camObj = workspace:FindFirstChild("CamaraMenu", true)
 	local part   = camObj and (
 		(camObj:IsA("BasePart") and camObj) or
-		(camObj:IsA("Model")    and camObj.PrimaryPart)
+			(camObj:IsA("Model")    and camObj.PrimaryPart)
 	)
 	if part then
 		camera.CameraType = Enum.CameraType.Scriptable
@@ -41,11 +49,42 @@ local function setCameraMenu()
 	end
 end
 
+-- FIX: setCameraGame ahora también reasigna CameraSubject al Humanoid.
+-- Esto es crítico en RestartLevel: el personaje es destruido y recreado,
+-- por lo que el Subject queda apuntando a nil hasta que se reasigna.
 local function setCameraGame()
-	-- Forzar Custom para que Roblox siga al personaje.
-	-- CRÍTICO en RestartLevel: la cámara queda en Scriptable del menú si no se fuerza aquí.
 	camera.CameraType = Enum.CameraType.Custom
-	print("[ClientBoot] Cámara → Custom (gameplay)")
+
+	-- Intentar asignar Subject al personaje actual
+	local char = player.Character
+	if char then
+		local humanoid = char:FindFirstChildOfClass("Humanoid")
+		if humanoid then
+			camera.CameraSubject = humanoid
+			print("[ClientBoot] Cámara → Custom | Subject asignado al Humanoid actual")
+			return
+		end
+	end
+
+	-- Si el personaje aún no existe (RestartLevel: se está creando),
+	-- esperar CharacterAdded y asignar cuando llegue.
+	print("[ClientBoot] Cámara → Custom | esperando personaje para asignar Subject...")
+	local conn
+	conn = player.CharacterAdded:Connect(function(newChar)
+		conn:Disconnect()
+		-- Esperar a que el Humanoid esté disponible dentro del personaje
+		local humanoid = newChar:FindFirstChildOfClass("Humanoid")
+			or newChar:WaitForChild("Humanoid", 5)
+		if humanoid then
+			-- Pequeño delay para que el motor de física esté listo
+			task.wait(0.1)
+			camera.CameraType    = Enum.CameraType.Custom
+			camera.CameraSubject = humanoid
+			print("[ClientBoot] Cámara → Subject asignado tras CharacterAdded")
+		else
+			warn("[ClientBoot] ⚠ Humanoid no encontrado en el nuevo personaje")
+		end
+	end)
 end
 
 -- ── Eventos ────────────────────────────────────────────────────────────────
@@ -60,7 +99,7 @@ if levelReadyEv then
 		if data and data.error then return end
 		menu.Enabled = false
 		hud.Enabled  = true
-		setCameraGame()
+		setCameraGame()  -- FIX: ahora maneja Subject + CharacterAdded
 		print("[ClientBoot] ✅ LevelReady → menú OFF | HUD ON")
 	end)
 end

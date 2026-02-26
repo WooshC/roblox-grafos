@@ -308,17 +308,15 @@ local function tryConnect(player, selector1, selector2)
 
 	-- ¿Conexión válida según adyacencias?
 	if isAdjacent(nomA, nomB) then
+		if _tracker then _tracker:registrarConexion(player) end
 		crearCable(selector1, selector2)
-		_tracker:registrarConexion(player)
 		if _notifyEv then
 			_notifyEv:FireClient(player, "ConexionCompletada", nomA, nomB)
 		end
 	else
-		-- Registrar tipo de error en log (sin distinción visual en el cliente)
 		local tipoError = isAdjacent(nomB, nomA) and "DireccionInvalida" or "ConexionInvalida"
-		_tracker:registrarFallo(player)
+		if _tracker then _tracker:registrarFallo(player) end
 		if _notifyEv then
-			-- Siempre "ConexionInvalida" → flash rojo, sin distinción naranja
 			_notifyEv:FireClient(player, "ConexionInvalida", selector2.Parent)
 		end
 		print("[ConectarCables] Fallo (" .. tipoError .. "):", nomA, "→", nomB)

@@ -1,8 +1,14 @@
 -- ScoreTracker.lua
 -- Singleton servidor: rastrea conexiones, fallos, tiempo y puntos de misiones.
 --
--- Fuente de puntos visible en HUD: SOLO misiones (via setMisionPuntaje).
--- Conexiones/desconexiones solo se registran internamente para estadísticas.
+-- BUGS CORREGIDOS:
+--
+-- [BUG ACIERTOS] d.conexiones bajaba con registrarDesconexion(), por lo que
+--   finalize() devolvía el número de cables ACTIVOS al final, no el total
+--   histórico de conexiones correctas hechas durante el nivel.
+--   FIX: Añadir d.aciertosTotal que solo sube, nunca baja. finalize() lo
+--   incluye como snap.aciertos. MissionService ya guarda snap.aciertos en
+--   DataStore. HUDController ya lo lee con snap.aciertos || snap.conexiones.
 --
 -- Ubicación Roblox: ServerScriptService/ScoreTracker  (ModuleScript)
 
@@ -19,7 +25,8 @@ end
 function ScoreTracker:startLevel(player, nivelID, puntosConexion, penaFallo)
 	_data[player.UserId] = {
 		nivelID        = nivelID,
-		conexiones     = 0,
+		conexiones     = 0,       -- cables activos en este momento (sube y baja)
+		aciertosTotal  = 0,       -- FIX: total histórico de conexiones correctas (solo sube)
 		fallos         = 0,
 		startTime      = os.clock(),
 		puntosConexion = puntosConexion or 50,
@@ -30,11 +37,14 @@ function ScoreTracker:startLevel(player, nivelID, puntosConexion, penaFallo)
 	print("[ScoreTracker] startLevel — Nivel:", nivelID, "/ Jugador:", player.Name)
 end
 
--- Solo registra el contador; NO actualiza HUD (los puntos visibles son de misiones)
+-- Registra una conexión correcta.
+-- conexiones = cables activos ahora (puede bajar si se desconecta)
+-- aciertosTotal = total histórico (NUNCA baja)
 function ScoreTracker:registrarConexion(player)
 	local d = _data[player.UserId]
 	if not d then return end
-	d.conexiones = d.conexiones + 1
+	d.conexiones    = d.conexiones + 1
+	d.aciertosTotal = d.aciertosTotal + 1  -- FIX: histórico acumulado
 end
 
 function ScoreTracker:registrarFallo(player)
@@ -43,10 +53,13 @@ function ScoreTracker:registrarFallo(player)
 	d.fallos = d.fallos + 1
 end
 
+-- Al desconectar un cable baja el contador de cables activos,
+-- pero NO toca aciertosTotal (ese es histórico).
 function ScoreTracker:registrarDesconexion(player)
 	local d = _data[player.UserId]
 	if not d then return end
 	d.conexiones = math.max(0, d.conexiones - 1)
+	-- aciertosTotal NO cambia: la conexión correcta ya fue registrada
 end
 
 -- Llamado por MissionService al completar/revocar misiones.
@@ -61,24 +74,27 @@ function ScoreTracker:setMisionPuntaje(player, puntos)
 	self:_notify(player)
 end
 
--- Devuelve snapshot completo. Llamado por MissionService justo DESPUÉS de
--- setMisionPuntaje, así que d.misionPuntaje ya está actualizado.
+-- Devuelve snapshot completo. Llamado por MissionService al completar nivel.
+-- Incluye aciertos (histórico) además de conexiones (cables activos al final).
 function ScoreTracker:finalize(player)
 	local d = _data[player.UserId]
 	if not d then
 		warn("[ScoreTracker] finalize — sin datos para", player.Name)
-		return { conexiones=0, fallos=0, tiempo=0, puntajeBase=0, nivelID=0 }
+		return { conexiones=0, aciertos=0, fallos=0, tiempo=0, puntajeBase=0, nivelID=0 }
 	end
 	local tiempo = math.floor(os.clock() - d.startTime)
 	local snap = {
 		nivelID      = d.nivelID,
-		conexiones   = d.conexiones,
+		conexiones   = d.conexiones,       -- cables activos al terminar
+		aciertos     = d.aciertosTotal,    -- FIX: total histórico de conexiones correctas
 		fallos       = d.fallos,
 		tiempo       = tiempo,
 		puntajeBase  = d.misionPuntaje,
 	}
-	print(string.format("[ScoreTracker] finalize → nivelID=%s puntaje=%d conexiones=%d fallos=%d tiempo=%d",
-		tostring(snap.nivelID), snap.puntajeBase, snap.conexiones, snap.fallos, snap.tiempo))
+	print(string.format(
+		"[ScoreTracker] finalize → nivelID=%s puntaje=%d conexiones=%d aciertos=%d fallos=%d tiempo=%d",
+		tostring(snap.nivelID), snap.puntajeBase, snap.conexiones,
+		snap.aciertos, snap.fallos, snap.tiempo))
 	return snap
 end
 

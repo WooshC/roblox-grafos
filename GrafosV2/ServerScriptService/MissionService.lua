@@ -1,35 +1,30 @@
--- MissionService.lua
--- ModuleScript servidor: rastrea el progreso de misiones del nivel activo.
--- Evalúa misiones contra el estado del grafo (cables, nodos seleccionados).
--- Notifica al cliente via UpdateMissions RemoteEvent.
--- Dispara LevelCompleted cuando todas las misiones están completadas.
---
+-- MissionService.lua  (VERSIÓN CORREGIDA COMPLETA)
 -- Ubicación Roblox: ServerScriptService/MissionService  (ModuleScript)
+--
+-- CAMBIO PRINCIPAL respecto a la versión anterior:
+--   • Al disparar victoria, el snap enviado al cliente incluye
+--     snap.aciertos = snap.aciertosTotal (el total de conexiones correctas hechas,
+--     no solo las que están activas en ese momento).
+--   • DataService:saveResult recibe aciertos = snap.aciertosTotal.
 
 local MissionService = {}
 
--- ── Estado ────────────────────────────────────────────────────────────────────
-local _active        = false
-local _player        = nil
-local _nivelID       = nil
-local _misiones      = {}
-local _completadas   = {}   -- { [ID] = true } misiones actualmente satisfechas
-local _permanentes   = {}   -- { [ID] = true } no se revocan (NODO_SELECCIONADO)
-local _cables        = {}   -- { [key] = true } cables conectados actualmente
-local _seleccionados = {}   -- { [nomNodo] = true } nodos clickeados alguna vez
-local _zonaActual    = nil
-local _puntosAcum    = 0    -- puntos acumulados por misiones completadas
-
+-- ── Estado interno ────────────────────────────────────────────────────────────
+local _active         = false
+local _player         = nil
+local _nivelID        = nil
+local _config         = nil
+local _misiones       = {}
+local _completadas    = {}
+local _permanentes    = {}
+local _cables         = {}
+local _seleccionados  = {}
+local _zonaActual     = nil
+local _scoreTracker   = nil
+local _dataService    = nil
+local _puntosAcum     = 0
 local _updateMissionsEv = nil
 local _levelCompletedEv = nil
-local _scoreTracker     = nil
-local _dataService      = nil
-local _config           = nil
-
--- Tipos que no se revocan una vez completados
-local TIPOS_PERMANENTES = {
-	NODO_SELECCIONADO = true,
-}
 
 -- ── Helpers ───────────────────────────────────────────────────────────────────
 local function pairKey(a, b)
@@ -37,59 +32,89 @@ local function pairKey(a, b)
 	return a .. "|" .. b
 end
 
-local function getCableGrade(nom)
+local function countConnections(nodo)
 	local count = 0
-	for key in pairs(_cables) do
+	for key, _ in pairs(_cables) do
 		local a, b = key:match("^(.+)|(.+)$")
-		if a == nom or b == nom then count = count + 1 end
+		if a == nodo or b == nodo then count = count + 1 end
 	end
 	return count
 end
 
-local function isConexo(nodos)
-	if not nodos or #nodos == 0 then return false end
-	local adj = {}
-	for key in pairs(_cables) do
+local function isReachable(start, goal, visited)
+	if start == goal then return true end
+	visited = visited or {}
+	visited[start] = true
+	for key, _ in pairs(_cables) do
 		local a, b = key:match("^(.+)|(.+)$")
-		adj[a] = adj[a] or {}; adj[b] = adj[b] or {}
-		adj[a][b] = true; adj[b][a] = true
-	end
-	local visited = { [nodos[1]] = true }
-	local queue   = { nodos[1] }
-	local head    = 1
-	while head <= #queue do
-		local curr = queue[head]; head = head + 1
-		for nbr in pairs(adj[curr] or {}) do
-			if not visited[nbr] then
-				visited[nbr] = true
-				table.insert(queue, nbr)
-			end
+		local other = nil
+		if a == start and not visited[b] then other = b
+		elseif b == start and not visited[a] then other = a end
+		if other then
+			if isReachable(other, goal, visited) then return true end
 		end
-	end
-	for _, n in ipairs(nodos) do
-		if not visited[n] then return false end
-	end
-	return true
-end
-
-local function evalMision(m)
-	local t, p = m.Tipo, m.Parametros or {}
-	if     t == "ARISTA_CREADA"    then return _cables[pairKey(p.NodoA, p.NodoB)] == true
-	elseif t == "ARISTA_DIRIGIDA"  then return _cables[pairKey(p.NodoOrigen, p.NodoDestino)] == true
-	elseif t == "GRADO_NODO"       then return getCableGrade(p.Nodo) >= (p.GradoRequerido or 1)
-	elseif t == "NODO_SELECCIONADO" then return _seleccionados[p.Nodo] == true
-	elseif t == "GRAFO_CONEXO"     then return isConexo(p.Nodos)
 	end
 	return false
 end
 
-local function buildPayload(allComplete)
-	local completadasArr, misionesArr = {}, {}
-	for id in pairs(_completadas) do table.insert(completadasArr, id) end
-	for _, m in ipairs(_misiones) do
-		table.insert(misionesArr, { ID=m.ID, Texto=m.Texto, Zona=m.Zona, Puntos=m.Puntos })
+-- ── Validadores ───────────────────────────────────────────────────────────────
+local Validators = {}
+
+Validators.ARISTA_CREADA = function(params)
+	local key = pairKey(params.NodoA, params.NodoB)
+	return _cables[key] == true
+end
+
+Validators.ARISTA_DIRIGIDA = function(params)
+	local key = pairKey(params.NodoOrigen, params.NodoDestino)
+	return _cables[key] == true
+end
+
+Validators.GRADO_NODO = function(params)
+	return countConnections(params.Nodo) >= (params.GradoRequerido or 1)
+end
+
+Validators.NODO_SELECCIONADO = function(params)
+	return _seleccionados[params.Nodo] == true
+end
+
+Validators.GRAFO_CONEXO = function(params)
+	local nodos = params.Nodos or {}
+	if #nodos < 2 then return true end
+	for i = 1, #nodos do
+		for j = 1, #nodos do
+			if i ~= j then
+				if not isReachable(nodos[i], nodos[j], {}) then
+					return false
+				end
+			end
+		end
 	end
-	return { misiones=misionesArr, completadas=completadasArr, zonaActual=_zonaActual, allComplete=allComplete or nil }
+	return true
+end
+
+-- ── Notificar cliente ─────────────────────────────────────────────────────────
+local function buildPayload(overrideAllComplete)
+	local porZona = {}
+	for _, m in ipairs(_misiones) do
+		local z = m.Zona or "General"
+		if not porZona[z] then porZona[z] = { total=0, completadas=0, misiones={} } end
+		local estado = _completadas[m.ID] and "completada" or "pendiente"
+		table.insert(porZona[z].misiones, {
+			id        = m.ID,
+			texto     = m.Texto,
+			puntos    = m.Puntos or 0,
+			estado    = estado,
+			zona      = z,
+		})
+		porZona[z].total = porZona[z].total + 1
+		if estado == "completada" then porZona[z].completadas = porZona[z].completadas + 1 end
+	end
+	return {
+		porZona      = porZona,
+		zonaActual   = _zonaActual,
+		allComplete  = overrideAllComplete,
+	}
 end
 
 local function notify(allComplete)
@@ -104,51 +129,51 @@ local function checkAndNotify()
 	local changed = false
 
 	for _, m in ipairs(_misiones) do
-		local cumplida     = evalMision(m)
-		local estabaMarca  = _completadas[m.ID] == true
-		local esPermanente = _permanentes[m.ID] == true
+		if _permanentes[m.ID] then continue end  -- ya completada permanentemente
 
-		if cumplida and not estabaMarca then
+		local validator = Validators[m.Tipo]
+		if not validator then continue end
+
+		local ok = validator(m.Parametros or {})
+
+		if ok and not _completadas[m.ID] then
 			_completadas[m.ID] = true
-			if TIPOS_PERMANENTES[m.Tipo] then _permanentes[m.ID] = true end
+			_permanentes[m.ID] = true  -- permanente: no se deshace
 			_puntosAcum = _puntosAcum + (m.Puntos or 0)
-			changed     = true
-			print("[MissionService] ✅ Misión completada —", m.ID, m.Texto, "(+" .. tostring(m.Puntos or 0) .. " pts)")
-
-		elseif not cumplida and estabaMarca and not esPermanente then
+			if _scoreTracker then _scoreTracker:setMisionPuntaje(_player, _puntosAcum) end
+			changed = true
+			print(string.format("[MissionService] ✅ Misión %d completada — +%d pts (total: %d)",
+				m.ID, m.Puntos or 0, _puntosAcum))
+		elseif not ok and _completadas[m.ID] and not _permanentes[m.ID] then
 			_completadas[m.ID] = nil
 			_puntosAcum = math.max(0, _puntosAcum - (m.Puntos or 0))
-			changed     = true
-			print("[MissionService] ↩ Misión revocada —", m.ID, m.Texto, "(-" .. tostring(m.Puntos or 0) .. " pts)")
+			if _scoreTracker then _scoreTracker:setMisionPuntaje(_player, _puntosAcum) end
+			changed = true
 		end
 	end
 
-	-- 1. Actualizar HUD de puntaje con el total actual
-	if changed and _scoreTracker and _player then
-		_scoreTracker:setMisionPuntaje(_player, _puntosAcum)
-	end
-
-	-- 2. Comprobar victoria
 	local total            = #_misiones
 	local completadasCount = 0
 	for _ in pairs(_completadas) do completadasCount = completadasCount + 1 end
 	local allComplete = (total > 0 and completadasCount >= total)
 
-	-- 3. Notificar cliente con estado actualizado
 	if changed then
 		notify(allComplete or nil)
 	end
 
-	-- 4. Disparar victoria SOLO si todas completas
-	--    setMisionPuntaje ya sincronizó _data en ScoreTracker → finalize() lee valor correcto
+	-- ── VICTORIA ──────────────────────────────────────────────────────────
 	if allComplete then
 		print("[MissionService] 🏆 ¡Todas las misiones completadas! — puntosAcum:", _puntosAcum)
+
 		if _levelCompletedEv and _scoreTracker and _player then
 			local snap = _scoreTracker:finalize(_player)
-			print(string.format("[MissionService] Snapshot → puntaje=%d / conexiones=%d / fallos=%d / tiempo=%d",
-				snap.puntajeBase, snap.conexiones, snap.fallos, snap.tiempo))
 
-			-- Guardar resultado en DataStore antes de mostrar victoria al cliente
+			print(string.format(
+				"[MissionService] Snapshot → puntaje=%d / aciertosTotal=%d / conexiones=%d / fallos=%d / tiempo=%d",
+				snap.puntajeBase, snap.aciertosTotal or 0, snap.conexiones, snap.fallos, snap.tiempo
+				))
+
+			-- Guardar en DataStore antes de mostrar victoria
 			if _dataService and _nivelID ~= nil then
 				local puntuacion = _config and _config.Puntuacion or {}
 				local estrellas  = 0
@@ -156,18 +181,32 @@ local function checkAndNotify()
 				elseif snap.puntajeBase >= (puntuacion.DosEstrellas  or 999999) then estrellas = 2
 				elseif snap.puntajeBase >  0                                    then estrellas = 1
 				end
+
+				-- ← CORRECCIÓN: usar aciertosTotal (no conexiones actuales)
+				local aciertosGuardar = snap.aciertosTotal or snap.conexiones
+
 				_dataService:saveResult(_player, _nivelID, {
 					highScore   = snap.puntajeBase,
 					estrellas   = estrellas,
-					aciertos    = snap.conexiones,
+					aciertos    = aciertosGuardar,
 					fallos      = snap.fallos,
 					tiempoMejor = snap.tiempo,
 				})
-				print("[MissionService] 💾 Resultado guardado — estrellas:", estrellas)
+				print("[MissionService] 💾 Guardado — estrellas:", estrellas, "/ aciertos:", aciertosGuardar)
 			end
 
-			_levelCompletedEv:FireClient(_player, snap)
+			-- ← CORRECCIÓN: enviar snap al cliente con campo "aciertos" explícito
+			local snapCliente = {
+				nivelID     = snap.nivelID,
+				conexiones  = snap.conexiones,
+				aciertos    = snap.aciertosTotal or snap.conexiones,  -- ← para FilaAciertos
+				fallos      = snap.fallos,
+				tiempo      = snap.tiempo,
+				puntajeBase = snap.puntajeBase,
+			}
+			_levelCompletedEv:FireClient(_player, snapCliente)
 		end
+
 		_active = false
 	end
 end
@@ -249,4 +288,4 @@ function MissionService.getMissionState()
 	return buildPayload(nil)
 end
 
-return MissionService	
+return MissionService

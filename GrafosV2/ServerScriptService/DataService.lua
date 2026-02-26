@@ -1,10 +1,10 @@
--- DataService.lua
+-- DataService.lua  (CORREGIDO)
 -- Ubicación Roblox: ServerScriptService/DataService.lua  (ModuleScript)
 --
--- FIX CRÍTICO: Roblox descarta claves numéricas [0] al serializar tablas
--- a través de RemoteFunction/RemoteEvent. getProgressForClient() usa
--- claves STRING ("0".."4") para que el nivel 0 llegue al cliente.
--- El cliente convierte de vuelta a número con tonumber().
+-- CAMBIOS:
+--   • saveResult guarda SIEMPRE los datos del intento actual, no solo si mejora el highScore.
+--   • intentos siempre se incrementa.
+--   • Los datos guardados son del intento actual (no del "mejor").
 
 local DataService = {}
 
@@ -94,7 +94,7 @@ function DataService:getProgressForClient(player)
 
 		-- ⚠️ Clave STRING: result["0"], result["1"], ... result["4"]
 		result[k] = {
-			nivelID      = i,            -- el ID numérico real va dentro del valor
+			nivelID      = i,
 			nombre       = cfg.Nombre      or ("Nivel " .. i),
 			imageId      = cfg.ImageId     or "",
 			algoritmo    = cfg.Algoritmo,
@@ -114,28 +114,41 @@ function DataService:getProgressForClient(player)
 		}
 	end
 
-	return result   -- { ["0"]={...}, ["1"]={...}, ..., ["4"]={...} }
+	return result
 end
 
+-- ── saveResult ─────────────────────────────────────────────────────────────
+-- CORRECCIÓN: guarda SIEMPRE los datos del intento actual (no solo si mejora).
+-- Los intentos siempre se incrementan.
+-- El jugador SOLO ve datos de su intento más reciente, no del mejor histórico.
 function DataService:saveResult(player, nivelID, result)
 	local data = self:load(player)
 	local k    = tostring(nivelID)
 	local ld   = data[k] or {}
 
-	-- Siempre guardar el intento actual (el usuario ve estadísticas del intento, no el mejor)
-	ld.intentos    = (ld.intentos or 0) + 1
+	-- ← SIEMPRE incrementar intentos
+	ld.intentos = (ld.intentos or 0) + 1
+
+	-- ← SIEMPRE sobrescribir con datos del intento actual
 	ld.highScore   = result.highScore   or 0
 	ld.estrellas   = result.estrellas   or 0
 	ld.aciertos    = result.aciertos    or 0
 	ld.fallos      = result.fallos      or 0
 	ld.tiempoMejor = result.tiempoMejor or 0
 
+	-- Desbloquear siguiente nivel si hay estrellas
 	if (result.estrellas or 0) > 0 and nivelID < 4 then
 		local nextK = tostring(nivelID + 1)
 		if data[nextK] then data[nextK].desbloqueado = true end
 	end
 
 	data[k] = ld
+	print(string.format(
+		"[DataService] saveResult — nivelID=%d intentos=%d aciertos=%d fallos=%d highScore=%d estrellas=%d",
+		nivelID, ld.intentos, ld.aciertos, ld.fallos, ld.highScore, ld.estrellas
+		))
+
+	-- Guardar en DataStore de forma asíncrona
 	task.spawn(function() self:save(player) end)
 end
 

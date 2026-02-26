@@ -363,24 +363,17 @@ if botonContinuar then botonContinuar.MouseButton1Click:Connect(doReturnToMenu) 
 if levelReadyEv then
 	levelReadyEv.OnClientEvent:Connect(function(data)
 		if data and data.error then return end
-		_nivelID = data and data.nivelID
-
-		-- BUG 1 FIX: forzar CameraType = Custom al recibir LevelReady.
-		-- Esto cubre RestartLevel donde la cámara sigue en Scriptable del menú.
-		-- ClientBoot también lo hace, pero dos puntos de fijado garantizan
-		-- que funcione sin importar el orden de ejecución de los listeners.
 		workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
 
 		resetFade()
-		isReturning    = false
+		isReturning     = false
 		misionPanelOpen = false
 		if misionFrame   then misionFrame.Visible   = false end
 		if victoriaFondo then victoriaFondo.Visible = false end
 
-		print("[HUDController] LevelReady procesado | nivel:", _nivelID, "| cámara → Custom")
+		print("[HUDController] LevelReady | cámara → Custom")
 	end)
 end
-
 -- ── UpdateMissions ────────────────────────────────────────────────────────────
 if updateMissionsEv then
 	updateMissionsEv.OnClientEvent:Connect(function(data)

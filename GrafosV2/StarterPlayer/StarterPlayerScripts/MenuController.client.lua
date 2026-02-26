@@ -106,7 +106,7 @@ local function setupMenuCamera()
 	local camObj = workspace:FindFirstChild("CamaraMenu", true)
 	local part   = camObj and (
 		(camObj:IsA("BasePart") and camObj) or
-		(camObj:IsA("Model")    and camObj.PrimaryPart)
+			(camObj:IsA("Model")    and camObj.PrimaryPart)
 	)
 	if part then
 		cam.CameraType = Enum.CameraType.Scriptable
@@ -252,7 +252,7 @@ local function buildGrid(progressData)
 	end
 	table.sort(ordenSec, function(a, b)
 		return (secciones[a][1] and secciones[a][1].nivelID or 999) <
-		       (secciones[b][1] and secciones[b][1].nivelID or 999)
+			(secciones[b][1] and secciones[b][1].nivelID or 999)
 	end)
 
 	local lo, cols = 3, 2
