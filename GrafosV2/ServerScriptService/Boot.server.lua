@@ -153,7 +153,7 @@ requestPlayLEv.OnServerEvent:Connect(function(player, nivelID)
 			ScoreTracker:startLevel(player, nivelID, puntosConexion, penaFallo)
 			MissionService.activate(config, nivelID, player, remotesFolder, ScoreTracker, DataService)
 			ConectarCables.activate(nivelActual, adjacencias, player, ScoreTracker, MissionService)
-			ZoneTriggerManager.activate(nivelActual, zonasArr, player)
+			ZoneTriggerManager.activate(nivelActual, zonasArr, player, config.Zonas)
 			print("[EDA v2] ✅ ScoreTracker + ConectarCables + ZoneTriggerManager activos — Nivel", nivelID,
 				"/ adyacencias:", adjacencias ~= nil and "definidas" or "modo permisivo",
 				"/ zonas:", #zonasArr)
