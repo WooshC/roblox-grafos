@@ -1,177 +1,236 @@
 -- StarterPlayerScripts/SistemasGameplay/ControladorEfectos.client.lua
--- Controlador de efectos visuales en el cliente
--- Recibe eventos del servidor y aplica efectos usando los módulos de Efectos
+-- Controlador de efectos visuales - Adaptado de GrafosV2
 
 local Players = game:GetService("Players")
 local Replicado = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
 
-local jugador = Players.LocalPlayer
+local player = Players.LocalPlayer
 
--- Cargar módulos de efectos
-local Efectos = Replicado:WaitForChild("Efectos")
-local EfectosNodo = require(Efectos:WaitForChild("EfectosNodo"))
-local EfectosCable = require(Efectos:WaitForChild("EfectosCable"))
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- CONFIGURACION Y ESTADO
+-- ═══════════════════════════════════════════════════════════════════════════════
 
--- Eventos
+local COLOR_SELECCIONADO = Color3.fromRGB(0, 212, 255)    -- Cyan
+local COLOR_ADYACENTE = Color3.fromRGB(255, 200, 50)      -- Dorado
+local COLOR_ERROR = Color3.fromRGB(239, 68, 68)           -- Rojo
+
+-- Estado
+local _highlights = {}      -- Instancias Highlight creadas
+local _billboards = {}      -- BillboardGuis creados
+local _savedStates = {}     -- Estados originales de las partes
+local _nombresNodos = {}    -- Nombres amigables desde LevelsConfig
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- LEVELS CONFIG (para nombres de nodos)
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+local LevelsConfig = require(Replicado:WaitForChild("Config"):WaitForChild("LevelsConfig"))
+
+-- Actualizar nombres cuando carga un nivel
 local Eventos = Replicado:WaitForChild("EventosGrafosV3")
 local Remotos = Eventos:WaitForChild("Remotos")
+local nivelListoEv = Remotos:WaitForChild("NivelListo")
 
--- Referencias a eventos remotos
-local notificarSeleccionNodo = Remotos:WaitForChild("NotificarSeleccionNodo")
-local cableDragEvent = Remotos:WaitForChild("CableDragEvent")
-local pulsoEvent = Remotos:WaitForChild("PulsoEvent")
-
--- Estado local
-local previewArrastre = nil
+nivelListoEv.OnClientEvent:Connect(function(data)
+	if data and data.nivelID ~= nil then
+		local cfg = LevelsConfig[data.nivelID]
+		_nombresNodos = (cfg and cfg.NombresNodos) or {}
+		print("[ControladorEfectos] Nombres cargados para nivel", data.nivelID)
+	end
+end)
 
 -- ═══════════════════════════════════════════════════════════════════════════════
--- HANDLERS DE EFECTOS DE NODO
+-- HELPERS
 -- ═══════════════════════════════════════════════════════════════════════════════
 
-local function alSeleccionarNodo(modeloNodo, modelosAdyacentes)
-	-- Resetear selección anterior
-	EfectosNodo.limpiarSeleccion()
+-- Obtener el selector de un nodo (puede ser BasePart o Model)
+local function getSelector(nodoModel)
+	local selector = nodoModel:FindFirstChild("Selector")
+	if not selector then return nil, nil end
 	
-	-- Establecer nueva selección
-	local nombresAdyacentes = {}
-	if modelosAdyacentes then
-		for _, modelo in ipairs(modelosAdyacentes) do
-			table.insert(nombresAdyacentes, modelo.Name)
-		end
-	end
-	EfectosNodo.establecerSeleccion(modeloNodo.Name, nombresAdyacentes)
-	
-	-- Aplicar efectos visuales
-	local selector = modeloNodo:FindFirstChild("Selector")
-	if selector then
-		local parte = selector:IsA("BasePart") and selector or selector:FindFirstChildWhichIsA("BasePart")
-		if parte then
-			EfectosNodo.aplicarASelector(parte, "SELECCIONADO")
-		end
+	if selector:IsA("BasePart") then
+		return selector, selector
 	end
 	
-	-- Aplicar efectos a adyacentes
-	for _, modeloAdyacente in ipairs(modelosAdyacentes or {}) do
-		local selectorAdj = modeloAdyacente:FindFirstChild("Selector")
-		if selectorAdj then
-			local parteAdj = selectorAdj:IsA("BasePart") and selectorAdj or selectorAdj:FindFirstChildWhichIsA("BasePart")
-			if parteAdj then
-				EfectosNodo.aplicarASelector(parteAdj, "ADYACENTE")
-			end
-		end
+	-- Selector es un Model, buscar BasePart dentro
+	local part = selector:FindFirstChildOfClass("BasePart")
+	return selector, part
+end
+
+-- Crear Highlight de Roblox
+local function addHighlight(adornee, color)
+	local h = Instance.new("Highlight")
+	h.Adornee = adornee
+	h.FillColor = color
+	h.FillTransparency = 0.45
+	h.OutlineColor = color
+	h.OutlineTransparency = 0
+	h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	h.Parent = Workspace
+	table.insert(_highlights, h)
+	return h
+end
+
+-- Cambiar estilo de una BasePart y guardar estado original
+local function styleBasePart(part, color)
+	if not part then return end
+	
+	-- Guardar estado original
+	table.insert(_savedStates, {
+		part = part,
+		origColor = part.Color,
+		origMat = part.Material,
+		origTransp = part.Transparency,
+	})
+	
+	-- Aplicar nuevo estilo
+	part.Color = color
+	part.Material = Enum.Material.Neon
+	part.Transparency = 0.10
+end
+
+-- Crear Billboard con nombre del nodo
+local function addBillboard(part, color, nodeName)
+	if not part or not part:IsA("BasePart") then return end
+	
+	local displayName = _nombresNodos[nodeName] or nodeName or ""
+	
+	local bb = Instance.new("BillboardGui")
+	bb.Name = "NombreNodo"
+	bb.Adornee = part
+	bb.StudsOffsetWorldSpace = Vector3.new(0, 4.5, 0)
+	bb.AlwaysOnTop = true
+	bb.Size = UDim2.fromOffset(120, 32)
+	bb.ResetOnSpawn = false
+	bb.Parent = Workspace
+	
+	-- Fondo
+	local bg = Instance.new("Frame")
+	bg.Size = UDim2.fromScale(1, 1)
+	bg.BackgroundColor3 = Color3.new(0, 0, 0)
+	bg.BackgroundTransparency = 0.45
+	bg.BorderSizePixel = 0
+	bg.Parent = bb
+	
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 6)
+	corner.Parent = bg
+	
+	-- Borde de color
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = color
+	stroke.Thickness = 2
+	stroke.Parent = bg
+	
+	-- Texto
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Text = displayName
+	label.TextColor3 = color
+	label.TextScaled = true
+	label.Font = Enum.Font.GothamBold
+	label.Parent = bg
+	
+	table.insert(_billboards, bb)
+end
+
+-- Highlight completo de un nodo (selector + billboard)
+local function highlightNode(nodoModel, color)
+	local adornee, basePart = getSelector(nodoModel)
+	if adornee then
+		addHighlight(adornee, color)
+	end
+	if basePart then
+		styleBasePart(basePart, color)
+		addBillboard(basePart, color, nodoModel.Name)
 	end
 end
 
-local function alCancelarSeleccion()
-	-- Resetear todos los selectores del nivel
-	local nivelActual = Workspace:FindFirstChild("NivelActual")
-	if nivelActual then
-		for _, selector in ipairs(nivelActual:GetDescendants()) do
-			if selector.Name == "Selector" then
-				local parte = selector:IsA("BasePart") and selector or selector:FindFirstChildWhichIsA("BasePart")
-				if parte then
-					EfectosNodo.resetearSelector(parte)
+-- Limpiar TODOS los efectos y restaurar estados originales
+local function clearAll()
+	-- Destruir highlights
+	for _, h in ipairs(_highlights) do
+		if h and h.Parent then h:Destroy() end
+	end
+	_highlights = {}
+	
+	-- Destruir billboards
+	for _, b in ipairs(_billboards) do
+		if b and b.Parent then b:Destroy() end
+	end
+	_billboards = {}
+	
+	-- Restaurar partes modificadas
+	for _, state in ipairs(_savedStates) do
+		if state.part and state.part.Parent then
+			state.part.Color = state.origColor
+			state.part.Material = state.origMat
+			state.part.Transparency = state.origTransp
+		end
+	end
+	_savedStates = {}
+end
+
+-- Flash de error (color rojo breve)
+local function flashModel(model, color, duration)
+	if not model then return end
+	
+	local parts = {}
+	local originals = {}
+	
+	for _, desc in ipairs(model:GetDescendants()) do
+		if desc:IsA("BasePart") then
+			table.insert(parts, desc)
+			table.insert(originals, desc.Color)
+			desc.Color = color
+		end
+	end
+	
+	task.delay(duration or 0.35, function()
+		for i, part in ipairs(parts) do
+			if part and part.Parent then
+				part.Color = originals[i]
+			end
+		end
+	end)
+end
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- EVENTOS
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+local notifyEv = Remotos:WaitForChild("NotificarSeleccionNodo")
+
+notifyEv.OnClientEvent:Connect(function(eventType, arg1, arg2)
+	
+	-- Nodo seleccionado: arg1 = nodo, arg2 = adyacentes
+	if eventType == "NodoSeleccionado" then
+		clearAll()
+		if arg1 then
+			highlightNode(arg1, COLOR_SELECCIONADO)
+		end
+		if type(arg2) == "table" then
+			for _, adjModel in ipairs(arg2) do
+				if adjModel and adjModel ~= arg1 then
+					highlightNode(adjModel, COLOR_ADYACENTE)
 				end
 			end
 		end
-	end
-	
-	EfectosNodo.limpiarSeleccion()
-end
-
-local function alConexionInvalida(modeloNodo)
-	-- Flash de error en el nodo
-	local selector = modeloNodo:FindFirstChild("Selector")
-	if selector then
-		local parte = selector:IsA("BasePart") and selector or selector:FindFirstChildWhichIsA("BasePart")
-		if parte then
-			EfectosNodo.flashError(parte)
-		end
-	end
-end
-
--- ═══════════════════════════════════════════════════════════════════════════════
--- HANDLERS DE EFECTOS DE CABLE
--- ═══════════════════════════════════════════════════════════════════════════════
-
-local function iniciarPreviewArrastre(attachment, vecinos)
-	-- El preview se maneja con el mouse
-	if previewArrastre then
-		previewArrastre.destruir()
-		previewArrastre = nil
-	end
-end
-
-local function detenerPreviewArrastre()
-	if previewArrastre then
-		previewArrastre.destruir()
-		previewArrastre = nil
-	end
-end
-
-local function iniciarPulso(nodoOrigen, nodoDestino, esBidireccional)
-	-- Buscar el beam entre estos nodos
-	local nivelActual = Workspace:FindFirstChild("NivelActual")
-	if not nivelActual then return end
-	
-	-- Buscar cable por nombre
-	local nomA, nomB = nodoOrigen.Name, nodoDestino.Name
-	if nomA > nomB then nomA, nomB = nomB, nomA end
-	local nombreCable = "Cable_" .. nomA .. "|" .. nomB
-	
-	for _, beam in ipairs(nivelActual:GetDescendants()) do
-		if beam:IsA("Beam") and beam.Name == nombreCable then
-			EfectosCable.iniciarPulso(beam, esBidireccional)
-			break
-		end
-	end
-end
-
-local function detenerTodosLosPulsos()
-	EfectosCable.detenerTodosLosPulsos()
-end
-
--- ═══════════════════════════════════════════════════════════════════════════════
--- CONEXION DE EVENTOS
--- ═══════════════════════════════════════════════════════════════════════════════
-
--- NotificarSeleccionNodo: selección, deselección, errores
-notificarSeleccionNodo.OnClientEvent:Connect(function(tipoEvento, arg1, arg2)
-	if tipoEvento == "NodoSeleccionado" then
-		alSeleccionarNodo(arg1, arg2)
 		
-	elseif tipoEvento == "SeleccionCancelada" then
-		alCancelarSeleccion()
+	-- Limpiar en estos eventos
+	elseif eventType == "SeleccionCancelada"
+		or eventType == "ConexionCompletada"
+		or eventType == "CableDesconectado" then
+		clearAll()
 		
-	elseif tipoEvento == "ConexionInvalida" then
-		alConexionInvalida(arg1)
+	-- Error: flash rojo
+	elseif eventType == "ConexionInvalida" then
+		clearAll()
+		flashModel(arg1, COLOR_ERROR, 0.35)
 		
-	elseif tipoEvento == "ConexionCompletada" then
-		-- La conexión se completó, mantener selección o resetear según diseño
-		alCancelarSeleccion()
-		
-	elseif tipoEvento == "CableDesconectado" then
-		-- Opcional: efecto visual de desconexión
-		print("[ControladorEfectos] Cable desconectado:", arg1, "-", arg2)
-	end
-end)
-
--- CableDragEvent: preview de arrastre
-cableDragEvent.OnClientEvent:Connect(function(accion, attachment, vecinos)
-	if accion == "Iniciar" then
-		iniciarPreviewArrastre(attachment, vecinos)
-	elseif accion == "Detener" then
-		detenerPreviewArrastre()
-	end
-end)
-
--- PulsoEvent: efectos de energía
-pulsoEvent.OnClientEvent:Connect(function(accion, arg1, arg2, arg3)
-	if accion == "IniciarPulso" then
-		iniciarPulso(arg1, arg2, arg3)
-	elseif accion == "DetenerTodos" then
-		detenerTodosLosPulsos()
 	end
 end)
 

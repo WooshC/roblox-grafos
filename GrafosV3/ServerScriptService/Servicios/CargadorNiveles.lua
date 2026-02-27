@@ -118,7 +118,7 @@ function CargadorNiveles.cargar(nivelID, jugador)
 	if moduloCables then
 		local adyacencias = config.Adyacencias
 		if adyacencias and next(adyacencias) then
-			moduloCables.activar(nivelActual, adyacencias, jugador)
+			moduloCables.activar(nivelActual, adyacencias, jugador, nivelID)
 			sistemasActivados = true
 			print("[CargadorNiveles] ConectarCables activado")
 		end

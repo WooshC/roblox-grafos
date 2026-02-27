@@ -61,9 +61,10 @@ function EfectosNodo.aplicarASelector(parteSelector, estado)
 	local color = EfectosNodo.obtenerColorEstado(estado)
 	local material = EfectosNodo.obtenerMaterialEstado(estado)
 	
-	-- Aplicar color y material
+	-- Aplicar color, material y hacer visible
 	parteSelector.Color = color
 	parteSelector.Material = material
+	parteSelector.Transparency = 0.3 -- Visible pero no sólido
 	
 	-- Tween de tamaño según estado
 	local tamanoBase = Vector3.new(2, 2, 2) -- Tamaño por defecto
@@ -87,7 +88,8 @@ function EfectosNodo.resetearSelector(parteSelector)
 	if not parteSelector then return end
 	
 	if parteSelector:IsA("BasePart") then
-		parteSelector.Transparency = 1
+		-- Semi-transparente para que sea visible pero no obstaculice
+		parteSelector.Transparency = 0.7
 		parteSelector.Color = Color3.fromRGB(196, 196, 196)
 		parteSelector.Material = PresetTween.MATERIALES.PLASTICO
 	end

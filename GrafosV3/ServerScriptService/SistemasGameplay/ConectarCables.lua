@@ -1,6 +1,7 @@
 -- ServerScriptService/SistemasGameplay/ConectarCables.lua
 -- Sistema de conexion de cables entre nodos (servidor)
--- Adaptado a arquitectura V3
+-- Adaptado a arquitectura V3 - Compatible con estructura:
+-- Nodo (Model) -> Selector (Part) -> ClickDetector + Attachment
 
 local ConectarCables = {}
 
@@ -12,6 +13,9 @@ local Jugadores = game:GetService("Players")
 local Eventos = Replicado:WaitForChild("EventosGrafosV3")
 local Remotos = Eventos:WaitForChild("Remotos")
 
+-- Configuracion de niveles para nombres
+local LevelsConfig = require(Replicado:WaitForChild("Config"):WaitForChild("LevelsConfig"))
+
 -- Estado interno
 local _activo = false
 local _nivel = nil
@@ -21,12 +25,12 @@ local _selectoresPorNombre = {}
 local _cables = {}
 local _conexiones = {}
 local _lookupAdyacencias = nil
-local _trackerPuntuacion = nil
+local _nivelID = nil
 
 -- Constantes
 local COLOR_CABLE = Color3.fromRGB(0, 200, 255)
 local ANCHO_CABLE = 0.13
-local DISTANCIA_CLICK = 25
+local DISTANCIA_CLICK = 50
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- HELPERS
@@ -37,16 +41,34 @@ local function clavePar(nomA, nomB)
 	return nomA .. "|" .. nomB
 end
 
+-- El Selector es una Part dentro del Model Nodo
+-- Nombre del nodo = selector.Parent.Name
 local function obtenerNombreNodo(selector)
 	return selector.Parent.Name
 end
 
 local function obtenerAttachment(selector)
-	return selector:FindFirstChild("Attachment", true)
+	return selector:FindFirstChild("Attachment")
 end
 
 local function obtenerClickDetector(selector)
-	return selector:FindFirstChild("ClickDetector", true)
+	return selector:FindFirstChild("ClickDetector")
+end
+
+-- Ruta: Selector (Part) -> Nodo (Model) -> Nodos (Folder) -> Grafo_ZonaX (Folder) -> Conexiones
+local function obtenerCarpetaConexiones(selector)
+	local nodo = selector.Parent
+	local nodosFolder = nodo.Parent
+	local grafo = nodosFolder.Parent
+	if not grafo then return nil end
+	
+	local conexiones = grafo:FindFirstChild("Conexiones")
+	if not conexiones then
+		conexiones = Instance.new("Folder")
+		conexiones.Name = "Conexiones"
+		conexiones.Parent = grafo
+	end
+	return conexiones
 end
 
 local function construirLookupAdyacencias(adyacencias)
@@ -78,18 +100,7 @@ local function buscarCable(nomA, nomB)
 	return nil
 end
 
-local function obtenerCarpetaConexiones(selector)
-	local grafo = selector.Parent.Parent.Parent
-	if not grafo then return nil end
-	local conexiones = grafo:FindFirstChild("Conexiones")
-	if not conexiones then
-		conexiones = Instance.new("Folder")
-		conexiones.Name = "Conexiones"
-		conexiones.Parent = grafo
-	end
-	return conexiones
-end
-
+-- Recolectar todos los Selectors (Part) del nivel
 local function recolectarSelectores()
 	_selectoresPorNombre = {}
 	if not _nivel then return {} end
@@ -107,11 +118,21 @@ local function recolectarSelectores()
 			for _, nodo in ipairs(nodosFolder:GetChildren()) do
 				if nodo:IsA("Model") then
 					local selector = nodo:FindFirstChild("Selector")
-					if selector then
+					-- El Selector debe ser una BasePart
+					if selector and selector:IsA("BasePart") then
 						table.insert(selectores, selector)
 						_selectoresPorNombre[nodo.Name] = selector
+						
+						-- Verificar que tenga ClickDetector
+						if not obtenerClickDetector(selector) then
+							warn("[ConectarCables] Selector sin ClickDetector:", nodo.Name)
+						end
+						-- Verificar que tenga Attachment
+						if not obtenerAttachment(selector) then
+							warn("[ConectarCables] Selector sin Attachment:", nodo.Name)
+						end
 					else
-						warn("[ConectarCables] Nodo sin Selector:", nodo.Name)
+						warn("[ConectarCables] Nodo sin Selector (BasePart):", nodo.Name)
 					end
 				end
 			end
@@ -120,8 +141,10 @@ local function recolectarSelectores()
 	return selectores
 end
 
+-- Obtener modelos de nodos adyacentes
 local function obtenerModelosAdyacentes(nomA)
 	if not _lookupAdyacencias or not _lookupAdyacencias[nomA] then return {} end
+	
 	local modelos = {}
 	for nomVecino, _ in pairs(_lookupAdyacencias[nomA]) do
 		local selectorVecino = _selectoresPorNombre[nomVecino]
@@ -160,7 +183,7 @@ local function crearCable(selector1, selector2)
 	
 	local hitbox = Instance.new("Part")
 	hitbox.Name = "Hitbox_" .. clave
-	hitbox.Size = Vector3.new(0.3, 0.3, distancia)
+	hitbox.Size = Vector3.new(0.4, 0.4, distancia)
 	hitbox.CFrame = CFrame.lookAt(att1.WorldPosition, att2.WorldPosition) * CFrame.new(0, 0, -distancia/2)
 	hitbox.Transparency = 1
 	hitbox.CanCollide = false
@@ -198,7 +221,7 @@ local function crearCable(selector1, selector2)
 	}
 	table.insert(_cables, entrada)
 	
-	-- Evento de desconexion al hacer click en el cable
+	-- Evento de desconexion
 	local conn = cd.MouseClick:Connect(function(pl)
 		if pl ~= _jugador then return end
 		for i, cable in ipairs(_cables) do
@@ -280,7 +303,7 @@ local function intentarConectar(jugador, selector1, selector2)
 		return
 	end
 	
-	-- Verificar adyacencia
+	-- Verificar adyacencia segun LevelsConfig
 	if esAdyacente(nomA, nomB) then
 		crearCable(selector1, selector2)
 		
@@ -290,27 +313,33 @@ local function intentarConectar(jugador, selector1, selector2)
 		end
 	else
 		-- Error: no son adyacentes
+		local tipoError = esAdyacente(nomB, nomA) and "DireccionInvalida" or "ConexionInvalida"
+		
 		local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
 		if notificarEvento then
 			notificarEvento:FireClient(jugador, "ConexionInvalida", selector2.Parent)
 		end
+		
+		print("[ConectarCables] Fallo (" .. tipoError .. "):", nomA, "->", nomB)
 	end
 	
 	finalizar()
 end
 
+-- Handler de click en Selector
 local function alClickearSelector(jugador, selector)
 	if jugador ~= _jugador then return end
 	if not _activo then return end
 	
 	if _nodoSeleccionado == nil then
-		-- Primer clic: seleccionar
+		-- Primer clic: seleccionar nodo
 		_nodoSeleccionado = selector
+		
 		local nomA = obtenerNombreNodo(selector)
 		local modeloNodo = selector.Parent
 		local modelosAdyacentes = obtenerModelosAdyacentes(nomA)
 		
-		-- Notificar al cliente para efectos visuales
+		-- Notificar al cliente para efectos visuales (el cliente obtiene nombres de LevelsConfig)
 		local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
 		if notificarEvento then
 			notificarEvento:FireClient(jugador, "NodoSeleccionado", modeloNodo, modelosAdyacentes)
@@ -332,7 +361,7 @@ local function alClickearSelector(jugador, selector)
 		end
 		
 	elseif _nodoSeleccionado == selector then
-		-- Mismo nodo: cancelar
+		-- Mismo nodo: cancelar seleccion
 		_nodoSeleccionado = nil
 		local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
 		if notificarEvento then
@@ -354,13 +383,14 @@ end
 -- INTERFAZ PUBLICA
 -- ═══════════════════════════════════════════════════════════════════════════════
 
-function ConectarCables.activar(nivel, adyacencias, jugador)
+function ConectarCables.activar(nivel, adyacencias, jugador, nivelID)
 	if _activo then
 		ConectarCables.desactivar()
 	end
 	
 	_nivel = nivel
 	_jugador = jugador
+	_nivelID = nivelID
 	_nodoSeleccionado = nil
 	_cables = {}
 	_conexiones = {}
@@ -370,9 +400,18 @@ function ConectarCables.activar(nivel, adyacencias, jugador)
 	local selectores = recolectarSelectores()
 	print("[ConectarCables] Activado - Nodos:", #selectores)
 	
+	-- Configurar cada selector
 	for _, selector in ipairs(selectores) do
+		-- El selector debe ser clickeable
+		selector.CanCollide = false
+		selector.CanQuery = true -- Necesario para ClickDetector
+		selector.CanTouch = false
+		
+		-- Configurar ClickDetector
 		local cd = obtenerClickDetector(selector)
 		if cd then
+			cd.MaxActivationDistance = DISTANCIA_CLICK
+			
 			local conn = cd.MouseClick:Connect(function(pl)
 				alClickearSelector(pl, selector)
 			end)
@@ -407,6 +446,7 @@ function ConectarCables.desactivar()
 	
 	_nivel = nil
 	_jugador = nil
+	_nivelID = nil
 	_lookupAdyacencias = nil
 	_selectoresPorNombre = {}
 	
