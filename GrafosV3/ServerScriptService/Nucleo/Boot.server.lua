@@ -232,6 +232,22 @@ volverAlMenu.OnServerEvent:Connect(function(jugador)
 	nivelDescargado:FireClient(jugador)
 end)
 
+-- ReiniciarNivel: El jugador quiere reiniciar el nivel actual
+local reiniciarNivel = Remotos:WaitForChild("ReiniciarNivel")
+reiniciarNivel.OnServerEvent:Connect(function(jugador, nivelID)
+	print("[GrafosV3] ReiniciarNivel - Jugador:", jugador.Name, "Nivel:", nivelID)
+	
+	-- Volver a cargar el mismo nivel
+	if CargadorNiveles then
+		-- Descargar primero
+		CargadorNiveles.descargar()
+		task.wait(0.5)
+		
+		-- Volver a cargar
+		CargadorNiveles.cargar(nivelID, jugador)
+	end
+end)
+
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- 6. SISTEMA DE GAMEPLAY (Desconectado inicialmente)
 -- ═══════════════════════════════════════════════════════════════════════════════

@@ -1,0 +1,103 @@
+-- StarterPlayerScripts/HUD/ControladorHUD.client.lua
+-- Orquestador del HUD de gameplay - integra todos los módulos
+
+local Players = game:GetService("Players")
+local RS = game:GetService("ReplicatedStorage")
+
+local jugador = Players.LocalPlayer
+local playerGui = jugador:WaitForChild("PlayerGui")
+
+print("[GrafosV3] === ControladorHUD Iniciando ===")
+
+-- Esperar GUI
+local hudGui = playerGui:WaitForChild("GUIExploradorV2", 30)
+if not hudGui then warn("[ControladorHUD] GUIExploradorV2 no encontrado"); return end
+
+-- Evitar doble ejecución
+if hudGui:GetAttribute("ControladorHUDActivo") then return end
+hudGui:SetAttribute("ControladorHUDActivo", true)
+
+-- Importar módulos
+local ModulosHUD = script.Parent:WaitForChild("ModulosHUD")
+local EventosHUD = require(ModulosHUD.EventosHUD)
+local TransicionHUD = require(ModulosHUD.TransicionHUD)
+local PuntajeHUD = require(ModulosHUD.PuntajeHUD)
+local PanelMisionesHUD = require(ModulosHUD.PanelMisionesHUD)
+local VictoriaHUD = require(ModulosHUD.VictoriaHUD)
+
+-- Inicializar módulos con referencia al hud
+TransicionHUD.reset()
+PuntajeHUD.init(hudGui)
+PanelMisionesHUD.init(hudGui)
+VictoriaHUD.init(hudGui)
+
+-- Estado del HUD
+local hudActivo = false
+
+-- Función para activar el HUD (mostrar y resetear)
+local function activarHUD()
+	if hudActivo then return end
+	hudActivo = true
+	
+	-- Asegurar que el HUD está visible
+	hudGui.Enabled = true
+	
+	-- Resetear estado
+	TransicionHUD.ocultarInmediato()
+	PanelMisionesHUD.reiniciar()
+	VictoriaHUD.ocultar()
+	PuntajeHUD.fijar(0)
+	
+	print("[ControladorHUD] HUD activado")
+end
+
+-- Función para desactivar el HUD
+local function desactivarHUD()
+	hudActivo = false
+	hudGui.Enabled = false
+	VictoriaHUD.ocultar()
+	print("[ControladorHUD] HUD desactivado")
+end
+
+-- Conectar eventos del servidor
+
+-- NivelListo: El servidor notifica que el nivel está cargado y listo
+EventosHUD.nivelListo.OnClientEvent:Connect(function(data)
+	if data and data.error then
+		warn("[ControladorHUD] Error al cargar nivel:", data.error)
+		return
+	end
+	
+	print("[ControladorHUD] NivelListo recibido — activando HUD")
+	
+	-- Activar HUD
+	activarHUD()
+	
+	-- Forzar cámara Custom (seguridad)
+	workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
+end)
+
+-- ActualizarMisiones: El servidor envía actualización de estado de misiones
+EventosHUD.actualizarMisiones.OnClientEvent:Connect(function(data)
+	PanelMisionesHUD.reconstruir(data)
+end)
+
+-- ActualizarPuntuacion: El servidor envía actualización de puntaje
+EventosHUD.actualizarPuntuacion.OnClientEvent:Connect(function(data)
+	if data and data.puntajeBase then
+		PuntajeHUD.fijar(data.puntajeBase)
+	end
+end)
+
+-- NivelCompletado: El servidor notifica que se completaron todas las misiones
+EventosHUD.nivelCompletado.OnClientEvent:Connect(function(snap)
+	print("[ControladorHUD] NivelCompletado recibido:", snap ~= nil and "con datos" or "SIN DATOS")
+	if snap then
+		VictoriaHUD.mostrar(snap)
+	end
+end)
+
+-- Inicialmente, el HUD debe estar desactivado (el menú está activo)
+desactivarHUD()
+
+print("[GrafosV3] ✅ ControladorHUD activo y esperando NivelListo")

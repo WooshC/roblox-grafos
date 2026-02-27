@@ -40,6 +40,7 @@ local EVENTOS_REMOTOS = {
 	{ nombre = "ActualizarMisiones",     tipo = "RemoteEvent" },      -- Server -> Cliente (misiones activas)
 	{ nombre = "NivelCompletado",        tipo = "RemoteEvent" },      -- Server -> Cliente (victoria)
 	{ nombre = "ReiniciarNivel",         tipo = "RemoteEvent" },      -- Cliente -> Server (reintentar)
+	{ nombre = "RestartLevel",           tipo = "RemoteEvent" },      -- Cliente -> Server (reintentar - compat)
 	
 	-- Configuracion
 	{ nombre = "AplicarDificultad",      tipo = "RemoteEvent" },      -- Cliente -> Server (cambiar dificultad)

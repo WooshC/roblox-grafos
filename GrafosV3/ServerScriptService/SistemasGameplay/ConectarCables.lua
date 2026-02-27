@@ -8,6 +8,7 @@ local ConectarCables = {}
 local Workspace = game:GetService("Workspace")
 local Replicado = game:GetService("ReplicatedStorage")
 local Jugadores = game:GetService("Players")
+local ServerScriptService = game:GetService("ServerScriptService")
 
 -- Eventos
 local Eventos = Replicado:WaitForChild("EventosGrafosV3")
@@ -15,6 +16,17 @@ local Remotos = Eventos:WaitForChild("Remotos")
 
 -- Configuracion de niveles para nombres
 local LevelsConfig = require(Replicado:WaitForChild("Config"):WaitForChild("LevelsConfig"))
+
+-- Referencia al CargadorNiveles para notificar eventos
+local CargadorNiveles = nil
+local function obtenerCargadorNiveles()
+	if not CargadorNiveles then
+		local serviciosFolder = ServerScriptService:WaitForChild("Servicios")
+		local modulo = serviciosFolder:WaitForChild("CargadorNiveles")
+		CargadorNiveles = require(modulo)
+	end
+	return CargadorNiveles
+end
 
 -- Estado interno
 local _activo = false
