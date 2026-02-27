@@ -110,6 +110,20 @@ local Eventos = Replicado:WaitForChild("EventosGrafosV3")
 local Remotos = Eventos:WaitForChild("Remotos")
 local nivelListoEvento = Remotos:WaitForChild("NivelListo")
 
+-- Referencia a SistemaGameplay (se obtiene bajo demanda)
+local function obtenerSistemaGameplay()
+	local nucleo = ServerScriptService:FindFirstChild("Nucleo")
+	if nucleo then
+		local boot = nucleo:FindFirstChild("Boot.server")
+		if boot then
+			-- El SistemaGameplay está definido en Boot.server
+			-- Usar _G para compartir o requerir directamente
+			return _G.SistemaGameplay
+		end
+	end
+	return nil
+end
+
 local NOMBRE_NIVEL_ACTUAL = "NivelActual"
 local _jugadorActual = nil
 local _nivelIDActual = nil
@@ -154,6 +168,12 @@ function CargadorNiveles.descargar()
 		if jugador.Character then
 			jugador.Character:Destroy()
 		end
+	end
+	
+	-- Llamar directamente a SistemaGameplay.terminar() si existe
+	local sg = obtenerSistemaGameplay()
+	if sg and sg.terminar and _jugadorActual then
+		sg.terminar(_jugadorActual)
 	end
 	
 	_jugadorActual = nil
@@ -316,6 +336,12 @@ function CargadorNiveles.cargar(nivelID, jugador)
 			sistemasActivados = true
 			print("[CargadorNiveles] ConectarCables activado")
 		end
+	end
+	
+	-- Llamar directamente a SistemaGameplay.iniciar() si existe
+	local sg = obtenerSistemaGameplay()
+	if sg and sg.iniciar then
+		sg.iniciar(nivelID, jugador)
 	end
 	
 	-- Notificar al cliente
