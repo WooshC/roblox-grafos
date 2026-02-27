@@ -704,6 +704,9 @@ local Bp = mp and mp:FindFirstChild("BtnPlay")
 local Bs = mp and mp:FindFirstChild("BtnSettings")
 local Bc = mp and mp:FindFirstChild("BtnCredits")
 local Be = mp and mp:FindFirstChild("BtnExit")
+-- ── BackBtn (Volver al menú principal) ─────────────────────────────────────
+local backBtn = S2:FindFirstChild("BackBtn", true)
+
 if Bp then Bp.MouseButton1Click:Connect(goToLevels) end
 if Bs then Bs.MouseButton1Click:Connect(function() openModal(S3) end) end
 if Bc then Bc.MouseButton1Click:Connect(function() openModal(S4) end) end
@@ -715,6 +718,18 @@ for _, frame in ipairs({S3, S4, S5}) do
 		if b then b.MouseButton1Click:Connect(function() closeModal(frame) end) end
 	end
 end
+
+
+
+if backBtn then
+	backBtn.MouseButton1Click:Connect(function()
+		if isLoading then return end  -- No permitir volver si está cargando un nivel
+		goToMenu()
+	end)
+else
+	warn("[MenuController] BackBtn no encontrado en FrameLevels")
+end
+
 
 -- ── PlayButton en sidebar ──────────────────────────────────────────────────
 local playBtnSidebar = S2:FindFirstChild("PlayButton", true)

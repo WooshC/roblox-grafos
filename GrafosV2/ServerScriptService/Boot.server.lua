@@ -1,52 +1,54 @@
 -- Boot.server.lua
--- Punto de entrada único del servidor para EDA Quest v2.
+-- Punto de entrada unico del servidor para EDA Quest v2.
+-- REFACTORIZADO: Ahora usa OrquestadorGameplay para gestionar modulos.
 --
--- FIX CRÍTICO: Con CharacterAutoLoads = false, Roblox NO copia StarterGui a
--- PlayerGui automáticamente hasta que el personaje spawne. Como el menú no
--- tiene personaje, hay que copiar la GUI manualmente al conectarse.
---
--- Ubicación Roblox: ServerScriptService/Boot.server.lua
+-- Regla de Oro: Mientras este el menu activo, TODO lo de gameplay esta desconectado.
 
 local RS         = game:GetService("ReplicatedStorage")
 local Players    = game:GetService("Players")
 local StarterGui = game:GetService("StarterGui")
 local Workspace  = game:GetService("Workspace")
 
--- ── 1. Sin spawn automático ────────────────────────────────────────────────
+-- ── 1. Sin spawn automatico ─────────────────────────────────────────────────
 Players.CharacterAutoLoads = false
 
--- ── 2. Esperar EventRegistry ───────────────────────────────────────────────
+-- ── 2. Esperar EventRegistry ────────────────────────────────────────────────
 local eventsFolder = RS:WaitForChild("Events", 15)
 if not eventsFolder then
-	error("[EDA v2] Boot: Events no apareció en 15s.")
+	error("[EDA v2] Boot: Events no aparecio en 15s.")
 end
 
-local remotesFolder  = eventsFolder:WaitForChild("Remotes", 5)
-local serverReadyEv  = remotesFolder:WaitForChild("ServerReady",       5)
-local requestPlayLEv = remotesFolder:WaitForChild("RequestPlayLevel",  5)
-local levelReadyEv   = remotesFolder:WaitForChild("LevelReady",        5)
-local levelUnloadedEv = remotesFolder:WaitForChild("LevelUnloaded", 5)  -- servidor→cliente tras volver al menú
-local returnToMenuEv = remotesFolder:WaitForChild("ReturnToMenu",      5)
-local getProgressFn  = remotesFolder:WaitForChild("GetPlayerProgress", 5)
-local updateScoreEv  = remotesFolder:WaitForChild("UpdateScore",       5)
+local remotesFolder   = eventsFolder:WaitForChild("Remotes", 5)
+local serverReadyEv   = remotesFolder:WaitForChild("ServerReady",       5)
+local requestPlayLEv  = remotesFolder:WaitForChild("RequestPlayLevel",  5)
+local levelReadyEv    = remotesFolder:WaitForChild("LevelReady",        5)
+local levelUnloadedEv = remotesFolder:WaitForChild("LevelUnloaded",     5)
+local returnToMenuEv  = remotesFolder:WaitForChild("ReturnToMenu",      5)
+local getProgressFn   = remotesFolder:WaitForChild("GetPlayerProgress", 5)
+local updateScoreEv   = remotesFolder:WaitForChild("UpdateScore",       5)
+local restartLevelEv  = remotesFolder:WaitForChild("RestartLevel",      5)
 
--- ── 3. Cargar servicios ────────────────────────────────────────────────────
-local LevelLoader        = require(script.Parent:WaitForChild("LevelLoader",        10))
-local DataService        = require(script.Parent:WaitForChild("DataService",        10))
-local ScoreTracker       = require(script.Parent:WaitForChild("ScoreTracker",       10))
-local ConectarCables     = require(script.Parent:WaitForChild("ConectarCables",     10))
+-- ── 3. Cargar Orquestador y Servicios ───────────────────────────────────────
+local OrquestadorGameplay = require(script.Parent.Gameplay:WaitForChild("OrquestadorGameplay", 10))
+local LevelLoader         = require(script.Parent:WaitForChild("LevelLoader", 10))
+local DataService         = require(script.Parent:WaitForChild("DataService", 10))
+local ScoreTracker        = require(script.Parent:WaitForChild("ScoreTracker", 10))
+local LevelsConfig        = require(RS:WaitForChild("Config", 5):WaitForChild("LevelsConfig", 5))
+
+-- Cargar modulos legacy (temporalmente, hasta migrarlos a Gameplay/Modulos/)
+local ConectarCables     = require(script.Parent:WaitForChild("ConectarCables", 10))
 local ZoneTriggerManager = require(script.Parent:WaitForChild("ZoneTriggerManager", 10))
-local MissionService     = require(script.Parent:WaitForChild("MissionService",     10))
-local LevelsConfig       = require(RS:WaitForChild("Config", 5):WaitForChild("LevelsConfig", 5))
+local MissionService     = require(script.Parent:WaitForChild("MissionService", 10))
 
--- Cachear RemoteEvents y BindableEvents de zonas para conectar MissionService
+-- Inicializar Orquestador con referencias a modulos
+OrquestadorGameplay:inicializar()
+
+-- Cachear BindableEvents de zonas para conectar MissionService (legacy)
 local bindablesFolder = eventsFolder:WaitForChild("Bindables", 5)
 local zoneEnteredEv   = bindablesFolder and bindablesFolder:FindFirstChild("ZoneEntered")
 local zoneExitedEv    = bindablesFolder and bindablesFolder:FindFirstChild("ZoneExited")
-local restartLevelEv  = remotesFolder:WaitForChild("RestartLevel", 5)
-local levelCompletedEv = remotesFolder:WaitForChild("LevelCompleted", 5)
 
--- Conectar ZoneEntered/ZoneExited → MissionService
+-- Conectar ZoneEntered/ZoneExited → MissionService (legacy)
 if zoneEnteredEv then
 	zoneEnteredEv.Event:Connect(function(data)
 		MissionService.onZoneEntered(data and data.nombre)
@@ -59,15 +61,13 @@ if zoneExitedEv then
 end
 
 ScoreTracker:init(updateScoreEv)
-print("[EDA v2] ✅ LevelLoader + DataService + ScoreTracker + ConectarCables + ZoneTriggerManager + MissionService cargados")
+print("[EDA v2] ✅ OrquestadorGameplay + LevelLoader + DataService + ScoreTracker cargados")
 
 -- ── 4. Copiar StarterGui → PlayerGui manualmente ──────────────────────────
--- Roblox solo hace esto automáticamente al spawnear el personaje.
--- Con CharacterAutoLoads = false nunca ocurre solo, así que lo hacemos aquí.
-local function copyGuiToPlayer(player)
-	local playerGui = player:WaitForChild("PlayerGui", 10)
+local function copiarGuiAJugador(jugador)
+	local playerGui = jugador:WaitForChild("PlayerGui", 10)
 	if not playerGui then
-		warn("[EDA v2] PlayerGui no encontrado para", player.Name)
+		warn("[EDA v2] PlayerGui no encontrado para", jugador.Name)
 		return
 	end
 
@@ -75,96 +75,99 @@ local function copyGuiToPlayer(player)
 		if not playerGui:FindFirstChild(gui.Name) then
 			local clone = gui:Clone()
 			clone.Parent = playerGui
-			print("[EDA v2] ✅ GUI →", gui.Name, "copiada a", player.Name)
+			print("[EDA v2] ✅ GUI →", gui.Name, "copiada a", jugador.Name)
 		end
 	end
 end
 
 -- ── 5. Jugador conectado ───────────────────────────────────────────────────
-local function onPlayerAdded(player)
-	-- Copiar GUI primero (sin esperar DataService)
+local function alJugadorAgregado(jugador)
 	task.spawn(function()
-		copyGuiToPlayer(player)
+		copiarGuiAJugador(jugador)
 	end)
 
-	-- Pre-cargar datos del DataStore en paralelo
 	task.spawn(function()
-		DataService:load(player)
+		DataService:load(jugador)
 	end)
 
-	-- Delay para dar tiempo a que la GUI arranque sus LocalScripts en el cliente
 	task.delay(2, function()
-		if player and player.Parent then
-			serverReadyEv:FireClient(player)
-			print("[EDA v2] ServerReady →", player.Name)
+		if jugador and jugador.Parent then
+			serverReadyEv:FireClient(jugador)
+			print("[EDA v2] ServerReady →", jugador.Name)
 		end
 	end)
 end
 
-Players.PlayerAdded:Connect(onPlayerAdded)
+Players.PlayerAdded:Connect(alJugadorAgregado)
 
--- Para jugadores ya conectados (pruebas en Studio con Play Solo)
-for _, player in ipairs(Players:GetPlayers()) do
-	task.spawn(onPlayerAdded, player)
+for _, jugador in ipairs(Players:GetPlayers()) do
+	task.spawn(alJugadorAgregado, jugador)
 end
 
 -- ── 6. GetPlayerProgress ───────────────────────────────────────────────────
-getProgressFn.OnServerInvoke = function(player)
-	return DataService:getProgressForClient(player)
+getProgressFn.OnServerInvoke = function(jugador)
+	return DataService:getProgressForClient(jugador)
 end
 
 -- ── 7. RequestPlayLevel ────────────────────────────────────────────────────
-requestPlayLEv.OnServerEvent:Connect(function(player, nivelID)
-	print("[EDA v2] RequestPlayLevel — Jugador:", player.Name, "/ Nivel:", nivelID)
+requestPlayLEv.OnServerEvent:Connect(function(jugador, idNivel)
+	print("[EDA v2] RequestPlayLevel — Jugador:", jugador.Name, "/ Nivel:", idNivel)
 
-	if type(nivelID) ~= "number" then
-		warn("[EDA v2] nivelID inválido:", tostring(nivelID))
+	if type(idNivel) ~= "number" then
+		warn("[EDA v2] idNivel invalido:", tostring(idNivel))
 		return
 	end
 
-	local ok, err = pcall(function()
-		LevelLoader:load(nivelID, player)
+	local exito, error = pcall(function()
+		LevelLoader:load(idNivel, jugador)
 	end)
 
-	if ok then
-		-- LevelLoader colocó el nivel en Workspace como "NivelActual"
-		-- y ya disparó LevelReady al cliente. Ahora activamos el gameplay.
+	if exito then
 		local nivelActual = Workspace:FindFirstChild("NivelActual")
 		if nivelActual then
-			local config         = LevelsConfig[nivelID]
-			local adjacencias    = config and config.Adyacencias or nil
-			local puntosConexion = config and config.Puntuacion and config.Puntuacion.PuntosConexion or 50
-			local penaFallo      = config and config.Puntuacion and config.Puntuacion.PenaFallo      or 10
-
-			-- FIX: convertir dict Zonas → array { {nombre, trigger} }
-			-- ZoneTriggerManager usa #zonas == 0 como guarda; #dict == 0 siempre en Lua
-			-- → sin esta conversión ninguna zona se registra jamás
-			local function buildZonasArray(zonasDict)
-				local arr = {}
-				for nombre, cfg in pairs(zonasDict or {}) do
-					if cfg.Trigger then
-						table.insert(arr, { nombre = nombre, trigger = cfg.Trigger })
+			local configuracion = LevelsConfig[idNivel]
+			
+			-- Usar OrquestadorGameplay para activar TODOS los modulos
+			local exitoOrquestador = OrquestadorGameplay:iniciarNivel(
+				jugador, 
+				idNivel, 
+				configuracion,
+				remotesFolder
+			)
+			
+			if exitoOrquestador then
+				print("[EDA v2] ✅ Gameplay iniciado via Orquestador — Nivel", idNivel)
+			else
+				warn("[EDA v2] ⚠️ OrquestadorGameplay fallo al iniciar, usando metodo legacy...")
+				-- Fallback a metodo manual (legacy)
+				local adjacencias    = configuracion and configuracion.Adyacencias or nil
+				local puntosConexion = configuracion and configuracion.Puntuacion and configuracion.Puntuacion.PuntosConexion or 50
+				local penaFallo      = configuracion and configuracion.Puntuacion and configuracion.Puntuacion.PenaFallo or 10
+				
+				local function construirArrayZonas(zonasDict)
+					local arr = {}
+					for nombre, cfg in pairs(zonasDict or {}) do
+						if cfg.Trigger then
+							table.insert(arr, { nombre = nombre, trigger = cfg.Trigger })
+						end
 					end
+					return arr
 				end
-				return arr
-			end
-			local zonasArr = buildZonasArray(config and config.Zonas)
+				local zonasArr = construirArrayZonas(configuracion and configuracion.Zonas)
 
-			ScoreTracker:startLevel(player, nivelID, puntosConexion, penaFallo)
-			MissionService.activate(config, nivelID, player, remotesFolder, ScoreTracker, DataService)
-			ConectarCables.activate(nivelActual, adjacencias, player, ScoreTracker, MissionService)
-			ZoneTriggerManager.activate(nivelActual, zonasArr, player, config.Zonas)
-			print("[EDA v2] ✅ ScoreTracker + ConectarCables + ZoneTriggerManager activos — Nivel", nivelID,
-				"/ adyacencias:", adjacencias ~= nil and "definidas" or "modo permisivo",
-				"/ zonas:", #zonasArr)
+				ScoreTracker:startLevel(jugador, idNivel, puntosConexion, penaFallo)
+				MissionService.activate(configuracion, idNivel, jugador, remotesFolder, ScoreTracker, DataService)
+				ConectarCables.activate(nivelActual, adjacencias, jugador, ScoreTracker, MissionService)
+				ZoneTriggerManager.activate(nivelActual, zonasArr, jugador, configuracion.Zonas)
+			end
 		else
 			warn("[EDA v2] NivelActual no encontrado en Workspace tras cargar")
 		end
 	else
-		warn("[EDA v2] Error al cargar nivel:", err)
-		if player and player.Parent then
-			levelReadyEv:FireClient(player, {
-				nivelID = nivelID,
+		warn("[EDA v2] Error al cargar nivel:", error)
+		if jugador and jugador.Parent then
+			levelReadyEv:FireClient(jugador, {
+				idNivel = idNivel,
 				error   = "Error interno al cargar el nivel.",
 			})
 		end
@@ -172,92 +175,100 @@ requestPlayLEv.OnServerEvent:Connect(function(player, nivelID)
 end)
 
 -- ── 8. ReturnToMenu ────────────────────────────────────────────────────────
-returnToMenuEv.OnServerEvent:Connect(function(player)
-	print("[EDA v2] ReturnToMenu — Jugador:", player.Name)
+returnToMenuEv.OnServerEvent:Connect(function(jugador)
+	print("[EDA v2] ReturnToMenu — Jugador:", jugador.Name)
 
-	-- Notificar al cliente INMEDIATAMENTE para que MenuController refresque los datos
-	-- antes de que el jugador pueda hacer clic en "Jugar" de nuevo.
-	-- Se hace aquí al inicio porque el caché de DataService ya fue actualizado
-	-- cuando MissionService guardó el resultado al completar las misiones.
-	if levelUnloadedEv and player and player.Parent then
-		levelUnloadedEv:FireClient(player)
+	-- Notificar al cliente PRIMERO
+	if levelUnloadedEv and jugador and jugador.Parent then
+		levelUnloadedEv:FireClient(jugador)
 	end
 
-	-- Desactivar gameplay ANTES de destruir el nivel
-	MissionService.deactivate()
-	ConectarCables.deactivate()
-	ZoneTriggerManager.deactivate()
-	ScoreTracker:reset(player)
+	-- Usar OrquestadorGameplay para detener TODO
+	OrquestadorGameplay:detenerNivel()
 
-	local ok, err = pcall(function()
+	local exito, error = pcall(function()
 		LevelLoader:unload()
-		if player.Character then
-			player.Character:Destroy()
-			player.Character = nil
+		if jugador.Character then
+			jugador.Character:Destroy()
+			jugador.Character = nil
 		end
 	end)
 
-	if not ok then
-		warn("[EDA v2] Error al volver al menú:", err)
+	if not exito then
+		warn("[EDA v2] Error al volver al menu:", error)
 	end
 end)
 
 -- ── 9. RestartLevel ────────────────────────────────────────────────────────
--- Cliente pide reiniciar el mismo nivel desde la pantalla de victoria.
 if restartLevelEv then
-	restartLevelEv.OnServerEvent:Connect(function(player, nivelID)
-		if type(nivelID) ~= "number" then return end
-		print("[EDA v2] RestartLevel — Jugador:", player.Name, "/ Nivel:", nivelID)
+	restartLevelEv.OnServerEvent:Connect(function(jugador, idNivel)
+		if type(idNivel) ~= "number" then return end
+		print("[EDA v2] RestartLevel — Jugador:", jugador.Name, "/ Nivel:", idNivel)
 
-		-- Limpiar todo primero (igual que ReturnToMenu)
-		MissionService.deactivate()
-		ConectarCables.deactivate()
-		ZoneTriggerManager.deactivate()
-		ScoreTracker:reset(player)
+		-- Usar Orquestador para detener primero
+		OrquestadorGameplay:detenerNivel()
 
-		local ok, err = pcall(function()
+		local exito, error = pcall(function()
 			LevelLoader:unload()
-			if player.Character then
-				player.Character:Destroy()
-				player.Character = nil
+			if jugador.Character then
+				jugador.Character:Destroy()
+				jugador.Character = nil
 			end
 		end)
 
 		-- Re-cargar el mismo nivel
-		local ok2, err2 = pcall(function()
-			LevelLoader:load(nivelID, player)
+		local exito2, error2 = pcall(function()
+			LevelLoader:load(idNivel, jugador)
 		end)
 
-		if ok2 then
-			local nivelActual = Workspace:FindFirstChild("NivelActual")
-			if nivelActual then
-				local config         = LevelsConfig[nivelID]
-				local adjacencias    = config and config.Adyacencias or nil
-				local puntosConexion = config and config.Puntuacion and config.Puntuacion.PuntosConexion or 50
-				local penaFallo      = config and config.Puntuacion and config.Puntuacion.PenaFallo      or 10
-				local function buildZonasArray(zonasDict)
-					local arr = {}
-					for nombre, cfg in pairs(zonasDict or {}) do
-						if cfg.Trigger then table.insert(arr, { nombre = nombre, trigger = cfg.Trigger }) end
+		if exito2 then
+			local configuracion = LevelsConfig[idNivel]
+			local exitoOrquestador = OrquestadorGameplay:iniciarNivel(
+				jugador, 
+				idNivel, 
+				configuracion,
+				remotesFolder
+			)
+			
+			if exitoOrquestador then
+				print("[EDA v2] ✅ RestartLevel completado via Orquestador — Nivel", idNivel)
+			else
+				-- Fallback legacy
+				local nivelActual = Workspace:FindFirstChild("NivelActual")
+				if nivelActual then
+					local adjacencias    = configuracion and configuracion.Adyacencias or nil
+					local puntosConexion = configuracion and configuracion.Puntuacion and configuracion.Puntuacion.PuntosConexion or 50
+					local penaFallo      = configuracion and configuracion.Puntuacion and configuracion.Puntuacion.PenaFallo or 10
+					
+					local function construirArrayZonas(zonasDict)
+						local arr = {}
+						for nombre, cfg in pairs(zonasDict or {}) do
+							if cfg.Trigger then table.insert(arr, { nombre = nombre, trigger = cfg.Trigger }) end
+						end
+						return arr
 					end
-					return arr
+					local zonasArr = construirArrayZonas(configuracion and configuracion.Zonas)
+					
+					ScoreTracker:startLevel(jugador, idNivel, puntosConexion, penaFallo)
+					MissionService.activate(configuracion, idNivel, jugador, remotesFolder, ScoreTracker, DataService)
+					ConectarCables.activate(nivelActual, adjacencias, jugador, ScoreTracker, MissionService)
+					ZoneTriggerManager.activate(nivelActual, zonasArr, jugador)
+					print("[EDA v2] ✅ RestartLevel completado (legacy) — Nivel", idNivel)
 				end
-				local zonasArr = buildZonasArray(config and config.Zonas)
-				ScoreTracker:startLevel(player, nivelID, puntosConexion, penaFallo)
-				MissionService.activate(config, nivelID, player, remotesFolder, ScoreTracker, DataService)
-				ConectarCables.activate(nivelActual, adjacencias, player, ScoreTracker, MissionService)
-				ZoneTriggerManager.activate(nivelActual, zonasArr, player)
-				print("[EDA v2] ✅ RestartLevel completado — Nivel", nivelID)
 			end
 		else
-			warn("[EDA v2] RestartLevel: error al re-cargar nivel:", err2)
+			warn("[EDA v2] RestartLevel: error al re-cargar nivel:", error2)
 		end
 	end)
 end
 
 -- ── 10. Guardar al desconectarse ────────────────────────────────────────────
-Players.PlayerRemoving:Connect(function(player)
-	DataService:onPlayerLeaving(player)
+Players.PlayerRemoving:Connect(function(jugador)
+	-- Si el jugador esta en medio de un nivel, detener gameplay primero
+	if OrquestadorGameplay:estaActivo() and OrquestadorGameplay:obtenerJugadorActual() == jugador then
+		OrquestadorGameplay:detenerNivel()
+	end
+	DataService:onPlayerLeaving(jugador)
 end)
 
-print("[EDA v2] ✅ Boot completo — CharacterAutoLoads=false — Servidor listo")
+print("[EDA v2] ✅ Boot completo con OrquestadorGameplay — Servidor listo")
