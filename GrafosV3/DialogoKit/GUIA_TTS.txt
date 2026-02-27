@@ -1,0 +1,417 @@
+╔════════════════════════════════════════════════════════════════════════╗
+║            INTEGRACIÓN TTS (TEXTO A VOZ) — GUÍA COMPLETA              ║
+║         Audio automático desde texto usando AudioTextToSpeech API     ║
+╚════════════════════════════════════════════════════════════════════════╝
+
+═══════════════════════════════════════════════════════════════════════════════
+¿QUÉ ES TTS?
+═══════════════════════════════════════════════════════════════════════════════
+
+TTS = Text-To-Speech (Texto a Voz)
+
+La API oficial de Roblox AudioTextToSpeech te permite:
+✓ Generar audio desde texto automáticamente
+✓ Sin necesidad de grabar audios manualmente
+✓ 10 voces predefinidas disponibles
+✓ Generación en tiempo real (client-side)
+✓ Totalmente gratuito dentro de los límites
+
+Documentación oficial:
+https://create.roblox.com/docs/audio/objects#text-to-speech
+https://create.roblox.com/docs/reference/engine/classes/AudioTextToSpeech
+
+═══════════════════════════════════════════════════════════════════════════════
+PASO 1: INSTALAR EL MÓDULO TTS
+═══════════════════════════════════════════════════════════════════════════════
+
+1. En StarterPlayer > StarterPlayerScripts > Cliente > Services
+2. Crear nuevo ModuleScript: DialogoTTS.lua
+3. Copiar contenido de DialogoTTS.lua
+
+═══════════════════════════════════════════════════════════════════════════════
+PASO 2: ACTUALIZAR DialogoNarrator.lua
+═══════════════════════════════════════════════════════════════════════════════
+
+Reemplaza la sección de REPRODUCCIÓN DE AUDIO con:
+
+-- EN DialogoNarrator.lua
+local DialogoTTS = require(script.Parent.DialogoTTS)
+
+function DialogoNarrator:Play(audioId)
+    if not audioId or audioId == "" then
+        return
+    end
+    
+    -- Verificar si es TTS
+    if audioId == "TTS" then
+        -- El sistema usará TTS automáticamente desde la línea
+        return
+    end
+    
+    -- Audiofiles normales (rbxassetid)
+    self:Stop()
+    
+    local sound = Instance.new("Sound")
+    sound.SoundId = audioId
+    sound.Volume = self.soundVolume
+    sound.Parent = self.soundParent
+    
+    sound:Play()
+    self.currentSound = sound
+    game:GetService("Debris"):AddItem(sound, sound.TimeLength + 1)
+    
+    return sound
+end
+
+═══════════════════════════════════════════════════════════════════════════════
+PASO 3: ACTUALIZAR TEMPLATE DE DIÁLOGOS
+═══════════════════════════════════════════════════════════════════════════════
+
+OPCIÓN A: Usar TTS automáticamente para cada línea
+
+["Zona1_Intro"] = {
+    Zona = "Zona1",
+    Nivel = 1,
+    
+    Lineas = {
+        {
+            Id = "intro_1",
+            Numero = 1,
+            Actor = "Carlos",
+            Expresion = "Feliz",
+            Texto = "Bienvenido a la Zona 1.",
+            ImagenPersonaje = "rbxassetid://0",
+            Audio = "TTS",                    -- ← USAR TTS
+            VoiceId = "3",                    -- ← US Male #1
+            Evento = function(gui, metadata)
+                print("Línea mostrada")
+            end,
+            Siguiente = "intro_2"
+        },
+        {
+            Id = "intro_2",
+            Numero = 2,
+            Actor = "Carlos",
+            Expresion = "Feliz",
+            Texto = "Aqui aprenderás qué es un nodo.",
+            ImagenPersonaje = "rbxassetid://0",
+            Audio = "TTS",                    -- ← USAR TTS
+            VoiceId = "2",                    -- ← British Female
+            Siguiente = "FIN"
+        }
+    },
+    
+    Metadata = {
+        TiempoDeEspera = 0.5,
+        VelocidadTypewriter = 0.03,
+        PuedeOmitir = true
+    }
+}
+
+OPCIÓN B: Mezclar TTS con audio pregrabado
+
+["MiDialogo"] = {
+    Lineas = {
+        {
+            Actor = "Carlos",
+            Texto = "Línea con audio pregrabado",
+            Audio = "rbxassetid://12345"     -- Audio normal
+        },
+        {
+            Actor = "Sistema",
+            Texto = "Línea con TTS generado",
+            Audio = "TTS",                   -- Usar TTS
+            VoiceId = "3"
+        }
+    }
+}
+
+═══════════════════════════════════════════════════════════════════════════════
+VOCES DISPONIBLES
+═══════════════════════════════════════════════════════════════════════════════
+
+ID   DESCRIPCIÓN               IDIOMA
+─────────────────────────────────────
+"1"  British male              Inglés
+"2"  British female            Inglés
+"3"  US male #1                Inglés
+"4"  US female #1              Inglés
+"5"  US male #2                Inglés
+"6"  US female #2              Inglés
+"7"  Australian male           Inglés
+"8"  Australian female         Inglés
+"9"  Retro voice #1            Inglés
+"10" Retro voice #2            Inglés
+
+Nota: Más voces e idiomas se agregarán próximamente
+
+═══════════════════════════════════════════════════════════════════════════════
+ACTUALIZAR DialogoController.lua
+═══════════════════════════════════════════════════════════════════════════════
+
+En la función RenderLine(), agregar después de reproducir audio:
+
+-- EN DialogoController.lua
+function DialogoController:RenderLine(lineIndex)
+    local linea = self.system.currentDialogue.Lineas[lineIndex]
+    if not linea then return end
+    
+    -- ... código anterior ...
+    
+    -- Reproducir audio
+    if linea.Audio then
+        if linea.Audio == "TTS" then
+            -- Usar DialogoTTS
+            local DialogoTTS = require(script.Parent.DialogoTTS)
+            DialogoTTS:PlayDialogueLine(
+                linea.Texto,
+                linea.Actor,
+                linea.VoiceId or "3"
+            )
+        else
+            -- Audio normal (rbxassetid)
+            self.system.narrator:Play(linea.Audio)
+        end
+    end
+end
+
+═══════════════════════════════════════════════════════════════════════════════
+LIMITACIONES OFICIALES
+═══════════════════════════════════════════════════════════════════════════════
+
+LÍMITE                          VALOR
+──────────────────────────────────────
+Máximo caracteres por request   300
+Rate limits dinámicos           1 + 6 * usuarios_concurrentes (por minuto)
+Voces disponibles              10
+Idiomas soportados             Inglés (más próximamente)
+Ubicación requerida            Client-Side (LocalScript)
+Costo                          Gratuito
+
+EJEMPLO: Si tu juego tiene 100 usuarios concurrentes:
+  Max requests/minuto = 1 + (6 * 100) = 601 requests/minuto
+
+═══════════════════════════════════════════════════════════════════════════════
+GESTIÓN DE TEXTO LARGO
+═══════════════════════════════════════════════════════════════════════════════
+
+Si tu línea tiene MÁS de 300 caracteres, DialogoTTS la dividirá automáticamente:
+
+local DialogoTTS = require(path.to.DialogoTTS)
+
+local textLargo = "Este es un texto muy largo que supera 300 caracteres..."
+local partes = DialogoTTS:SplitLongText(textLargo)
+
+-- Reproducir todas las partes secuencialmente
+DialogoTTS:PlaySequence(partes, {
+    "3", "4", "5"  -- IDs de voz para cada parte
+}, {
+    OnComplete = function()
+        print("Texto completo reproducido")
+    end
+})
+
+═══════════════════════════════════════════════════════════════════════════════
+CONTROLAR VOLUMEN Y PITCH
+═══════════════════════════════════════════════════════════════════════════════
+
+-- Obtener instancia de TTS
+local DialogoTTS = require(path.to.DialogoTTS)
+
+-- Establecer volumen (0-1)
+DialogoTTS:SetVolume(0.7)
+
+-- Establecer pitch/tono (velocidad)
+DialogoTTS:SetPitch(1.2)  -- Más rápido
+DialogoTTS:SetPitch(0.8)  -- Más lento
+
+-- Obtener valores actuales
+local vol = DialogoTTS:GetVolume()
+local pitch = DialogoTTS:GetPitch()
+
+═══════════════════════════════════════════════════════════════════════════════
+REPRODUCCIÓN SECUENCIAL (SIN DIÁLOGO)
+═══════════════════════════════════════════════════════════════════════════════
+
+Si quieres reproducir múltiples líneas de TTS sin el sistema de diálogos:
+
+local DialogoTTS = require(path.to.DialogoTTS)
+
+local lineas = {
+    "Primera línea del tutorial",
+    "Segunda línea del tutorial",
+    "Tercera línea del tutorial"
+}
+
+local voces = {
+    DialogoTTS.VOICE_IDS.US_MALE_1,
+    DialogoTTS.VOICE_IDS.BRITISH_FEMALE,
+    DialogoTTS.VOICE_IDS.AUSTRALIAN_MALE
+}
+
+DialogoTTS:PlaySequence(lineas, voces, {
+    OnComplete = function()
+        print("Tutorial completado!")
+    end,
+    OnError = function(index)
+        print("Error en línea: " .. index)
+    end
+})
+
+═══════════════════════════════════════════════════════════════════════════════
+EJEMPLO COMPLETO: TUTORIAL CON TTS
+═══════════════════════════════════════════════════════════════════════════════
+
+-- En tu template de diálogos
+["Tutorial_Nodos"] = {
+    Zona = "Tutorial",
+    Lineas = {
+        {
+            Id = "tut_1",
+            Actor = "Instructor",
+            Texto = "Hola! Vamos a aprender sobre nodos.",
+            ImagenPersonaje = "rbxassetid://...",
+            Audio = "TTS",
+            VoiceId = "3",  -- US Male
+            Siguiente = "tut_2"
+        },
+        {
+            Id = "tut_2",
+            Actor = "Instructor",
+            Texto = "Un nodo es un punto en una red que se conecta con otros.",
+            ImagenPersonaje = "rbxassetid://...",
+            Audio = "TTS",
+            VoiceId = "3",
+            Siguiente = "tut_3"
+        },
+        {
+            Id = "tut_3",
+            Actor = "Instructor",
+            Texto = "¿Entendiste?",
+            ImagenPersonaje = "rbxassetid://...",
+            Audio = "TTS",
+            VoiceId = "3",
+            Opciones = {
+                {
+                    Numero = 1,
+                    Texto = "Sí, entiendo",
+                    Pista = "CORRECTO",
+                    Color = Color3.fromRGB(0, 229, 160),
+                    Siguiente = "tut_bien",
+                    OnSelect = function(gui, metadata)
+                        metadata.entendioTutorial = true
+                    end
+                },
+                {
+                    Numero = 2,
+                    Texto = "No, explica de nuevo",
+                    Pista = "REPETIR",
+                    Color = Color3.fromRGB(251, 191, 36),
+                    Siguiente = "tut_2"
+                }
+            },
+            Siguiente = "tut_3"
+        },
+        {
+            Id = "tut_bien",
+            Actor = "Instructor",
+            Texto = "Excelente! Ya sabes qué es un nodo.",
+            ImagenPersonaje = "rbxassetid://...",
+            Audio = "TTS",
+            VoiceId = "3",
+            Siguiente = "FIN"
+        }
+    }
+}
+
+═══════════════════════════════════════════════════════════════════════════════
+VENTAJAS DE USAR TTS
+═══════════════════════════════════════════════════════════════════════════════
+
+✓ NO necesitas grabar audios manualmente
+✓ Puedes cambiar voces fácilmente
+✓ Perfecto para tutoriales y NPCs
+✓ Totalmente automático
+✓ Soporta idioma Inglés (próximamente más)
+✓ Genera audio en tiempo real
+✓ Rápido de implementar
+✓ Escalable a cientos de líneas
+
+═══════════════════════════════════════════════════════════════════════════════
+DESVENTAJAS Y LIMITACIONES
+═══════════════════════════════════════════════════════════════════════════════
+
+✗ Solo 10 voces predefinidas
+✗ Máximo 300 caracteres por request
+✗ Solo Inglés por ahora
+✗ Pronunciación pueden ser imperfecta en nombres propios
+✗ Client-side only (no puedes usarlo desde servidor)
+✗ Requiere buena conexión a internet
+
+═══════════════════════════════════════════════════════════════════════════════
+OPTIMIZACIONES
+═══════════════════════════════════════════════════════════════════════════════
+
+1. CACHÉ DE AUDIOS:
+   Si repites las mismas líneas, el sistema cachea los audios generados
+
+2. BATCHING:
+   Agrupa múltiples líneas cortas en una para reducir requests
+
+3. TEXTO SIMPLE:
+   Usa nombres comunes para mejor pronunciación
+
+4. PUNTUACIÓN:
+   Añade comas y puntos para que suene más natural
+
+EJEMPLO BUENO:
+"Este es un nodo, un punto en una red."
+
+EJEMPLO MALO:
+"EstoEsUnNodoUnPuntoEnUnaRed"
+
+═══════════════════════════════════════════════════════════════════════════════
+TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════════════════════
+
+PROBLEMA: "Audio no se reproduce"
+SOLUCIÓN:
+  1. Verifica que sea LocalScript (client-side)
+  2. Revisa Output para mensajes de error
+  3. Verifica que el texto no esté vacío
+  4. Verifica que el VoiceId sea válido (1-10)
+
+PROBLEMA: "Texto demasiado largo"
+SOLUCIÓN:
+  DialogoTTS:SplitLongText() divide automáticamente
+  O reduce tu texto a máximo 300 caracteres
+
+PROBLEMA: "Pronunciación incorrecta"
+SOLUCIÓN:
+  1. TTS pronuncia mejor nombres comunes
+  2. Divide palabras complicadas: "Gra-phic" → "Graphic"
+  3. Usa símbolos fonéticos
+
+PROBLEMA: "Rate limit alcanzado"
+SOLUCIÓN:
+  Espera 1 minuto o reduce concurrencia
+  Rate limit = 1 + 6 * usuarios_concurrentes
+
+═══════════════════════════════════════════════════════════════════════════════
+RECURSOS OFICIALES
+═══════════════════════════════════════════════════════════════════════════════
+
+Documentación:
+https://create.roblox.com/docs/audio/objects#text-to-speech
+
+Referencia API:
+https://create.roblox.com/docs/reference/engine/classes/AudioTextToSpeech
+
+DevForum (últimas noticias):
+https://devforum.roblox.com/t/build-more-immersive-experiences-text-to-speech-api-full-release/3986607
+
+═══════════════════════════════════════════════════════════════════════════════
+
+FIN DE LA GUÍA
+
+Para más ayuda, revisar comentarios en DialogoTTS.lua

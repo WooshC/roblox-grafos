@@ -1,0 +1,346 @@
+╔════════════════════════════════════════════════════════════════════════╗
+║                  DIALOGOGUI — ESTRUCTURA DE ARBOL                     ║
+║                Arquitectura Modular del Sistema de Diálogos            ║
+╚════════════════════════════════════════════════════════════════════════╝
+
+═══════════════════════════════════════════════════════════════════════════════
+ESTRUCTURA DE CARPETAS (PROYECTO)
+═══════════════════════════════════════════════════════════════════════════════
+
+StarterPlayer
+└─ StarterPlayerScripts
+   └─ Cliente
+      └─ Services
+         ├─ DialogoGUISystem.lua ...................... (MODULE PRINCIPAL)
+         ├─ DialogoController.lua ..................... (CONTROLADOR)
+         ├─ DialogoRenderer.lua ....................... (RENDERIZADOR)
+         ├─ DialogoNarrator.lua ....................... (NARRADOR)
+         └─ DialogoEvents.lua ......................... (EVENTOS)
+
+StarterGui
+└─ DialogoGUI (ScreenGui)
+   ├─ Canvas (Frame)
+   ├─ HUD_Top (Frame)
+   ├─ CharacterArea (Frame)
+   │  ├─ PortraitFrame (Frame)
+   │  │  └─ PortraitImage (ImageLabel)
+   │  ├─ CharNameFrame (Frame)
+   │  │  └─ CharName (TextLabel)
+   │  └─ Expression (TextLabel)
+   ├─ DialogueBox (Frame)
+   │  ├─ AccentStrip (Frame)
+   │  ├─ SpeakerTag (Frame)
+   │  │  ├─ SpeakerName (TextLabel)
+   │  │  └─ EyeBtn (TextButton)
+   │  ├─ TextArea (Frame)
+   │  │  └─ DialogueText (TextLabel)
+   │  └─ Controls (Frame)
+   │     ├─ ProgressDots (Frame)
+   │     ├─ ProgressCount (TextLabel)
+   │     ├─ SkipBtn (TextButton)
+   │     └─ NextBtn (TextButton)
+   ├─ ChoicesPanel (Frame) [Inicialmente oculto]
+   │  ├─ ChoicesStrip (Frame)
+   │  ├─ SpeakerTag (Frame)
+   │  │  ├─ SpeakerName (TextLabel)
+   │  │  └─ EyeBtn (TextButton)
+   │  ├─ QuestionArea (Frame)
+   │  │  └─ QuestionText (TextLabel)
+   │  ├─ Divider (Frame)
+   │  ├─ DividerLabel (TextLabel)
+   │  └─ ChoicesList (Frame)
+   │     └─ [UIListLayout]
+   │        └─ Choice_1, Choice_2, ... (Frames dinámicos)
+   └─ StoreDialogos (Carpeta) ...................... (PLANTILLAS)
+      ├─ TemplateDialogo_Zona1.lua
+      ├─ TemplateDialogo_Zona2.lua
+      └─ TemplateDialogo_Boss.lua
+
+ServerScriptService
+├─ DialogoSystemServer.lua ........................ (SERVER SIDE)
+└─ Proximidades (Carpeta)
+   ├─ ProximityZona1.lua
+   ├─ ProximityZona2.lua
+   └─ ...
+
+ReplicatedStorage
+├─ DialogoData (Carpeta)
+│  ├─ Zona1_Dialogos.lua
+│  ├─ Zona2_Dialogos.lua
+│  └─ ...
+└─ DialogoEvents.lua ............................. (EVENTOS COMPARTIDOS)
+
+═══════════════════════════════════════════════════════════════════════════════
+FLUJO DE ACTIVACIÓN
+═══════════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                      ACTIVADORES POSIBLES                           │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  1. PROXIMITY (ProximityPrompt)                                    │
+│     └─> Dispara RemoteEvent en el servidor                         │
+│         └─> Servidor notifica al cliente                           │
+│            └─> DialogoGUISystem:Play(dialogueKey, metadata)        │
+│                                                                     │
+│  2. ZONA (Atributo CurrentZone)                                   │
+│     └─> Player:GetAttributeChangedSignal("CurrentZone")           │
+│         └─> Verifica si es zona objetivo                          │
+│            └─> DialogoGUISystem:Play("Zona1_Intro", {...})        │
+│                                                                     │
+│  3. EVENTO PERSONALIZADO (RemoteEvent)                             │
+│     └─> game.ReplicatedStorage.DialogoStart:FireClient()         │
+│         └─> DialogoGUISystem:Play(dialogueKey, metadata)          │
+│                                                                     │
+│  4. CUTSCENE / EVENTO DE JUEGO                                    │
+│     └─> Otra parte del código llama:                              │
+│        └─> DialogoGUISystem:Play("BossFight_Intro", {...})       │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+                              ↓
+                    DialogoGUISystem:Play()
+                              ↓
+                    DialogoController:Init()
+                              ↓
+                    DialogoRenderer:Show()
+                              ↓
+                    DialogoNarrator:Speak()
+                              ↓
+                    DialogoEvents:OnButtonClick()
+                              ↓
+                    DialogoController:Next()
+                              ↓
+                    [Repetir hasta fin]
+                              ↓
+                    DialogoGUISystem:Close()
+
+═══════════════════════════════════════════════════════════════════════════════
+ESTRUCTURA DE DATOS DE UN DIÁLOGO
+═══════════════════════════════════════════════════════════════════════════════
+
+local DIALOGO_TEMPLATE = {
+    -- Identificación
+    Zona = "Zona1",
+    Nivel = 1,
+    
+    -- Contenido (tabla de líneas)
+    Lineas = {
+        {
+            -- Identificación
+            Id = "intro_1",
+            Numero = 1,
+            
+            -- Hablante
+            Actor = "Carlos",           -- Nombre del personaje
+            Expresion = "Feliz",        -- NORMAL, FELIZ, SERIO, etc.
+            
+            -- Contenido
+            Texto = "Bienvenido a la Zona 1.",
+            
+            -- Opcional: Imagen del personaje
+            ImagenPersonaje = "rbxassetid://12345",
+            
+            -- Opcional: Audio
+            Audio = "rbxassetid://67890",
+            
+            -- Opcional: Efectos visuales
+            Evento = function(gui, metadata)
+                -- Código a ejecutar cuando se muestre esta línea
+                -- Por ejemplo: mover cámara, resaltar objeto, etc.
+            end,
+            
+            -- Siguiente línea
+            Siguiente = "intro_2",
+            
+            -- Opcional: Condición para mostrar (función que devuelve bool)
+            Condicion = function(metadata)
+                return metadata.visitoAntesZona1 == false
+            end,
+            
+            -- Opcional: Opciones (si el jugador debe elegir)
+            Opciones = {
+                {
+                    Numero = 1,
+                    Texto = "Opcion 1",
+                    Pista = "CORRECTO",
+                    Color = Color3.fromRGB(0, 229, 160),
+                    EsCorrecta = true,
+                    Siguiente = "respuesta_correcta",
+                    OnSelect = function(gui, metadata)
+                        -- Código al seleccionar
+                    end
+                },
+                {
+                    Numero = 2,
+                    Texto = "Opcion 2",
+                    Pista = "INCORRECTO",
+                    Color = Color3.fromRGB(244, 63, 94),
+                    EsCorrecta = false,
+                    Siguiente = "respuesta_incorrecta",
+                    OnSelect = function(gui, metadata)
+                        -- Código al seleccionar
+                    end
+                }
+            }
+        },
+        {
+            Id = "intro_2",
+            Numero = 2,
+            Actor = "Carlos",
+            Expresion = "Feliz",
+            Texto = "Aqui aprenderás qué es un nodo.",
+            Audio = "rbxassetid://99999",
+            Siguiente = "FIN"
+        }
+    },
+    
+    -- Metadata (información extra)
+    Metadata = {
+        TiempoDeEspera = 0.5,
+        VelocidadTypewriter = 0.03,
+        PuedeOmitir = true,
+        MostrarCamara = true,
+        OcultarUI = false
+    }
+}
+
+═══════════════════════════════════════════════════════════════════════════════
+REFERENCIAS DE OBJETOS RETORNADOS POR DialogoGUIBuilder
+═══════════════════════════════════════════════════════════════════════════════
+
+gui = {
+    screenGui = ScreenGui,                  -- Contenedor principal
+    charArea = Frame,                       -- Area del personaje
+    portraitImage = ImageLabel,             -- Imagen del personaje
+    charNameFrame = Frame,                  -- Frame del nombre
+    expressionLabel = TextLabel,            -- Etiqueta de expresión
+    dialogueBox = Frame,                    -- Panel de diálogo
+    dialogueText = TextLabel,               -- Texto del diálogo
+    skipBtn = TextButton,                   -- Botón SALTAR
+    nextBtn = TextButton,                   -- Botón CONTINUAR
+    progDots = Frame,                       -- Indicador de progreso
+    choicesPanel = Frame,                   -- Panel de opciones
+    questionText = TextLabel,               -- Pregunta
+    choicesList = Frame                     -- Lista de opciones
+}
+
+═══════════════════════════════════════════════════════════════════════════════
+VARIABLES GLOBALES ACCESIBLES
+═══════════════════════════════════════════════════════════════════════════════
+
+DialogoGUISystem = {
+    gui = {},                               -- Referencia a elementos GUI
+    currentDialogue = {},                   -- Diálogo actual
+    currentLineIndex = 1,                   -- Indice de línea actual
+    isPlaying = false,                      -- ¿Está en reproducción?
+    metadata = {},                          -- Metadata del jugador
+    
+    Play = function(dialogueKey, metadata) end,
+    Close = function() end,
+    Pause = function() end,
+    Resume = function() end,
+    Skip = function() end
+}
+
+═══════════════════════════════════════════════════════════════════════════════
+CICLO DE VIDA DE UN DIÁLOGO
+═══════════════════════════════════════════════════════════════════════════════
+
+┌──────────────────────┐
+│  DialogoGUISystem    │
+│  :Play()             │
+└──────────┬───────────┘
+           │
+           ↓
+┌──────────────────────┐
+│ DialogoController    │
+│ :Init()              │ (Carga estructura, obtiene referencias GUI)
+└──────────┬───────────┘
+           │
+           ↓
+┌──────────────────────┐
+│ DialogoRenderer      │
+│ :RenderLine()        │ (Muestra línea actual)
+└──────────┬───────────┘
+           │
+           ├─→ Actualizar nombre del actor
+           ├─→ Mostrar imagen del personaje
+           ├─→ Mostrar expresión
+           ├─→ Mostrar texto (con typewriter)
+           └─→ Actualizar botones
+           │
+           ↓
+┌──────────────────────┐
+│ DialogoNarrator      │
+│ :Speak()             │ (Reproducir audio)
+└──────────┬───────────┘
+           │
+           ↓
+┌──────────────────────┐
+│ DialogoEvents        │
+│ OnButtonClick()      │ (Esperar click en botones)
+└──────────┬───────────┘
+           │
+           ├─→ SKIP: DialogoController:Skip()
+           ├─→ NEXT: DialogoController:Next()
+           ├─→ CHOICE: DialogoController:SelectChoice()
+           └─→ EYE: DialogoController:ToggleCharacter()
+           │
+           ↓
+¿Hay siguiente línea?
+    │
+    ├─→ SI:  Ir a RenderLine()
+    └─→ NO:  DialogoGUISystem:Close()
+             └─→ Limpiar GUI
+             └─→ Disparar evento OnClose()
+
+═══════════════════════════════════════════════════════════════════════════════
+ACTIVACIÓN DESDE PROXIMIDAD (EJEMPLO)
+═══════════════════════════════════════════════════════════════════════════════
+
+-- En ServerScriptService/Proximidades/ProximityZona1.lua
+
+local proximityPart = workspace.Zona1.ProximityPrompt
+
+local remoteEvent = game.ReplicatedStorage:FindFirstChild("TriggerDialogo")
+
+proximityPart.Triggered:Connect(function(player)
+    remoteEvent:FireClient(player, {
+        DialogueKey = "Zona1_Intro",
+        Metadata = {
+            visitoAntesZona1 = player:GetAttribute("VisitedZona1") or false,
+            progreso = player:GetAttribute("Progreso") or 0
+        }
+    })
+end)
+
+-- En StarterPlayerScripts/Cliente/Services/DialogoGUISystem.lua
+
+local remoteEvent = game.ReplicatedStorage:FindFirstChild("TriggerDialogo")
+
+remoteEvent.OnClientEvent:Connect(function(config)
+    DialogoGUISystem:Play(config.DialogueKey, config.Metadata)
+end)
+
+═══════════════════════════════════════════════════════════════════════════════
+ACTIVACIÓN DESDE ZONA (EJEMPLO)
+═══════════════════════════════════════════════════════════════════════════════
+
+-- En el script que maneja zonas
+
+local player = game.Players.LocalPlayer
+
+player:GetAttributeChangedSignal("CurrentZone"):Connect(function()
+    local zone = player:GetAttribute("CurrentZone")
+    
+    if zone == "Zona1_Estacion" and not player:GetAttribute("Zona1_Dialogo_Visto") then
+        DialogoGUISystem:Play("Zona1_Intro", {
+            primeraVez = true,
+            progreso = player:GetAttribute("Progreso") or 0
+        })
+    end
+end)
+
+═══════════════════════════════════════════════════════════════════════════════
+
+FIN DE DOCUMENTACIÓN
