@@ -52,16 +52,31 @@ local function desactivar()
 	
 	print("[AudioGameplay] Desactivando audio del gameplay")
 	
-	-- Desconectar conexiones
+	-- Desconectar conexiones de eventos de gameplay
 	for _, conn in ipairs(_conexiones) do
 		if conn then conn:Disconnect() end
 	end
 	_conexiones = {}
 	
 	if ControladorAudio then
-		-- Fade out suave del ambiente (3 segundos)
-		ControladorAudio.stopAmbiente(3.0)
-		ControladorAudio.cleanup()
+		-- Detener ambiente
+		if ControladorAudio.stopAmbiente then
+			ControladorAudio.stopAmbiente(2.0)
+		end
+		
+		-- IMPORTANTE: Detener musica de victoria si esta sonando
+		-- Usar stopVictoria para detener tanto la fanfarria como el tema
+		if ControladorAudio.stopVictoria then
+			ControladorAudio.stopVictoria(1.0)
+		elseif ControladorAudio.stopBGM then
+			-- Fallback: solo detener BGM
+			ControladorAudio.stopBGM(1.0)
+		end
+		
+		-- Limpiar SFX
+		if ControladorAudio.cleanup then
+			ControladorAudio.cleanup()
+		end
 	end
 	
 	_nivelID = nil

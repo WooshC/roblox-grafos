@@ -470,8 +470,22 @@ function ControladorAudio.playNodoSeleccionado()
 	return ControladorAudio.playSFX("NodoSeleccionado")
 end
 
+-- Variable local para rastrear la fanfarria de victoria
+local _victoriaFanfare = nil
+
 function ControladorAudio.playVictoria()
 	if not _inicializado then ControladorAudio.init() end
+	
+	-- Detener cualquier BGM anterior
+	if _bgmActual then
+		local bgmAnterior = _bgmActual
+		_bgmActual = nil
+		fadeOut(bgmAnterior, 0.5, function()
+			if bgmAnterior and bgmAnterior.Parent then
+				bgmAnterior:Destroy()
+			end
+		end)
+	end
 	
 	-- Detener ambiente
 	ControladorAudio.stopAmbiente(1.0)
@@ -481,34 +495,64 @@ function ControladorAudio.playVictoria()
 	if configFanfare then
 		local sonidoOriginal = buscarSonidoOriginal(configFanfare.Ruta)
 		if sonidoOriginal then
-			local fanfare = clonarSonido(sonidoOriginal, _contenedor, "Victoria_Fanfare")
-			if fanfare then
-				aplicarConfiguracion(fanfare, configFanfare)
-				fanfare:Play()
+			-- Limpiar fanfarria anterior si existe
+			if _victoriaFanfare and _victoriaFanfare.Parent then
+				_victoriaFanfare:Destroy()
+			end
+			
+			_victoriaFanfare = clonarSonido(sonidoOriginal, _contenedor, "Victoria_Fanfare")
+			if _victoriaFanfare then
+				aplicarConfiguracion(_victoriaFanfare, configFanfare)
+				_victoriaFanfare:Play()
 				
 				-- Luego reproducir tema de victoria en loop
 				local configTema = ConfigAudio.obtenerConfig("VICTORIA", "Tema")
 				if configTema then
 					task.delay(sonidoOriginal.TimeLength or 3, function()
-						if fanfare then fanfare:Destroy() end
-						
-						local sonidoTema = buscarSonidoOriginal(configTema.Ruta)
-						if sonidoTema then
-							_bgmActual = clonarSonido(sonidoTema, _contenedor, "Victoria_Tema")
-							if _bgmActual then
-								aplicarConfiguracion(_bgmActual, configTema)
-								fadeIn(_bgmActual, 1.0)
-								_bgmActual:Play()
+						-- Solo reproducir tema si la fanfarria sigue activa (no se cancelo)
+						if _victoriaFanfare and _victoriaFanfare.Parent then
+							_victoriaFanfare:Destroy()
+							_victoriaFanfare = nil
+							
+							local sonidoTema = buscarSonidoOriginal(configTema.Ruta)
+							if sonidoTema then
+								_bgmActual = clonarSonido(sonidoTema, _contenedor, "Victoria_Tema")
+								if _bgmActual then
+									aplicarConfiguracion(_bgmActual, configTema)
+									fadeIn(_bgmActual, 1.0)
+									_bgmActual:Play()
+								end
 							end
 						end
 					end)
 				end
 				
-				return fanfare
+				return _victoriaFanfare
 			end
 		end
 	end
 	return nil
+end
+
+-- Funcion para detener especificamente la musica de victoria
+function ControladorAudio.stopVictoria(fadeOutDuracion)
+	fadeOutDuracion = fadeOutDuracion or 1.0
+	
+	-- Detener fanfarria si existe
+	if _victoriaFanfare and _victoriaFanfare.Parent then
+		local fanfare = _victoriaFanfare
+		_victoriaFanfare = nil
+		fadeOut(fanfare, fadeOutDuracion, function()
+			if fanfare and fanfare.Parent then
+				fanfare:Destroy()
+			end
+		end)
+	end
+	
+	-- Detener tema de victoria si existe
+	if _bgmActual and (_bgmActual.Name == "Victoria_Tema" or _bgmActual.Name:find("Victoria")) then
+		ControladorAudio.stopBGM(fadeOutDuracion)
+	end
 end
 
 -- ═══════════════════════════════════════════════════════════════════════════════
@@ -565,6 +609,9 @@ end
 
 function ControladorAudio.cleanup()
 	-- Detener todo
+	if ControladorAudio.stopVictoria then
+		ControladorAudio.stopVictoria(0.1)
+	end
 	ControladorAudio.stopBGM(0.1)
 	ControladorAudio.stopAmbiente(0.1)
 	

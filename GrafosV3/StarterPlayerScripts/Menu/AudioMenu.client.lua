@@ -4,7 +4,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterPlayerScripts = game:GetService("StarterPlayer").StarterPlayerScripts
-local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -28,8 +27,10 @@ end
 
 -- Estado
 local _activo = false
-local _conexiones = {}
-local _bgmActual = "MusicaMenu" -- Para tracking de que musica esta sonando
+local _conexionesUI = {}      -- Conexiones de UI (botones, hover)
+local _conexionesEventos = {} -- Conexiones a eventos del servidor/modales
+local _bgmActual = "MusicaMenu"
+local _menuGui = nil
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- FUNCIONES AUXILIARES
@@ -42,7 +43,7 @@ local function conectarSonidoHover(elemento)
 			ControladorAudio.playUI("Hover")
 		end
 	end)
-	table.insert(_conexiones, conn)
+	table.insert(_conexionesUI, conn)
 end
 
 local function conectarSonidoClick(elemento, sonidoEspecial)
@@ -56,98 +57,41 @@ local function conectarSonidoClick(elemento, sonidoEspecial)
 			end
 		end
 	end)
-	table.insert(_conexiones, conn)
+	table.insert(_conexionesUI, conn)
 end
 
 -- ═══════════════════════════════════════════════════════════════════════════════
--- ACTIVACION / DESACTIVACION
--- ═══════════════════════════════════════════════════════════════════════════════
-
-local function activar()
-	if _activo then return end
-	_activo = true
-	
-	print("[AudioMenu] Activando audio del menu")
-	
-	if ControladorAudio then
-		_bgmActual = "MusicaMenu"
-		ControladorAudio.playBGM("MusicaMenu", 2.0) -- Fade in mas suave (2 segundos)
-	end
-end
-
-local function desactivar()
-	if not _activo then return end
-	_activo = false
-	
-	print("[AudioMenu] Desactivando audio del menu")
-	
-	-- Desconectar conexiones
-	for _, conn in ipairs(_conexiones) do
-		if conn then conn:Disconnect() end
-	end
-	_conexiones = {}
-	
-	if ControladorAudio then
-		-- Fade out mas largo para transiciones suaves (2 segundos)
-		ControladorAudio.stopBGM(2.0)
-	end
-end
-
--- ═══════════════════════════════════════════════════════════════════════════════
--- CONEXION DE SONIDOS A UI
+-- CONEXION DE SONIDOS A UI (se llama cada vez que se activa)
 -- ═══════════════════════════════════════════════════════════════════════════════
 
 local function conectarSonidosUI()
-	local menuGui = playerGui:FindFirstChild("EDAQuestMenu")
-	if not menuGui then
-		warn("[AudioMenu] No se encontro EDAQuestMenu")
-		return
+	-- Limpiar conexiones UI anteriores
+	for _, conn in ipairs(_conexionesUI) do
+		if conn then conn:Disconnect() end
+	end
+	_conexionesUI = {}
+	
+	if not _menuGui then
+		_menuGui = playerGui:FindFirstChild("EDAQuestMenu")
+		if not _menuGui then
+			warn("[AudioMenu] No se encontro EDAQuestMenu")
+			return
+		end
 	end
 	
 	print("[AudioMenu] Conectando sonidos a UI...")
 	
 	-- Frames
-	local frameMenu = menuGui:FindFirstChild("FrameMenu")
-	local frameLevels = menuGui:FindFirstChild("FrameLevels")
-	local frameSettings = menuGui:FindFirstChild("FrameSettings")
-	local frameCredits = menuGui:FindFirstChild("FrameCredits")
-	local frameExit = menuGui:FindFirstChild("FrameExit")
+	local frameMenu = _menuGui:FindFirstChild("FrameMenu")
+	local frameLevels = _menuGui:FindFirstChild("FrameLevels")
+	local frameSettings = _menuGui:FindFirstChild("FrameSettings")
+	local frameCredits = _menuGui:FindFirstChild("FrameCredits")
+	local frameExit = _menuGui:FindFirstChild("FrameExit")
 	
 	if not frameMenu or not frameLevels then
 		warn("[AudioMenu] Frames principales no encontrados")
 		return
 	end
-	
-	-- ============================================
-	-- MONITOREAR CIERRE DE MODALES (Creditos, Settings, Exit)
-	-- ============================================
-	
-	local function monitorearCierreModal(frame, nombre)
-		if not frame then return end
-		
-		local conn = frame:GetPropertyChangedSignal("Visible"):Connect(function()
-			if not _activo or not ControladorAudio then return end
-			
-			-- Si el frame se acaba de ocultar (cerrado)
-			if not frame.Visible then
-				print("[AudioMenu] Modal cerrado: " .. nombre)
-				
-				-- Si estabamos en creditos, volver a musica del menu
-				if nombre == "Creditos" and _bgmActual == "MusicaCreditos" then
-					print("[AudioMenu] Volviendo a MusicaMenu desde Creditos")
-					_bgmActual = "MusicaMenu"
-					ControladorAudio.crossfadeBGM("MusicaMenu", 2.0)
-				end
-			end
-		end)
-		
-		table.insert(_conexiones, conn)
-	end
-	
-	-- Monitorear creditos, ajustes y salir
-	monitorearCierreModal(frameCredits, "Creditos")
-	monitorearCierreModal(frameSettings, "Ajustes")
-	monitorearCierreModal(frameExit, "Salir")
 	
 	-- ============================================
 	-- BOTONES MENU PRINCIPAL
@@ -180,11 +124,11 @@ local function conectarSonidosUI()
 				if _bgmActual ~= "MusicaCreditos" then
 					print("[AudioMenu] Cambiando a MusicaCreditos")
 					_bgmActual = "MusicaCreditos"
-					ControladorAudio.crossfadeBGM("MusicaCreditos", 2.0) -- Fade mas suave
+					ControladorAudio.crossfadeBGM("MusicaCreditos", 2.0)
 				end
 			end
 		end)
-		table.insert(_conexiones, conn)
+		table.insert(_conexionesUI, conn)
 	end
 	
 	-- Boton SALIR
@@ -228,18 +172,37 @@ local function conectarSonidosUI()
 							end
 						end
 					end)
-					table.insert(_conexiones, conn)
+					table.insert(_conexionesUI, conn)
 				end
 			end
 		end
 	end
 	
 	-- ============================================
-	-- BOTONES CERRAR EN MODALES
+	-- BOTONES CERRAR EN MODALES + MONITOREO
 	-- ============================================
 	
 	for _, modal in ipairs({frameSettings, frameCredits, frameExit}) do
 		if modal then
+			-- Monitorear cierre del modal para volver a musica del menu
+			local connVisible = modal:GetPropertyChangedSignal("Visible"):Connect(function()
+				if not _activo or not ControladorAudio then return end
+				
+				-- Si el frame se acaba de ocultar (cerrado) y es creditos
+				if not modal.Visible then
+					local nombre = modal.Name
+					print("[AudioMenu] Modal cerrado: " .. nombre)
+					
+					-- Si estabamos en creditos, volver a musica del menu
+					if nombre == "FrameCredits" and _bgmActual == "MusicaCreditos" then
+						print("[AudioMenu] Volviendo a MusicaMenu desde Creditos")
+						_bgmActual = "MusicaMenu"
+						ControladorAudio.crossfadeBGM("MusicaMenu", 2.0)
+					end
+				end
+			end)
+			table.insert(_conexionesUI, connVisible)
+			
 			-- Boton cerrar (X)
 			local closeBtn = modal:FindFirstChild("CloseBtn", true)
 			if closeBtn then
@@ -263,7 +226,62 @@ local function conectarSonidosUI()
 		end
 	end
 	
-	print("[AudioMenu] Sonidos conectados exitosamente")
+	print("[AudioMenu] Sonidos conectados exitosamente - Total: " .. #_conexionesUI)
+end
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- ACTIVACION / DESACTIVACION
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+local function activar()
+	if _activo then return end
+	_activo = true
+	
+	print("[AudioMenu] Activando audio del menu")
+	
+	-- IMPORTANTE: Reconectar sonidos UI cada vez que se activa
+	conectarSonidosUI()
+	
+	-- Resetear tracking de BGM
+	_bgmActual = "MusicaMenu"
+	
+	if ControladorAudio then
+		-- IMPORTANTE: Detener cualquier musica de victoria que este sonando
+		-- Verificar que la funcion existe antes de llamarla
+		if ControladorAudio.stopVictoria then
+			ControladorAudio.stopVictoria(1.0)
+		else
+			-- Fallback: solo detener BGM
+			if ControladorAudio.stopBGM then
+				ControladorAudio.stopBGM(1.0)
+			end
+		end
+		
+		-- Pequena pausa antes de iniciar musica del menu
+		task.delay(0.5, function()
+			if _activo and ControladorAudio and ControladorAudio.playBGM then
+				ControladorAudio.playBGM("MusicaMenu", 2.0)
+			end
+		end)
+	end
+end
+
+local function desactivar()
+	if not _activo then return end
+	_activo = false
+	
+	print("[AudioMenu] Desactivando audio del menu")
+	
+	-- Desconectar conexiones UI
+	for _, conn in ipairs(_conexionesUI) do
+		if conn then conn:Disconnect() end
+	end
+	_conexionesUI = {}
+	
+	if ControladorAudio then
+		-- Fade out mas largo para transiciones suaves
+		ControladorAudio.stopBGM(2.0)
+	end
 end
 
 -- ═══════════════════════════════════════════════════════════════════════════════
@@ -276,15 +294,17 @@ if Eventos then
 	
 	-- Nivel listo - desactivar menu
 	local nivelListo = Remotos:WaitForChild("NivelListo")
-	nivelListo.OnClientEvent:Connect(function()
+	local conn1 = nivelListo.OnClientEvent:Connect(function()
 		desactivar()
 	end)
+	table.insert(_conexionesEventos, conn1)
 	
 	-- Nivel descargado - activar menu
 	local nivelDescargado = Remotos:WaitForChild("NivelDescargado")
-	nivelDescargado.OnClientEvent:Connect(function()
+	local conn2 = nivelDescargado.OnClientEvent:Connect(function()
 		activar()
 	end)
+	table.insert(_conexionesEventos, conn2)
 end
 
 -- ═══════════════════════════════════════════════════════════════════════════════
@@ -295,7 +315,9 @@ print("[AudioMenu] Inicializando...")
 
 -- Esperar un momento para que el menu esté listo
 task.delay(1, function()
+	-- Conectar UI inicialmente
 	conectarSonidosUI()
+	-- Activar audio
 	activar()
 end)
 
