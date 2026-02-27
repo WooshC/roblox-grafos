@@ -57,18 +57,18 @@ local CONFIG = {
 
 function ModuloMapa.inicializar(hudRef)
 	hudGui = hudRef
-	
+
 	-- Buscar referencias UI
 	frameMapa = hudGui:FindFirstChild("PantallaMapaGrande", true)
 	btnMapa = hudGui:FindFirstChild("BtnMapa", true)
-	
+
 	if frameMapa then
 		btnCerrarMapa = frameMapa:FindFirstChild("BtnCerrarMapa", true)
 	end
-	
+
 	-- Configurar botones
 	_conectarBotones()
-	
+
 	-- Conectar a evento de victoria para cerrar mapa automáticamente
 	local eventosFolder = ReplicatedStorage:FindFirstChild("EventosGrafosV3")
 	if eventosFolder then
@@ -80,12 +80,12 @@ function ModuloMapa.inicializar(hudRef)
 			end)
 		end
 	end
-	
+
 	-- Inicialmente oculto
 	if frameMapa then
 		frameMapa.Visible = false
 	end
-	
+
 	estaActivo = true
 	print("[ModuloMapa] Inicializado")
 end
@@ -101,7 +101,7 @@ function _conectarBotones()
 			end
 		end)
 	end
-	
+
 	-- Boton cerrar dentro del mapa
 	if btnCerrarMapa then
 		btnCerrarMapa.MouseButton1Click:Connect(ModuloMapa.cerrar)
@@ -118,26 +118,26 @@ function ModuloMapa.configurarNivel(nivelModel, id, config)
 	configNivel = config
 	nombresNodos = {}
 	selectores = {}
-	
+
 	-- Cargar nombres amigables desde LevelsConfig
 	if config and config.NombresNodos then
 		nombresNodos = config.NombresNodos
 	elseif LevelsConfig[id] and LevelsConfig[id].NombresNodos then
 		nombresNodos = LevelsConfig[id].NombresNodos
 	end
-	
+
 	-- NOTA: No recolectamos selectores aquí para evitar interferencias
 	-- Los selectores se recolectan solo cuando se abre el mapa
 end
 
 function _collectarSelectores()
 	selectores = {}
-	
+
 	if not nivelActual then return end
-	
+
 	local grafosFolder = nivelActual:FindFirstChild("Grafos")
 	if not grafosFolder then return end
-	
+
 	for _, grafo in ipairs(grafosFolder:GetChildren()) do
 		local nodosFolder = grafo:FindFirstChild("Nodos")
 		if nodosFolder then
@@ -159,7 +159,7 @@ function _collectarSelectores()
 			end
 		end
 	end
-	
+
 	print("[ModuloMapa] Selectores collectados:", #selectores)
 end
 
@@ -170,9 +170,9 @@ end
 function _capturarTechos()
 	if techosCapturados then return end
 	if not nivelActual then return end
-	
+
 	techosOriginales = {}
-	
+
 	-- Buscar en estructura: Escenario/Colisionadores/Techos
 	local escenario = nivelActual:FindFirstChild("Escenario")
 	if escenario then
@@ -192,7 +192,7 @@ function _capturarTechos()
 			end
 		end
 	end
-	
+
 	-- Fallback: buscar folder Techos directo
 	if next(techosOriginales) == nil then
 		local techosFolder = nivelActual:FindFirstChild("Techos")
@@ -208,13 +208,13 @@ function _capturarTechos()
 			end
 		end
 	end
-	
+
 	techosCapturados = true
 end
 
 function _ocultarTechos()
 	if not techosCapturados then return end
-	
+
 	for part, orig in pairs(techosOriginales) do
 		if part and part.Parent then
 			part.Transparency = 0.95
@@ -250,7 +250,7 @@ end
 function _crearHighlight(nodo, color, esSeleccionado)
 	local decoracion = nodo:FindFirstChild("Decoracion")
 	if not decoracion then return nil end
-	
+
 	local highlight = Instance.new("Highlight")
 	highlight.Name = "MapaHighlight_" .. nodo.Name
 	highlight.Adornee = decoracion
@@ -260,16 +260,16 @@ function _crearHighlight(nodo, color, esSeleccionado)
 	highlight.OutlineTransparency = 0
 	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
 	highlight.Parent = workspace
-	
+
 	highlights[nodo.Name] = highlight
-	
+
 	return highlight
 end
 
 function _crearLabelNodo(nodo, color)
 	local selector = nodo:FindFirstChild("Selector")
 	if not selector then return end
-	
+
 	-- Buscar una parte BasePart para el billboard
 	local parteAdornar = nil
 	if selector:IsA("BasePart") then
@@ -282,9 +282,9 @@ function _crearLabelNodo(nodo, color)
 			end
 		end
 	end
-	
+
 	if not parteAdornar then return end
-	
+
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "MapaLabel_" .. nodo.Name
 	billboard.Adornee = parteAdornar
@@ -292,7 +292,7 @@ function _crearLabelNodo(nodo, color)
 	billboard.StudsOffset = Vector3.new(0, 5, 0)
 	billboard.AlwaysOnTop = true
 	billboard.Parent = workspace
-	
+
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.new(1, 0, 1, 0)
 	label.BackgroundTransparency = 1
@@ -303,7 +303,7 @@ function _crearLabelNodo(nodo, color)
 	label.Font = Enum.Font.GothamBold
 	label.TextSize = 16
 	label.Parent = billboard
-	
+
 	billboards[nodo.Name] = billboard
 end
 
@@ -312,7 +312,7 @@ function _limpiarHighlights()
 		if highlight then highlight:Destroy() end
 	end
 	highlights = {}
-	
+
 	for _, billboard in pairs(billboards) do
 		if billboard then billboard:Destroy() end
 	end
@@ -321,32 +321,32 @@ end
 
 function _actualizarHighlights()
 	_limpiarHighlights()
-	
+
 	if not nivelActual then return end
 	if not nodoSeleccionadoMapa then return end
-	
+
 	local grafosFolder = nivelActual:FindFirstChild("Grafos")
 	if not grafosFolder then return end
-	
+
 	local nombreSeleccionado = nodoSeleccionadoMapa.Name
-	
+
 	-- Obtener adyacentes
 	local adyacentes = {}
 	if configNivel and configNivel.Adyacencias then
 		adyacentes = configNivel.Adyacencias[nombreSeleccionado] or {}
 	end
-	
+
 	for _, grafo in ipairs(grafosFolder:GetChildren()) do
 		local nodosFolder = grafo:FindFirstChild("Nodos")
 		if nodosFolder then
 			for _, nodo in ipairs(nodosFolder:GetChildren()) do
 				local nombre = nodo.Name
-				
+
 				if nombre == nombreSeleccionado then
 					-- Nodo seleccionado: Cyan brillante
 					_crearHighlight(nodo, Color3.fromRGB(0, 212, 255), true)
 					_crearLabelNodo(nodo, Color3.fromRGB(0, 212, 255))
-					
+
 				elseif table.find(adyacentes, nombre) then
 					-- Nodo adyacente: Dorado
 					_crearHighlight(nodo, Color3.fromRGB(255, 200, 50), false)
@@ -371,11 +371,11 @@ end
 
 function _calcularBoundsNivel()
 	if not nivelActual then return nil end
-	
+
 	local boundsMin = Vector3.new(math.huge, math.huge, math.huge)
 	local boundsMax = Vector3.new(-math.huge, -math.huge, -math.huge)
 	local conteoPartes = 0
-	
+
 	for _, part in ipairs(nivelActual:GetDescendants()) do
 		if part:IsA("BasePart") then
 			conteoPartes = conteoPartes + 1
@@ -391,9 +391,9 @@ function _calcularBoundsNivel()
 			)
 		end
 	end
-	
+
 	if conteoPartes == 0 then return nil end
-	
+
 	return {
 		Centro = (boundsMin + boundsMax) / 2,
 		Tamanio = boundsMax - boundsMin,
@@ -404,28 +404,28 @@ end
 
 function _calcularCFrameCenital(bounds)
 	if not bounds then return nil end
-	
+
 	local altura = math.max(bounds.Tamanio.X, bounds.Tamanio.Z) * 0.6 + 30
-	
+
 	return CFrame.new(bounds.Centro.X, bounds.Max.Y + altura, bounds.Centro.Z) * 
 		CFrame.Angles(math.rad(-90), 0, 0)
 end
 
 function _hacerTweenCamara(cframeObjetivo, onComplete)
 	camara.CameraType = Enum.CameraType.Scriptable
-	
+
 	local tween = TweenService:Create(camara, TweenInfo.new(
 		CONFIG.velocidadTween, 
 		Enum.EasingStyle.Cubic, 
 		Enum.EasingDirection.InOut
-	), {
-		CFrame = cframeObjetivo
-	})
-	
+		), {
+			CFrame = cframeObjetivo
+		})
+
 	if onComplete then
 		tween.Completed:Once(onComplete)
 	end
-	
+
 	tween:Play()
 	return tween
 end
@@ -434,14 +434,14 @@ function _iniciarSeguimientoJugador()
 	if conexionRender then
 		conexionRender:Disconnect()
 	end
-	
+
 	conexionRender = RunService.RenderStepped:Connect(function()
 		if not mapaAbierto then return end
-		
+
 		local personaje = jugador.Character
 		local root = personaje and personaje:FindFirstChild("HumanoidRootPart")
 		if not root then return end
-		
+
 		local pos = root.Position
 		camara.CFrame = CFrame.new(
 			pos.X, 
@@ -467,31 +467,31 @@ function _iniciarEscuchaInput()
 		conexionInput:Disconnect()
 		conexionInput = nil
 	end
-	
+
 	if #selectores == 0 then
 		warn("[ModuloMapa] No hay selectores para escuchar input")
 		return
 	end
-	
+
 	conexionInput = UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		if gameProcessed then return end
 		if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
 		if not mapaAbierto then return end
 		if camara.CameraType ~= Enum.CameraType.Scriptable then return end
-		
+
 		local mousePos = UserInputService:GetMouseLocation()
 		local ray = camara:ViewportPointToRay(mousePos.X, mousePos.Y)
-		
+
 		local params = RaycastParams.new()
 		params.FilterType = Enum.RaycastFilterType.Include
 		params.FilterDescendantsInstances = selectores
-		
+
 		local resultado = workspace:Raycast(ray.Origin, ray.Direction * CONFIG.maxDistanciaRaycast, params)
-		
+
 		if resultado and resultado.Instance then
 			local selectorPart = resultado.Instance
 			local nodo = _obtenerNodoDesdeSelector(selectorPart)
-			
+
 			if nodo then
 				_onNodoClickeado(nodo, selectorPart)
 			end
@@ -519,13 +519,13 @@ end
 
 function _onNodoClickeado(nodo, selectorPart)
 	local nombreNodo = nodo.Name
-	
+
 	-- Lógica de selección de dos nodos para conexión
 	if nodoSeleccionadoMapa == nil then
 		-- Primer nodo seleccionado
 		nodoSeleccionadoMapa = nodo
 		_actualizarHighlights()
-		
+
 		-- Notificar al servidor
 		local eventosFolder = ReplicatedStorage:FindFirstChild("EventosGrafosV3")
 		if eventosFolder then
@@ -534,23 +534,23 @@ function _onNodoClickeado(nodo, selectorPart)
 				notificarEvent:FireServer(nombreNodo)
 			end
 		end
-		
+
 		print("[ModuloMapa] Primer nodo seleccionado:", nombreNodo)
-		
+
 	elseif nodoSeleccionadoMapa == nodo then
 		-- Click en el mismo nodo: cancelar selección
 		nodoSeleccionadoMapa = nil
 		_limpiarHighlights()
-		
+
 		print("[ModuloMapa] Selección cancelada")
-		
+
 	else
 		-- Segundo nodo seleccionado: intentar conectar
 		local nodoA = nodoSeleccionadoMapa.Name
 		local nodoB = nombreNodo
-		
+
 		print("[ModuloMapa] Intentando conectar:", nodoA, "->", nodoB)
-		
+
 		-- Enviar solicitud de conexión al servidor
 		local eventosFolder = ReplicatedStorage:FindFirstChild("EventosGrafosV3")
 		if eventosFolder then
@@ -559,7 +559,7 @@ function _onNodoClickeado(nodo, selectorPart)
 				conectarEvent:FireServer(nodoA, nodoB)
 			end
 		end
-		
+
 		-- Limpiar selección
 		nodoSeleccionadoMapa = nil
 		_limpiarHighlights()
@@ -580,76 +580,76 @@ function ModuloMapa.abrir()
 		warn("[ModuloMapa] No hay nivel configurado")
 		return
 	end
-	
+
 	-- Recolectar selectores SOLO cuando se abre el mapa
 	_collectarSelectores()
-	
+
 	if #selectores == 0 then
 		warn("[ModuloMapa] No hay selectores para interactuar")
 		return
 	end
-	
+
 	mapaAbierto = true
-	
+
 	-- Cambiar texto del boton
 	if btnMapa then
 		btnMapa.Text = "❌ CERRAR"
 	end
-	
+
 	-- Mostrar frame
 	frameMapa.Visible = true
-	
+
 	-- Guardar estado de camara
 	_guardarEstadoCamara()
-	
+
 	-- Capturar y ocultar techos
 	_capturarTechos()
 	_ocultarTechos()
-	
+
 	-- Calcular posicion cenital
 	local bounds = _calcularBoundsNivel()
 	local cframeCenital = _calcularCFrameCenital(bounds)
-	
+
 	if cframeCenital then
 		_hacerTweenCamara(cframeCenital, function()
 			_iniciarSeguimientoJugador()
 		end)
 	end
-	
+
 	-- Iniciar escucha de input
 	_iniciarEscuchaInput()
-	
+
 	print("[ModuloMapa] Mapa abierto")
 end
 
 function ModuloMapa.cerrar()
 	if not mapaAbierto then return end
-	
+
 	print("[ModuloMapa] Cerrando mapa...")
-	
+
 	mapaAbierto = false
 	nodoSeleccionadoMapa = nil
-	
+
 	-- Cambiar texto del boton
 	if btnMapa then
 		btnMapa.Text = "🗺️ MAPA"
 	end
-	
+
 	-- Detener seguimiento e input
 	_detenerSeguimiento()
 	_detenerEscuchaInput()
-	
+
 	-- Limpiar highlights
 	_limpiarHighlights()
-	
+
 	-- Limpiar selección
 	pcall(function()
 		EfectosNodo.limpiarSeleccion()
 	end)
-	
+
 	-- Mostrar techos
 	_mostrarTechos()
-	
+
 	-- Restaurar camara con tween
 	if estadoCamaraOriginal then
 		local exito, err = pcall(function()
@@ -658,7 +658,7 @@ function ModuloMapa.cerrar()
 				camara.CameraSubject = estadoCamaraOriginal.CameraSubject
 			end)
 		end)
-		
+
 		if not exito then
 			-- Fallback: restaurar directamente
 			camara.CameraType = estadoCamaraOriginal.CameraType
@@ -666,12 +666,12 @@ function ModuloMapa.cerrar()
 			camara.CFrame = estadoCamaraOriginal.CFrame
 		end
 	end
-	
+
 	-- Ocultar frame
 	if frameMapa then
 		frameMapa.Visible = false
 	end
-	
+
 	print("[ModuloMapa] Mapa cerrado")
 end
 
@@ -685,22 +685,22 @@ end
 
 function ModuloMapa.limpiar()
 	print("[ModuloMapa] Iniciando limpieza...")
-	
+
 	-- Cerrar mapa si está abierto
 	if mapaAbierto then
 		ModuloMapa.cerrar()
 	end
-	
+
 	-- Desconectar conexiones
 	if conexionVictoria then
 		conexionVictoria:Disconnect()
 		conexionVictoria = nil
 	end
-	
+
 	_detenerSeguimiento()
 	_detenerEscuchaInput()
 	_limpiarHighlights()
-	
+
 	-- Limpiar estado
 	nodoSeleccionadoMapa = nil
 	nivelActual = nil
@@ -710,9 +710,9 @@ function ModuloMapa.limpiar()
 	selectores = {}
 	estadoCamaraOriginal = nil
 	_resetearTechos()
-	
+
 	estaActivo = false
-	
+
 	print("[ModuloMapa] Limpieza completada")
 end
 

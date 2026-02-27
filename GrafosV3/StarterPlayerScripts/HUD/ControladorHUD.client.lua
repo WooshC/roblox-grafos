@@ -43,16 +43,16 @@ local hudActivo = false
 local function activarHUD()
 	if hudActivo then return end
 	hudActivo = true
-	
+
 	-- Asegurar que el HUD está visible
 	hudGui.Enabled = true
-	
+
 	-- Resetear estado
 	TransicionHUD.ocultarInmediato()
 	PanelMisionesHUD.reiniciar()
 	VictoriaHUD.ocultar()
 	PuntajeHUD.fijar(0)
-	
+
 	print("[ControladorHUD] HUD activado")
 end
 
@@ -61,7 +61,7 @@ local function desactivarHUD()
 	hudActivo = false
 	hudGui.Enabled = false
 	VictoriaHUD.ocultar()
-	
+
 	-- Cerrar el mapa y limpiar al salir del nivel
 	local exito, err = pcall(function()
 		ModuloMapa.limpiar()
@@ -69,7 +69,7 @@ local function desactivarHUD()
 	if not exito then
 		warn("[ControladorHUD] Error al limpiar mapa:", err)
 	end
-	
+
 	print("[ControladorHUD] HUD desactivado")
 end
 
@@ -81,17 +81,17 @@ EventosHUD.nivelListo.OnClientEvent:Connect(function(data)
 		warn("[ControladorHUD] Error al cargar nivel:", data.error)
 		return
 	end
-	
+
 	print("[ControladorHUD] NivelListo recibido — activando HUD")
-	
+
 	-- Activar HUD
 	activarHUD()
-	
+
 	-- Configurar el mapa con el nivel actual
 	local nivelID = jugador:GetAttribute("CurrentLevelID") or 0
 	local nivelActual = workspace:FindFirstChild("NivelActual")
 	local configNivel = LevelsConfig[nivelID]
-	
+
 	if nivelActual then
 		local exito, err = pcall(function()
 			ModuloMapa.configurarNivel(nivelActual, nivelID, configNivel)
@@ -100,7 +100,7 @@ EventosHUD.nivelListo.OnClientEvent:Connect(function(data)
 			warn("[ControladorHUD] Error al configurar mapa:", err)
 		end
 	end
-	
+
 	-- Forzar cámara Custom (seguridad)
 	workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
 end)
@@ -119,7 +119,7 @@ end)
 jugador:GetAttributeChangedSignal("ZonaActual"):Connect(function()
 	local zonaActual = jugador:GetAttribute("ZonaActual")
 	print("[ControladorHUD] Zona cambiada a:", zonaActual)
-	
+
 	-- Solicitar actualización de misiones al servidor
 	-- El servidor reenviará ActualizarMisiones con la nueva zona
 	-- Por ahora reconstruimos con datos existentes + nueva zona
@@ -145,7 +145,7 @@ end)
 -- NivelCompletado: El servidor notifica que se completaron todas las misiones
 EventosHUD.nivelCompletado.OnClientEvent:Connect(function(snap)
 	print("[ControladorHUD] NivelCompletado recibido:", snap ~= nil and "con datos" or "SIN DATOS")
-	
+
 	-- Cerrar el mapa inmediatamente al ganar
 	local exito, err = pcall(function()
 		ModuloMapa.cerrar()
@@ -153,7 +153,7 @@ EventosHUD.nivelCompletado.OnClientEvent:Connect(function(snap)
 	if not exito then
 		warn("[ControladorHUD] Error al cerrar mapa en victoria:", err)
 	end
-	
+
 	if snap then
 		VictoriaHUD.mostrar(snap)
 	end
