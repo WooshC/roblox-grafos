@@ -361,8 +361,15 @@ end
 function DialogoGUISystem:Skip()
 	if not self.isPlaying then return end
 	
-	self.currentLineIndex = #self.currentDialogue.Lineas
-	self.controller:RenderLine(self.currentLineIndex)
+	print("[DialogoGUISystem] Saltando diálogo...")
+	
+	-- Detener TTS si está reproduciendo
+	if self.narrator then
+		self.narrator:Stop()
+	end
+	
+	-- Cerrar el diálogo inmediatamente
+	self:Close()
 end
 
 function DialogoGUISystem:SelectChoice(optionIndex)

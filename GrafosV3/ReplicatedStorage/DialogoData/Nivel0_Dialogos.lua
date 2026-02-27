@@ -371,5 +371,3 @@ return DIALOGOS
     }
 ]]
 
-
-return DIALOGOS

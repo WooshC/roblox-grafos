@@ -68,12 +68,14 @@ function DialogoController:RenderLine(lineIndex)
 		end
 	end
 	
-	-- Reproducir audio o TTS
+	-- Reproducir audio: prioridad al audio específico, luego TTS
 	if linea.Audio and linea.Audio ~= "" and linea.Audio ~= "rbxassetid://0" then
-		-- Si hay audio específico, usarlo
+		-- Audio personalizado configurado en el diálogo
+		print("[DialogoController] Reproduciendo audio personalizado:", linea.Audio)
 		self.system.narrator:Play(linea.Audio)
 	elseif linea.Texto and linea.Texto ~= "" then
-		-- Si no hay audio pero hay texto, usar TTS
+		-- No hay audio personalizado, usar TTS
+		print("[DialogoController] Usando TTS para:", linea.Actor)
 		self.system.narrator:Speak(linea.Texto, linea.Actor)
 	end
 end

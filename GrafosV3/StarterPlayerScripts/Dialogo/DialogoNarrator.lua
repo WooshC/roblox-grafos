@@ -98,31 +98,27 @@ function DialogoNarrator:Play(audioId)
 end
 
 ---Habla un texto usando TTS (Texto a Voz)
+-- NOTA: Si quieres audio personalizado, usa el campo 'Audio' en la línea del diálogo
+-- Este método solo se llama cuando no hay audio específico configurado
 function DialogoNarrator:Speak(texto, personaje)
 	if not texto or texto == "" then return end
 	
 	-- Detener audio anterior
 	self:Stop()
 	
-	-- Si hay TTS disponible, usarlo
+	-- Si hay TTS disponible, usarlo directamente (sin fallback de sonidos)
 	if self.tts then
-		-- Calcular duración aproximada del texto (para efectos de sonido)
-		local palabras = #texto:split(" ")
-		
-		-- Reproducir sonido de inicio de diálogo
-		self.tts:SonidoInicio(personaje)
-		
-		-- Reproducir sonidos de "habla" mientras el texto aparece
-		self.tts:ReproducirSonidoHabla(personaje, palabras)
-		
-		-- Intentar usar TTS real si está disponible
 		local exito, resultado = pcall(function()
 			return self.tts:Hablar(texto, personaje)
 		end)
 		
 		if exito and resultado then
-			self.currentSound = resultado
+			print("[DialogoNarrator] TTS reproduciendo:", texto:sub(1, 30) .. "...")
+		else
+			warn("[DialogoNarrator] Error en TTS:", resultado)
 		end
+	else
+		print("[DialogoNarrator] TTS no disponible para:", texto:sub(1, 30) .. "...")
 	end
 end
 

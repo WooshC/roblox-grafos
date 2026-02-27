@@ -34,27 +34,27 @@ DialogoTTS.__index = DialogoTTS
 -- Mapeo de personajes a voces
 local VOCES_POR_PERSONAJE = {
 	["Carlos"] = {
-		voiceId = "2",           -- Spanish Male
+		voiceId = "101",         -- Spanish Male (Español Masculino)
 		volumen = 0.6,
 		velocidad = 1.0
 	},
 	["Sistema"] = {
-		voiceId = "0",           -- Default/David
+		voiceId = "0",           -- Default/David (English)
 		volumen = 0.4,
 		velocidad = 1.1
 	},
 	["Narrador"] = {
-		voiceId = "2",           -- Spanish Male
+		voiceId = "101",         -- Spanish Male (Español Masculino)
 		volumen = 0.7,
 		velocidad = 0.9
 	},
 	["Maria"] = {
-		voiceId = "3",           -- Spanish Female
+		voiceId = "102",         -- Spanish Female (Español Femenino)
 		volumen = 0.6,
 		velocidad = 1.0
 	},
 	["Default"] = {
-		voiceId = "2",           -- Spanish Male (default para español)
+		voiceId = "101",         -- Spanish Male (default para español)
 		volumen = 0.5,
 		velocidad = 1.0
 	}
@@ -156,17 +156,17 @@ end
 function DialogoTTS:SetIdioma(idioma)
 	self.idioma = idioma
 	
-	-- Actualizar voces default según idioma
+	-- Actualizar voces default según idioma (VoiceIds oficiales de Roblox 2026)
 	if idioma == IDIOMAS.ESPANOL then
-		VOCES_POR_PERSONAJE["Default"].voiceId = "2"  -- Spanish Male
+		VOCES_POR_PERSONAJE["Default"].voiceId = "101"  -- Spanish Male
 	elseif idioma == IDIOMAS.INGLES then
-		VOCES_POR_PERSONAJE["Default"].voiceId = "0"  -- English Male
+		VOCES_POR_PERSONAJE["Default"].voiceId = "0"    -- English Male (David)
 	elseif idioma == IDIOMAS.ITALIANO then
-		VOCES_POR_PERSONAJE["Default"].voiceId = "4"  -- Italian Male
+		VOCES_POR_PERSONAJE["Default"].voiceId = "301"  -- Italian Male
 	elseif idioma == IDIOMAS.ALEMAN then
-		VOCES_POR_PERSONAJE["Default"].voiceId = "6"  -- German Male
+		VOCES_POR_PERSONAJE["Default"].voiceId = "201"  -- German Male
 	elseif idioma == IDIOMAS.FRANCES then
-		VOCES_POR_PERSONAJE["Default"].voiceId = "8"  -- French Male
+		VOCES_POR_PERSONAJE["Default"].voiceId = "401"  -- French Male
 	end
 end
 
@@ -176,20 +176,31 @@ end
 
 ---Habla un texto usando TTS
 function DialogoTTS:Hablar(texto, personaje)
-	if not self.habilitado then return false end
+	if not self.habilitado then 
+		print("[DialogoTTS] TTS deshabilitado")
+		return false 
+	end
 	if not self.ttsDisponible or not self.audioTTS then 
-		-- Fallback: reproducir sonido de click
+		print("[DialogoTTS] TTS no disponible, usando fallback")
 		self:ReproducirSonidoFallback(personaje)
 		return false 
 	end
-	if not texto or texto == "" then return false end
+	if not texto or texto == "" then 
+		print("[DialogoTTS] Texto vacío")
+		return false 
+	end
 	
 	-- Preparar texto (limitar longitud y limpiar)
 	local textoPreparado = self:PrepararTexto(texto)
-	if textoPreparado == "" then return false end
+	if textoPreparado == "" then 
+		print("[DialogoTTS] Texto preparado vacío")
+		return false 
+	end
 	
 	-- Obtener configuración de voz
 	local config = VOCES_POR_PERSONAJE[personaje] or VOCES_POR_PERSONAJE["Default"]
+	
+	print("[DialogoTTS] Hablando:", textoPreparado:sub(1, 30) .. "...", "Voz:", config.voiceId, "Personaje:", personaje)
 	
 	-- Detener reproducción anterior
 	self:Detener()
@@ -199,21 +210,22 @@ function DialogoTTS:Hablar(texto, personaje)
 	self.audioTTS.VoiceId = config.voiceId
 	self.audioTTS.PlaybackSpeed = config.velocidad
 	
-	-- Configurar volumen
-	if self.deviceOutput then
-		self.deviceOutput.Volume = config.volumen * self.volumenGlobal
-	end
+	-- Configurar volumen usando AudioFader o similar si es necesario
+	-- Nota: AudioDeviceOutput no tiene propiedad Volume directa
+	-- El volumen se controla a través del AudioTextToSpeech o del sistema de audio
 	
 	-- Reproducir
+	print("[DialogoTTS] Intentando reproducir con VoiceId:", config.voiceId)
+	
 	local exito, err = pcall(function()
 		self.audioTTS:Play()
 	end)
 	
 	if exito then
-		print("[DialogoTTS] Reproduciendo:", textoPreparado:sub(1, 30) .. "...", "Voz:", config.voiceId)
+		print("[DialogoTTS] ✓ Reproducción iniciada exitosamente")
 		return true
 	else
-		warn("[DialogoTTS] Error al reproducir:", err)
+		warn("[DialogoTTS] ✗ Error al reproducir:", err)
 		return false
 	end
 end
@@ -293,7 +305,7 @@ function DialogoTTS:SonidoInicio(personaje)
 	local config = VOCES_POR_PERSONAJE[personaje] or VOCES_POR_PERSONAJE["Default"]
 	
 	local sound = Instance.new("Sound")
-	sound.SoundId = "rbxassetid://9125513529"  -- Notificación suave
+	sound.SoundId = "rbxassetid://6895079853"  -- Sonido UI simple
 	sound.Volume = 0.2 * self.volumenGlobal
 	sound.PlaybackSpeed = config.velocidad or 1.0
 	sound.Parent = SoundService
@@ -339,16 +351,25 @@ end
 DialogoTTS.IDIOMAS = IDIOMAS
 
 DialogoTTS.VOCES = {
+	-- Inglés
 	DAVID = "0",           -- English Male (Default)
 	ENGLISH_FEMALE = "1",
-	SPANISH_MALE = "2",    -- ¡Español!
-	SPANISH_FEMALE = "3",  -- ¡Español!
-	ITALIAN_MALE = "4",
-	ITALIAN_FEMALE = "5",
-	GERMAN_MALE = "6",
-	GERMAN_FEMALE = "7",
-	FRENCH_MALE = "8",
-	FRENCH_FEMALE = "9"
+	
+	-- Español (Nuevas voces 2026)
+	SPANISH_MALE = "101",    -- ✅ Español Masculino
+	SPANISH_FEMALE = "102",  -- ✅ Español Femenino
+	
+	-- Alemán
+	GERMAN_MALE = "201",
+	GERMAN_FEMALE = "202",
+	
+	-- Italiano
+	ITALIAN_MALE = "301",
+	ITALIAN_FEMALE = "302",
+	
+	-- Francés
+	FRENCH_MALE = "401",
+	FRENCH_FEMALE = "402"
 }
 
 return DialogoTTS

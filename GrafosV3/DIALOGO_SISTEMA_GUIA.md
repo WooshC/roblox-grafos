@@ -17,8 +17,8 @@ StarterPlayerScripts/
 │   └── DialogoNarrator.lua               # Audio y narración
 
 ReplicatedStorage/
-├── DialogoData/                          # Datos de diálogos
-│   └── Nivel0_Dialogos.lua               # Ejemplo de diálogos
+├── DialogoData/                          # Datos de diálogos (Folder)
+│   └── Nivel0_Dialogos.lua               # ModuleScript - ¡IMPORTANTE!
 
 StarterGui/
 └── DialogoGUI (ScreenGui)               # GUI del diálogo (debe existir)
@@ -124,6 +124,8 @@ OcultarHUD = true                  -- Ocultar HUD durante diálogo
 ```
 
 ### Paso 4: Crear los Diálogos
+
+> **⚠️ IMPORTANTE**: El archivo `Nivel0_Dialogos.lua` debe ser un **ModuleScript** (no un Script normal) y debe terminar con `return DIALOGOS`.
 
 Editar `ReplicatedStorage/DialogoData/Nivel0_Dialogos.lua` con tus propios diálogos:
 
@@ -352,6 +354,21 @@ ControladorDialogo.obtenerSistema().narrator.tts:SetHabilitado(false)
 - **Limpieza automática**: Al salir del nivel, se cierran los diálogos activos
 - **Persistencia**: El atributo `DialogoVisto_[ID]` guarda si el jugador ya vio un diálogo de una sola vez
 - **TTS Requiere**: Roblox Studio/Cliente versión 2025+ con AudioTextToSpeech API habilitada
+
+### Voces Disponibles (VoiceId)
+
+| VoiceId | Idioma | Género |
+|---------|--------|--------|
+| "0" | Inglés | Masculino (David) |
+| "1" | Inglés | Femenino |
+| **"101"** | **Español** | **Masculino** ⭐ |
+| **"102"** | **Español** | **Femenino** ⭐ |
+| "201" | Alemán | Masculino |
+| "202" | Alemán | Femenino |
+| "301" | Italiano | Masculino |
+| "302" | Italiano | Femenino |
+| "401" | Francés | Masculino |
+| "402" | Francés | Femenino |
 
 ## Próximos Pasos Sugeridos
 
