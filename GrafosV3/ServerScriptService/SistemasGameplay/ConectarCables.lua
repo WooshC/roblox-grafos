@@ -234,6 +234,9 @@ local function crearCable(selector1, selector2)
 				cable.hitbox:Destroy()
 				table.remove(_cables, i)
 				
+				-- Registrar en validador centralizado PRIMERO
+				ValidadorConexiones.eliminarConexion(nomA, nomB)
+				
 				-- Notificar a cliente
 				local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
 				if notificarEvento then
@@ -244,14 +247,14 @@ local function crearCable(selector1, selector2)
 				if _callbacks and _callbacks.onCableEliminado then
 					_callbacks.onCableEliminado(nomA, nomB)
 				end
-				
-				-- Registrar en validador centralizado
-				ValidadorConexiones.eliminarConexion(nomA, nomB)
 				break
 			end
 		end
 	end)
 	table.insert(_conexiones, conn)
+	
+	-- Registrar en validador centralizado PRIMERO (antes de notificar, para que el conteo esté actualizado)
+	ValidadorConexiones.registrarConexion(selector1.Parent, selector2.Parent, beam)
 	
 	-- Notificar pulso de energia
 	local pulseEvento = Remotos:FindFirstChild("PulsoEvent")
@@ -260,13 +263,10 @@ local function crearCable(selector1, selector2)
 		pulseEvento:FireClient(_jugador, "IniciarPulso", selector1.Parent, selector2.Parent, bidir)
 	end
 	
-	-- Notificar a sistemas via callbacks
+	-- Notificar a sistemas via callbacks (puede disparar victoria, el conteo ya debe estar actualizado)
 	if _callbacks and _callbacks.onCableCreado then
 		_callbacks.onCableCreado(nomA, nomB)
 	end
-	
-	-- Registrar en validador centralizado
-	ValidadorConexiones.registrarConexion(selector1.Parent, selector2.Parent, beam)
 end
 
 local function eliminarCable(indice)
@@ -312,6 +312,9 @@ local function intentarConectar(jugador, selector1, selector2)
 		local nomA, nomB = cable.nomA, cable.nomB
 		eliminarCable(indice)
 		
+		-- Registrar en validador centralizado PRIMERO
+		ValidadorConexiones.eliminarConexion(nomA, nomB)
+		
 		local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
 		if notificarEvento then
 			notificarEvento:FireClient(jugador, "CableDesconectado", nomA, nomB)
@@ -321,11 +324,6 @@ local function intentarConectar(jugador, selector1, selector2)
 		if _callbacks and _callbacks.onCableEliminado then
 			_callbacks.onCableEliminado(nomA, nomB)
 		end
-		
-		-- Registrar en validador centralizado
-		ValidadorConexiones.eliminarConexion(nomA, nomB)
-		
-		print("[ConectarCables] Cable desconectado via clic en nodos:", nomA, "|", nomB)
 		
 		finalizar()
 		return
@@ -547,6 +545,9 @@ function ConectarCables.conectarNodos(nombreNodoA, nombreNodoB, jugador)
 		local nomA, nomB = cable.nomA, cable.nomB
 		eliminarCable(indice)
 		
+		-- Registrar en validador centralizado PRIMERO
+		ValidadorConexiones.eliminarConexion(nomA, nomB)
+		
 		local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
 		if notificarEvento then
 			notificarEvento:FireClient(jugador, "CableDesconectado", nomA, nomB)
@@ -556,16 +557,12 @@ function ConectarCables.conectarNodos(nombreNodoA, nombreNodoB, jugador)
 			_callbacks.onCableEliminado(nomA, nomB)
 		end
 		
-		-- Registrar en validador centralizado
-		ValidadorConexiones.eliminarConexion(nomA, nomB)
-		
 		-- Actualizar estado de conexiones del cliente
 		local actualizarEstadoEvento = Remotos:FindFirstChild("ActualizarEstadoConexiones")
 		if actualizarEstadoEvento then
 			actualizarEstadoEvento:FireClient(jugador, "desconectar", nomA, nomB)
 		end
 		
-		print("[ConectarCables] Cable desconectado desde mapa:", nomA, "|", nomB)
 		return true
 	end
 	
