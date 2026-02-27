@@ -1,6 +1,12 @@
 -- GrafosV3 - Boot.server.lua
 -- Punto de entrada UNICO del servidor.
 -- Responsabilidad: Iniciar el sistema y gestionar el ciclo de vida del jugador.
+-- 
+-- REGLA DE ORO: Mientras el menu esta activo, TODO lo relacionado al gameplay
+-- esta completamente desconectado.
+--
+-- Principio: Separacion estricta entre "Sistema de Menu" y "Sistema de Gameplay".
+-- Nunca deben coexistir activos.
 
 local Servidores = game:GetService("ServerScriptService")
 local Jugadores = game:GetService("Players")
@@ -13,77 +19,27 @@ Jugadores.CharacterAutoLoads = false
 print("[GrafosV3] === Boot Servidor Iniciando ===")
 
 -- ═══════════════════════════════════════════════════════════════════════════════
--- 1. REGISTRO DE EVENTOS (Primero - todos los sistemas lo necesitan)
+-- 1. ESPERAR EVENTOS (creados por EventRegistry.server.lua)
 -- ═══════════════════════════════════════════════════════════════════════════════
-local function registrarEventos()
-	-- Crear estructura de carpetas
-	local carpetaEventos = Replicado:FindFirstChild("EventosGrafosV3")
-	if not carpetaEventos then
-		carpetaEventos = Instance.new("Folder")
-		carpetaEventos.Name = "EventosGrafosV3"
-		carpetaEventos.Parent = Replicado
-	end
-	
-	local remotes = carpetaEventos:FindFirstChild("Remotos")
-	if not remotes then
-		remotes = Instance.new("Folder")
-		remotes.Name = "Remotos"
-		remotes.Parent = carpetaEventos
-	end
-	
-	-- Eventos necesarios para el menu y progreso (nombres en español)
-	local eventosNecesarios = {
-		{ nombre = "ServidorListo", tipo = "RemoteEvent" },
-		{ nombre = "ObtenerProgresoJugador", tipo = "RemoteFunction" },
-		{ nombre = "IniciarNivel", tipo = "RemoteEvent" },
-		{ nombre = "NivelListo", tipo = "RemoteEvent" },
-		{ nombre = "NivelDescargado", tipo = "RemoteEvent" },
-		{ nombre = "VolverAlMenu", tipo = "RemoteEvent" },
-	}
-	
-	for _, evento in ipairs(eventosNecesarios) do
-		local existente = remotes:FindFirstChild(evento.nombre)
-		if not existente then
-			if evento.tipo == "RemoteFunction" then
-				local rf = Instance.new("RemoteFunction")
-				rf.Name = evento.nombre
-				rf.Parent = remotes
-			else
-				local re = Instance.new("RemoteEvent")
-				re.Name = evento.nombre
-				re.Parent = remotes
-			end
-			print("[GrafosV3] Evento registrado:", evento.nombre)
-		end
-	end
-	
-	return remotes
+local Eventos = Replicado:WaitForChild("EventosGrafosV3", 15)
+if not Eventos then
+	error("[GrafosV3] CRITICO: EventosGrafosV3 no encontrado. Asegurate de que EventRegistry.server.lua este en ServerScriptService/Nucleo/")
 end
 
-local Remotes = registrarEventos()
+local Remotos = Eventos:WaitForChild("Remotos", 10)
+if not Remotos then
+	error("[GrafosV3] CRITICO: EventosGrafosV3/Remotos no encontrado")
+end
+
+print("[GrafosV3] Eventos conectados correctamente")
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- 2. CARGAR SERVICIOS CORE
 -- ═══════════════════════════════════════════════════════════════════════════════
-local ServicioDatos = nil
 local ServicioProgreso = nil
 
 local function cargarServicios()
 	local carpetaServicios = script.Parent.Parent:WaitForChild("Servicios")
-	
-	-- Cargar ServicioDatos
-	local moduloDatos = carpetaServicios:FindFirstChild("ServicioDatos")
-	if moduloDatos then
-		local exito, resultado = pcall(function()
-			return require(moduloDatos)
-		end)
-		if exito then
-			ServicioDatos = resultado
-			print("[GrafosV3] ServicioDatos cargado")
-		else
-			warn("[GrafosV3] Error en ServicioDatos:", resultado)
-		end
-	end
 	
 	-- Cargar ServicioProgreso
 	local moduloProgreso = carpetaServicios:FindFirstChild("ServicioProgreso")
@@ -142,22 +98,22 @@ end
 local function alJugadorConectado(jugador)
 	print("[GrafosV3] Jugador conectado:", jugador.Name)
 	
-	-- 1. Copiar GUI inmediatamente
+	-- 1. Copiar GUI inmediatamente (menu state)
 	task.spawn(function()
 		copiarGuiAJugador(jugador)
 	end)
 	
-	-- 2. Cargar datos del jugador (si existe servicio)
+	-- 2. Cargar datos del jugador
 	task.spawn(function()
 		if ServicioProgreso and ServicioProgreso.cargar then
 			ServicioProgreso.cargar(jugador)
 		end
 	end)
 	
-	-- 3. Notificar al cliente despues de dar tiempo a copiar GUI
+	-- 3. Notificar al cliente (menu listo)
 	task.delay(2, function()
 		if jugador and jugador.Parent then
-			local servidorListo = Remotes:FindFirstChild("ServidorListo")
+			local servidorListo = Remotos:FindFirstChild("ServidorListo")
 			if servidorListo then
 				servidorListo:FireClient(jugador)
 				print("[GrafosV3] ServidorListo enviado a", jugador.Name)
@@ -182,80 +138,136 @@ Jugadores.PlayerRemoving:Connect(function(jugador)
 end)
 
 -- ═══════════════════════════════════════════════════════════════════════════════
--- 5. HANDLERS DE EVENTOS
+-- 5. HANDLERS DE EVENTOS (Menu System)
 -- ═══════════════════════════════════════════════════════════════════════════════
 
--- ObtenerProgresoJugador: El menu solicita datos del jugador (ENRIQUECIDOS)
-local obtenerProgreso = Remotes:FindFirstChild("ObtenerProgresoJugador")
-if obtenerProgreso then
-	obtenerProgreso.OnServerInvoke = function(jugador)
-		print("[GrafosV3] ObtenerProgresoJugador solicitado por", jugador.Name)
-		
-		if ServicioProgreso and ServicioProgreso.obtenerProgresoParaCliente then
-			return ServicioProgreso.obtenerProgresoParaCliente(jugador)
-		end
-		
-		-- Fallback: construir desde LevelsConfig (todos los niveles)
-		local LevelsConfig = require(Replicado:WaitForChild("Config"):WaitForChild("LevelsConfig"))
-		local resultado = {}
-		
-		for i = 0, 4 do
-			local config = LevelsConfig[i] or {}
-			local status = (i == 0) and "disponible" or "bloqueado"
-			
-			resultado[tostring(i)] = {
-				nivelID = i,
-				nombre = config.Nombre or ("Nivel " .. i),
-				descripcion = config.DescripcionCorta or "",
-				imageId = config.ImageId or "",
-				tag = config.Tag or ("NIVEL " .. i),
-				algoritmo = config.Algoritmo,
-				seccion = config.Seccion or "NIVELES",
-				conceptos = config.Conceptos or {},
-				status = status,
-				estrellas = 0,
-				highScore = 0,
-				aciertos = 0,
-				fallos = 0,
-				tiempoMejor = 0,
-				intentos = 0
-			}
-		end
-		
-		return resultado
+-- ObtenerProgresoJugador: El menu solicita datos del jugador
+local obtenerProgreso = Remotos:WaitForChild("ObtenerProgresoJugador")
+obtenerProgreso.OnServerInvoke = function(jugador)
+	print("[GrafosV3] ObtenerProgresoJugador solicitado por", jugador.Name)
+	
+	if ServicioProgreso and ServicioProgreso.obtenerProgresoParaCliente then
+		return ServicioProgreso.obtenerProgresoParaCliente(jugador)
 	end
+	
+	-- Fallback: construir desde LevelsConfig
+	local LevelsConfig = require(Replicado:WaitForChild("Config"):WaitForChild("LevelsConfig"))
+	local resultado = {}
+	
+	for i = 0, 4 do
+		local config = LevelsConfig[i] or {}
+		local status = (i == 0) and "disponible" or "bloqueado"
+		
+		resultado[tostring(i)] = {
+			nivelID = i,
+			nombre = config.Nombre or ("Nivel " .. i),
+			descripcion = config.DescripcionCorta or "",
+			imageId = config.ImageId or "",
+			tag = config.Tag or ("NIVEL " .. i),
+			algoritmo = config.Algoritmo,
+			seccion = config.Seccion or "NIVELES",
+			conceptos = config.Conceptos or {},
+			status = status,
+			estrellas = 0,
+			highScore = 0,
+			aciertos = 0,
+			fallos = 0,
+			tiempoMejor = 0,
+			intentos = 0
+		}
+	end
+	
+	return resultado
 end
 
 -- IniciarNivel: El jugador quiere jugar un nivel
-local iniciarNivel = Remotes:FindFirstChild("IniciarNivel")
-if iniciarNivel then
-	iniciarNivel.OnServerEvent:Connect(function(jugador, idNivel)
-		print("[GrafosV3] IniciarNivel - Jugador:", jugador.Name, "Nivel:", idNivel)
-		
-		-- AQUI: Logica de carga de nivel (spawn personaje, cargar modelo, etc.)
-		-- Por ahora solo notificar al cliente que esta listo
-		
-		local nivelListo = Remotes:FindFirstChild("NivelListo")
-		if nivelListo then
-			nivelListo:FireClient(jugador, {
-				nivelID = idNivel,
-				estado = "cargado"
-			})
-		end
-	end)
-end
+local iniciarNivel = Remotos:WaitForChild("IniciarNivel")
+iniciarNivel.OnServerEvent:Connect(function(jugador, idNivel)
+	print("[GrafosV3] IniciarNivel - Jugador:", jugador.Name, "Nivel:", idNivel)
+	
+	-- AQUI: Transicion de Menu -> Gameplay
+	-- 1. Desconectar sistemas de menu
+	-- 2. Cargar modelo del nivel
+	-- 3. Spawn personaje
+	-- 4. Inicializar sistemas de gameplay
+	
+	-- Por ahora solo notificar al cliente
+	local nivelListo = Remotos:WaitForChild("NivelListo")
+	nivelListo:FireClient(jugador, {
+		nivelID = idNivel,
+		estado = "cargado"
+	})
+end)
 
 -- VolverAlMenu: El jugador quiere volver al menu
-local volverAlMenu = Remotes:FindFirstChild("VolverAlMenu")
-if volverAlMenu then
-	volverAlMenu.OnServerEvent:Connect(function(jugador)
-		print("[GrafosV3] VolverAlMenu - Jugador:", jugador.Name)
+local volverAlMenu = Remotos:WaitForChild("VolverAlMenu")
+volverAlMenu.OnServerEvent:Connect(function(jugador)
+	print("[GrafosV3] VolverAlMenu - Jugador:", jugador.Name)
+	
+	-- AQUI: Transicion de Gameplay -> Menu
+	-- 1. Desconectar TODOS los sistemas de gameplay
+	-- 2. Descargar modelo del nivel
+	-- 3. Despawn personaje
+	-- 4. Reconectar sistemas de menu
+	
+	local nivelDescargado = Remotos:WaitForChild("NivelDescargado")
+	nivelDescargado:FireClient(jugador)
+end)
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- 6. SISTEMA DE GAMEPLAY (Desconectado inicialmente)
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- NOTA: Todos los sistemas de gameplay se inicializan bajo demanda
+-- cuando se inicia un nivel, y se destruyen al volver al menu.
+
+local SistemaGameplay = {
+	activo = false,
+	nivelActual = nil,
+	jugadoresEnNivel = {},
+}
+
+function SistemaGameplay.iniciar(nivelID, jugador)
+	if SistemaGameplay.activo then
+		warn("[GrafosV3] SistemaGameplay ya esta activo")
+		return
+	end
+	
+	print("[GrafosV3] Iniciando sistema de gameplay - Nivel:", nivelID)
+	SistemaGameplay.activo = true
+	SistemaGameplay.nivelActual = nivelID
+	SistemaGameplay.jugadoresEnNivel[jugador.UserId] = true
+	
+	-- AQUI: Inicializar todos los sistemas de gameplay:
+	-- - MissionService
+	-- - ScoreTracker
+	-- - ZoneTriggerManager
+	-- - ConectarCables
+	-- - VisualEffectsManager
+	-- etc.
+end
+
+function SistemaGameplay.terminar(jugador)
+	if not SistemaGameplay.activo then
+		return
+	end
+	
+	SistemaGameplay.jugadoresEnNivel[jugador.UserId] = nil
+	
+	-- Si no quedan jugadores, terminar completamente
+	local quedanJugadores = false
+	for _, _ in pairs(SistemaGameplay.jugadoresEnNivel) do
+		quedanJugadores = true
+		break
+	end
+	
+	if not quedanJugadores then
+		print("[GrafosV3] Terminando sistema de gameplay")
+		SistemaGameplay.activo = false
+		SistemaGameplay.nivelActual = nil
 		
-		local nivelDescargado = Remotes:FindFirstChild("NivelDescargado")
-		if nivelDescargado then
-			nivelDescargado:FireClient(jugador)
-		end
-	end)
+		-- AQUI: Destruir todos los sistemas de gameplay
+	end
 end
 
 print("[GrafosV3] === Boot Servidor Listo ===")
+print("[GrafosV3] Estado: Menu activo, Gameplay desconectado")
