@@ -199,6 +199,23 @@ local function flashModel(model, color, duration)
 end
 
 -- ═══════════════════════════════════════════════════════════════════════════════
+-- SISTEMA DE PARTÍCULAS
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+-- Cargar sistema de partículas de conexiones
+local ParticulasConexion = nil
+local exito, resultado = pcall(function()
+	return require(script.Parent:FindFirstChild("ParticulasConexion"))
+end)
+
+if exito and resultado then
+	ParticulasConexion = resultado
+	print("[ControladorEfectos] ParticulasConexion integrado")
+else
+	warn("[ControladorEfectos] No se pudo cargar ParticulasConexion:", resultado)
+end
+
+-- ═══════════════════════════════════════════════════════════════════════════════
 -- EVENTOS
 -- ═══════════════════════════════════════════════════════════════════════════════
 
@@ -220,10 +237,26 @@ notifyEv.OnClientEvent:Connect(function(eventType, arg1, arg2)
 			end
 		end
 		
-	-- Limpiar en estos eventos
-	elseif eventType == "SeleccionCancelada"
-		or eventType == "ConexionCompletada"
-		or eventType == "CableDesconectado" then
+	-- Conexión completada: iniciar partículas
+	elseif eventType == "ConexionCompletada" then
+		clearAll()
+		-- arg1 = nombreNodoA, arg2 = nombreNodoB
+		if ParticulasConexion and arg1 and arg2 then
+			local esDirigido = ParticulasConexion.esConexionDirigida 
+				and ParticulasConexion.esConexionDirigida(arg1, arg2) 
+				or false
+			ParticulasConexion.iniciar(arg1, arg2, esDirigido)
+		end
+		
+	-- Cable desconectado: detener partículas
+	elseif eventType == "CableDesconectado" then
+		clearAll()
+		if ParticulasConexion and arg1 and arg2 then
+			ParticulasConexion.detener(arg1, arg2)
+		end
+		
+	-- Selección cancelada: solo limpiar
+	elseif eventType == "SeleccionCancelada" then
 		clearAll()
 		
 	-- Error: flash rojo

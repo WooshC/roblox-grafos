@@ -8,6 +8,9 @@
     ╚════════════════════════════════════════════════════════════════╝
 ]]
 
+-- Cargar módulo de expresiones
+local DialogoExpressions = require(script.Parent:FindFirstChild("DialogoExpressions"))
+
 local DialogoController = {}
 DialogoController.__index = DialogoController
 
@@ -92,14 +95,29 @@ function DialogoController:UpdateSpeaker(linea)
 end
 
 ---Actualiza imagen y expresión del personaje
+-- La expresión determina la imagen del personaje automáticamente
 function DialogoController:UpdateCharacter(linea)
-	-- Mostrar/ocultar área de personaje
-	if self.gui.charArea then
-		if linea.ImagenPersonaje and self.gui.portraitImage then
+	local actor = linea.Actor or "Default"
+	local expresion = linea.Expresion or "Normal"
+	local imagenFinal = nil
+	
+	-- Prioridad 1: Si hay ImagenPersonaje explícita, usarla
+	if linea.ImagenPersonaje and linea.ImagenPersonaje ~= "" and linea.ImagenPersonaje ~= "rbxassetid://0" then
+		imagenFinal = linea.ImagenPersonaje
+	elseif DialogoExpressions then
+		-- Prioridad 2: Buscar la expresión en el catálogo
+		imagenFinal = DialogoExpressions.GetExpression(actor, expresion)
+	end
+	
+	-- Mostrar/ocultar área de personaje con la imagen correcta
+	if self.gui.charArea and self.gui.portraitImage then
+		if imagenFinal then
 			self.gui.charArea.Visible = true
-			self.gui.portraitImage.Image = linea.ImagenPersonaje
+			self.gui.portraitImage.Image = imagenFinal
+			print("[DialogoController] Mostrando", actor, "con expresión:", expresion)
 		else
 			self.gui.charArea.Visible = false
+			warn("[DialogoController] No se encontró imagen para:", actor, "-", expresion)
 		end
 	end
 	
@@ -108,7 +126,7 @@ function DialogoController:UpdateCharacter(linea)
 		self.gui.charName.Text = linea.Actor
 	end
 	
-	-- Expresión
+	-- Expresión (como texto)
 	if self.gui.expressionLabel then
 		if linea.Expresion then
 			self.gui.expressionLabel.Text = linea.Expresion

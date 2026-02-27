@@ -96,6 +96,24 @@ local promptsConectados = {}
 local nivelActual = nil
 local framesHUD = {}
 
+-- Estado del jugador antes del diálogo
+local estadoJugador = {
+	humanoid = nil,
+	camaraOriginal = nil,
+	cframeOriginal = nil,
+	puedeSaltarOriginal = nil,
+	puedeCorrerOriginal = nil
+}
+
+-- Configuración por defecto de restricciones
+local RESTRICCIONES_DEFAULT = {
+	bloquearMovimiento = true,
+	bloquearSalto = true,
+	bloquearCarrera = true,
+	apuntarCamara = true,
+	permitirConexiones = false  -- Si true, el jugador puede hacer conexiones durante el diálogo
+}
+
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- CONFIGURACIÓN
 -- ═══════════════════════════════════════════════════════════════════════════════
@@ -107,8 +125,140 @@ local CONFIG = {
 		"PanelMapa",
 		"BotonesAccion"
 	},
-	DuracionTransicion = 0.3
+	DuracionTransicion = 0.3,
+	
+	-- Configuración de cámara
+	Camara = {
+		Distancia = 8,           -- Distancia del personaje
+		Altura = 3,              -- Altura sobre el personaje
+		Suavizado = 0.1          -- Velocidad de transición (0-1)
+	}
 }
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- FUNCIONES DE CONTROL DEL JUGADOR
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+---Bloquea el movimiento del jugador
+local function bloquearMovimiento(restricciones, promptPart)
+	local personaje = jugador.Character
+	if not personaje then return end
+	
+	local humanoid = personaje:FindFirstChildOfClass("Humanoid")
+	if not humanoid then return end
+	
+	-- Guardar estado original
+	estadoJugador.humanoid = humanoid
+	estadoJugador.puedeSaltarOriginal = humanoid.JumpPower > 0
+	estadoJugador.puedeCorrerOriginal = humanoid.WalkSpeed > 10
+	
+	-- Aplicar restricciones
+	if restricciones.bloquearMovimiento then
+		humanoid.WalkSpeed = 0
+	end
+	
+	if restricciones.bloquearSalto then
+		humanoid.JumpPower = 0
+	end
+	
+	-- Controlar cámara si está habilitado
+	if restricciones.apuntarCamara and promptPart then
+		local camara = workspace.CurrentCamera
+		estadoJugador.camaraOriginal = camara.CameraType
+		estadoJugador.cframeOriginal = camara.CFrame
+		
+		-- Crear CFrame que mire al prompt desde una posición cercana
+		local posicionJugador = personaje:WaitForChild("HumanoidRootPart").Position
+		local posicionPrompt = promptPart.Position
+		
+		-- Calcular posición de la cámara (detrás y arriba del jugador, mirando al prompt)
+		local direccion = (posicionPrompt - posicionJugador).Unit
+		local posicionCamara = posicionJugador - (direccion * CONFIG.Camara.Distancia) + Vector3.new(0, CONFIG.Camara.Altura, 0)
+		local nuevoCFrame = CFrame.lookAt(posicionCamara, posicionPrompt)
+		
+		-- Aplicar suavizado a la cámara
+		camara.CameraType = Enum.CameraType.Scriptable
+		
+		-- Animar la transición
+		task.spawn(function()
+			local duracion = 0.5
+			local inicio = tick()
+			local cframeInicial = camara.CFrame
+			
+			while tick() - inicio < duracion do
+				local alpha = (tick() - inicio) / duracion
+				alpha = math.sin(alpha * math.pi / 2) -- Easing suave
+				camara.CFrame = cframeInicial:Lerp(nuevoCFrame, alpha)
+				task.wait(0.016)
+			end
+			
+			camara.CFrame = nuevoCFrame
+		end)
+	end
+	
+	print("[ControladorDialogo] Movimiento bloqueado")
+end
+
+---Restaura el movimiento del jugador
+local function desbloquearMovimiento()
+	local personaje = jugador.Character
+	if not personaje then return end
+	
+	local humanoid = personaje:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		-- Restaurar velocidad
+		if estadoJugador.puedeCorrerOriginal then
+			humanoid.WalkSpeed = 16  -- Velocidad default
+		else
+			humanoid.WalkSpeed = 10
+		end
+		
+		-- Restaurar salto
+		if estadoJugador.puedeSaltarOriginal then
+			humanoid.JumpPower = 50  -- JumpPower default
+		else
+			humanoid.JumpPower = 0
+		end
+	end
+	
+	-- Restaurar cámara
+	if estadoJugador.camaraOriginal then
+		local camara = workspace.CurrentCamera
+		
+		-- Animar regreso
+		task.spawn(function()
+			local duracion = 0.3
+			local inicio = tick()
+			local cframeInicial = camara.CFrame
+			local cframeFinal = estadoJugador.cframeOriginal
+			
+			while tick() - inicio < duracion do
+				local alpha = (tick() - inicio) / duracion
+				camara.CFrame = cframeInicial:Lerp(cframeFinal, alpha)
+				task.wait(0.016)
+			end
+			
+			camara.CFrame = cframeFinal
+			-- Solo restaurar CameraType si teníamos uno guardado
+			if estadoJugador.camaraOriginal then
+				camara.CameraType = estadoJugador.camaraOriginal
+			else
+				camara.CameraType = Enum.CameraType.Custom
+			end
+		end)
+	end
+	
+	-- Limpiar estado
+	estadoJugador = {
+		humanoid = nil,
+		camaraOriginal = nil,
+		cframeOriginal = nil,
+		puedeSaltarOriginal = nil,
+		puedeCorrerOriginal = nil
+	}
+	
+	print("[ControladorDialogo] Movimiento restaurado")
+end
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- FUNCIONES DE GESTIÓN DEL HUD
@@ -231,11 +381,15 @@ local function buscarYConectarPrompts()
 	end
 	
 	print("[ControladorDialogo] Buscando prompts en:", dialoguePrompts.Name)
+	print("[ControladorDialogo] Hijos encontrados en DialoguePrompts:", #dialoguePrompts:GetChildren())
 	
 	for _, modeloDialogo in ipairs(dialoguePrompts:GetChildren()) do
+		print("[ControladorDialogo] Revisando:", modeloDialogo.Name, "Tipo:", modeloDialogo.ClassName)
+		
 		if modeloDialogo:IsA("Model") or modeloDialogo:IsA("Folder") then
 			local promptPart = modeloDialogo:FindFirstChild("PromptPart")
 			if promptPart then
+				print("[ControladorDialogo] ✓ PromptPart encontrado en:", modeloDialogo.Name)
 				local config = {
 					id = modeloDialogo:GetAttribute("DialogoID") or modeloDialogo.Name,
 					actionText = modeloDialogo:GetAttribute("ActionText") or "Hablar",
@@ -244,7 +398,16 @@ local function buscarYConectarPrompts()
 					distancia = modeloDialogo:GetAttribute("Distancia") or 20,
 					holdDuration = modeloDialogo:GetAttribute("HoldDuration") or 0,
 					unaVez = modeloDialogo:GetAttribute("UnaVez") or false,
-					ocultarHUD = modeloDialogo:GetAttribute("OcultarHUD") ~= false
+					ocultarHUD = modeloDialogo:GetAttribute("OcultarHUD") ~= false,
+					
+					-- Nuevas opciones de restricción
+					restricciones = {
+						bloquearMovimiento = modeloDialogo:GetAttribute("BloquearMovimiento") ~= false,  -- default true
+						bloquearSalto = modeloDialogo:GetAttribute("BloquearSalto") ~= false,            -- default true
+						bloquearCarrera = modeloDialogo:GetAttribute("BloquearCarrera") ~= false,        -- default true
+						apuntarCamara = modeloDialogo:GetAttribute("ApuntarCamara") ~= false,            -- default true
+						permitirConexiones = modeloDialogo:GetAttribute("PermitirConexiones") == true    -- default false
+					}
 				}
 				
 				conectarPrompt(promptPart, config)
@@ -267,12 +430,32 @@ function iniciarDialogo(dialogoID, metadata)
 	
 	dialogoActivo = true
 	
+	-- Obtener restricciones del diálogo o usar defaults
+	local restricciones = RESTRICCIONES_DEFAULT
+	if metadata.config and metadata.config.restricciones then
+		for key, value in pairs(metadata.config.restricciones) do
+			restricciones[key] = value
+		end
+	end
+	
+	-- Guardar restricciones en metadata para que otros sistemas las consulten
+	metadata.restricciones = restricciones
+	
+	-- Bloquear movimiento si está configurado
+	if restricciones.bloquearMovimiento or restricciones.bloquearSalto or restricciones.apuntarCamara then
+		bloquearMovimiento(restricciones, metadata.promptPart)
+	end
+	
 	if metadata.config and metadata.config.ocultarHUD then
 		ocultarHUD()
 	end
 	
 	DialogoGUISystem:OnClose(function()
 		print("[ControladorDialogo] Diálogo cerrado:", dialogoID)
+		
+		-- Restaurar movimiento
+		desbloquearMovimiento()
+		
 		mostrarHUD()
 		
 		if metadata.config and metadata.config.alCerrar then
@@ -285,6 +468,8 @@ function iniciarDialogo(dialogoID, metadata)
 	local exito = DialogoGUISystem:Play(dialogoID, metadata)
 	
 	if not exito then
+		-- Si falla, restaurar todo
+		desbloquearMovimiento()
 		mostrarHUD()
 		dialogoActivo = false
 	end

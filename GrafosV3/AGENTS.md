@@ -90,7 +90,8 @@ GrafosV3/
     │   └── ControladorMenu.client.lua       # Level selection menu
     └── SistemasGameplay/
         ├── AudioGameplay.client.lua         # Gameplay-specific audio
-        └── ControladorEfectos.client.lua    # Visual effects controller
+        ├── ControladorEfectos.client.lua    # Visual effects controller
+        └── ParticulasConexion.client.lua    # Particles on cable connections
 ```
 
 ## Golden Rule: Strict Menu/Gameplay Separation
@@ -290,8 +291,8 @@ StarterGui/DialogoGUI                  # Dialog UI (ScreenGui)
 2. `ControladorDialogo` detects level and searches for `DialoguePrompts` folder
 3. ProximityPrompts are automatically configured
 4. Player triggers prompt → Dialog starts
-5. HUD hides automatically, dialog UI shows
-6. On close: HUD restores
+5. Player movement/camera controlled, HUD hides, dialog UI shows
+6. On close: movement restored, HUD restored
 
 #### Level Setup for Dialogs
 ```
@@ -303,10 +304,27 @@ NivelActual (Model)
         │   ├── ActionText = "Hablar"
         │   ├── ObjectText = "Carlos"
         │   ├── Distancia = 20
-        │   └── UnaVez = true
+        │   ├── UnaVez = true
+        │   ├── BloquearMovimiento = true    -- Block player movement
+        │   ├── BloquearSalto = true         -- Block jumping
+        │   ├── ApuntarCamara = true         -- Point camera to NPC
+        │   └── PermitirConexiones = false   -- Allow cable connections
         └── PromptPart (Part)
             └── ProximityPrompt
 ```
+
+#### Dialog Configuration Attributes
+
+| Attribute | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `DialogoID` | String | Model name | ID matching the dialog in Lua file |
+| `BloquearMovimiento` | Boolean | true | Block player walk |
+| `BloquearSalto` | Boolean | true | Block jumping |
+| `BloquearCarrera` | Boolean | true | Block sprint |
+| `ApuntarCamara` | Boolean | true | Camera points to NPC |
+| `PermitirConexiones` | Boolean | false | Allow cable connections during dialog |
+| `OcultarHUD` | Boolean | true | Hide HUD during dialog |
+| `UnaVez` | Boolean | false | Only show dialog once |
 
 #### Creating Dialog Content
 1. Create/edit file in `ReplicatedStorage/DialogoData/NivelX_Dialogos.lua`
@@ -314,6 +332,24 @@ NivelActual (Model)
 3. Set `DialogoID` attribute on the prompt model to match the dialog key
 
 See `DIALOGO_SISTEMA_GUIA.md` for complete documentation.
+
+### Connection Particles System
+
+Visual particle effects traveling along cable connections.
+
+#### Features
+- Particles travel from node to node along connections
+- **Directed graphs**: One-way particle flow
+- **Undirected graphs**: Two-way particle flow (A→B and B→A)
+- Configurable speed, color, and frequency
+
+#### Location
+```
+StarterPlayerScripts/SistemasGameplay/ParticulasConexion.client.lua
+```
+
+#### Usage
+Particles start automatically when connections are created via `CableCreado` RemoteEvent.
 
 ## Important Notes
 
