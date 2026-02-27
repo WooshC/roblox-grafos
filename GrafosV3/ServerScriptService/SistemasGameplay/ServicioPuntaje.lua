@@ -4,12 +4,14 @@
 
 local ServicioPuntaje = {}
 
+-- Validador de conexiones para obtener conteo real al finalizar
+local ValidadorConexiones = require(script.Parent:WaitForChild("ValidadorConexiones"))
+
 local _eventoActualizar = nil
 local _datos = {}  -- keyed por player.UserId
 
 function ServicioPuntaje:init(eventoActualizarPuntuacion)
 	_eventoActualizar = eventoActualizarPuntuacion
-	print("[ServicioPuntaje] ✅ init completado")
 end
 
 function ServicioPuntaje:iniciarNivel(jugador, nivelID, puntosConexion, penaFallo)
@@ -72,18 +74,21 @@ function ServicioPuntaje:finalizar(jugador)
 		return { conexiones=0, aciertos=0, fallos=0, tiempo=0, puntajeBase=0, nivelID=0 }
 	end
 	local tiempo = math.floor(os.clock() - d.tiempoInicio)
+	
+	-- Usar conteo real del ValidadorConexiones (fuente de verdad)
+	local conexionesFinales = d.conexiones
+	if ValidadorConexiones and ValidadorConexiones.contarConexiones then
+		conexionesFinales = ValidadorConexiones.contarConexiones()
+	end
+	
 	local snap = {
 		nivelID = d.nivelID,
-		conexiones = d.conexiones,
-		aciertosTotal = d.aciertosTotal,
+		conexiones = conexionesFinales,  -- Conexiones actuales al finalizar (del Validador)
+		aciertosTotal = conexionesFinales,  -- ACIERTOS = conexiones actuales (no histórico)
 		fallos = d.fallos,
 		tiempo = tiempo,
 		puntajeBase = d.puntajeMision,
 	}
-	print(string.format(
-		"[ServicioPuntaje] finalizar → nivelID=%s puntaje=%d conexiones=%d aciertos=%d fallos=%d tiempo=%d",
-		tostring(snap.nivelID), snap.puntajeBase, snap.conexiones,
-		snap.aciertosTotal, snap.fallos, snap.tiempo))
 	return snap
 end
 

@@ -45,6 +45,7 @@ local EVENTOS_REMOTOS = {
 	-- Gameplay - Mapa
 	{ nombre = "MapaClickNodo",          tipo = "RemoteEvent" },      -- Cliente -> Server (click en nodo desde mapa)
 	{ nombre = "ConectarDesdeMapa",      tipo = "RemoteEvent" },      -- Cliente -> Server (solicitar conexión desde mapa)
+	{ nombre = "ActualizarEstadoConexiones", tipo = "RemoteEvent" },  -- Server -> Cliente (sincronizar estado de conexiones)
 
 	-- Configuracion
 	{ nombre = "AplicarDificultad",      tipo = "RemoteEvent" },      -- Cliente -> Server (cambiar dificultad)

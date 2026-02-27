@@ -392,4 +392,34 @@ function ValidadorConexiones.obtenerEstadoDebug()
 	return lista
 end
 
+--[[
+	Obtiene todas las conexiones activas.
+	
+	@return table - lista de tablas { nodoA = string, nodoB = string }
+]]
+function ValidadorConexiones.obtenerTodasLasConexiones()
+	local lista = {}
+	for clave, data in pairs(conexiones) do
+		table.insert(lista, {
+			clave = clave,
+			nodoA = data.nodoA.Name,
+			nodoB = data.nodoB.Name
+		})
+	end
+	return lista
+end
+
+--[[
+	Obtiene el número total de conexiones activas.
+	
+	@return number - cantidad de conexiones
+]]
+function ValidadorConexiones.contarConexiones()
+	local count = 0
+	for _ in pairs(conexiones) do
+		count = count + 1
+	end
+	return count
+end
+
 return ValidadorConexiones

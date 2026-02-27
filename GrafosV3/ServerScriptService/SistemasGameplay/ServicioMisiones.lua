@@ -4,6 +4,9 @@
 
 local ServicioMisiones = {}
 
+-- Validador de conexiones para obtener conteo real al finalizar
+local ValidadorConexiones = require(script.Parent:WaitForChild("ValidadorConexiones"))
+
 -- ── Estado interno ────────────────────────────────────────────────────────────
 local _activo = false
 local _jugador = nil
@@ -171,7 +174,6 @@ local function verificarYNotificar()
 
 	-- ── VICTORIA ──────────────────────────────────────────────────────────
 	if allComplete then
-		print("[ServicioMisiones] 🏆 ¡Todas las misiones completadas! — puntosAcum:", _puntosAcum)
 
 		if _eventoNivelCompletado and _jugador then
 			local snap = nil
@@ -203,7 +205,12 @@ local function verificarYNotificar()
 				elseif snap.puntajeBase > 0 then estrellas = 1
 				end
 
-				local aciertosGuardar = snap.aciertosTotal or snap.conexiones
+				-- Usar conteo real del ValidadorConexiones (conexiones actuales)
+				local conexionesActuales = snap.conexiones
+				if ValidadorConexiones.contarConexiones then
+					conexionesActuales = ValidadorConexiones.contarConexiones()
+				end
+				local aciertosGuardar = conexionesActuales
 
 				_servicioDatos.guardarResultado(_jugador, _nivelID, {
 					puntaje = snap.puntajeBase,
@@ -212,24 +219,24 @@ local function verificarYNotificar()
 					fallos = snap.fallos,
 					tiempo = snap.tiempo,
 				})
-				print("[ServicioMisiones] 💾 Guardado en progreso — estrellas:", estrellas, "/ puntaje:", snap.puntajeBase)
-			else
-				print("[ServicioMisiones] ⚠ No se guardó: _servicioDatos =", tostring(_servicioDatos), "_nivelID =", tostring(_nivelID))
 			end
 
-			-- Enviar snap al cliente con campo "aciertos" explícito
+			-- Obtener conexiones actuales del validador para mayor precisión
+			local conexionesFinales = snap.conexiones
+			if ValidadorConexiones.contarConexiones then
+				conexionesFinales = ValidadorConexiones.contarConexiones()
+			end
+			
+			-- Enviar snap al cliente con campo "aciertos" = conexiones actuales
 			local snapCliente = {
 				nivelID = snap.nivelID,
-				conexiones = snap.conexiones,
-				aciertos = snap.aciertosTotal or snap.conexiones,
+				conexiones = conexionesFinales,
+				aciertos = conexionesFinales,  -- ACIERTOS = conexiones actuales al finalizar
 				fallos = snap.fallos,
 				tiempo = snap.tiempo,
 				puntajeBase = snap.puntajeBase,
 			}
 			_eventoNivelCompletado:FireClient(_jugador, snapCliente)
-			print("[ServicioMisiones] 🏆 Evento NivelCompletado enviado al cliente")
-		else
-			print("[ServicioMisiones] ⚠ No se pudo enviar victoria: _eventoNivelCompletado =", tostring(_eventoNivelCompletado), "_jugador =", tostring(_jugador))
 		end
 
 		_activo = false
@@ -284,7 +291,6 @@ function ServicioMisiones.desactivar()
 	_eventoNivelCompletado = nil
 	_servicioDatos = nil
 	_config = nil
-	print("[ServicioMisiones] desactivar")
 end
 
 function ServicioMisiones.alCrearCable(nomA, nomB)
@@ -310,7 +316,6 @@ function ServicioMisiones.alEntrarZona(nombre)
 	if not _activo then return end
 	_zonaActual = nombre
 	notificar(nil)
-	print("[ServicioMisiones] Zona entrada:", nombre)
 end
 
 function ServicioMisiones.alSalirZona(nombre)

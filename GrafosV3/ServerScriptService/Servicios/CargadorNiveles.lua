@@ -244,7 +244,6 @@ function CargadorNiveles.cargar(nivelID, jugador)
 
 	-- 1. Inicializar ServicioPuntaje
 	local moduloPuntaje = obtenerServicioPuntaje()
-	print("[CargadorNiveles] moduloPuntaje:", moduloPuntaje and "OK" or "NIL")
 
 	if moduloPuntaje then
 		local eventoActualizarPuntaje = Remotos:FindFirstChild("ActualizarPuntuacion")
@@ -259,7 +258,6 @@ function CargadorNiveles.cargar(nivelID, jugador)
 			puntuacion.PuntosConexion or 50, 
 			puntuacion.PenaFallo or 10
 		)
-		print("[CargadorNiveles] ServicioPuntaje iniciado correctamente")
 	else
 		warn("[CargadorNiveles] ServicioPuntaje no se pudo cargar!")
 	end
@@ -267,12 +265,9 @@ function CargadorNiveles.cargar(nivelID, jugador)
 	-- 2. Inicializar ServicioMisiones
 	local moduloMisiones = obtenerServicioMisiones()
 	local moduloProgreso = obtenerServicioProgreso()
-	print("[CargadorNiveles] moduloMisiones:", moduloMisiones and "OK" or "NIL")
-	print("[CargadorNiveles] moduloProgreso:", moduloProgreso and "OK" or "NIL")
 
 	if moduloMisiones then
 		moduloMisiones.activar(config, nivelID, jugador, Remotos, moduloPuntaje, moduloProgreso)
-		print("[CargadorNiveles] ServicioMisiones activado con moduloPuntaje:", moduloPuntaje and "OK" or "NIL", "moduloProgreso:", moduloProgreso and "OK" or "NIL")
 	end
 
 	-- 3. Inicializar GestorZonas si hay zonas configuradas
@@ -296,36 +291,31 @@ function CargadorNiveles.cargar(nivelID, jugador)
 
 			local callbacks = {
 				onCableCreado = function(nomA, nomB)
-					print(string.format("[CargadorNiveles.Callback] Cable creado: %s | %s", nomA, nomB))
-					print(string.format("[CargadorNiveles.Callback] misionesRef=%s puntajeRef=%s", tostring(misionesRef), tostring(puntajeRef)))
-					if misionesRef and misionesRef.estaActivo() then
-						print("[CargadorNiveles.Callback] -> Notificando a ServicioMisiones")
-						misionesRef.alCrearCable(nomA, nomB)
-					else
-						print("[CargadorNiveles.Callback] -> ServicioMisiones no activo")
-					end
+					-- PRIMERO registrar en puntaje (para que el conteo esté actualizado)
 					if puntajeRef then
-						print("[CargadorNiveles.Callback] -> Notificando a ServicioPuntaje")
 						puntajeRef:registrarConexion(jugadorRef)
+					end
+					-- LUEGO verificar misiones (puede disparar victoria)
+					if misionesRef and misionesRef.estaActivo() then
+						misionesRef.alCrearCable(nomA, nomB)
 					end
 				end,
 				onCableEliminado = function(nomA, nomB)
-					print(string.format("[CargadorNiveles.Callback] Cable eliminado: %s | %s", nomA, nomB))
-					if misionesRef and misionesRef.estaActivo() then
-						misionesRef.alEliminarCable(nomA, nomB)
-					end
+					-- PRIMERO registrar en puntaje
 					if puntajeRef then
 						puntajeRef:registrarDesconexion(jugadorRef)
 					end
+					-- LUEGO verificar misiones
+					if misionesRef and misionesRef.estaActivo() then
+						misionesRef.alEliminarCable(nomA, nomB)
+					end
 				end,
 				onNodoSeleccionado = function(nomNodo)
-					print(string.format("[CargadorNiveles.Callback] Nodo seleccionado: %s", nomNodo))
 					if misionesRef and misionesRef.estaActivo() then
 						misionesRef.alSeleccionarNodo(nomNodo)
 					end
 				end,
 				onFalloConexion = function()
-					print("[CargadorNiveles.Callback] Fallo de conexion")
 					if puntajeRef then
 						puntajeRef:registrarFallo(jugadorRef)
 					end
@@ -334,7 +324,6 @@ function CargadorNiveles.cargar(nivelID, jugador)
 
 			moduloCables.activar(nivelActual, adyacencias, jugador, nivelID, callbacks)
 			sistemasActivados = true
-			print("[CargadorNiveles] ConectarCables activado")
 		end
 	end
 

@@ -247,8 +247,6 @@ local function crearCable(selector1, selector2)
 				
 				-- Registrar en validador centralizado
 				ValidadorConexiones.eliminarConexion(nomA, nomB)
-				
-				print("[ConectarCables] Cable desconectado:", cable.clave)
 				break
 			end
 		end
@@ -269,8 +267,6 @@ local function crearCable(selector1, selector2)
 	
 	-- Registrar en validador centralizado
 	ValidadorConexiones.registrarConexion(selector1.Parent, selector2.Parent, beam)
-	
-	print("[ConectarCables] Cable creado:", clave)
 end
 
 local function eliminarCable(indice)
@@ -563,6 +559,12 @@ function ConectarCables.conectarNodos(nombreNodoA, nombreNodoB, jugador)
 		-- Registrar en validador centralizado
 		ValidadorConexiones.eliminarConexion(nomA, nomB)
 		
+		-- Actualizar estado de conexiones del cliente
+		local actualizarEstadoEvento = Remotos:FindFirstChild("ActualizarEstadoConexiones")
+		if actualizarEstadoEvento then
+			actualizarEstadoEvento:FireClient(jugador, "desconectar", nomA, nomB)
+		end
+		
 		print("[ConectarCables] Cable desconectado desde mapa:", nomA, "|", nomB)
 		return true
 	end
@@ -577,11 +579,11 @@ function ConectarCables.conectarNodos(nombreNodoA, nombreNodoB, jugador)
 			notificarEvento:FireClient(jugador, "ConexionInvalida", selectorB.Parent)
 		end
 		
+		-- Llamar callback onFalloConexion para registrar el fallo
 		if _callbacks and _callbacks.onFalloConexion then
 			_callbacks.onFalloConexion()
 		end
 		
-		print("[ConectarCables] Fallo desde mapa (" .. tipoError .. "):", nombreNodoA, "->", nombreNodoB)
 		return false
 	end
 	
@@ -593,7 +595,17 @@ function ConectarCables.conectarNodos(nombreNodoA, nombreNodoB, jugador)
 		notificarEvento:FireClient(jugador, "ConexionCompletada", nombreNodoA, nombreNodoB)
 	end
 	
-	print("[ConectarCables] Conexión creada desde mapa:", nombreNodoA, "|", nombreNodoB)
+	-- Llamar callback onCableCreado para registrar el acierto
+	if _callbacks and _callbacks.onCableCreado then
+		_callbacks.onCableCreado(nombreNodoA, nombreNodoB)
+	end
+	
+	-- Actualizar estado de conexiones del cliente
+	local actualizarEstadoEvento = Remotos:FindFirstChild("ActualizarEstadoConexiones")
+	if actualizarEstadoEvento then
+		actualizarEstadoEvento:FireClient(jugador, "conectar", nombreNodoA, nombreNodoB)
+	end
+	
 	return true
 end
 

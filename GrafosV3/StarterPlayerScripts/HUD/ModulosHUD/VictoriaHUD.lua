@@ -141,7 +141,15 @@ function VictoriaHUD.mostrar(snapshotVictoria)
 		local tiempoSegundos = snapshotVictoria.tiempo or 0
 		fijarValorStat("FilaTiempo", string.format("%d:%02d", math.floor(tiempoSegundos / 60), tiempoSegundos % 60))
 		
-		fijarValorStat("FilaAciertos", tostring(snapshotVictoria.aciertos or snapshotVictoria.conexiones or 0))
+		-- Cambiar label de "Aciertos" a "Conexiones"
+			local filaAciertos = victoriaStats:FindFirstChild("FilaAciertos")
+			if filaAciertos then
+				local labelKey = filaAciertos:FindFirstChild("K")
+				if labelKey and labelKey:IsA("TextLabel") then
+					labelKey.Text = "Conexiones"
+				end
+			end
+			fijarValorStat("FilaAciertos", tostring(snapshotVictoria.aciertos or snapshotVictoria.conexiones or 0))
 		fijarValorStat("FilaErrores", tostring(snapshotVictoria.fallos or 0))
 		fijarValorStat("FilaPuntaje", tostring(snapshotVictoria.puntajeBase or 0))
 	else
@@ -154,12 +162,6 @@ function VictoriaHUD.mostrar(snapshotVictoria)
 	end
 
 	victoriaFondo.Visible = true
-	
-	print(string.format("[VictoriaHUD] 🏆 Victoria | aciertos=%s fallos=%s puntaje=%s tiempo=%s",
-		tostring(snapshotVictoria and (snapshotVictoria.aciertos or snapshotVictoria.conexiones) or "?"),
-		tostring(snapshotVictoria and snapshotVictoria.fallos or "?"),
-		tostring(snapshotVictoria and snapshotVictoria.puntajeBase or "?"),
-		tostring(snapshotVictoria and snapshotVictoria.tiempo or "?")))
 end
 
 return VictoriaHUD

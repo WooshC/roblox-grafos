@@ -49,6 +49,18 @@ function EstadoConexiones.inicializar(configNivel)
 			end
 		end)
 	end
+	
+	-- Nuevo evento específico para actualización de estado de conexiones
+	local actualizarEstadoEvento = Remotos:FindFirstChild("ActualizarEstadoConexiones")
+	if actualizarEstadoEvento then
+		actualizarEstadoEvento.OnClientEvent:Connect(function(accion, nodoA, nodoB)
+			if accion == "conectar" then
+				EstadoConexiones.registrarConexion(nodoA, nodoB)
+			elseif accion == "desconectar" then
+				EstadoConexiones.eliminarConexion(nodoA, nodoB)
+			end
+		end)
+	end
 end
 
 function EstadoConexiones.limpiar()

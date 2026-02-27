@@ -439,7 +439,15 @@ function actualizarSidebar(datosNivel)
 			actualizarStat("StatStatus", datosNivel.status == "completado" and "✓ Completado"
 				or datosNivel.status == "disponible" and "Disponible"
 				or "🔒 Bloqueado")
-			actualizarStat("StatAciert", tostring(datosNivel.aciertos or 0))
+			-- Cambiar label a "Conexiones"
+				local statAciert = infoBody:FindFirstChild("StatAciert")
+				if statAciert then
+					local lblAciert = statAciert:FindFirstChild("Label")
+					if lblAciert and lblAciert:IsA("TextLabel") then
+						lblAciert.Text = "Conexiones"
+					end
+				end
+				actualizarStat("StatAciert", tostring(datosNivel.aciertos or 0))
 			actualizarStat("StatFallos", tostring(datosNivel.fallos or 0))
 			actualizarStat("StatTiempo", formatearTiempo(datosNivel.tiempoMejor or 0))
 			actualizarStat("StatInten", tostring(datosNivel.intentos or 0))
