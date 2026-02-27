@@ -277,30 +277,30 @@ local function crearTarjetaNivel(datosNivel, columna, fila, parent)
 		ZIndex = 7,
 	}, footer)
 	
-	-- Interacciones
-	if estado ~= "bloqueado" then
-		tarjeta.MouseButton1Click:Connect(function()
-			if cargando then return end
-			nivelSeleccionado = idNivel
-			actualizarSidebar(datosNivel)
-			
-			-- Actualizar borde de seleccion
-			for _, hijo in ipairs(parent:GetDescendants()) do
-				if hijo:IsA("TextButton") and hijo.Name:match("Card%d+") then
-					local bordeInst = hijo:FindFirstChildOfClass("UIStroke")
-					if bordeInst then
-						local esSeleccionada = hijo == tarjeta
-						local idTarjeta = tonumber(hijo.Name:match("Card(%d+)"))
-						local datosTarjeta = datosNiveles[tostring(idTarjeta)]
-						local colorCompletado = datosTarjeta and datosTarjeta.status == "completado" and COLORES.oro or COLORES.borde
-						
-						bordeInst.Color = esSeleccionada and COLORES.accent or colorCompletado
-						bordeInst.Thickness = esSeleccionada and 2 or 1
-					end
+	-- Interacciones (permitir ver detalles en todos los niveles)
+	tarjeta.MouseButton1Click:Connect(function()
+		if cargando then return end
+		nivelSeleccionado = idNivel
+		actualizarSidebar(datosNivel)
+		
+		-- Actualizar borde de seleccion
+		for _, hijo in ipairs(parent:GetDescendants()) do
+			if hijo:IsA("TextButton") and hijo.Name:match("Card%d+") then
+				local bordeInst = hijo:FindFirstChildOfClass("UIStroke")
+				if bordeInst then
+					local esSeleccionada = hijo == tarjeta
+					local idTarjeta = tonumber(hijo.Name:match("Card(%d+)"))
+					local datosTarjeta = datosNiveles[tostring(idTarjeta)]
+					local colorCompletado = datosTarjeta and datosTarjeta.status == "completado" and COLORES.oro or COLORES.borde
+					
+					bordeInst.Color = esSeleccionada and COLORES.accent or colorCompletado
+					bordeInst.Thickness = esSeleccionada and 2 or 1
 				end
 			end
-		end)
-		
+		end
+	end)
+	
+	if estado ~= "bloqueado" then
 		tarjeta.MouseEnter:Connect(function()
 			tween(tarjeta, {BackgroundColor3 = Color3.fromRGB(51, 65, 85)}, 0.2)
 		end)
@@ -309,8 +309,16 @@ local function crearTarjetaNivel(datosNivel, columna, fila, parent)
 			tween(tarjeta, {BackgroundColor3 = COLORES.panel}, 0.2)
 		end)
 	else
+		-- Niveles bloqueados: permitir hover suave pero diferente
+		tarjeta.MouseEnter:Connect(function()
+			tween(tarjeta, {BackgroundColor3 = Color3.fromRGB(25, 35, 55)}, 0.2)
+		end)
+		
+		tarjeta.MouseLeave:Connect(function()
+			tween(tarjeta, {BackgroundColor3 = Color3.fromRGB(15, 23, 42)}, 0.2)
+		end)
 		tarjeta.BackgroundColor3 = Color3.fromRGB(15, 23, 42)
-		tarjeta.BackgroundTransparency = 0.5
+		tarjeta.BackgroundTransparency = 0.3
 	end
 	
 	return tarjeta

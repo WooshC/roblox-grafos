@@ -8,9 +8,21 @@ local ServerStorage = game:GetService("ServerStorage")
 local Workspace = game:GetService("Workspace")
 local Replicado = game:GetService("ReplicatedStorage")
 local Jugadores = game:GetService("Players")
+local ServerScriptService = game:GetService("ServerScriptService")
 
 -- Configuracion de niveles
 local LevelsConfig = require(Replicado:WaitForChild("Config"):WaitForChild("LevelsConfig"))
+
+-- Sistemas de gameplay (se cargan bajo demanda)
+local ConectarCables = nil
+local function obtenerConectarCables()
+	if not ConectarCables then
+		local sistemasFolder = ServerScriptService:WaitForChild("SistemasGameplay")
+		local modulo = sistemasFolder:WaitForChild("ConectarCables")
+		ConectarCables = require(modulo)
+	end
+	return ConectarCables
+end
 
 -- Eventos
 local Eventos = Replicado:WaitForChild("EventosGrafosV3")
@@ -23,6 +35,13 @@ local NOMBRE_NIVEL_ACTUAL = "NivelActual"
 -- DESCARGAR NIVEL ACTUAL
 -- ═══════════════════════════════════════════════════════════════════════════════
 function CargadorNiveles.descargar()
+	-- Desactivar sistemas de gameplay primero
+	local moduloCables = obtenerConectarCables()
+	if moduloCables and moduloCables.estaActivo() then
+		moduloCables.desactivar()
+		print("[CargadorNiveles] ConectarCables desactivado")
+	end
+	
 	local existente = Workspace:FindFirstChild(NOMBRE_NIVEL_ACTUAL)
 	if existente then
 		existente:Destroy()
@@ -91,11 +110,26 @@ function CargadorNiveles.cargar(nivelID, jugador)
 		CargadorNiveles.cargarPersonaje(jugador, nivelActual)
 	end
 	
+	-- Activar sistemas de gameplay
+	local sistemasActivados = false
+	
+	-- Activar ConectarCables si hay adyacencias configuradas
+	local moduloCables = obtenerConectarCables()
+	if moduloCables then
+		local adyacencias = config.Adyacencias
+		if adyacencias and next(adyacencias) then
+			moduloCables.activar(nivelActual, adyacencias, jugador)
+			sistemasActivados = true
+			print("[CargadorNiveles] ConectarCables activado")
+		end
+	end
+	
 	-- Notificar al cliente
 	nivelListoEvento:FireClient(jugador, {
 		nivelID = nivelID,
 		nombre = config.Nombre,
 		algoritmo = config.Algoritmo,
+		sistemasActivados = sistemasActivados
 	})
 	
 	return true

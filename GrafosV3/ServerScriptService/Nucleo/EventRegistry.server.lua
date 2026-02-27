@@ -24,8 +24,9 @@ local EVENTOS_REMOTOS = {
 	{ nombre = "VolverAlMenu",           tipo = "RemoteEvent" },      -- Cliente -> Server (salir del nivel)
 	
 	-- Gameplay - Cableado
-	{ nombre = "CableDragEvent",         tipo = "RemoteEvent" },      -- Cliente -> Server (arrastrar cable)
-	{ nombre = "NotificarSeleccionNodo", tipo = "RemoteEvent" },      -- Server -> Cliente (nodo seleccionado)
+	{ nombre = "CableDragEvent",         tipo = "RemoteEvent" },      -- Server -> Cliente (preview arrastre)
+	{ nombre = "NotificarSeleccionNodo", tipo = "RemoteEvent" },      -- Server -> Cliente (efectos nodo)
+	{ nombre = "PulsoEvent",             tipo = "RemoteEvent" },      -- Server -> Cliente (pulso energia cable)
 	
 	-- Gameplay - Puntuacion
 	{ nombre = "ActualizarPuntuacion",   tipo = "RemoteEvent" },      -- Server -> Cliente (puntos en tiempo real)
@@ -67,7 +68,6 @@ local function asegurarEvento(parent, nombre, tipo)
 	local evento = Instance.new(tipo)
 	evento.Name = nombre
 	evento.Parent = parent
-	print("[EventRegistry] Creado:", tipo, "/", nombre)
 	return evento
 end
 
