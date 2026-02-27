@@ -25,11 +25,35 @@ local PuntajeHUD = require(ModulosHUD.PuntajeHUD)
 local PanelMisionesHUD = require(ModulosHUD.PanelMisionesHUD)
 local VictoriaHUD = require(ModulosHUD.VictoriaHUD)
 
+-- Cargar ModuloMapa con protección de errores
+local ModuloMapa = nil
+local exitoMapa, resultadoMapa = pcall(function()
+	return require(ModulosHUD.ModuloMapa)
+end)
+if exitoMapa then
+	ModuloMapa = resultadoMapa
+else
+	warn("[ControladorHUD] Error al cargar ModuloMapa:", resultadoMapa)
+end
+
+-- Cargar configuración de niveles
+local LevelsConfig = require(RS:WaitForChild("Config"):WaitForChild("LevelsConfig"))
+
 -- Inicializar módulos con referencia al hud
 TransicionHUD.reset()
 PuntajeHUD.init(hudGui)
 PanelMisionesHUD.init(hudGui)
 VictoriaHUD.init(hudGui)
+
+-- Inicializar ModuloMapa con protección
+if ModuloMapa then
+	local exitoInit, errInit = pcall(function()
+		ModuloMapa.inicializar(hudGui)
+	end)
+	if not exitoInit then
+		warn("[ControladorHUD] Error al inicializar ModuloMapa:", errInit)
+	end
+end
 
 -- Estado del HUD
 local hudActivo = false
@@ -56,6 +80,14 @@ local function desactivarHUD()
 	hudActivo = false
 	hudGui.Enabled = false
 	VictoriaHUD.ocultar()
+	if ModuloMapa then
+		local exitoLimp, errLimp = pcall(function()
+			ModuloMapa.limpiar()
+		end)
+		if not exitoLimp then
+			warn("[ControladorHUD] Error al limpiar ModuloMapa:", errLimp)
+		end
+	end
 	print("[ControladorHUD] HUD desactivado")
 end
 
@@ -72,6 +104,20 @@ EventosHUD.nivelListo.OnClientEvent:Connect(function(data)
 	
 	-- Activar HUD
 	activarHUD()
+	
+	-- Configurar el mapa con el nivel actual
+	local nivelID = jugador:GetAttribute("CurrentLevelID") or 0
+	local nivelActual = workspace:FindFirstChild("NivelActual")
+	local configNivel = LevelsConfig[nivelID]
+	
+	if nivelActual and ModuloMapa then
+		local exitoConfig, errConfig = pcall(function()
+			ModuloMapa.configurarNivel(nivelActual, nivelID, configNivel)
+		end)
+		if not exitoConfig then
+			warn("[ControladorHUD] Error al configurar nivel en ModuloMapa:", errConfig)
+		end
+	end
 	
 	-- Forzar cámara Custom (seguridad)
 	workspace.CurrentCamera.CameraType = Enum.CameraType.Custom

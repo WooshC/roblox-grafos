@@ -497,4 +497,79 @@ function ConectarCables.estaActivo()
 	return _activo
 end
 
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- CONEXIÓN DESDE EL MAPA (API pública para el mapa cenital)
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+function ConectarCables.conectarNodos(nombreNodoA, nombreNodoB, jugador)
+	if not _activo then
+		warn("[ConectarCables] conectarNodos ignorado - sistema no activo")
+		return false
+	end
+	
+	if not _lookupAdyacencias then
+		warn("[ConectarCables] conectarNodos ignorado - no hay adyacencias")
+		return false
+	end
+	
+	-- Obtener selectores por nombre
+	local selectorA = _selectoresPorNombre[nombreNodoA]
+	local selectorB = _selectoresPorNombre[nombreNodoB]
+	
+	if not selectorA or not selectorB then
+		warn("[ConectarCables] Selector no encontrado:", nombreNodoA, "o", nombreNodoB)
+		return false
+	end
+	
+	-- Verificar si ya están conectados (toggle desconexión)
+	local indice = buscarCable(nombreNodoA, nombreNodoB)
+	if indice then
+		-- Desconectar
+		local cable = _cables[indice]
+		local nomA, nomB = cable.nomA, cable.nomB
+		eliminarCable(indice)
+		
+		local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
+		if notificarEvento then
+			notificarEvento:FireClient(jugador, "CableDesconectado", nomA, nomB)
+		end
+		
+		if _callbacks and _callbacks.onCableEliminado then
+			_callbacks.onCableEliminado(nomA, nomB)
+		end
+		
+		print("[ConectarCables] Cable desconectado desde mapa:", nomA, "|", nomB)
+		return true
+	end
+	
+	-- Verificar adyacencia
+	if not esAdyacente(nombreNodoA, nombreNodoB) then
+		-- Error: no son adyacentes
+		local tipoError = esAdyacente(nombreNodoB, nombreNodoA) and "DireccionInvalida" or "ConexionInvalida"
+		
+		local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
+		if notificarEvento then
+			notificarEvento:FireClient(jugador, "ConexionInvalida", selectorB.Parent)
+		end
+		
+		if _callbacks and _callbacks.onFalloConexion then
+			_callbacks.onFalloConexion()
+		end
+		
+		print("[ConectarCables] Fallo desde mapa (" .. tipoError .. "):", nombreNodoA, "->", nombreNodoB)
+		return false
+	end
+	
+	-- Crear la conexión
+	crearCable(selectorA, selectorB)
+	
+	local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
+	if notificarEvento then
+		notificarEvento:FireClient(jugador, "ConexionCompletada", nombreNodoA, nombreNodoB)
+	end
+	
+	print("[ConectarCables] Conexión creada desde mapa:", nombreNodoA, "|", nombreNodoB)
+	return true
+end
+
 return ConectarCables
