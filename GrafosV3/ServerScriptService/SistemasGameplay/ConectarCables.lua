@@ -16,6 +16,9 @@ local Remotos = Eventos:WaitForChild("Remotos")
 -- Configuracion de niveles para nombres
 local LevelsConfig = require(Replicado:WaitForChild("Config"):WaitForChild("LevelsConfig"))
 
+-- Validador de conexiones centralizado
+local ValidadorConexiones = require(script.Parent:WaitForChild("ValidadorConexiones"))
+
 -- Estado interno
 local _activo = false
 local _nivel = nil
@@ -242,6 +245,9 @@ local function crearCable(selector1, selector2)
 					_callbacks.onCableEliminado(nomA, nomB)
 				end
 				
+				-- Registrar en validador centralizado
+				ValidadorConexiones.eliminarConexion(nomA, nomB)
+				
 				print("[ConectarCables] Cable desconectado:", cable.clave)
 				break
 			end
@@ -260,6 +266,9 @@ local function crearCable(selector1, selector2)
 	if _callbacks and _callbacks.onCableCreado then
 		_callbacks.onCableCreado(nomA, nomB)
 	end
+	
+	-- Registrar en validador centralizado
+	ValidadorConexiones.registrarConexion(selector1.Parent, selector2.Parent, beam)
 	
 	print("[ConectarCables] Cable creado:", clave)
 end
@@ -316,6 +325,9 @@ local function intentarConectar(jugador, selector1, selector2)
 		if _callbacks and _callbacks.onCableEliminado then
 			_callbacks.onCableEliminado(nomA, nomB)
 		end
+		
+		-- Registrar en validador centralizado
+		ValidadorConexiones.eliminarConexion(nomA, nomB)
 		
 		print("[ConectarCables] Cable desconectado via clic en nodos:", nomA, "|", nomB)
 		
@@ -428,6 +440,9 @@ function ConectarCables.activar(nivel, adyacencias, jugador, nivelID, callbacks)
 	_callbacks = callbacks or {}
 	_activo = true
 	
+	-- Configurar validador centralizado
+	ValidadorConexiones.configurar({ Adyacencias = adyacencias })
+	
 	local selectores = recolectarSelectores()
 	print("[ConectarCables] Activado - Nodos:", #selectores)
 	
@@ -480,6 +495,9 @@ function ConectarCables.desactivar()
 	_nivelID = nil
 	_lookupAdyacencias = nil
 	_selectoresPorNombre = {}
+	
+	-- Limpiar validador centralizado
+	ValidadorConexiones.limpiar()
 	_callbacks = nil
 	
 	print("[ConectarCables] Desactivado")
@@ -495,6 +513,10 @@ end
 
 function ConectarCables.estaActivo()
 	return _activo
+end
+
+function ConectarCables.obtenerValidador()
+	return ValidadorConexiones
 end
 
 -- ═══════════════════════════════════════════════════════════════════════════════
@@ -537,6 +559,9 @@ function ConectarCables.conectarNodos(nombreNodoA, nombreNodoB, jugador)
 		if _callbacks and _callbacks.onCableEliminado then
 			_callbacks.onCableEliminado(nomA, nomB)
 		end
+		
+		-- Registrar en validador centralizado
+		ValidadorConexiones.eliminarConexion(nomA, nomB)
 		
 		print("[ConectarCables] Cable desconectado desde mapa:", nomA, "|", nomB)
 		return true

@@ -10,6 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local EfectosNodo = require(ReplicatedStorage.Efectos.EfectosNodo)
 local EfectosMapa = require(script.Parent.EfectosMapa)
+local EstadoConexiones = require(script.Parent.EstadoConexiones)
 local PresetTween = require(ReplicatedStorage.Efectos.PresetTween)
 local LevelsConfig = require(ReplicatedStorage.Config.LevelsConfig)
 
@@ -133,8 +134,9 @@ function ModuloMapa.configurarNivel(nivelModel, id, config)
 	configNivel = config
 	selectores = {}
 
-	-- Inicializar efectos del mapa (carga nombres amigables)
-	EfectosMapa.inicializar(config)
+	-- Inicializar efectos del mapa y estado de conexiones
+	EstadoConexiones.inicializar(config)
+	EfectosMapa.inicializar(config, EstadoConexiones)
 
 	-- NOTA: No recolectamos selectores aquí para evitar interferencias
 	-- Los selectores se recolectan solo cuando se abre el mapa
@@ -605,6 +607,7 @@ function ModuloMapa.limpiar()
 	_detenerSeguimiento()
 	_detenerEscuchaInput()
 	EfectosMapa.limpiarTodo()
+	EstadoConexiones.limpiar()
 
 	-- Limpiar estado
 	nodoSeleccionadoMapa = nil

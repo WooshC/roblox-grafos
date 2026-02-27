@@ -11,6 +11,9 @@ local EfectosMapa = {}
 local nombresNodos = {}
 local partesOriginales = {} -- Guardar estado original para restaurar
 
+-- Módulo de estado de conexiones (se inicializa luego)
+local EstadoConexiones = nil
+
 -- Colores del modo mapa
 local COLORES = {
 	SELECCIONADO = Color3.fromRGB(255, 255, 255),  -- Blanco
@@ -19,16 +22,15 @@ local COLORES = {
 	AISLADO = Color3.fromRGB(239, 68, 68),         -- Rojo
 }
 
-function EfectosMapa.inicializar(configNivel)
+function EfectosMapa.inicializar(configNivel, estadoConexionesModulo)
 	nombresNodos = {}
 	if configNivel and configNivel.NombresNodos then
 		nombresNodos = configNivel.NombresNodos
 	end
+	EstadoConexiones = estadoConexionesModulo
 end
 
 function EfectosMapa.limpiarTodo()
-	print("[EfectosMapa] Limpiando todo. Partes a restaurar:", #partesOriginales)
-	
 	-- Restaurar todas las partes a su estado original
 	for _, data in ipairs(partesOriginales) do
 		if data.parte and data.parte.Parent then
@@ -58,6 +60,12 @@ function EfectosMapa.obtenerNombreAmigable(nombreNodo)
 end
 
 function EfectosMapa.esNodoConectado(nodo)
+	-- Usar el módulo de estado si está disponible
+	if EstadoConexiones and EstadoConexiones.tieneConexiones then
+		return EstadoConexiones.tieneConexiones(nodo.Name)
+	end
+	
+	-- Fallback: buscar en el modelo
 	local connections = nodo:FindFirstChild("Connections")
 	if connections and #connections:GetChildren() > 0 then
 		return true
@@ -138,7 +146,7 @@ function EfectosMapa.aplicarColor(nodo, color, esSeleccionado)
 	-- Aplicar color y material
 	parte.Color = color
 	parte.Material = Enum.Material.Neon
-	parte.Transparency = 0.3
+	parte.Transparency = 0.0
 	
 	-- Encontrar el tamaño original guardado
 	local tamanoBase = nil
@@ -156,8 +164,6 @@ function EfectosMapa.aplicarColor(nodo, color, esSeleccionado)
 	
 	-- Aplicar tamaño: base si no está seleccionado, 1.2x si está seleccionado
 	local tamanoObjetivo = esSeleccionado and (tamanoBase * 1.2) or tamanoBase
-	
-	print("[EfectosMapa] Aplicando tamaño a:", nodo.Name, "Base:", tamanoBase, "Objetivo:", tamanoObjetivo, "Actual:", parte.Size, "Seleccionado:", esSeleccionado)
 	
 	-- Cancelar tween existente si hay uno
 	if parte:IsA("BasePart") then
@@ -227,8 +233,6 @@ function EfectosMapa.crearBillboard(nodo)
 end
 
 function EfectosMapa.actualizarTodos(nivelActual, nodoSeleccionado, adyacentes)
-	print("[EfectosMapa] Actualizando efectos... nivel:", nivelActual and "OK" or "NIL")
-	
 	if not nivelActual then 
 		warn("[EfectosMapa] nivelActual es nil")
 		return 
@@ -259,25 +263,19 @@ function EfectosMapa.actualizarTodos(nivelActual, nodoSeleccionado, adyacentes)
 				local color
 				if esSeleccionado then
 					color = COLORES.SELECCIONADO
-					print("[EfectosMapa] Nodo", nombre, "-> SELECCIONADO (blanco)")
 				elseif esAdyacente then
 					color = COLORES.ADYACENTE
-					print("[EfectosMapa] Nodo", nombre, "-> ADYACENTE (dorado)")
 				elseif conectado then
 					color = COLORES.CONECTADO
-					print("[EfectosMapa] Nodo", nombre, "-> CONECTADO (cyan)")
 				else
 					color = COLORES.AISLADO
-					print("[EfectosMapa] Nodo", nombre, "-> AISLADO (rojo)")
 				end
 				
-				-- Aplicar color a la parte
+					-- Aplicar color a la parte
 				EfectosMapa.aplicarColor(nodo, color, esSeleccionado)
 			end
 		end
 	end
-	
-	print("[EfectosMapa] Efectos actualizados para", conteoNodos, "nodos")
 end
 
 return EfectosMapa
