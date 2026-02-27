@@ -1,7 +1,6 @@
 -- HUDController.client.lua
 -- Orquestador puro - solo conecta eventos y delega
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
@@ -13,9 +12,7 @@ if not hud then warn("[HUDController] GUIExploradorV2 no encontrado"); return en
 if hud:GetAttribute("HUDControllerActive") then return end
 hud:SetAttribute("HUDControllerActive", true)
 
--- ================================================================
--- Importar módulos locales (StarterPlayerScripts)
--- ================================================================
+-- Importar módulos
 local HUDModules = script.Parent.HUDModules
 local HUDEvents = require(HUDModules.HUDEvents)
 local HUDFade = require(HUDModules.HUDFade)
@@ -24,18 +21,12 @@ local HUDModal = require(HUDModules.HUDModal)
 local HUDMisionPanel = require(HUDModules.HUDMisionPanel)
 local HUDVictory = require(HUDModules.HUDVictory)
 
--- ================================================================
--- FIX: HUDMapa ahora está en HUDModules, no en ReplicatedStorage
--- ================================================================
-local HUDMapa = require(HUDModules.HUDMapa.init)
-
 -- Inicializar módulos con referencia al hud
 HUDFade.init(hud)
 HUDScore.init(hud)
 HUDModal.init(hud, HUDFade)
 HUDMisionPanel.init(hud)
 HUDVictory.init(hud, HUDFade)
-HUDMapa.init(hud)
 
 -- Conectar eventos del servidor usando :Connect() en .OnClientEvent
 HUDEvents.levelReady.OnClientEvent:Connect(function(data)
@@ -50,7 +41,6 @@ end)
 
 HUDEvents.updateMissions.OnClientEvent:Connect(function(data)
 	HUDMisionPanel.rebuild(data)
-	HUDMapa.actualizarZonas(data)
 end)
 
 HUDEvents.updateScore.OnClientEvent:Connect(function(data)
