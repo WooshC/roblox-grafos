@@ -57,8 +57,19 @@ function OrquestadorGameplayCliente:inicializar()
 		nucleoHUD
 	)
 	
-	SISTEMAS.visualFx = nucleoVisual and nucleoVisual:IsA("ModuleScript") and 
-	                    cargarSistemaSeguro({"VisualEffectsService"}, script.Parent)
+	-- NUEVO: Usar ControladorEfectosVisuales refactorizado
+	SISTEMAS.efectosVisuales = cargarSistemaSeguro(
+		{"ControladorEfectosVisuales", "VisualEffectsService"},
+		script.Parent
+	)
+	
+	-- Fallback al sistema antiguo si existe
+	if not SISTEMAS.efectosVisuales and nucleoVisual then
+		SISTEMAS.efectosVisuales = cargarSistemaSeguro(
+			{"VisualEffectsService"},
+			script.Parent
+		)
+	end
 	
 	SISTEMAS.misiones = cargarSistemaSeguro(
 		{"HUDMisionPanel", "MisionPanel"},
@@ -78,7 +89,7 @@ function OrquestadorGameplayCliente:inicializar()
 	-- Reportar
 	print("[OrquestadorGameplayCliente] Sistemas cargados:")
 	print("  - HUD Fade: " .. (SISTEMAS.hud and "✅" or "❌"))
-	print("  - Efectos Visuales: " .. (SISTEMAS.visualFx and "✅" or "❌"))
+	print("  - Efectos Visuales: " .. (SISTEMAS.efectosVisuales and "✅" or "❌"))
 	print("  - Misiones: " .. (SISTEMAS.misiones and "✅" or "❌"))
 	print("  - Puntaje: " .. (SISTEMAS.puntaje and "✅" or "❌"))
 	print("  - Victoria: " .. (SISTEMAS.victoria and "✅" or "❌"))
@@ -114,13 +125,14 @@ function OrquestadorGameplayCliente:iniciarGameplay(idNivel, datosNivel)
 		end
 	end
 	
-	-- 2. Limpiar cualquier efecto visual previo
-	if SISTEMAS.visualFx then
-		pcall(function()
-			if SISTEMAS.visualFx.clearAll then
-				SISTEMAS.visualFx.clearAll()
-			end
+	-- 2. Activar efectos visuales (limpiara cualquier cosa previa)
+	if SISTEMAS.efectosVisuales then
+		local exito, error = pcall(function()
+			SISTEMAS.efectosVisuales:activar()
 		end)
+		if not exito then
+			warn("[OrquestadorGameplayCliente] Error activando efectos visuales:", error)
+		end
 	end
 	
 	-- 3. Configurar camara de gameplay
@@ -153,13 +165,14 @@ function OrquestadorGameplayCliente:detenerGameplay()
 	end
 	CONEXIONES = {}
 	
-	-- 2. Limpiar efectos visuales (highlights, billboards, etc.)
-	if SISTEMAS.visualFx then
-		pcall(function()
-			if SISTEMAS.visualFx.clearAll then
-				SISTEMAS.visualFx.clearAll()
-			end
+	-- 2. Desactivar efectos visuales (limpieza completa)
+	if SISTEMAS.efectosVisuales then
+		local exito, error = pcall(function()
+			SISTEMAS.efectosVisuales:desactivar()
 		end)
+		if not exito then
+			warn("[OrquestadorGameplayCliente] Error desactivando efectos visuales:", error)
+		end
 	end
 	
 	-- 3. Resetear HUD

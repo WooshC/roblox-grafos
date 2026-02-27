@@ -467,10 +467,20 @@ return GestorColisiones
 
 ## Plan de Migracion Paso a Paso
 
-### Fase 1: Preparacion (Sin cambiar comportamiento)
-1. Crear `OrquestadorGameplay` vacio que solo loguea
-2. Crear `OrquestadorGameplayCliente` vacio
-3. Verificar que todo sigue funcionando igual
+### ✅ Fase 1: Preparacion - COMPLETADA
+1. ✅ Crear `OrquestadorGameplay` - Controla activacion/desactivacion de modulos servidor
+2. ✅ Crear `OrquestadorGameplayCliente` - Controla activacion/desactivacion de sistemas cliente
+3. ✅ Crear `SistemaCamara` - Unificacion de control de camara
+4. ✅ Crear `GestorColisiones` - Unificacion de gestion de techos
+5. ✅ Modificar `Boot.server.lua` para usar OrquestadorGameplay
+6. ✅ Modificar `ClientBoot.lua` para usar OrquestadorGameplayCliente
+
+### ✅ Fase 2: Migracion de Efectos Visuales - COMPLETADA
+1. ✅ Crear `ControladorEfectosVisuales` con `activar()` y `desactivar()`
+2. ✅ Integrar en `OrquestadorGameplayCliente`
+3. ✅ Actualizar `HUDMapa/init.lua` para usar nuevos sistemas
+
+### 🔄 Fase 3: Migracion de Camara y Colisiones - EN PROGRESO
 
 ### Fase 2: Migracion Servidor
 4. Mover `ConectarCables` → `ModuloConexionCables` con contrato activar/desactivar
