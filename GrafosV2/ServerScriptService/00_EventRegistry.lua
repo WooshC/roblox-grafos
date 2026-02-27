@@ -29,15 +29,10 @@ local EXPECTED_REMOTES = {
 	{ name = "ServerReady",            class = "RemoteEvent" },
 	{ name = "ReturnToMenu",           class = "RemoteEvent" },
 	{ name = "LevelUnloaded",          class = "RemoteEvent" },
-	{ name = "UpdateMissions",         class = "RemoteEvent" },
-	-- 🔥 NUEVO: Para clicks desde modo mapa
-	{ name = "MapaClickNodo",          class = "RemoteEvent" },
-	-- 🔥 NUEVO: Para actualizar estado de zonas en el mapa
-	{ name = "UpdateZones",            class = "RemoteEvent" },
-	{ name = "RestartLevel",           class = "RemoteEvent" },
+	{ name = "UpdateMissions",         class = "RemoteEvent" },  -- MissionService → cliente
+	{ name = "LevelCompleted",         class = "RemoteEvent" },  -- victoria → VictoriaFondo
+	{ name = "RestartLevel",           class = "RemoteEvent" },  -- cliente → servidor: reiniciar
 }
-
--- Nota: "LevelCompleted" estaba duplicado en tu lista, lo dejé una sola vez
 
 local EXPECTED_BINDABLES = {
 	{ name = "ServerReady",       class = "BindableEvent" },
@@ -50,9 +45,6 @@ local EXPECTED_BINDABLES = {
 	{ name = "OpenMenu",          class = "BindableEvent" },
 	{ name = "GuiaAvanzar",       class = "BindableEvent" },
 	{ name = "RestaurarObjetos",  class = "BindableEvent" },
-	{ name = "ForceCloseMap",     class = "BindableEvent" },
-	{ name = "ShowRoof",          class = "BindableEvent" },
-	{ name = "RestoreRoof",       class = "BindableEvent" },
 }
 
 -- ── Helpers ──────────────────────────────────────────────────────────────────

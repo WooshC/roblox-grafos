@@ -1,60 +1,58 @@
 -- init.lua
--- API publica de HUDMapa - orquestador principal
--- REFACTORIZADO: Ahora usa SistemaCamara y GestorColisiones unificados
+-- API pública de HUDMapa - orquestador principal
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 
--- Sub-modulos
-local GestorZonas = require(script.Parent.ZoneManager)
-local GestorNodos = require(script.Parent.NodeManager)
-local GestorEntrada = require(script.Parent.InputManager)
+-- Sub-módulos
+local ZoneManager = require(script.Parent.ZoneManager)
+local NodeManager = require(script.Parent.NodeManager)
+local CameraManager = require(script.Parent.CameraManager)
+local InputManager = require(script.Parent.InputManager)
 
--- NUEVO: Sistemas unificados desde ReplicatedStorage.Compartido
-local SistemaCamara = require(ReplicatedStorage:WaitForChild("Compartido", 5):WaitForChild("SistemaCamara", 5))
-local GestorColisiones = require(ReplicatedStorage:WaitForChild("Compartido", 5):WaitForChild("GestorColisiones", 5))
-
--- Effects (legacy - deprecado gradualmente)
-local EfectosNodo = require(ReplicatedStorage.Effects.NodeEffects)
+-- Effects
+local CameraEffects = require(ReplicatedStorage.Effects.CameraEffects)
 
 local HUDMapa = {}
 
 -- Estado
-HUDMapa.mapaAbierto = false
-local jugador = Players.LocalPlayer
-local camara = workspace.CurrentCamera
+local isMapaAbierto = false
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
 
 -- Referencias UI
-local hudPadre = nil
-local marcoMapa = nil
-local botonMapa = nil
-local botonCerrarMapa = nil
+local parentHud = nil
+local mapaFrame = nil
+local btnMapa = nil
+local btnCerrarMapa = nil
 
--- Configuracion
+-- Configuración
 local CONFIG = {
 	alturaCamara = 80,
 	velocidadTween = 0.4
 }
 
 -- Referencias externas
-local PanelMisionesHUD = nil
-local eventoClickMapa = nil
-local ConfiguracionNiveles = nil
+local HUDMisionPanel = nil
+local mapaClickEvent = nil
+local LevelsConfig = nil
 
--- ═══════════════════════════════════════════════════════════════════════════════
--- INICIALIZACION
--- ═══════════════════════════════════════════════════════════════════════════════
+-- ================================================================
+-- INICIALIZACIÓN
+-- ================================================================
+
 function HUDMapa.init(hudRef, deps)
-	hudPadre = hudRef
-	PanelMisionesHUD = deps and deps.HUDMisionPanel
+	parentHud = hudRef
+	HUDMisionPanel = deps and deps.HUDMisionPanel
 
 	-- UI
-	marcoMapa = hudPadre:FindFirstChild("PantallaMapaGrande", true)
-	botonMapa = hudPadre:FindFirstChild("BtnMapa", true)
-	botonCerrarMapa = hudPadre:FindFirstChild("BtnCerrarMapa", true)
+	mapaFrame = parentHud:FindFirstChild("PantallaMapaGrande", true)
+	btnMapa = parentHud:FindFirstChild("BtnMapa", true)
+	btnCerrarMapa = parentHud:FindFirstChild("BtnCerrarMapa", true)
 
 	-- Config
-	ConfiguracionNiveles = _G.LevelsConfig or require(ReplicatedStorage.Config.LevelsConfig)
+	LevelsConfig = _G.LevelsConfig or require(ReplicatedStorage.Config.LevelsConfig)
 
 	-- Evento remoto
 	task.spawn(function()
@@ -62,24 +60,22 @@ function HUDMapa.init(hudRef, deps)
 		if Events then
 			local Remotes = Events:WaitForChild("Remotes", 10)
 			if Remotes then
-				eventoClickMapa = Remotes:WaitForChild("MapaClickNodo", 10)
+				mapaClickEvent = Remotes:WaitForChild("MapaClickNodo", 10)
 			end
 		end
 	end)
 
-	-- Inicializar sub-modulos
-	if GestorNodos.init then
-		GestorNodos.init()
-	end
+	-- Inicializar managers
+	CameraManager.init({ alturaCamara = CONFIG.alturaCamara })
 
 	HUDMapa._conectarBotones()
-	print("[HUDMapa] ✅ Inicializado con SistemaCamara unificado")
+	print("[HUDMapa] Inicializado")
 end
 
 function HUDMapa._conectarBotones()
-	if botonMapa then
-		botonMapa.MouseButton1Click:Connect(function()
-			if HUDMapa.mapaAbierto then
+	if btnMapa then
+		btnMapa.MouseButton1Click:Connect(function()
+			if isMapaAbierto then
 				HUDMapa.cerrar()
 			else
 				HUDMapa.abrir()
@@ -87,152 +83,171 @@ function HUDMapa._conectarBotones()
 		end)
 	end
 
-	if botonCerrarMapa then
-		botonCerrarMapa.MouseButton1Click:Connect(HUDMapa.cerrar)
+	if btnCerrarMapa then
+		btnCerrarMapa.MouseButton1Click:Connect(HUDMapa.cerrar)
 	end
 end
 
--- ═══════════════════════════════════════════════════════════════════════════════
--- ABRIR MAPA
--- ═══════════════════════════════════════════════════════════════════════════════
-function HUDMapa.abrir()
-	if HUDMapa.mapaAbierto then return end
-	HUDMapa.mapaAbierto = true
+-- ================================================================
+-- ABRIR / CERRAR (Con manejo completo del techo)
+-- ================================================================
 
-	if botonMapa then
-		botonMapa.Text = "❌ CERRAR MAPA"
+function HUDMapa.abrir()
+	if isMapaAbierto then return end
+	isMapaAbierto = true
+
+	if btnMapa then
+		btnMapa.Text = "❌ CERRAR MAPA"
 	end
 
-	marcoMapa.Visible = true
+	mapaFrame.Visible = true
 
-	-- NUEVO: Usar SistemaCamara para cambiar a modo MAPA
+	-- Guardar cámara y cambiar a scriptable
+	CameraManager.savePlayerCamera()
+
+	-- Calcular y hacer tween a vista cenital
 	local nivelActual = workspace:FindFirstChild("NivelActual")
 	if not nivelActual then 
-		warn("[HUDMapa] No se encontro NivelActual")
+		warn("[HUDMapa] No se encontró NivelActual")
 		return 
 	end
 
-	-- Capturar y ocultar techo usando GestorColisiones
-	GestorColisiones:capturar(nivelActual)
-	GestorColisiones:ocultarTecho()
+	-- ================================================================
+	-- CAPTURAR Y OCULTAR TECHO (Integración de MapManager antiguo)
+	-- ================================================================
+	CameraManager.captureRoof(nivelActual)
+	CameraManager.hideRoof()
 
-	-- Usar SistemaCamara para vista cenital
-	SistemaCamara:establecerMapa(nivelActual, jugador)
+	local targetCFrame = CameraManager.calculateMapCFrame(nivelActual)
+	if targetCFrame then
+		CameraManager.tweenToMap(targetCFrame)
+	end
 
 	-- Inicializar managers
-	local nivelID = jugador:GetAttribute("NivelActualID") or 0
-	local nivelConfig = ConfiguracionNiveles[nivelID]
+	local nivelID = player:GetAttribute("CurrentLevelID") or 0
+	local nivelConfig = LevelsConfig[nivelID]
 
-	GestorNodos.init(nivelActual, nivelConfig)
+	NodeManager.init(nivelActual, nivelConfig)
+	CameraManager.startFollowingPlayer()
 
-	-- Zonas con delay para sincronizacion
-	local datosMisiones = PanelMisionesHUD and PanelMisionesHUD.getMissionState and PanelMisionesHUD.getMissionState()
+	-- Zonas con delay para sincronización
+	local datosMisiones = HUDMisionPanel and HUDMisionPanel.getMissionState and HUDMisionPanel.getMissionState()
 
 	task.delay(0.3, function()
-		GestorZonas.highlightAllZones(nivelActual, nivelID, datosMisiones, ConfiguracionNiveles)
+		ZoneManager.highlightAllZones(nivelActual, nivelID, datosMisiones, LevelsConfig)
 	end)
 
 	-- Input
-	GestorEntrada.init(nivelActual, HUDMapa._alClickearNodo)
-	GestorEntrada.startListening()
+	InputManager.init(nivelActual, HUDMapa._onNodeClicked)
+	InputManager.startListening()
 
-	print("[HUDMapa] ✅ Mapa abierto")
+	print("[HUDMapa] Mapa abierto - Techo oculto")
 end
 
--- ═══════════════════════════════════════════════════════════════════════════════
--- CERRAR MAPA
--- ═══════════════════════════════════════════════════════════════════════════════
 function HUDMapa.cerrar()
-	if not HUDMapa.mapaAbierto then return end
-	HUDMapa.mapaAbierto = false
+	if not isMapaAbierto then return end
+	isMapaAbierto = false
 
-	if botonMapa then
-		botonMapa.Text = "🗺️ MAPA"
+	if btnMapa then
+		btnMapa.Text = "🗺️ MAPA"
 	end
 
-	marcoMapa.Visible = false
+	mapaFrame.Visible = false
 
 	-- Limpiar managers
-	GestorZonas.cleanup()
-	SistemaCamara:establecerGameplay(jugador)  -- Volver a camara de gameplay
-	GestorEntrada.stopListening()
-	GestorNodos.clearSelection()
-	GestorNodos.resetAllSelectors()
+	ZoneManager.cleanup()
+	CameraManager.stopFollowing()
+	InputManager.stopListening()
+	NodeManager.clearSelection()
+	NodeManager.resetAllSelectors()
 
-	-- Restaurar techo
-	GestorColisiones:restaurar()
-	GestorColisiones:liberar()
+	-- ================================================================
+	-- RESTAURAR TECHO (Integración de MapManager antiguo)
+	-- ================================================================
+	CameraManager.showRoof()
 
-	print("[HUDMapa] ✅ Mapa cerrado")
+	-- Restaurar cámara
+	local original = CameraEffects.originalState
+	if original then
+		CameraManager.tweenToPlayer(original.CFrame, function()
+			camera.CameraType = original.CameraType
+			camera.CameraSubject = original.CameraSubject
+		end)
+	end
+
+	-- Resetear caché del techo para el próximo nivel
+	CameraManager.resetRoof()
+
+	print("[HUDMapa] Mapa cerrado - Techo restaurado")
 end
 
--- ═══════════════════════════════════════════════════════════════════════════════
+-- ================================================================
 -- CALLBACKS
--- ═══════════════════════════════════════════════════════════════════════════════
-function HUDMapa._alClickearNodo(poste, selectorPart)
-	local nombre = poste.Name
-	local nivelID = jugador:GetAttribute("NivelActualID") or 0
+-- ================================================================
 
-	-- Toggle seleccion
-	if EfectosNodo.selectedNode == nombre then
-		GestorNodos.clearSelection()
+function HUDMapa._onNodeClicked(poste, selectorPart)
+	local nombre = poste.Name
+	local nivelID = player:GetAttribute("CurrentLevelID") or 0
+
+	-- Toggle selección
+	if NodeEffects.selectedNode == nombre then
+		NodeManager.clearSelection()
 	else
 		-- Calcular adyacentes
 		local adyacentes = {}
-		local config = ConfiguracionNiveles[nivelID]
+		local config = LevelsConfig[nivelID]
 		if config and config.Adyacencias then
 			adyacentes = config.Adyacencias[nombre] or {}
 		end
-		GestorNodos.setSelection(nombre, adyacentes)
+		NodeManager.setSelection(nombre, adyacentes)
 	end
 
 	-- Notificar servidor
-	if eventoClickMapa then
+	if mapaClickEvent then
 		pcall(function()
-			eventoClickMapa:FireServer(selectorPart)
+			mapaClickEvent:FireServer(selectorPart)
 		end)
 	end
 end
 
--- ═══════════════════════════════════════════════════════════════════════════════
--- API PUBLICA ADICIONAL
--- ═══════════════════════════════════════════════════════════════════════════════
-function HUDMapa.actualizarZonas(datosMisiones)
-	if not HUDMapa.mapaAbierto then return end
+-- ================================================================
+-- API PÚBLICA ADICIONAL
+-- ================================================================
 
-	GestorZonas.cleanup()
+function HUDMapa.actualizarZonas(datosMisiones)
+	if not isMapaAbierto then return end
+
+	ZoneManager.cleanup()
 	local nivelActual = workspace:FindFirstChild("NivelActual")
-	local nivelID = jugador:GetAttribute("NivelActualID") or 0
+	local nivelID = player:GetAttribute("CurrentLevelID") or 0
 
 	if nivelActual then
-		GestorZonas.highlightAllZones(nivelActual, nivelID, datosMisiones, ConfiguracionNiveles)
+		ZoneManager.highlightAllZones(nivelActual, nivelID, datosMisiones, LevelsConfig)
 	end
 end
 
-function HUDMapa.estaAbierto()
-	return HUDMapa.mapaAbierto
+function HUDMapa.isOpen()
+	return isMapaAbierto
 end
 
--- Alias para compatibilidad
-HUDMapa.isOpen = HUDMapa.estaAbierto
+-- ================================================================
+-- API DE TECHO (Para compatibilidad con código antiguo)
+-- ================================================================
 
--- ═══════════════════════════════════════════════════════════════════════════════
--- API DE TECHO (Compatibilidad con codigo antiguo)
--- ═══════════════════════════════════════════════════════════════════════════════
 function HUDMapa.showRoof()
-	GestorColisiones:restaurar()
+	CameraManager.showRoof()
 end
 
 function HUDMapa.hideRoof()
-	GestorColisiones:ocultarTecho()
+	CameraManager.hideRoof()
 end
 
 function HUDMapa.restoreRoof()
-	GestorColisiones:restaurar()
+	CameraManager.showRoof()
 end
 
 function HUDMapa.resetRoofCache()
-	GestorColisiones:liberar()
+	CameraManager.resetRoof()
 end
 
 return HUDMapa

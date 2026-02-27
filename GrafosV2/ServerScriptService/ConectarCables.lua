@@ -1,6 +1,25 @@
 -- ConectarCables.lua
 -- ModuleScript servidor: SOLO lógica de conexión/desconexión entre nodos.
--- Soporta: clicks 3D normales + clicks desde modo mapa (MapaClickNodo)
+-- Los efectos visuales (SelectionBox, flash) están delegados a VisualEffectsService (cliente).
+--
+-- Estructura de nivel esperada:
+--   NivelActual/Grafos/Grafo_ZonaX/
+--       ├── Nodos/
+--       │   └── <NodoModel>/
+--       │       ├── Decoracion/ ← visual, NO tocado aquí
+--       │       └── Selector/   ← hitbox de interacción
+--       │           ├── Attachment    ← anclaje para Beam (pre-creado en Studio)
+--       │           └── ClickDetector ← detecta clic del jugador (pre-creado en Studio)
+--       └── Conexiones/ ← vacío; Beam + hitboxes se crean aquí en runtime
+--
+-- FLUJO:
+--   Clic 1 → seleccionar nodo (estado + NotificarSeleccionNodo al cliente con adyacentes)
+--   Clic 2 → intentar conectar:
+--     a. Mismo nodo       → deseleccionar
+--     b. Ya conectados    → desconectar + descontar puntos
+--     c. Adyacente válido → Beam celeste + sumar puntos
+--     d. No adyacente     → fallo + notificar cliente para flash rojo
+--   Clic en hitbox cable → desconectar + descontar puntos
 --
 -- Ubicación Roblox: ServerScriptService/ConectarCables  (ModuleScript)
 
@@ -13,7 +32,6 @@ local ConectarCables = {}
 local _notifyEv      = nil   -- NotificarSeleccionNodo  (visual events al cliente)
 local _dragEv        = nil   -- CableDragEvent          (preview de arrastre)
 local _pulseEv       = nil   -- PulseEvent              (flujo de energía)
-local _mapaClickEv   = nil   -- MapaClickNodo           (clicks desde modo mapa) 🔥 NUEVO
 local _missionService = nil  -- MissionService (opcional, inyectado en activate)
 
 -- ── Estado interno ───────────────────────────────────────────────────────────
@@ -58,6 +76,7 @@ local function getClickDetector(selector)
 end
 
 -- Carpeta Conexiones del grafo al que pertenece este selector
+-- Ruta: Selector → Nodo → Nodos → Grafo_ZonaX → Conexiones
 local function getConexionesFolder(selector)
 	local grafo = selector.Parent.Parent.Parent
 	if not grafo then return nil end
@@ -181,6 +200,7 @@ local function crearCable(selector1, selector2)
 	hitbox.Parent      = cxns
 
 	-- Beam visual: siempre tenso, color celeste brillante
+	-- CurveSize 0 = línea recta sin caída de gravedad
 	local beam              = Instance.new("Beam")
 	beam.Name               = "Cable_" .. key
 	beam.Attachment0        = att1
@@ -193,9 +213,9 @@ local function crearCable(selector1, selector2)
 	beam.LightEmission      = 0.6
 	beam.LightInfluence     = 0.4
 	beam.Transparency       = NumberSequence.new(0)
-	beam.FaceCamera         = true
+	beam.FaceCamera         = true   -- siempre visible desde cualquier ángulo
 	beam.Segments           = 10
-	beam.Parent             = hitbox
+	beam.Parent             = hitbox -- se destruye junto con el hitbox
 
 	local cd = Instance.new("ClickDetector")
 	cd.MaxActivationDistance = CD_DIST
@@ -212,7 +232,7 @@ local function crearCable(selector1, selector2)
 		if pl ~= _player then return end
 		for i, e in ipairs(_cables) do
 			if e.hitbox == hitbox then
-				e.hitbox:Destroy()
+				e.hitbox:Destroy()   -- destruye beam y cd también (son hijos)
 				table.remove(_cables, i)
 				if _tracker then _tracker:registrarDesconexion(pl) end
 				if _notifyEv then
@@ -225,7 +245,7 @@ local function crearCable(selector1, selector2)
 	end)
 	table.insert(_conns, conn)
 
-	-- Pulso de energía
+	-- Pulso de energía (VisualEffectsService puede animar el flujo)
 	if _pulseEv then
 		local bidir   = isBidireccional(nomA, nomB)
 		local origen  = selector1.Parent
@@ -243,28 +263,26 @@ local function eliminarCable(idx)
 	local e = _cables[idx]
 	if e then
 		if e.hitbox and e.hitbox.Parent then
-			e.hitbox:Destroy()
+			e.hitbox:Destroy()   -- beam y cd son hijos → destruidos automáticamente
 		end
+		-- Notificar MissionService (cable eliminado)
 		if _missionService then _missionService.onCableRemoved(e.nomA, e.nomB) end
 		table.remove(_cables, idx)
 	end
 end
 
 -- ════════════════════════════════════════════════════════════════════════════
--- LÓGICA DE CONEXIÓN (compartida entre modo normal y modo mapa)
+-- LÓGICA DE CONEXIÓN
 -- ════════════════════════════════════════════════════════════════════════════
 
-local function tryConnect(player, selector1, selector2, esDesdeMapa)
+local function tryConnect(player, selector1, selector2)
 	local nomA = getNombreNodo(selector1)
 	local nomB = getNombreNodo(selector2)
 
-	-- Helper: limpiar selección
+	-- Helper: limpiar selección y detener arrastre
 	local function finalize()
 		selectNodo(nil)
-		-- Solo enviar drag event si NO es desde modo mapa
-		if not esDesdeMapa and _dragEv then 
-			_dragEv:FireClient(player, "Stop") 
-		end
+		if _dragEv then _dragEv:FireClient(player, "Stop") end
 	end
 
 	-- Mismo nodo → deseleccionar
@@ -277,7 +295,7 @@ local function tryConnect(player, selector1, selector2, esDesdeMapa)
 	-- ¿Ya conectados? → desconectar y descontar puntos
 	local idx = findCableIndex(nomA, nomB)
 	if idx then
-		local cEntry = _cables[idx]
+		local cEntry = _cables[idx]    -- capturar ANTES de eliminar
 		eliminarCable(idx)
 		if _tracker then _tracker:registrarDesconexion(player) end
 		if _notifyEv then
@@ -307,7 +325,7 @@ local function tryConnect(player, selector1, selector2, esDesdeMapa)
 	finalize()
 end
 
--- ── Handler de clic en Selector (modo normal 3D) ─────────────────────────────
+-- ── Handler de clic en Selector ──────────────────────────────────────────────
 local function onSelectorClicked(player, selector)
 	if player ~= _player then return end
 	if not _active then return end
@@ -328,7 +346,7 @@ local function onSelectorClicked(player, selector)
 			_notifyEv:FireClient(player, "NodoSeleccionado", nodoModel, adjModels)
 		end
 
-		-- Enviar info de arrastre (drag visual)
+		-- Enviar info de arrastre (drag visual, sin ID de adyacentes)
 		if _dragEv then
 			local att1    = getAttachment(selector)
 			local vecinos = {}
@@ -347,73 +365,8 @@ local function onSelectorClicked(player, selector)
 		if _dragEv   then _dragEv:FireClient(player, "Stop") end
 
 	else
-		-- Segundo clic en nodo distinto → intentar conectar (modo normal)
-		tryConnect(player, _selected, selector, false)
-	end
-end
-
--- ════════════════════════════════════════════════════════════════════════════
--- 🔥 NUEVO: HANDLER PARA CLICKS DESDE MODO MAPA
--- ════════════════════════════════════════════════════════════════════════════
-
-local function onMapaClick(player, selector)
-	if player ~= _player then return end
-	if not _active then 
-		warn("[ConectarCables] Ignorando click de mapa: no activo")
-		return 
-	end
-
-	if not selector or selector.Name ~= "Selector" then
-		warn("[ConectarCables] Selector inválido desde mapa:", tostring(selector))
-		return
-	end
-
-	-- Verificar que el selector pertenezca al nivel actual
-	local nodo = selector.Parent
-	if not nodo or not nodo:IsA("Model") then
-		warn("[ConectarCables] Nodo inválido desde mapa")
-		return
-	end
-
-	-- Verificar que el nodo está en nuestro nivel
-	local selectorEncontrado = _selectorByName[nodo.Name]
-	if selectorEncontrado ~= selector then
-		warn("[ConectarCables] Selector no pertenece al nivel actual:", nodo.Name)
-		return
-	end
-
-	print("[ConectarCables] Click desde MAPA en:", nodo.Name, 
-		"| Selección previa:", _selected and getNombreNodo(_selected) or "ninguna")
-
-	if _selected == nil then
-		-- Primer click en modo mapa: seleccionar
-		selectNodo(selector)
-
-		local nomA      = getNombreNodo(selector)
-		local nodoModel = selector.Parent
-		local adjModels = getAdjModels(nomA)
-
-		-- Notificar MissionService
-		if _missionService then _missionService.onNodeSelected(nomA) end
-
-		-- Notificar cliente (para resaltar en UI/matriz)
-		if _notifyEv then
-			_notifyEv:FireClient(player, "NodoSeleccionado", nodoModel, adjModels)
-		end
-
-		-- NO enviar drag event en modo mapa (no hay preview de cable)
-		print("[ConectarCables] Primer nodo seleccionado desde MAPA:", nomA)
-
-	elseif _selected == selector then
-		-- Mismo nodo: cancelar
-		selectNodo(nil)
-		if _notifyEv then _notifyEv:FireClient(player, "SeleccionCancelada") end
-		print("[ConectarCables] Selección cancelada desde MAPA")
-
-	else
-		-- Segundo click: conectar (desde mapa)
-		print("[ConectarCables] Intentando conectar desde MAPA...")
-		tryConnect(player, _selected, selector, true) -- true = esDesdeMapa
+		-- Segundo clic en nodo distinto → intentar conectar
+		tryConnect(player, _selected, selector)
 	end
 end
 
@@ -439,25 +392,16 @@ function ConectarCables.activate(nivel, adjacencias, player, tracker, missionSer
 	if ev then
 		local rem = ev:FindFirstChild("Remotes")
 		if rem then
-			_notifyEv    = rem:FindFirstChild("NotificarSeleccionNodo")
-			_dragEv      = rem:FindFirstChild("CableDragEvent")
-			_pulseEv     = rem:FindFirstChild("PulseEvent")
-			_mapaClickEv = rem:FindFirstChild("MapaClickNodo") -- 🔥 NUEVO
+			_notifyEv = rem:FindFirstChild("NotificarSeleccionNodo")
+			_dragEv   = rem:FindFirstChild("CableDragEvent")
+			_pulseEv  = rem:FindFirstChild("PulseEvent")
 		end
 	end
 
-	-- Precargar todos los selectors para lookup
-	getAllSelectors()
-
-	local selectors = {}
-	for _, sel in pairs(_selectorByName) do
-		table.insert(selectors, sel)
-	end
-
+	local selectors = getAllSelectors()
 	print("[ConectarCables] activate — nodos:", #selectors,
 		"/ modo:", adjacencias == nil and "PERMISIVO" or "ADYACENCIAS")
 
-	-- Conectar ClickDetectors para modo normal 3D
 	for _, selector in ipairs(selectors) do
 		local cd = getClickDetector(selector)
 		if cd then
@@ -469,26 +413,17 @@ function ConectarCables.activate(nivel, adjacencias, player, tracker, missionSer
 			warn("[ConectarCables] ClickDetector no encontrado en:", selector:GetFullName())
 		end
 	end
-
-	-- 🔥 NUEVO: Conectar evento de modo mapa
-	if _mapaClickEv then
-		local connMapa = _mapaClickEv.OnServerEvent:Connect(onMapaClick)
-		table.insert(_conns, connMapa)
-		print("[ConectarCables] MapaClickNodo conectado")
-	else
-		warn("[ConectarCables] MapaClickNodo no encontrado - modo mapa no funcionará")
-	end
 end
 
 function ConectarCables.deactivate()
 	_active = false
 	selectNodo(nil)
 
-	-- Desconectar todos los listeners
+	-- Desconectar todos los listeners de ClickDetectors
 	for _, conn in ipairs(_conns) do conn:Disconnect() end
 	_conns = {}
 
-	-- Destruir cables
+	-- Destruir cables (hitbox destruye beam y cd automáticamente)
 	for _, e in ipairs(_cables) do
 		if e.hitbox and e.hitbox.Parent then e.hitbox:Destroy() end
 	end
