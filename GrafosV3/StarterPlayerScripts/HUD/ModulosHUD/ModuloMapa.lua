@@ -9,6 +9,7 @@ local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local EfectosNodo = require(ReplicatedStorage.Efectos.EfectosNodo)
+local EfectosMapa = require(script.Parent.EfectosMapa)
 local PresetTween = require(ReplicatedStorage.Efectos.PresetTween)
 local LevelsConfig = require(ReplicatedStorage.Config.LevelsConfig)
 
@@ -41,8 +42,7 @@ local techosCapturados = false
 
 -- Estado de selección en el mapa
 local nodoSeleccionadoMapa = nil
-local highlights = {}
-local billboards = {}
+local adyacentesSeleccionados = {}
 
 -- Configuracion
 local CONFIG = {
@@ -77,6 +77,21 @@ function ModuloMapa.inicializar(hudRef)
 			conexionVictoria = nivelCompletado.OnClientEvent:Connect(function()
 				print("[ModuloMapa] Nivel completado - cerrando mapa automáticamente")
 				ModuloMapa.cerrar()
+			end)
+		end
+		
+		-- Escuchar cambios de conexiones para actualizar colores en tiempo real
+		local notificarSeleccion = eventosFolder.Remotos:FindFirstChild("NotificarSeleccionNodo")
+		if notificarSeleccion then
+			notificarSeleccion.OnClientEvent:Connect(function(eventType, arg1, arg2)
+				-- Si el mapa está abierto y hay un evento de conexión/desconexión, actualizar
+				if mapaAbierto then
+					if eventType == "ConexionCompletada" or eventType == "CableDesconectado" then
+						print("[ModuloMapa] Conexión cambiada, actualizando efectos...")
+						task.wait(0.1) -- Pequeño delay para que el servidor actualice primero
+						_actualizarHighlights()
+					end
+				end
 			end)
 		end
 	end
@@ -116,15 +131,10 @@ function ModuloMapa.configurarNivel(nivelModel, id, config)
 	nivelActual = nivelModel
 	nivelID = id
 	configNivel = config
-	nombresNodos = {}
 	selectores = {}
 
-	-- Cargar nombres amigables desde LevelsConfig
-	if config and config.NombresNodos then
-		nombresNodos = config.NombresNodos
-	elseif LevelsConfig[id] and LevelsConfig[id].NombresNodos then
-		nombresNodos = LevelsConfig[id].NombresNodos
-	end
+	-- Inicializar efectos del mapa (carga nombres amigables)
+	EfectosMapa.inicializar(config)
 
 	-- NOTA: No recolectamos selectores aquí para evitar interferencias
 	-- Los selectores se recolectan solo cuando se abre el mapa
@@ -243,118 +253,18 @@ end
 -- EFECTOS VISUALES DEL MAPA
 -- ================================================================
 
-function _obtenerNombreAmigable(nombreNodo)
-	return nombresNodos[nombreNodo] or nombreNodo
-end
-
-function _crearHighlight(nodo, color, esSeleccionado)
-	local decoracion = nodo:FindFirstChild("Decoracion")
-	if not decoracion then return nil end
-
-	local highlight = Instance.new("Highlight")
-	highlight.Name = "MapaHighlight_" .. nodo.Name
-	highlight.Adornee = decoracion
-	highlight.FillColor = color
-	highlight.FillTransparency = esSeleccionado and 0.2 or 0.5
-	highlight.OutlineColor = color
-	highlight.OutlineTransparency = 0
-	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-	highlight.Parent = workspace
-
-	highlights[nodo.Name] = highlight
-
-	return highlight
-end
-
-function _crearLabelNodo(nodo, color)
-	local selector = nodo:FindFirstChild("Selector")
-	if not selector then return end
-
-	-- Buscar una parte BasePart para el billboard
-	local parteAdornar = nil
-	if selector:IsA("BasePart") then
-		parteAdornar = selector
-	elseif selector:IsA("Model") then
-		for _, part in ipairs(selector:GetDescendants()) do
-			if part:IsA("BasePart") then
-				parteAdornar = part
-				break
-			end
-		end
-	end
-
-	if not parteAdornar then return end
-
-	local billboard = Instance.new("BillboardGui")
-	billboard.Name = "MapaLabel_" .. nodo.Name
-	billboard.Adornee = parteAdornar
-	billboard.Size = UDim2.new(0, 150, 0, 40)
-	billboard.StudsOffset = Vector3.new(0, 5, 0)
-	billboard.AlwaysOnTop = true
-	billboard.Parent = workspace
-
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(1, 0, 1, 0)
-	label.BackgroundTransparency = 1
-	label.Text = _obtenerNombreAmigable(nodo.Name)
-	label.TextColor3 = color
-	label.TextStrokeTransparency = 0.3
-	label.TextStrokeColor3 = Color3.new(0, 0, 0)
-	label.Font = Enum.Font.GothamBold
-	label.TextSize = 16
-	label.Parent = billboard
-
-	billboards[nodo.Name] = billboard
-end
-
-function _limpiarHighlights()
-	for _, highlight in pairs(highlights) do
-		if highlight then highlight:Destroy() end
-	end
-	highlights = {}
-
-	for _, billboard in pairs(billboards) do
-		if billboard then billboard:Destroy() end
-	end
-	billboards = {}
-end
-
 function _actualizarHighlights()
-	_limpiarHighlights()
-
-	if not nivelActual then return end
-	if not nodoSeleccionadoMapa then return end
-
-	local grafosFolder = nivelActual:FindFirstChild("Grafos")
-	if not grafosFolder then return end
-
-	local nombreSeleccionado = nodoSeleccionadoMapa.Name
-
-	-- Obtener adyacentes
+	print("[ModuloMapa] Actualizando highlights...")
+	
+	-- Usar el módulo de efectos del mapa
 	local adyacentes = {}
-	if configNivel and configNivel.Adyacencias then
-		adyacentes = configNivel.Adyacencias[nombreSeleccionado] or {}
+	if nodoSeleccionadoMapa and configNivel and configNivel.Adyacencias then
+		adyacentes = configNivel.Adyacencias[nodoSeleccionadoMapa.Name] or {}
 	end
-
-	for _, grafo in ipairs(grafosFolder:GetChildren()) do
-		local nodosFolder = grafo:FindFirstChild("Nodos")
-		if nodosFolder then
-			for _, nodo in ipairs(nodosFolder:GetChildren()) do
-				local nombre = nodo.Name
-
-				if nombre == nombreSeleccionado then
-					-- Nodo seleccionado: Cyan brillante
-					_crearHighlight(nodo, Color3.fromRGB(0, 212, 255), true)
-					_crearLabelNodo(nodo, Color3.fromRGB(0, 212, 255))
-
-				elseif table.find(adyacentes, nombre) then
-					-- Nodo adyacente: Dorado
-					_crearHighlight(nodo, Color3.fromRGB(255, 200, 50), false)
-					_crearLabelNodo(nodo, Color3.fromRGB(255, 200, 50))
-				end
-			end
-		end
-	end
+	
+	print("[ModuloMapa] Nivel:", nivelActual and nivelActual.Name or "NIL", "Nodo seleccionado:", nodoSeleccionadoMapa and nodoSeleccionadoMapa.Name or "NINGUNO")
+	
+	EfectosMapa.actualizarTodos(nivelActual, nodoSeleccionadoMapa, adyacentes)
 end
 
 -- ================================================================
@@ -412,22 +322,14 @@ function _calcularCFrameCenital(bounds)
 end
 
 function _hacerTweenCamara(cframeObjetivo, onComplete)
+	-- Cambio INMEDIATO sin animación
 	camara.CameraType = Enum.CameraType.Scriptable
-
-	local tween = TweenService:Create(camara, TweenInfo.new(
-		CONFIG.velocidadTween, 
-		Enum.EasingStyle.Cubic, 
-		Enum.EasingDirection.InOut
-		), {
-			CFrame = cframeObjetivo
-		})
-
+	camara.CFrame = cframeObjetivo
+	
+	-- Llamar callback inmediatamente si existe
 	if onComplete then
-		tween.Completed:Once(onComplete)
+		task.spawn(onComplete)
 	end
-
-	tween:Play()
-	return tween
 end
 
 function _iniciarSeguimientoJugador()
@@ -540,7 +442,7 @@ function _onNodoClickeado(nodo, selectorPart)
 	elseif nodoSeleccionadoMapa == nodo then
 		-- Click en el mismo nodo: cancelar selección
 		nodoSeleccionadoMapa = nil
-		_limpiarHighlights()
+		_actualizarHighlights()
 
 		print("[ModuloMapa] Selección cancelada")
 
@@ -560,9 +462,16 @@ function _onNodoClickeado(nodo, selectorPart)
 			end
 		end
 
-		-- Limpiar selección
+		-- Limpiar selección y actualizar después de un momento
 		nodoSeleccionadoMapa = nil
-		_limpiarHighlights()
+		_actualizarHighlights() -- Actualizar inmediatamente (selección limpia)
+		
+		-- Actualizar de nuevo después de que el servidor procese la conexión
+		task.delay(0.2, function()
+			if mapaAbierto then
+				_actualizarHighlights()
+			end
+		end)
 	end
 end
 
@@ -580,6 +489,9 @@ function ModuloMapa.abrir()
 		warn("[ModuloMapa] No hay nivel configurado")
 		return
 	end
+
+	-- Limpiar cualquier estado residual de ejecuciones anteriores
+	EfectosMapa.limpiarTodo()
 
 	-- Recolectar selectores SOLO cuando se abre el mapa
 	_collectarSelectores()
@@ -618,6 +530,9 @@ function ModuloMapa.abrir()
 
 	-- Iniciar escucha de input
 	_iniciarEscuchaInput()
+	
+	-- Mostrar efectos de todos los nodos inmediatamente
+	_actualizarHighlights()
 
 	print("[ModuloMapa] Mapa abierto")
 end
@@ -639,8 +554,8 @@ function ModuloMapa.cerrar()
 	_detenerSeguimiento()
 	_detenerEscuchaInput()
 
-	-- Limpiar highlights
-	_limpiarHighlights()
+	-- Limpiar efectos del mapa
+	EfectosMapa.limpiarTodo()
 
 	-- Limpiar selección
 	pcall(function()
@@ -650,21 +565,11 @@ function ModuloMapa.cerrar()
 	-- Mostrar techos
 	_mostrarTechos()
 
-	-- Restaurar camara con tween
+	-- Restaurar camara INMEDIATAMENTE (sin tween)
 	if estadoCamaraOriginal then
-		local exito, err = pcall(function()
-			_hacerTweenCamara(estadoCamaraOriginal.CFrame, function()
-				camara.CameraType = estadoCamaraOriginal.CameraType
-				camara.CameraSubject = estadoCamaraOriginal.CameraSubject
-			end)
-		end)
-
-		if not exito then
-			-- Fallback: restaurar directamente
-			camara.CameraType = estadoCamaraOriginal.CameraType
-			camara.CameraSubject = estadoCamaraOriginal.CameraSubject
-			camara.CFrame = estadoCamaraOriginal.CFrame
-		end
+		camara.CameraType = estadoCamaraOriginal.CameraType
+		camara.CameraSubject = estadoCamaraOriginal.CameraSubject
+		camara.CFrame = estadoCamaraOriginal.CFrame
 	end
 
 	-- Ocultar frame
@@ -699,7 +604,7 @@ function ModuloMapa.limpiar()
 
 	_detenerSeguimiento()
 	_detenerEscuchaInput()
-	_limpiarHighlights()
+	EfectosMapa.limpiarTodo()
 
 	-- Limpiar estado
 	nodoSeleccionadoMapa = nil

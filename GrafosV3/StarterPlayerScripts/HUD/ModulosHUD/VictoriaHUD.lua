@@ -113,7 +113,13 @@ function VictoriaHUD.mostrar(snapshotVictoria)
 
 	if victoriaStats and snapshotVictoria then
 		-- Guardar nivelID para posible restart
-		nivelIDActual = snapshotVictoria.nivelID
+		nivelIDActual = snapshotVictoria.nivelID or snapshotVictoria.nivelId
+		
+		-- Fallback: obtener del atributo del jugador
+		if not nivelIDActual then
+			local jugador = game:GetService("Players").LocalPlayer
+			nivelIDActual = jugador:GetAttribute("CurrentLevelID")
+		end
 
 		local function fijarValorStat(nombreFila, valor)
 			local statRow = victoriaStats:FindFirstChild(nombreFila)
