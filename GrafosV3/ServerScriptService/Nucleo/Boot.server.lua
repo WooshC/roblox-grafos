@@ -37,6 +37,7 @@ print("[GrafosV3] Eventos conectados correctamente")
 -- 2. CARGAR SERVICIOS CORE
 -- ═══════════════════════════════════════════════════════════════════════════════
 local ServicioProgreso = nil
+local CargadorNiveles = nil
 
 local function cargarServicios()
 	local carpetaServicios = script.Parent.Parent:WaitForChild("Servicios")
@@ -52,6 +53,20 @@ local function cargarServicios()
 			print("[GrafosV3] ServicioProgreso cargado")
 		else
 			warn("[GrafosV3] Error en ServicioProgreso:", resultado)
+		end
+	end
+	
+	-- Cargar CargadorNiveles
+	local moduloCargador = carpetaServicios:FindFirstChild("CargadorNiveles")
+	if moduloCargador then
+		local exito, resultado = pcall(function()
+			return require(moduloCargador)
+		end)
+		if exito then
+			CargadorNiveles = resultado
+			print("[GrafosV3] CargadorNiveles cargado")
+		else
+			warn("[GrafosV3] Error en CargadorNiveles:", resultado)
 		end
 	end
 end
@@ -185,18 +200,17 @@ local iniciarNivel = Remotos:WaitForChild("IniciarNivel")
 iniciarNivel.OnServerEvent:Connect(function(jugador, idNivel)
 	print("[GrafosV3] IniciarNivel - Jugador:", jugador.Name, "Nivel:", idNivel)
 	
-	-- AQUI: Transicion de Menu -> Gameplay
-	-- 1. Desconectar sistemas de menu
-	-- 2. Cargar modelo del nivel
-	-- 3. Spawn personaje
-	-- 4. Inicializar sistemas de gameplay
-	
-	-- Por ahora solo notificar al cliente
-	local nivelListo = Remotos:WaitForChild("NivelListo")
-	nivelListo:FireClient(jugador, {
-		nivelID = idNivel,
-		estado = "cargado"
-	})
+	-- Transicion de Menu -> Gameplay
+	if CargadorNiveles then
+		CargadorNiveles.cargar(idNivel, jugador)
+	else
+		warn("[GrafosV3] CargadorNiveles no disponible")
+		local nivelListo = Remotos:WaitForChild("NivelListo")
+		nivelListo:FireClient(jugador, {
+			nivelID = idNivel,
+			error = "Servidor no listo para cargar niveles"
+		})
+	end
 end)
 
 -- VolverAlMenu: El jugador quiere volver al menu
@@ -204,11 +218,15 @@ local volverAlMenu = Remotos:WaitForChild("VolverAlMenu")
 volverAlMenu.OnServerEvent:Connect(function(jugador)
 	print("[GrafosV3] VolverAlMenu - Jugador:", jugador.Name)
 	
-	-- AQUI: Transicion de Gameplay -> Menu
-	-- 1. Desconectar TODOS los sistemas de gameplay
-	-- 2. Descargar modelo del nivel
-	-- 3. Despawn personaje
-	-- 4. Reconectar sistemas de menu
+	-- Transicion de Gameplay -> Menu
+	if CargadorNiveles then
+		CargadorNiveles.descargar()
+	end
+	
+	-- Destruir personaje del jugador
+	if jugador.Character then
+		jugador.Character:Destroy()
+	end
 	
 	local nivelDescargado = Remotos:WaitForChild("NivelDescargado")
 	nivelDescargado:FireClient(jugador)
