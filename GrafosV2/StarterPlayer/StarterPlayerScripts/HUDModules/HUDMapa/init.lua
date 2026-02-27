@@ -13,6 +13,7 @@ local InputManager = require(script.Parent.InputManager)
 
 -- Effects
 local CameraEffects = require(ReplicatedStorage.Effects.CameraEffects)
+local NodeEffects = require(ReplicatedStorage.Effects.NodeEffects) -- 🔥 FALTABA ESTA LÍNEA
 
 local HUDMapa = {}
 
@@ -89,7 +90,7 @@ function HUDMapa._conectarBotones()
 end
 
 -- ================================================================
--- ABRIR / CERRAR (Con manejo completo del techo)
+-- ABRIR / CERRAR
 -- ================================================================
 
 function HUDMapa.abrir()
@@ -112,9 +113,7 @@ function HUDMapa.abrir()
 		return 
 	end
 
-	-- ================================================================
-	-- CAPTURAR Y OCULTAR TECHO (Integración de MapManager antiguo)
-	-- ================================================================
+	-- Capturar y ocultar techo
 	CameraManager.captureRoof(nivelActual)
 	CameraManager.hideRoof()
 
@@ -141,7 +140,7 @@ function HUDMapa.abrir()
 	InputManager.init(nivelActual, HUDMapa._onNodeClicked)
 	InputManager.startListening()
 
-	print("[HUDMapa] Mapa abierto - Techo oculto")
+	print("[HUDMapa] Mapa abierto")
 end
 
 function HUDMapa.cerrar()
@@ -161,9 +160,7 @@ function HUDMapa.cerrar()
 	NodeManager.clearSelection()
 	NodeManager.resetAllSelectors()
 
-	-- ================================================================
-	-- RESTAURAR TECHO (Integración de MapManager antiguo)
-	-- ================================================================
+	-- Restaurar techo
 	CameraManager.showRoof()
 
 	-- Restaurar cámara
@@ -175,10 +172,10 @@ function HUDMapa.cerrar()
 		end)
 	end
 
-	-- Resetear caché del techo para el próximo nivel
+	-- Resetear caché del techo
 	CameraManager.resetRoof()
 
-	print("[HUDMapa] Mapa cerrado - Techo restaurado")
+	print("[HUDMapa] Mapa cerrado")
 end
 
 -- ================================================================
@@ -189,7 +186,7 @@ function HUDMapa._onNodeClicked(poste, selectorPart)
 	local nombre = poste.Name
 	local nivelID = player:GetAttribute("CurrentLevelID") or 0
 
-	-- Toggle selección
+	-- Toggle selección usando NodeEffects directamente (ahora disponible)
 	if NodeEffects.selectedNode == nombre then
 		NodeManager.clearSelection()
 	else
