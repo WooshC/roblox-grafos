@@ -7,6 +7,9 @@ local RS = game:GetService("ReplicatedStorage")
 local jugador = Players.LocalPlayer
 local playerGui = jugador:WaitForChild("PlayerGui")
 
+-- Cargar configuración de niveles
+local LevelsConfig = require(RS:WaitForChild("Config"):WaitForChild("LevelsConfig"))
+
 print("[GrafosV3] === ControladorHUD Iniciando ===")
 
 -- Esperar GUI
@@ -24,12 +27,14 @@ local TransicionHUD = require(ModulosHUD.TransicionHUD)
 local PuntajeHUD = require(ModulosHUD.PuntajeHUD)
 local PanelMisionesHUD = require(ModulosHUD.PanelMisionesHUD)
 local VictoriaHUD = require(ModulosHUD.VictoriaHUD)
+local ModuloMapa = require(ModulosHUD.ModuloMapa)
 
 -- Inicializar módulos con referencia al hud
 TransicionHUD.reset()
 PuntajeHUD.init(hudGui)
 PanelMisionesHUD.init(hudGui)
 VictoriaHUD.init(hudGui)
+ModuloMapa.inicializar(hudGui)
 
 -- Estado del HUD
 local hudActivo = false
@@ -56,6 +61,15 @@ local function desactivarHUD()
 	hudActivo = false
 	hudGui.Enabled = false
 	VictoriaHUD.ocultar()
+	
+	-- Cerrar el mapa y limpiar al salir del nivel
+	local exito, err = pcall(function()
+		ModuloMapa.limpiar()
+	end)
+	if not exito then
+		warn("[ControladorHUD] Error al limpiar mapa:", err)
+	end
+	
 	print("[ControladorHUD] HUD desactivado")
 end
 
@@ -72,6 +86,20 @@ EventosHUD.nivelListo.OnClientEvent:Connect(function(data)
 	
 	-- Activar HUD
 	activarHUD()
+	
+	-- Configurar el mapa con el nivel actual
+	local nivelID = jugador:GetAttribute("CurrentLevelID") or 0
+	local nivelActual = workspace:FindFirstChild("NivelActual")
+	local configNivel = LevelsConfig[nivelID]
+	
+	if nivelActual then
+		local exito, err = pcall(function()
+			ModuloMapa.configurarNivel(nivelActual, nivelID, configNivel)
+		end)
+		if not exito then
+			warn("[ControladorHUD] Error al configurar mapa:", err)
+		end
+	end
 	
 	-- Forzar cámara Custom (seguridad)
 	workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
@@ -117,6 +145,15 @@ end)
 -- NivelCompletado: El servidor notifica que se completaron todas las misiones
 EventosHUD.nivelCompletado.OnClientEvent:Connect(function(snap)
 	print("[ControladorHUD] NivelCompletado recibido:", snap ~= nil and "con datos" or "SIN DATOS")
+	
+	-- Cerrar el mapa inmediatamente al ganar
+	local exito, err = pcall(function()
+		ModuloMapa.cerrar()
+	end)
+	if not exito then
+		warn("[ControladorHUD] Error al cerrar mapa en victoria:", err)
+	end
+	
 	if snap then
 		VictoriaHUD.mostrar(snap)
 	end
