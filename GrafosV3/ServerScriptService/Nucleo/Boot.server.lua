@@ -21,6 +21,9 @@ print("[GrafosV3] === Boot Servidor Iniciando ===")
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- 1. ESPERAR EVENTOS (creados por EventRegistry.server.lua)
 -- ═══════════════════════════════════════════════════════════════════════════════
+-- NOTA: EventRegistry.server.lua debe ejecutarse PRIMERO para crear los eventos
+-- Si hay error "Infinite yield", verificar que EventRegistry.server.lua exista
+
 local Eventos = Replicado:WaitForChild("EventosGrafosV3", 15)
 if not Eventos then
 	error("[GrafosV3] CRITICO: EventosGrafosV3 no encontrado. Asegurate de que EventRegistry.server.lua este en ServerScriptService/Nucleo/")
@@ -29,6 +32,24 @@ end
 local Remotos = Eventos:WaitForChild("Remotos", 10)
 if not Remotos then
 	error("[GrafosV3] CRITICO: EventosGrafosV3/Remotos no encontrado")
+end
+
+-- Función helper para esperar eventos con timeout
+local function esperarEvento(nombre, timeout)
+	timeout = timeout or 5
+	local evento = Remotos:FindFirstChild(nombre)
+	if evento then return evento end
+	
+	local startTime = tick()
+	while not evento and (tick() - startTime) < timeout do
+		task.wait(0.1)
+		evento = Remotos:FindFirstChild(nombre)
+	end
+	
+	if not evento then
+		warn("[Boot.server] Evento no encontrado después de " .. timeout .. "s: " .. nombre)
+	end
+	return evento
 end
 
 print("[GrafosV3] Eventos conectados correctamente")
@@ -254,11 +275,14 @@ end)
 -- NOTA: Todos los sistemas de gameplay se inicializan bajo demanda
 -- cuando se inicia un nivel, y se destruyen al volver al menu.
 
-local SistemaGameplay = {
+-- Exportar SistemaGameplay globalmente para que otros módulos del servidor puedan acceder
+_G.SistemaGameplay = {
 	activo = false,
 	nivelActual = nil,
 	jugadoresEnNivel = {},
 }
+
+local SistemaGameplay = _G.SistemaGameplay
 
 function SistemaGameplay.iniciar(nivelID, jugador)
 	if SistemaGameplay.activo then
@@ -302,6 +326,92 @@ function SistemaGameplay.terminar(jugador)
 		-- AQUI: Destruir todos los sistemas de gameplay
 	end
 end
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- 7. HANDLERS DE EVENTOS DE GAMEPLAY (Después de definir SistemaGameplay)
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+-- MapaClickNodo: El jugador clickeó un nodo desde el mapa cenital
+local mapaClickNodo = esperarEvento("MapaClickNodo", 10)
+if mapaClickNodo then
+	mapaClickNodo.OnServerEvent:Connect(function(jugador, nombreNodo)
+	if not nombreNodo then return end
+	if not SistemaGameplay.activo then
+		print("[GrafosV3] MapaClickNodo ignorado - SistemaGameplay no activo")
+		return
+	end
+	
+	print("[GrafosV3] MapaClickNodo - Jugador:", jugador.Name, "Nodo:", nombreNodo)
+	
+	-- Notificar al ServicioMisiones sobre la selección
+	local carpetaSistemas = Servidores:FindFirstChild("SistemasGameplay")
+	if carpetaSistemas then
+		local moduloMisiones = carpetaSistemas:FindFirstChild("ServicioMisiones")
+		if moduloMisiones then
+			local exito, servicio = pcall(function()
+				return require(moduloMisiones)
+			end)
+			if exito and servicio and servicio.estaActivo() then
+				local exito2, err = pcall(function()
+					servicio.alSeleccionarNodo(nombreNodo)
+				end)
+				if not exito2 then
+					warn("[GrafosV3] Error en alSeleccionarNodo:", err)
+				end
+			end
+		end
+	end
+	
+	-- NOTA: No enviamos NotificarSeleccionNodo aquí porque ese evento es SOLO para 
+	-- notificaciones del servidor de ConectarCables al cliente.
+	-- El mapa maneja sus propios efectos visuales localmente.
+	end)
+else
+	warn("[Boot.server] Evento MapaClickNodo no encontrado")
+end
+
+-- ConectarDesdeMapa: El jugador quiere conectar dos nodos desde el mapa
+local conectarDesdeMapa = esperarEvento("ConectarDesdeMapa", 10)
+if conectarDesdeMapa then
+	conectarDesdeMapa.OnServerEvent:Connect(function(jugador, nodoA, nodoB)
+	if not nodoA or not nodoB then return end
+	if not SistemaGameplay.activo then
+		print("[GrafosV3] ConectarDesdeMapa ignorado - SistemaGameplay no activo")
+		return
+	end
+	
+	print("[GrafosV3] ConectarDesdeMapa - Jugador:", jugador.Name, "Nodos:", nodoA, "->", nodoB)
+	
+	-- Obtener el módulo ConectarCables y llamar a su función de conexión
+	local carpetaSistemas = Servidores:FindFirstChild("SistemasGameplay")
+	if carpetaSistemas then
+		local moduloCables = carpetaSistemas:FindFirstChild("ConectarCables")
+		if moduloCables then
+			local exito, ConectarCables = pcall(function()
+				return require(moduloCables)
+			end)
+			
+			if exito and ConectarCables and ConectarCables.estaActivo() then
+				-- Verificar si hay una función pública para conectar
+				if ConectarCables.conectarNodos then
+					ConectarCables.conectarNodos(nodoA, nodoB, jugador)
+				else
+					-- El módulo no tiene función pública para conectar desde fuera
+					-- Se necesita agregar esta función a ConectarCables
+					warn("[GrafosV3] ConectarCables no tiene función conectarNodos - necesita implementarse")
+				end
+			else
+				warn("[GrafosV3] ConectarCables no está activo o no se pudo cargar")
+			end
+		end
+	end
+end)
+else
+	warn("[Boot.server] Evento ConectarDesdeMapa no encontrado - función de mapa deshabilitada")
+end
+
+-- NOTA: SistemaGameplay se inicia/termina directamente desde CargadorNiveles
+-- via _G.SistemaGameplay para evitar complejidad de eventos
 
 print("[GrafosV3] === Boot Servidor Listo ===")
 print("[GrafosV3] Estado: Menu activo, Gameplay desconectado")

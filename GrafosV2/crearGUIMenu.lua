@@ -3,9 +3,29 @@
 -- Las tarjetas de nivel NO se generan aquí — MenuController las construye
 -- dinámicamente después de recibir los datos del servidor via GetPlayerProgress.
 
+-- Evitar ejecución múltiple
+if _G.EDAQuestMenuCreado then
+	print("[EDA Quest] GUI ya fue creada, omitiendo ejecución duplicada")
+	return
+end
+_G.EDAQuestMenuCreado = true
+
 local SG = game:GetService("StarterGui")
+local Players = game:GetService("Players")
+
+-- Verificar si ya existe en StarterGui
 local ex = SG:FindFirstChild("EDAQuestMenu")
 if ex then ex:Destroy() end
+
+-- Verificar si ya existe en PlayerGui del jugador local (evitar duplicados)
+local player = Players.LocalPlayer
+if player then
+	local playerGui = player:FindFirstChild("PlayerGui")
+	if playerGui and playerGui:FindFirstChild("EDAQuestMenu") then
+		print("[EDA Quest] GUI ya existe en PlayerGui, omitiendo creación")
+		return
+	end
+end
 
 local C = {
 	bg=Color3.fromRGB(5,8,16), surface=Color3.fromRGB(12,18,32),
@@ -88,7 +108,7 @@ local function menuBtn(name,icon,label,sub,ac,isPlay,order)
 	local bar=n("Frame",{Size=UDim2.new(0,3,0.55,0),Position=UDim2.new(0,0,0.225,0),BackgroundColor3=ac,BorderSizePixel=0,ZIndex=7},btn) corner(2,bar)
 	n("TextLabel",{Size=UDim2.new(0,28,1,0),Position=UDim2.new(0,14,0,0),BackgroundTransparency=1,Text=icon,TextColor3=C.muted,Font=F.body,TextSize=isPlay and 22 or 18,ZIndex=7},btn)
 	n("TextLabel",{Name="Label",Size=UDim2.new(1,-80,0,isPlay and 24 or 20),Position=UDim2.new(0,50,0,isPlay and 14 or 10),BackgroundTransparency=1,Text=label,TextColor3=C.text,Font=F.bold,TextSize=isPlay and 15 or 13,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=7},btn)
-	if sub~="" then n("TextLabel",{Name="Sub",Size=UDim2.new(1,-80,0,14),Position=UDim2.new(0,50,0,isPlay and 38 or 32),BackgroundTransparency=1,Text=sub,TextColor3=C.muted,Font=F.mono,TextSize=9,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=7},btn) end
+	if sub~="" then n("TextLabel",{Name="Subtitulo",Size=UDim2.new(1,-80,0,14),Position=UDim2.new(0,50,0,isPlay and 38 or 32),BackgroundTransparency=1,Text=sub,TextColor3=C.muted,Font=F.mono,TextSize=9,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=7},btn) end
 	n("TextLabel",{Size=UDim2.new(0,18,1,0),Position=UDim2.new(1,-24,0,0),BackgroundTransparency=1,Text="›",TextColor3=C.dim,Font=F.bold,TextSize=20,ZIndex=7},btn)
 end
 
@@ -107,17 +127,25 @@ local S2=n("Frame",{Name="FrameLevels",Size=UDim2.new(1,0,1,0),BackgroundColor3=
 
 local lsTop=n("Frame",{Name="LevelTopBar",Size=UDim2.new(1,0,0,60),BackgroundColor3=Color3.fromRGB(6,10,20),BackgroundTransparency=0.05,BorderSizePixel=0,ZIndex=2},S2)
 stroke(C.border,1,lsTop)
-local backBtn=n("TextButton",{Name="BackBtn",Size=UDim2.new(0,110,0,36),Position=UDim2.new(0,20,0.5,-18),BackgroundColor3=C.panel,Text="← VOLVER",TextColor3=C.muted,Font=F.mono,TextSize=11,BorderSizePixel=0,ZIndex=3},lsTop)
+
+-- Contenedor central para el título y navegación
+local topCenter=n("Frame",{Name="TopCenter",Size=UDim2.new(0,500,1,0),Position=UDim2.new(0.5,-250,0,0),BackgroundTransparency=1,ZIndex=3},lsTop)
+n("UIListLayout",{FillDirection=Enum.FillDirection.Horizontal,Padding=UDim.new(0,12),VerticalAlignment=Enum.VerticalAlignment.Center,HorizontalAlignment=Enum.HorizontalAlignment.Center},topCenter)
+
+local backBtn=n("TextButton",{Name="BackBtn",Size=UDim2.new(0,110,0,36),BackgroundColor3=C.panel,Text="← VOLVER",TextColor3=C.muted,Font=F.mono,TextSize=11,BorderSizePixel=0,ZIndex=3},topCenter)
 corner(6,backBtn) stroke(C.border,1,backBtn)
-n("TextLabel",{Size=UDim2.new(0,80,1,0),Position=UDim2.new(0,148,0,0),BackgroundTransparency=1,Text="EDA Quest",TextColor3=C.muted,Font=F.mono,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=3},lsTop)
-n("TextLabel",{Size=UDim2.new(0,14,1,0),Position=UDim2.new(0,232,0,0),BackgroundTransparency=1,Text="›",TextColor3=C.dim,Font=F.bold,TextSize=14,ZIndex=3},lsTop)
-n("TextLabel",{Size=UDim2.new(0,180,1,0),Position=UDim2.new(0,252,0,0),BackgroundTransparency=1,Text="Selección de Nivel",TextColor3=C.text,Font=F.mono,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=3},lsTop)
-local ptag=n("Frame",{Name="PlayerTagBox",Size=UDim2.new(0,140,0,34),Position=UDim2.new(1,-156,0.5,-17),BackgroundColor3=Color3.fromRGB(0,20,30),BorderSizePixel=0,ZIndex=3},lsTop)
+
+n("TextLabel",{Size=UDim2.new(0,80,0,36),BackgroundTransparency=1,Text="EDA Quest",TextColor3=C.muted,Font=F.mono,TextSize=11,TextXAlignment=Enum.TextXAlignment.Center,TextYAlignment=Enum.TextYAlignment.Center,ZIndex=3},topCenter)
+
+n("TextLabel",{Size=UDim2.new(0,14,0,36),BackgroundTransparency=1,Text="›",TextColor3=C.dim,Font=F.bold,TextSize=14,TextXAlignment=Enum.TextXAlignment.Center,TextYAlignment=Enum.TextYAlignment.Center,ZIndex=3},topCenter)
+
+n("TextLabel",{Size=UDim2.new(0,180,0,36),BackgroundTransparency=1,Text="Selección de Nivel",TextColor3=C.text,Font=F.mono,TextSize=11,TextXAlignment=Enum.TextXAlignment.Center,TextYAlignment=Enum.TextYAlignment.Center,ZIndex=3},topCenter)
+
+local ptag=n("Frame",{Name="PlayerTagBox",Size=UDim2.new(0,140,0,34),BackgroundColor3=Color3.fromRGB(0,20,30),BorderSizePixel=0,ZIndex=3},topCenter)
 corner(17,ptag) stroke(Color3.fromRGB(0,70,90),1,ptag)
 local pav=n("Frame",{Name="PlayerAvatar",Size=UDim2.new(0,22,0,22),Position=UDim2.new(0,6,0.5,-11),BackgroundColor3=C.accent,BorderSizePixel=0,ZIndex=4},ptag) corner(11,pav)
 n("TextLabel",{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Text="P",TextColor3=C.bg,Font=F.bold,TextSize=12,ZIndex=5},pav)
 n("TextLabel",{Name="PlayerTag",Size=UDim2.new(1,-36,1,0),Position=UDim2.new(0,32,0,0),BackgroundTransparency=1,Text="Cargando...",TextColor3=C.accent,Font=F.body,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=4},ptag)
-
 local lsMain=n("Frame",{Name="LevelMainArea",Size=UDim2.new(1,0,1,-60),Position=UDim2.new(0,0,0,60),BackgroundTransparency=1,ZIndex=2},S2)
 local sidebar=n("Frame",{Name="LevelSidebar",Size=UDim2.new(0,320,1,0),BackgroundColor3=Color3.fromRGB(6,10,20),BackgroundTransparency=0.05,BorderSizePixel=0,ZIndex=3},lsMain)
 stroke(C.border,1,sidebar)
@@ -162,7 +190,7 @@ for i,sd in ipairs({
 	local box=n("Frame",{Name=sd.name,Size=UDim2.new(0.5,-5,0,50),Position=UDim2.new(col==0 and 0 or 0.5,col==1 and 5 or 0,0,row*58),BackgroundColor3=C.panel,BorderSizePixel=0,ZIndex=6},statsGrid)
 	corner(8,box) stroke(C.border,1,box)
 	n("TextLabel",{Size=UDim2.new(1,-16,0,14),Position=UDim2.new(0,8,0,8),BackgroundTransparency=1,Text=sd.label,TextColor3=C.muted,Font=F.mono,TextSize=9,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=7},box)
-	n("TextLabel",{Name="Val",Size=UDim2.new(1,-16,0,22),Position=UDim2.new(0,8,0,24),BackgroundTransparency=1,Text="—",TextColor3=sd.col,Font=F.mono,TextSize=16,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=7},box)
+	n("TextLabel",{Name="Valor",Size=UDim2.new(1,-16,0,22),Position=UDim2.new(0,8,0,24),BackgroundTransparency=1,Text="—",TextColor3=sd.col,Font=F.mono,TextSize=16,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=7},box)
 end
 n("TextLabel",{Name="ConceptosLabel",Size=UDim2.new(1,0,0,16),BackgroundTransparency=1,Text="CONCEPTOS",TextColor3=C.muted,Font=F.mono,TextSize=9,TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=6},infoBody)
 local tagsFrame=n("Frame",{Name="Tags",Size=UDim2.new(1,0,0,30),BackgroundTransparency=1,LayoutOrder=7},infoBody)
@@ -273,7 +301,7 @@ for i,aud in ipairs({{"Música ambiente","70%",0.7},{"Efectos de sonido","85%",0
 	n("TextLabel",{Size=UDim2.new(0,130,1,0),BackgroundTransparency=1,Text=aud[1],TextColor3=C.muted,Font=F.body,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left},ar)
 	local st=n("TextButton",{Name="Track",Text="",AutoButtonColor=false,Size=UDim2.new(1,-180,0,10),Position=UDim2.new(0,140,0.5,-5),BackgroundColor3=C.border,BorderSizePixel=0,ZIndex=53},ar) corner(5,st)
 	local sf2=n("Frame",{Name="Fill",Size=UDim2.new(aud[3],0,1,0),BackgroundColor3=C.accent,BorderSizePixel=0,ZIndex=54},st) corner(5,sf2)
-	n("TextLabel",{Name="Pct",Size=UDim2.new(0,38,1,0),Position=UDim2.new(1,-38,0,0),BackgroundTransparency=1,Text=aud[2],TextColor3=C.accent,Font=F.mono,TextSize=11,TextXAlignment=Enum.TextXAlignment.Right},ar)
+	n("TextLabel",{Name="Porcentaje",Size=UDim2.new(0,38,1,0),Position=UDim2.new(1,-38,0,0),BackgroundTransparency=1,Text=aud[2],TextColor3=C.accent,Font=F.mono,TextSize=11,TextXAlignment=Enum.TextXAlignment.Right},ar)
 end
 
 local sF=n("Frame",{Size=UDim2.new(1,0,0,50),Position=UDim2.new(0,0,1,-50),BackgroundColor3=C.panel,BorderSizePixel=0,ZIndex=52},sBox) stroke(C.border,1,sF)
