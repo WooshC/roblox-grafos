@@ -6,29 +6,29 @@
 
 ---
 
-## Convencion de Nombres (TODO en Espanol)
+## Convencion de Nombres (Functions in English, Files/Variables in Spanish)
 
-| Concepto | Nombre en Codigo |
-|----------|------------------|
-| Orchestrator | Orquestador |
-| Manager | Gestor |
-| Controller | Controlador |
-| Service | Servicio |
-| Module | Modulo |
-| activate | activar |
-| deactivate | desactivar |
-| start | iniciar |
-| stop | detener |
-| cleanup | limpiar |
-| player | jugador |
-| level | nivel |
-| score | puntaje |
-| mission | mision |
-| zone | zona |
-| cable | cable |
-| node | nodo |
-| connection | conexion |
-| camera | camara |
+| Concepto | Nombre en Codigo | Function Names |
+|----------|------------------|----------------|
+| Orchestrator | Orquestador | init, start, stop, cleanup |
+| Manager | Gestor | load, save, get, set |
+| Controller | Controlador | enable, disable, show, hide |
+| Service | Servicio | activate, deactivate, process |
+| Module | Modulo | require, init |
+| activate | activar | activate |
+| deactivate | desactivar | deactivate |
+| start | iniciar | start |
+| stop | detener | stop |
+| cleanup | limpiar | cleanup |
+| player | jugador | player |
+| level | nivel | level |
+| score | puntaje | score |
+| mission | mision | mission |
+| zone | zona | zone |
+| cable | cable | cable |
+| node | nodo | node |
+| connection | conexion | connection |
+| camera | camara | camera |
 
 ---
 
@@ -56,7 +56,10 @@ GrafosV3/
 │   │   └── CargadorNiveles.lua       ✅ Carga modelos + personaje
 │   │
 │   └── SistemasGameplay/
-│       └── ConectarCables.lua        ✅ Sistema de conexion
+│       ├── ConectarCables.lua        ✅ Sistema de conexion
+│       ├── ServicioMisiones.lua      ✅ Validacion de misiones
+│       ├── ServicioPuntaje.lua       ✅ Tracking de puntos
+│       └── GestorZonas.lua           ✅ Deteccion de zonas
 │
 └── StarterPlayerScripts/
     ├── Nucleo/
@@ -64,6 +67,15 @@ GrafosV3/
     │
     ├── Menu/
     │   └── ControladorMenu.client.lua✅ UI de seleccion de niveles
+    │
+    ├── HUD/
+    │   ├── ControladorHUD.client.lua ✅ Orquestador del HUD
+    │   └── ModulosHUD/
+    │       ├── EventosHUD.lua        ✅ Referencias a RemoteEvents
+    │       ├── PanelMisionesHUD.lua  ✅ Panel de misiones
+    │       ├── PuntajeHUD.lua        ✅ Display de puntaje
+    │       ├── VictoriaHUD.lua       ✅ Pantalla de victoria
+    │       └── TransicionHUD.lua     ✅ Efectos de fade
     │
     └── SistemasGameplay/
         └── ControladorEfectos.client.lua ✅ Efectos visuales + Highlights
@@ -105,18 +117,18 @@ GrafosV3/
 - [x] **Nombres desde LevelsConfig** - Usa NombresNodos del config
 - [x] **Limpiar al desconectar** - Resetea colores correctamente
 
-### ⏳ PENDIENTE - Fase 5: Sistemas Adicionales de Gameplay
-- [ ] **Sistema de Misiones** - Validacion de objetivos
-- [ ] **Sistema de Puntaje** - Tracking de puntos, aciertos, fallos
-- [ ] **Sistema de Zonas** - Deteccion de entrada/salida de zonas
-- [ ] **Sistema de Victoria** - Detecta cuando se completan objetivos
-- [ ] **Guardar resultado** - Persiste puntuacion al completar nivel
+### ✅ COMPLETADO - Fase 5: Sistemas Adicionales de Gameplay
+- [x] **ServicioMisiones** - Validacion de objetivos con revocacion
+- [x] **ServicioPuntaje** - Tracking de puntos, aciertos, fallos
+- [x] **GestorZonas** - Deteccion de entrada/salida de zonas
+- [x] **Sistema de Victoria** - Detecta cuando se completan objetivos
+- [x] **Guardar resultado** - Persiste puntuacion al completar nivel
 
-### ⏳ PENDIENTE - Fase 6: HUD de Gameplay
-- [ ] **HUDController** - Panel de misiones durante gameplay
-- [ ] **MostradorPuntaje** - Puntos en tiempo real
-- [ ] **PanelMisiones** - Lista de misiones activas
-- [ ] **PantallaVictoria** - Al completar el nivel
+### ✅ COMPLETADO - Fase 6: HUD de Gameplay
+- [x] **ControladorHUD** - Panel de misiones durante gameplay
+- [x] **PuntajeHUD** - Puntos en tiempo real (ContenedorEstrellas/Puntos/Dinero)
+- [x] **PanelMisionesHUD** - Lista de misiones activas con modo zona/resumen
+- [x] **VictoriaHUD** - Al completar el nivel con estadisticas
 
 ### ⏳ PENDIENTE - Fase 7: Optimizaciones
 - [ ] **SistemaCamara unificado** - Un solo modulo para control de camara
@@ -132,35 +144,48 @@ GrafosV3/
 Boot.server:IniciarNivel → CargadorNiveles.cargar()
     ├── Clonar modelo NivelX → Workspace/NivelActual
     ├── Spawn personaje en SpawnLocation
-    ├── Activar ConectarCables (si hay adyacencias)
+    ├── Activar ServicioPuntaje (init + iniciarNivel)
+    ├── Activar ServicioMisiones (activar con config, puntaje, progreso)
+    ├── Activar GestorZonas (si hay zonas configuradas)
+    ├── Activar ConectarCables (si hay adyacencias, con callbacks)
     └── Notificar cliente: NivelListo
 ```
 
-### Seleccion de Nodo (Cliente→Servidor→Cliente)
+### Conexion de Cable con Callbacks
 ```
-Jugador clickea Selector
+Jugador clickea nodos
     ↓
-ClickDetector → ConectarCables (servidor)
+ConectarCables.intentarConectar()
     ↓
-Servidor valida adyacencia con LevelsConfig
-    ↓
-Servidor notifica: NotificarSeleccionNodo → Cliente
-    ↓
-ControladorEfectos: Highlight + Billboard
+Si es conexion nueva:
+    - Crear Beam visual
+    - Callback onCableCreado(nomA, nomB)
+        - ServicioMisiones.alCrearCable() → verificar misiones
+        - ServicioPuntaje.registrarConexion() → +aciertos
+    - Notificar cliente: ConexionCompletada
+    
+Si es desconexion (re-click en nodos conectados):
+    - Eliminar Beam
+    - Callback onCableEliminado(nomA, nomB)
+        - ServicioMisiones.alEliminarCable() → revocar mision
+        - ServicioPuntaje.registrarDesconexion()
+    - Notificar cliente: CableDesconectado
 ```
 
-### Conexion de Cable
+### Victoria y Guardado
 ```
-Primer clic: Nodo A seleccionado (cyan) + adyacentes (dorado)
-Segundo clic: Nodo B
+ServicioMisiones.verificarYNotificar()
     ↓
-Si son adyacentes:
-    - Crear Beam visual
-    - Pulso de energia
-    - Limpiar seleccion
-Si NO son adyacentes:
-    - Flash rojo en nodo B
-    - Limpiar seleccion
+Todas las misiones completadas
+    ↓
+ServicioPuntaje.finalizar() → snapshot con puntaje, tiempo, aciertos, fallos
+    ↓
+ServicioProgreso.guardarResultado()
+    - Incrementar intentos
+    - Guardar puntaje, estrellas, aciertos, fallos, tiempo
+    - Desbloquear siguiente nivel si tiene estrellas
+    ↓
+NivelCompletado → Cliente muestra VictoriaHUD
 ```
 
 ---
@@ -169,25 +194,52 @@ Si NO son adyacentes:
 
 ### ConectarCables (Servidor)
 ```lua
-ConectarCables.activar(nivel, adyacencias, jugador, nivelID)
-    -- Conecta ClickDetectors de todos los nodos
-    -- Escucha clicks para crear/eliminar cables
+ConectarCables.activar(nivel, adyacencias, jugador, nivelID, callbacks)
+    -- callbacks: { onCableCreado, onCableEliminado, onNodoSeleccionado, onFalloConexion }
     
 ConectarCables.desactivar()
-    -- Desconecta listeners
-    -- Destruye cables existentes
+    -- Desconecta listeners, destruye cables
     
 ConectarCables.estaActivo() → boolean
 ```
 
-### ControladorEfectos (Cliente)
+### ServicioMisiones (Servidor)
 ```lua
--- Escucha eventos remotos:
---   "NodoSeleccionado"  → Highlight cyan + Billboard + adyacentes dorados
---   "SeleccionCancelada"→ Limpiar todo
---   "ConexionCompletada"→ Limpiar todo
---   "ConexionInvalida"  → Flash rojo
---   "CableDesconectado" → Limpiar todo
+ServicioMisiones.activar(config, nivelID, jugador, eventos, servicioPuntaje, servicioProgreso)
+    -- Inicia tracking de misiones desde LevelsConfig
+    
+ServicioMisiones.alCrearCable(nomA, nomB)
+    -- Valida misiones tipo ARISTA_CREADA
+    
+ServicioMisiones.alEliminarCable(nomA, nomB)
+    -- Revoca misiones no permanentes
+    
+ServicioMisiones.alSeleccionarNodo(nomNodo)
+    -- Valida misiones tipo NODO_SELECCIONADO
+    
+ServicioMisiones.alEntrarZona(nombre) / alSalirZona(nombre)
+    -- Actualiza zonaActual y notifica cliente
+```
+
+### ServicioPuntaje (Servidor)
+```lua
+ServicioPuntaje:init(eventoActualizarPuntuacion)
+ServicioPuntaje:iniciarNivel(jugador, nivelID, puntosConexion, penaFallo)
+ServicioPuntaje:registrarConexion(jugador) -- +1 acierto
+ServicioPuntaje:registrarDesconexion(jugador)
+ServicioPuntaje:registrarFallo(jugador) -- +1 fallo
+ServicioPuntaje:fijarPuntajeMision(jugador, puntos) -- Actualiza HUD
+ServicioPuntaje:finalizar(jugador) → snapshot completo
+```
+
+### ControladorHUD (Cliente)
+```lua
+-- Eventos manejados:
+--   NivelListo → activar HUD, resetear estado
+--   ActualizarMisiones → PanelMisionesHUD.reconstruir()
+--   ActualizarPuntuacion → PuntajeHUD.fijar()
+--   NivelCompletado → VictoriaHUD.mostrar()
+--   ZonaActual (atributo) → actualizar modo panel
 ```
 
 ### LevelsConfig (Configuracion)
@@ -212,12 +264,32 @@ LevelsConfig[nivelID] = {
         ["NodoA"] = "Nombre Amigable",
     },
     
-    -- Para puntuacion (futuro)
+    -- Para puntuacion
     Puntuacion = {
         TresEstrellas = number,
         DosEstrellas = number,
         PuntosConexion = number,
         PenaFallo = number,
+    },
+    
+    -- Para misiones
+    Misiones = {
+        {
+            ID = number,
+            Zona = "Zona_Estacion_1",
+            Texto = "Conecta Nodo A con Nodo B",
+            Tipo = "ARISTA_CREADA", -- o NODO_SELECCIONADO, GRADO_NODO, etc.
+            Puntos = 100,
+            Parametros = { NodoA = "Nodo1", NodoB = "Nodo2" }
+        }
+    },
+    
+    -- Para zonas
+    Zonas = {
+        ["Zona_Estacion_1"] = { 
+            Trigger = "ZonaTrigger_Estacion1", 
+            Descripcion = "Nodos y Aristas" 
+        }
     }
 }
 ```
@@ -242,29 +314,16 @@ Al volver al menu, se verifica:
 
 ## Proximos Pasos Recomendados
 
-### 1. Sistema de Misiones (Priority: HIGH)
-Crear modulo que valide cuando el jugador completa objetivos:
-- Conectar nodos especificos
-- Seleccionar nodos especificos
-- Completar todas las conexiones de un grafo
+### 1. Persistencia Mejorada (Priority: MEDIUM)
+- Guardar estado parcial de nivel (progreso dentro del nivel)
+- Sistema de checkpoints para niveles largos
 
-### 2. Sistema de Puntaje (Priority: HIGH)
-- Tracking de conexiones exitosas (+puntos)
-- Tracking de fallos (-puntos)
-- Tiempo transcurrido
-- Calcular estrellas al final
+### 2. Analytics (Priority: LOW)
+- Tracking de patrones de errores
+- Metricas de tiempo por zona
+- Frecuencia de uso de ayudas
 
-### 3. Guardar Progreso (Priority: MEDIUM)
-- Guardar puntuacion al completar nivel
-- Desbloquear siguiente nivel
-- Guardar estrellas obtenidas
-
-### 4. HUD de Gameplay (Priority: MEDIUM)
-- Mostrar misiones actuales
-- Mostrar puntuacion en tiempo real
-- Mostrar tiempo transcurrido
-
-### 5. Mejoras Visuales (Priority: LOW)
+### 3. Mejoras Visuales (Priority: LOW)
 - Animaciones de transicion
 - Efectos de particulas al conectar
 - Sonidos de conexion/error
@@ -288,11 +347,17 @@ Nodo (Model)
 - No requiere `CanCollide = true`
 - El Selector debe tener `CanQuery = true`
 
-### Highlight de Roblox
-Se usa `Instance.new("Highlight")` para el efecto de seleccion:
-- `FillColor` - Color de relleno
-- `OutlineColor` - Color del borde
-- `DepthMode = AlwaysOnTop` - Siempre visible
+### Callbacks Pattern
+Los callbacks permiten desacoplar ConectarCables de los servicios:
+```lua
+local callbacks = {
+    onCableCreado = function(nomA, nomB) ... end,
+    onCableEliminado = function(nomA, nomB) ... end,
+    onNodoSeleccionado = function(nomNodo) ... end,
+    onFalloConexion = function() ... end
+}
+ConectarCables.activar(nivel, adyacencias, jugador, nivelID, callbacks)
+```
 
 ---
 
@@ -305,6 +370,9 @@ Se usa `Instance.new("Highlight")` para el efecto de seleccion:
 | **Efectos** | ResaltadorNodos.lua | ControladorEfectos.client.lua integrado |
 | **Camara** | SistemaCamara unificado | Logica en CargadorNiveles + ControladorMenu |
 | **Nombres** | Sistema separado | BillboardNombres integrado en ControladorEfectos |
+| **Misiones** | MissionService (V2) | ServicioMisiones con revocacion |
+| **Puntaje** | ScoreTracker (V2) | ServicioPuntaje con callbacks |
+| **Zonas** | ZoneTriggerManager (V2) | GestorZonas integrado |
 
 ---
 
@@ -312,12 +380,12 @@ Se usa `Instance.new("Highlight")` para el efecto de seleccion:
 
 - `VisualEffectsService.client.lua` → Reemplazado por `ControladorEfectos.client.lua`
 - `CameraEffects.lua` → Logica movida a `CargadorNiveles`
-- `ZoneTriggerManager.lua` → No migrado aun (pendiente)
-- `MissionService.lua` → No migrado aun (pendiente)
-- `ScoreTracker.lua` → No migrado aun (pendiente)
+- `ZoneTriggerManager.lua` → Migrado a `GestorZonas.lua`
+- `MissionService.lua` → Migrado a `ServicioMisiones.lua`
+- `ScoreTracker.lua` → Migrado a `ServicioPuntaje.lua`
 - `DataService.lua` → Reemplazado por `ServicioProgreso.lua`
 
 ---
 
 *Documento actualizado: Fecha actual*
-*Version: GrafosV3 - Estado Actual*
+*Version: GrafosV3 - Sistema Completo*

@@ -388,7 +388,7 @@ function actualizarSidebar(datosNivel)
 			end
 		end
 		if heroBadgeText then
-			heroBadgeText.Text = estado == "completado" and "◆ COMPLETADO" or "◆ DISPONIBLE"
+			heroBadgeText.Text = datosNivel.status == "completado" and "◆ COMPLETADO" or "◆ DISPONIBLE"
 			heroBadgeText.TextColor3 = colorEstado
 		end
 	end
@@ -427,7 +427,7 @@ function actualizarSidebar(datosNivel)
 			local function actualizarStat(nombre, valor)
 				local stat = statsGrid:FindFirstChild(nombre)
 				if stat then
-					local lbl = stat:FindFirstChild("Val")
+					local lbl = stat:FindFirstChild("Val") or stat:FindFirstChild("Valor")
 					if lbl then
 						lbl.Text = tostring(valor)
 					end
@@ -915,8 +915,20 @@ if nivelDescargadoEvento then
 		nivelSeleccionado = nil
 		cargando = false
 		
+		-- Resetear sidebar a estado inicial
+		local sidebar = levelMainArea:WaitForChild("LevelSidebar")
+		local placeholder = sidebar:WaitForChild("Placeholder")
+		local infoContent = sidebar:WaitForChild("InfoContent")
+		placeholder.Visible = true
+		infoContent.Visible = false
+		
+		-- Resetear boton de jugar
+		local playBtn = sidebar:WaitForChild("PlayArea"):WaitForChild("PlayButton")
+		playBtn.Text = "🔒  SELECCIONA UN NIVEL"
+		playBtn.BackgroundColor3 = Color3.fromRGB(17, 25, 39)
+		
 		-- Volver a la pantalla de niveles
-		mostrarPantallaNiveles()
+		mostrarSelectorNiveles()
 	end)
 end
 

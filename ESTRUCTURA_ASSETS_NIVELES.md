@@ -1,21 +1,21 @@
 # Estructura de Assets y Niveles — Sistema 2.0
 
-> **Propósito**: Referencia de la estructura de carpetas para niveles (ServerStorage/Workspace)
-> y assets compartidos (ReplicatedStorage). Diseñada para la Fase 1 del Sistema 2.0: carga de niveles.
+> **Proposito**: Referencia de la estructura de carpetas para niveles (ServerStorage/Workspace)
+> y assets compartidos (ReplicatedStorage). Disenada para la Fase 1 del Sistema 2.0: carga de niveles.
 >
 > **Regla de oro**: Lo que es fijo y reutilizable vive pre-creado en ReplicatedStorage.
-> Lo que varía por contexto de gameplay (posiciones, colores, relaciones entre nodos) se genera en runtime por código.
+> Lo que varia por contexto de gameplay (posiciones, colores, relaciones entre nodos) se genera en runtime por codigo.
 
 ---
 
 ## Tabla de Contenido
 
 1. [Estructura de un Nivel](#1-estructura-de-un-nivel)
-2. [Jerarquía de Nodos](#2-jerarquía-de-nodos)
-3. [Lógica de Grafos Múltiples](#3-lógica-de-grafos-múltiples)
-4. [Qué se pre-crea vs qué se genera por código](#4-qué-se-pre-crea-vs-qué-se-genera-por-código)
+2. [Jerarquia de Nodos](#2-jerarquia-de-nodos)
+3. [Logica de Grafos Multiples](#3-logica-de-grafos-multiples)
+4. [Que se pre-crea vs que se genera por codigo](#4-que-se-pre-crea-vs-que-se-genera-por-codigo)
 5. [Assets en ReplicatedStorage](#5-assets-en-replicatedstorage)
-6. [Notas de Implementación](#6-notas-de-implementación)
+6. [Notas de Implementacion](#6-notas-de-implementacion)
 7. [Checklist — Fase 1 (Carga de Nivel)](#7-checklist--fase-1-carga-de-nivel)
 
 ---
@@ -26,36 +26,36 @@ El modelo vive en `ServerStorage` y se clona a `Workspace/NivelActual` al cargar
 El nombre del modelo en ServerStorage debe coincidir con el campo `Modelo` en `LevelsConfig`.
 
 Esta es la estructura **real y de referencia** confirmada en Studio. Cualquier nivel nuevo
-debe seguir exactamente esta jerarquía.
+debe seguir exactamente esta jerarquia.
 
 ```
 ServerStorage/
 └── Nivel1/                              (Model) ← se clona como "NivelActual"
     │
-    ├── DialoguePrompts/                 (Folder) ← ProximityPrompts para iniciar diálogos
+    ├── DialoguePrompts/                 (Folder) ← ProximityPrompts para iniciar dialogos
     │   └── TestPrompt1/                 (Model)
     │       └── PromptPart               (BasePart)
     │           └── ProximityPrompt      (ProximityPrompt)
     │
-    ├── Escenario/                       (Folder) ← geometría visual y colisiones
+    ├── Escenario/                       (Folder) ← geometria visual y colisiones
     │   ├── Colisionadores/              (Folder)
-    │   │   ├── Bloqueos/                (Folder) ← InvisibleWalls laterales y límites
+    │   │   ├── Bloqueos/                (Folder) ← InvisibleWalls laterales y limites
     │   │   └── Techos/                  (Folder)
     │   │       └── Techo                (BasePart)
     │   └── Decoracion/                  (Folder) ← Parts puramente visuales
     │
-    ├── Grafos/                          (Folder) ← colección de todos los grafos del nivel
+    ├── Grafos/                          (Folder) ← coleccion de todos los grafos del nivel
     │   └── Grafo_Zona1/                 (Folder) ← un grafo por zona de puzzle
-    │       ├── Conexiones/              (Folder) ← vacío; RopeConstraints se crean aquí en runtime
+    │       ├── Conexiones/              (Folder) ← vacio; Beams se crean aqui en runtime
     │       ├── Meta/                    (Folder) ← metadatos del grafo
     │       │   ├── Activo               (BoolValue)   = false
     │       │   ├── GrafoID              (StringValue) = "Grafo_Zona1"
     │       │   └── RequiereGenerador    (BoolValue)   = true/false
     │       └── Nodos/                   (Folder) ← todos los nodos de este grafo
-    │           ├── Nodo1_z1/            (Model)  ← ver sección 2 para estructura interna
+    │           ├── Nodo1_z1/            (Model)  ← ver seccion 2 para estructura interna
     │           │   ├── Decoracion/      (Model)  ← visual del poste, luces, cables decorativos
-    │           │   └── Selector/        (Model)  ← hitbox de interacción
-    │           │       ├── Attachment   (Attachment) ← anclaje para RopeConstraints
+    │           │   └── Selector/        (Model)  ← hitbox de interaccion
+    │           │       ├── Attachment   (Attachment) ← anclaje para Beams
     │           │       └── ClickDetector (ClickDetector)
     │           ├── Nodo2_z1/            (Model)
     │           │   ├── Decoracion/      (Model)
@@ -74,34 +74,30 @@ ServerStorage/
     │   └── NombreDisplay                (StringValue) = "El Primer Circuito"
     │
     ├── Navegacion/                      (Folder) ← puntos de referencia espaciales
-    │   └── Waypoints/                   (Folder) ← ver sección sobre Waypoints más abajo
+    │   └── Waypoints/                   (Folder) ← ver seccion sobre Waypoints mas abajo
     │
-    ├── ObjetosColeccionables/           (Folder) ← objetos con los que el jugador interactúa
-    │   ├── MapaModel/                   (Model)  ← mapa físico del nivel en el mundo
+    ├── ObjetosColeccionables/           (Folder) ← objetos con los que el jugador interactua
+    │   ├── MapaModel/                   (Model)  ← mapa fisico del nivel en el mundo
     │   └── Tablet_Algoritmos/           (Model)  ← tablet con info del algoritmo del nivel
     │
-    ├── Zonas/                           (Folder) ← triggers de luz, eventos y gameplay
-    │   ├── Zona_luz_1/                  (Folder) ← zona que controla iluminación
-    │   │   └── Foco/                    (Model)  ← luz de la zona
-    │   ├── Zona_luz_2/                  (Folder)
-    │   │   ├── Ceiling_Light/           (Model)
-    │   │   └── Puerta/                  (Model)  ← objeto interactuable de la zona
-    │   └── Zonas_juego/                 (Folder) ← triggers invisibles de gameplay
-    │       ├── Zona_Estacion_1          (BasePart) ← Transparency=1, CanCollide=false
-    │       ├── Zona_Estacion_2          (BasePart)
-    │       ├── Zona_Estacion_3          (BasePart)
-    │       └── Zona_Estacion_4          (BasePart)
+    ├── Zonas/                           (Folder) ← triggers de gameplay
+    │   ├── Zonas_juego/                 (Folder) ← triggers invisibles de gameplay
+    │   │   ├── Zona_Estacion_1          (BasePart) ← Transparency=1, CanCollide=false
+    │   │   ├── Zona_Estacion_2          (BasePart)
+    │   │   ├── Zona_Estacion_3          (BasePart)
+    │   │   └── Zona_Estacion_4          (BasePart)
+    │   └── Zonas_luz/                   (Folder) ← zonas que controlan iluminacion (opcional)
     │
-    ├── SpawnLocation                    (SpawnLocation) ← punto de aparición del jugador
-    └── Carlos/                          (Model) ← NPC guía del nivel
+    ├── SpawnLocation                    (SpawnLocation) ← punto de aparicion del jugador
+    └── Carlos/                          (Model) ← NPC guia del nivel (opcional)
 ```
 
 ---
 
-## 2. Jerarquía de Nodos
+## 2. Jerarquia de Nodos
 
 Cada nodo dentro de `Grafo_ZonaX/Nodos/` sigue esta estructura interna.
-La convención de nombre es `NodoN_zX` donde `N` es el número del nodo y `X` el número de zona.
+La convencion de nombre es `NodoN_zX` donde `N` es el numero del nodo y `X` el numero de zona.
 
 ```
 Nodo1_z1/                                (Model) ← PrimaryPart debe apuntar a la Part del Selector
@@ -110,117 +106,101 @@ Nodo1_z1/                                (Model) ← PrimaryPart debe apuntar a 
 │   └── (Parts, SpecialMesh, etc.)           no afecta gameplay; solo apariencia
 │
 └── Selector/                            (Model) ← la parte que el juego "lee" y el jugador clickea
-    ├── Attachment                       (Attachment) ← anclaje para RopeConstraints de los cables
-    └── ClickDetector                    (ClickDetector) ← detecta interacción del jugador
+    ├── Attachment                       (Attachment) ← anclaje para Beams de los cables
+    └── ClickDetector                    (ClickDetector) ← detecta interaccion del jugador
 ```
 
-**Por qué está separado en Decoracion y Selector:**
+**Por que esta separado en Decoracion y Selector:**
 `Decoracion` puede cambiar libremente en Studio sin afectar el gameplay — se pueden
-agregar luces, cambiar colores, añadir efectos sin tocar la lógica. `Selector` es el
-contrato con el código: `GraphService` siempre busca el `ClickDetector` y el `Attachment`
-dentro de `Selector`, sin importar cómo luzca la decoración.
+agregar luces, cambiar colores, anadir efectos sin tocar la logica. `Selector` es el
+contrato con el codigo: `ConectarCables` siempre busca el `ClickDetector` y el `Attachment`
+dentro de `Selector`, sin importar como luzca la decoracion.
 
 > **Nota**: `PrimaryPart` del Model debe apuntar a la Part dentro de `Selector` para que
-> `GraphService` obtenga la posición world correctamente con `:GetPivot()`.
+> los servicios obtengan la posicion world correctamente con `:GetPivot()`.
 
 ---
 
-## 3. Lógica de Grafos Múltiples
+## 3. Logica de Grafos Multiples
 
-Con esta estructura, `GraphService` opera sobre un grafo a la vez y puede
+Con esta estructura, `ConectarCables` opera sobre un grafo a la vez y puede
 activarlos progresivamente conforme el jugador avanza.
 
 ```lua
--- GraphService recibe el Folder del grafo, no el nivel completo
-GraphService:loadGrafo(nivelActual.Grafos.Grafo_Zona1)
+-- ConectarCables recibe el Folder del grafo, no el nivel completo
+ConectarCables.activar(nivelActual.Grafos.Grafo_Zona1, adyacencias, jugador, nivelID, callbacks)
 
--- ZoneTriggerManager activa el siguiente grafo al entrar en una zona
+-- GestorZonas activa el siguiente grafo al entrar en una zona
 -- Jugador entra Zona2
---   → ZoneTriggerManager dispara evento
---   → GraphService:loadGrafo("Grafo_Zona2")
+--   → GestorZonas dispara evento
+--   → ConectarCables se activa para "Grafo_Zona2"
 --   → Grafo_Zona2.Meta.Activo = true
---   → MissionService registra misiones del nuevo grafo
+--   → ServicioMisiones registra misiones del nuevo grafo
 ```
 
-Si `Grafo_Zona2.Meta.RequiereGenerador = false`, recibe energía desde una
-conexión proveniente de `Grafo_Zona1`. Esa relación entre grafos se define
-en `LevelsConfig`, no en la jerarquía de instancias del nivel.
+Si `Grafo_Zona2.Meta.RequiereGenerador = false`, recibe energia desde una
+conexion proveniente de `Grafo_Zona1`. Esa relacion entre grafos se define
+en `LevelsConfig`, no en la jerarquia de instancias del nivel.
 
 ---
 
-## 4. Qué se pre-crea vs qué se genera por código
+## 4. Que se pre-crea vs que se genera por codigo
 
-La división no es "todo en ReplicatedStorage" ni "todo por código" — es una decisión
-por tipo de asset según qué tanto varía en runtime.
+La division no es "todo en ReplicatedStorage" ni "todo por codigo" — es una decision
+por tipo de asset segun que tanto varia en runtime.
 
 ### Pre-creado en ReplicatedStorage (fijo y reutilizable)
 
-| Asset | Por qué pre-crearlo |
+| Asset | Por que pre-crearlo |
 |---|---|
-| BGM y Ambiente (Sound) | Sus IDs nunca cambian; cargarlos por código es innecesario |
+| BGM y Ambiente (Sound) | Sus IDs nunca cambian; cargarlos por codigo es innecesario |
 | SFX (Sound) | Siempre el mismo sonido para el mismo evento |
-| ParticleEmitter base | La textura, física y forma base son fijas; solo color/intensidad varía |
-| Templates de UI | Estructura HTML/GUI fija; solo el contenido varía por código |
+| ParticleEmitter base | La textura, fisica y forma base son fijas; solo color/intensidad varia |
+| Templates de UI | Estructura HTML/GUI fija; solo el contenido varia por codigo |
 | Beam templates | La apariencia base es fija; Attachments se reasignan en runtime |
-| BillboardGui templates | El layout es fijo; el texto se escribe por código |
+| BillboardGui templates | El layout es fijo; el texto se escribe por codigo |
 
-### Generado por código en runtime (varía por gameplay)
+### Generado por codigo en runtime (varia por gameplay)
 
-| Asset | Por qué generarlo por código |
+| Asset | Por que generarlo por codigo |
 |---|---|
-| RopeConstraints (cables) | Posición y longitud dependen de qué nodos conecta el jugador |
-| Color y propiedades de ParticleEmitter | Cambia según el estado del nodo, tipo de conexión o evento |
-| Highlights / SelectionBox | El objeto seleccionado cambia cada interacción |
-| Tweens de color y posición | Dependen del estado actual de cada Part |
-| Texto en BillboardGui | Nombre del nodo, peso de arista, puntaje — siempre dinámico |
-| Attachment0/1 de Beams | Se asignan a los nodos específicos del grafo activo |
+| Beams (cables) | Posicion y longitud dependen de que nodos conecta el jugador |
+| Color y propiedades de ParticleEmitter | Cambia segun el estado del nodo, tipo de conexion o evento |
+| Highlights / SelectionBox | El objeto seleccionado cambia cada interaccion |
+| Tweens de color y posicion | Dependen del estado actual de cada Part |
+| Texto en BillboardGui | Nombre del nodo, peso de arista, puntaje — siempre dinamico |
+| Attachment0/1 de Beams | Se asignan a los nodos especificos del grafo activo |
 
-### Partículas — regla específica
+### Particulas — regla especifica
 
-El `ParticleEmitter` **nunca** se crea desde cero por código. Lo que sí hace
-`EffectsService` después de clonar el template es modificar sus propiedades
+El `ParticleEmitter` **nunca** se crea desde cero por codigo. Lo que si hace
+`ControladorEfectos` despues de clonar el template es modificar sus propiedades
 antes de emitir, por ejemplo:
 
 ```lua
--- EffectsService clona el template base
+-- ControladorEfectos clona el template base
 local clone = ReplicatedStorage.Efectos.Particulas.Chispa:Clone()
 local emitter = clone:FindFirstChildWhichIsA("ParticleEmitter")
 
--- Modifica propiedades según el contexto
+-- Modifica propiedades segun el contexto
 emitter.Color = ColorSequence.new(colorDelNodo)   -- color del nodo conectado
-emitter.Rate = intensidad                          -- más intenso si es conexión clave
-emitter.SpreadAngle = Vector2.new(spread, spread)  -- más disperso en errores
+emitter.Rate = intensidad                          -- mas intenso si es conexion clave
+emitter.SpreadAngle = Vector2.new(spread, spread)  -- mas disperso en errores
 
 clone.Part.CFrame = posicionDelNodo
 clone.Parent = workspace
 game:GetService("Debris"):AddItem(clone, duracion)
 ```
 
-Esto permite efectos visualmente distintos (chispa azul para BFS, verde para árbol,
+Esto permite efectos visualmente distintos (chispa azul para BFS, verde para arbol,
 roja para error) sin duplicar emitters en ReplicatedStorage.
-
-### Efectos de video — opciones en Roblox
-
-Roblox no tiene un sistema de video nativo con control total, pero hay dos opciones:
-
-**`VideoFrame`** — instancia nativa de Roblox que reproduce archivos `.webm` subidos
-como asset. Funciona dentro de `SurfaceGui` o `ScreenGui`. Es viable para cutscenes
-de intro de nivel o pantalla de victoria. Requiere que el video pase moderación de Roblox.
-
-**Spritesheet animado** — se sube un spritesheet de frames y se anima por código
-cambiando `ImageRectOffset` en un `ImageLabel`. Es el método más usado para efectos
-cortos en gameplay (destellos, explosiones, energía fluyendo). Más control, sin moderación.
-
-Para este proyecto la recomendación es:
-- `VideoFrame` para intro cinemática de nivel o victoria si se desea algo cinematográfico
-- Spritesheet animado para efectos cortos dentro del gameplay
 
 ---
 
 ## 5. Assets en ReplicatedStorage
 
 Todos los assets fijos que servidor y cliente comparten. Se clonan o referencian
-desde aquí — nunca se instancian de cero por código.
+desde aqui — nunca se instancian de cero por codigo.
 
 ```
 ReplicatedStorage/
@@ -230,30 +210,30 @@ ReplicatedStorage/
 │   ├── SFX/                             (Folder) ← efectos de sonido cortos, no looped
 │   │   ├── CableConnect                 (Sound) ← al conectar un cable exitosamente
 │   │   ├── CableDisconnect              (Sound) ← al desconectar un cable
-│   │   ├── CableSnap                    (Sound) ← intento de conexión inválida
-│   │   ├── NodoActivado                 (Sound) ← nodo recibe energía
-│   │   ├── NodoApagado                  (Sound) ← nodo pierde energía
-│   │   ├── Error                        (Sound) ← acción no permitida
-│   │   ├── Click                        (Sound) ← interacción genérica de UI
+│   │   ├── CableSnap                    (Sound) ← intento de conexion invalida
+│   │   ├── NodoActivado                 (Sound) ← nodo recibe energia
+│   │   ├── NodoApagado                  (Sound) ← nodo pierde energia
+│   │   ├── Error                        (Sound) ← accion no permitida
+│   │   ├── Click                        (Sound) ← interaccion generica de UI
 │   │   ├── Hover                        (Sound) ← hover sobre botones
-│   │   ├── MisionCompleta               (Sound) ← misión individual completada
-│   │   └── Acierto                      (Sound) ← respuesta/conexión correcta
+│   │   ├── MisionCompleta               (Sound) ← mision individual completada
+│   │   └── Acierto                      (Sound) ← respuesta/conexion correcta
 │   │
-│   ├── BGM/                             (Folder) ← música de fondo, Looped = true
+│   ├── BGM/                             (Folder) ← musica de fondo, Looped = true
 │   │   ├── MenuPrincipal                (Sound)
 │   │   ├── Gameplay_Tranquilo           (Sound) ← fase inicial del nivel
-│   │   ├── Gameplay_Tenso               (Sound) ← fase final / presión de tiempo
+│   │   ├── Gameplay_Tenso               (Sound) ← fase final / presion de tiempo
 │   │   └── Victoria                     (Sound) ← Looped = false
 │   │
 │   ├── Ambiente/                        (Folder) ← sonido ambiental, Looped = true
-│   │   ├── Electricidad                 (Sound) ← zumbido eléctrico suave
+│   │   ├── Electricidad                 (Sound) ← zumbido electrico suave
 │   │   └── Viento                       (Sound) ← ambiente exterior
 │   │
-│   └── Voz/                             (Folder) ← narración de diálogos, opcional por fase
+│   └── Voz/                             (Folder) ← narracion de dialogos, opcional por fase
 │       ├── Carlos_Intro_01              (Sound)
 │       └── ...
 │
-├── Efectos/                             (Folder) ← partículas, beams, billboards
+├── Efectos/                             (Folder) ← particulas, beams, billboards
 │   │
 │   ├── Particulas/                      (Folder)
 │   │   ├── Chispa/                      (Model) ← al conectar cable
@@ -273,34 +253,19 @@ ReplicatedStorage/
 │   │       └── Emitter                  (ParticleEmitter)
 │   │
 │   ├── Beams/                           (Folder)
-│   │   ├── BeamRuta/                    (Model) ← visualizador de camino del algoritmo
-│   │   │   ├── Beam                     (Beam)
-│   │   │   ├── Attachment0              (Attachment) ← placeholder, se reasigna en runtime
-│   │   │   └── Attachment1              (Attachment) ← placeholder, se reasigna en runtime
-│   │   └── BeamEnergia/                 (Model) ← flujo de energía entre nodos activos
+│   │   └── BeamCable/                   (Model) ← cable visual entre nodos
 │   │       ├── Beam                     (Beam)
-│   │       ├── Attachment0              (Attachment)
-│   │       └── Attachment1              (Attachment)
+│   │       ├── Attachment0              (Attachment) ← placeholder
+│   │       └── Attachment1              (Attachment) ← placeholder
 │   │
 │   └── Billboards/                      (Folder) ← templates clonados en runtime
-│       ├── EtiquetaNodo                 (BillboardGui) ← muestra nombre/peso del nodo
-│       └── IndicadorWaypoint            (BillboardGui) ← flecha guía del siguiente objetivo
+│       └── EtiquetaNodo                 (BillboardGui) ← muestra nombre del nodo
 │
-├── UI/                                  (Folder) ← templates clonados una sola vez al inicio
-│   ├── DialogueBubble                   (ScreenGui) ← ventana de diálogos
-│   ├── HUD_Template                     (ScreenGui) ← HUD de gameplay
-│   ├── ToastNotification                (Frame)     ← notificaciones emergentes
-│   └── LoadingScreen                    (ScreenGui) ← pantalla de transición/fade
-│
-├── Config/                              (Folder) ← configuración del juego
-│   ├── LevelsConfig                     (ModuleScript) ← definición de todos los niveles
-│   ├── AudioConfig                      (ModuleScript) ← mapeo nombre → assetId de sonidos
-│   ├── EffectsConfig                    (ModuleScript) ← configuración de partículas/tweens
-│   └── DifficultyConfig                 (ModuleScript) ← modos de dificultad
+├── Config/                              (Folder) ← configuracion del juego
+│   └── LevelsConfig                     (ModuleScript) ← definicion de todos los niveles
 │
 └── Shared/                              (Folder) ← ModuleScripts compartidos server/client
     ├── Constants                        (ModuleScript) ← STUDS_PER_METER, TIMEOUTS, MAX_STARS
-    ├── Enums                            (ModuleScript)
     └── Utils/                           (Folder)
         ├── GraphUtils                   (ModuleScript)
         ├── TableUtils                   (ModuleScript) ← countKeys, deepCopy, shallowMerge
@@ -309,43 +274,43 @@ ReplicatedStorage/
 
 ---
 
-## 6. Notas de Implementación
+## 6. Notas de Implementacion
 
 ### Sonidos en ReplicatedStorage vs SoundService
 
-Los sonidos viven en `ReplicatedStorage/Audio/` porque `AudioService` (servidor) los referencia
-para replicar efectos, y el cliente también puede leerlos para efectos locales.
-`SoundService` es más adecuado para música global persistente que no necesita ser referenciada por scripts.
+Los sonidos viven en `ReplicatedStorage/Audio/` porque los servicios (server) los referencia
+para replicar efectos, y el cliente tambien puede leerlos para efectos locales.
+`SoundService` es mas adecuado para musica global persistente que no necesita ser referenciada por scripts.
 
 ### ParticleEmitters — clonar y modificar, nunca crear desde cero
 
 Cada Model en `Efectos/Particulas/` contiene una `BasePart` con el `ParticleEmitter` configurado
-con valores base. `EffectsService` lo clona y **antes de emitir** modifica las propiedades
+con valores base. `ControladorEfectos` lo clona y **antes de emitir** modifica las propiedades
 que dependen del contexto: `Color`, `Rate`, `SpeedRange`, `SpreadAngle`, etc.
-Esto permite un mismo emitter base producir efectos visualmente distintos según el gameplay
+Esto permite un mismo emitter base producir efectos visualmente distintos segun el gameplay
 (color del nodo, tipo de algoritmo, severidad del error) sin duplicar assets.
-Ver sección 4 para el patrón de código.
+Ver seccion 4 para el patron de codigo.
 
 ### Beams — los Attachments son placeholders
 
 Los templates en `Efectos/Beams/` incluyen `Attachment0` y `Attachment1` como placeholders.
-En runtime, `EffectsService` clona el template y reasigna ambos attachments a los
+En runtime, `ConectarCables` clona el template y reasigna ambos attachments a los
 `Attachment` que ya existen dentro de los nodos del nivel activo.
 
 ### Templates de UI — clonar una sola vez
 
 Los templates en `UI/` se clonan **una sola vez** al inicio del cliente y se
-muestran/ocultan según la etapa activa. No se crean nuevas instancias durante
+muestran/ocultan segun la etapa activa. No se crean nuevas instancias durante
 el gameplay para evitar memory leaks.
 
-### Waypoints — para qué sirven
+### Waypoints — para que sirven
 
 Los `Waypoints` dentro de `Navegacion/` son `BasePart` invisibles distribuidas por el
-nivel que definen la **ruta sugerida** que el jugador debería seguir para completar
+nivel que definen la **ruta sugerida** que el jugador deberia seguir para completar
 los objetivos en orden.
 
-`GuiaService` los lee en secuencia y mueve un indicador visual (flecha o ícono flotante)
-hacia el waypoint activo, señalando al jugador hacia dónde ir a continuación. Cuando el
+`GuiaService` (futuro) los lee en secuencia y mueve un indicador visual (flecha o icono flotante)
+hacia el waypoint activo, senalando al jugador hacia donde ir a continuacion. Cuando el
 jugador llega o completa el objetivo asociado, `GuiaService` avanza al siguiente waypoint.
 
 ```
@@ -353,60 +318,81 @@ Navegacion/
 └── Waypoints/
     ├── WP_01    ← BasePart invisible, apunta hacia la Tablet_Algoritmos al inicio
     ├── WP_02    ← apunta hacia el Grafo_Zona1 cuando empieza el puzzle
-    ├── WP_03    ← apunta hacia un nodo específico si el jugador se pierde
-    └── WP_04    ← apunta hacia la salida cuando el nivel está completo
+    ├── WP_03    ← apunta hacia un nodo especifico si el jugador se pierde
+    └── WP_04    ← apunta hacia la salida cuando el nivel esta completo
 ```
 
-En el nivel actual no hay waypoints definidos aún — se añaden una vez que el flujo
-de misiones esté claro. Por ahora `Navegacion/Waypoints/` queda vacío como placeholder.
+En el nivel actual no hay waypoints definidos aun — se anaden una vez que el flujo
+de misiones este claro. Por ahora `Navegacion/Waypoints/` queda vacio como placeholder.
 
-### Separación Decoracion / Selector en nodos
+### Separacion Decoracion / Selector en nodos
 
 `Decoracion` puede modificarse libremente en Studio sin afectar gameplay.
-`Selector` es el contrato con el código — `GraphService` siempre busca
+`Selector` es el contrato con el codigo — `ConectarCables` siempre busca
 `ClickDetector` y `Attachment` dentro de `Selector` y nunca dentro de `Decoracion`.
 
-### Tags de CollectionService
+### Callbacks Pattern para Sistemas de Gameplay
 
-Los tags (`"Nodo"`, `"ZonaTrigger"`, `"Generador"`) se asignan directamente en Studio
-sobre cada instancia. Los servicios usan `CollectionService:GetTagged()` en lugar de
-iterar carpetas, lo que desacopla la lógica de la jerarquía de instancias exacta.
+Los servicios de gameplay se comunican via callbacks en lugar de dependencias directas:
 
-### Grafos — activación progresiva
+```lua
+-- En CargadorNiveles.cargar()
+local callbacks = {
+    onCableCreado = function(nomA, nomB)
+        ServicioMisiones.alCrearCable(nomA, nomB)
+        ServicioPuntaje:registrarConexion(jugador)
+    end,
+    onCableEliminado = function(nomA, nomB)
+        ServicioMisiones.alEliminarCable(nomA, nomB)
+        ServicioPuntaje:registrarDesconexion(jugador)
+    end,
+    onNodoSeleccionado = function(nomNodo)
+        ServicioMisiones.alSeleccionarNodo(nomNodo)
+    end,
+    onFalloConexion = function()
+        ServicioPuntaje:registrarFallo(jugador)
+    end
+}
 
-`Grafo_ZonaX.Meta.Activo` arranca en `false`. `GraphService:loadGrafo()` lo pone en `true`
-y registra sus nodos. Esto permite que un nivel tenga varios puzzles en el mismo
-espacio sin que `GraphService` mezcle nodos de grafos distintos.
+ConectarCables.activar(nivel, adyacencias, jugador, nivelID, callbacks)
+```
+
+Esto desacopla `ConectarCables` de los servicios especificos.
 
 ---
 
 ## 7. Checklist — Fase 1 (Carga de Nivel)
 
-Lo mínimo necesario para que `LevelService:loadLevel(nivelID)` funcione correctamente.
+Lo minimo necesario para que `CargadorNiveles.cargar(nivelID, jugador)` funcione correctamente.
 
 ### En ServerStorage
 - [ ] Model del nivel con nombre exactamente igual al campo `Modelo` en `LevelsConfig`
 - [ ] Folder `Grafos/` con al menos un `Grafo_ZonaX/`
-- [ ] Cada grafo tiene: `Nodos/` (Folder), `Conexiones/` (Folder vacío), `Meta/` con `GrafoID` y `Activo`
-- [ ] Al menos un nodo válido con: `Part` (BasePart), `Selector` (BasePart), `ClickDetector`, `Attachment`
-- [ ] `PrimaryPart` de cada nodo (Model) apunta a su `Part`
-- [ ] Si `RequiereGenerador = true`, existe un Model `Generador/` dentro de `Nodos/`
-- [ ] Folder `Navegacion/` con `SpawnPoint` (BasePart)
-- [ ] Folder `Meta/` con `NivelID` (IntValue) y `NombreDisplay` (StringValue)
+- [ ] Cada grafo tiene: `Nodos/` (Folder), `Conexiones/` (Folder vacio), `Meta/` con `GrafoID` y `Activo`
+- [ ] Al menos un nodo valido con: `Selector` (Model/BasePart), `ClickDetector`, `Attachment`
+- [ ] `PrimaryPart` de cada nodo (Model) apunta a su `Selector`
+- [ ] Folder `Zonas/Zonas_juego/` con triggers invisibles para cada zona de misiones
+- [ ] `SpawnLocation` en posicion accesible
 
 ### En ReplicatedStorage
 - [ ] `Config/LevelsConfig` (ModuleScript) con entrada para el nivelID a cargar
-- [ ] `Shared/Enums` (ModuleScript) accesible
-- [ ] `Shared/Utils/GraphUtils` (ModuleScript) accesible
-- [ ] `Audio/SFX/` con al menos `CableConnect` (Sound) y `Error` (Sound)
+- [ ] `Efectos/Beams/BeamCable` (Model) con Beam template
+- [ ] `Efectos/Particulas/` con templates de particulas (opcional pero recomendado)
 
-### Validación de carga
-- [ ] `LevelService:loadLevel(1)` no produce `warn` ni `error` en Output
-- [ ] `Workspace/NivelActual` existe después de llamar loadLevel
-- [ ] `GraphService:loadGrafo("Grafo_Zona1")` reporta el número correcto de nodos
-- [ ] `player:GetAttribute("CurrentLevelID")` devuelve el ID correcto
-- [ ] `Grafo_Zona1.Meta.Activo` pasa a `true` después de `loadGrafo`
+### En LevelsConfig (para el nivel)
+- [ ] `Adyacencias` definidas para todos los nodos conectables
+- [ ] `NombresNodos` para mostrar nombres amigables
+- [ ] `Misiones` array con objetivos del nivel
+- [ ] `Zonas` con triggers correspondientes a las parts en `Zonas/Zonas_juego/`
+- [ ] `Puntuacion` con umbrales de estrellas
+
+### Validacion de carga
+- [ ] `CargadorNiveles.cargar(0, jugador)` no produce `warn` ni `error` en Output
+- [ ] `Workspace/NivelActual` existe despues de llamar cargar
+- [ ] El jugador aparece en el `SpawnLocation`
+- [ ] Los nodos son clickeables (ClickDetector responde)
+- [ ] `ServicioMisiones` notifica misiones iniciales al cliente
 
 ---
 
-*Última actualización: Sistema 2.1 — Estructura confirmada en Studio, Waypoints explicados, Fase 1 (Carga de Nivel)*
+*Ultima actualizacion: Sistema 2.1 — Estructura confirmada en Studio, Callbacks pattern documentado, Fase 1 (Carga de Nivel)*
