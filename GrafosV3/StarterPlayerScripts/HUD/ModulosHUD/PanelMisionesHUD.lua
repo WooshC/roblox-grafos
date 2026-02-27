@@ -9,6 +9,7 @@ local cuerpoMisiones = nil
 local btnMisiones = nil
 local btnCerrar = nil
 local panelAbierto = false
+local _ultimosDatos = nil  -- Cache de datos para reconstruir al cambiar de zona
 
 local COLOR_COMPLETA = Color3.fromRGB(80, 200, 120)
 local COLOR_PENDIENTE = Color3.fromRGB(200, 200, 200)
@@ -46,6 +47,7 @@ end
 
 function PanelMisionesHUD.reiniciar()
 	panelAbierto = false
+	_ultimosDatos = nil
 	if frameMisiones then frameMisiones.Visible = false end
 	PanelMisionesHUD.limpiar()
 end
@@ -108,7 +110,25 @@ end
 function PanelMisionesHUD.reconstruir(datosMision)
 	PanelMisionesHUD.limpiar()
 
-	local datos = normalizarDatos(datosMision)
+	-- Actualizar cache: mantener misiones previas si solo viene zonaActual
+	if datosMision then
+		if datosMision.porZona or datosMision.misiones then
+			-- Datos completos, reemplazar cache
+			_ultimosDatos = datosMision
+		elseif datosMision.zonaActual and _ultimosDatos then
+			-- Solo zona nueva, actualizar cache
+			_ultimosDatos.zonaActual = datosMision.zonaActual
+		end
+	end
+	
+	-- Usar datos cacheados si no hay datos nuevos
+	local datosFuente = _ultimosDatos
+	if not datosFuente then
+		warn("[PanelMisionesHUD] No hay datos de misiones")
+		return
+	end
+	
+	local datos = normalizarDatos(datosFuente)
 	if not datos or not cuerpoMisiones then 
 		warn("[PanelMisionesHUD] No hay datos o cuerpoMisiones")
 		return 

@@ -142,7 +142,11 @@ local function verificarYNotificar()
 
 		if ok and not _completadas[m.ID] then
 			_completadas[m.ID] = true
-			_permanentes[m.ID] = true
+			-- Solo marcar como permanente si NO es una misión de cableado
+			-- Las misiones ARISTA_CREADA pueden revocarse al desconectar
+			if m.Tipo ~= "ARISTA_CREADA" and m.Tipo ~= "ARISTA_DIRIGIDA" then
+				_permanentes[m.ID] = true
+			end
 			_puntosAcum = _puntosAcum + (m.Puntos or 0)
 			if _servicioPuntaje then _servicioPuntaje:fijarPuntajeMision(_jugador, _puntosAcum) end
 			cambiado = true
@@ -169,8 +173,21 @@ local function verificarYNotificar()
 	if allComplete then
 		print("[ServicioMisiones] 🏆 ¡Todas las misiones completadas! — puntosAcum:", _puntosAcum)
 
-		if _eventoNivelCompletado and _servicioPuntaje and _jugador then
-			local snap = _servicioPuntaje:finalizar(_jugador)
+		if _eventoNivelCompletado and _jugador then
+			local snap = nil
+			if _servicioPuntaje then
+				snap = _servicioPuntaje:finalizar(_jugador)
+			else
+				-- Si no hay servicio de puntaje, crear un snap básico
+				snap = {
+					nivelID = _nivelID,
+					conexiones = 0,
+					aciertosTotal = 0,
+					fallos = 0,
+					tiempo = 0,
+					puntajeBase = _puntosAcum,
+				}
+			end
 
 			print(string.format(
 				"[ServicioMisiones] Snapshot → puntaje=%d / aciertosTotal=%d / conexiones=%d / fallos=%d / tiempo=%d",
@@ -188,14 +205,16 @@ local function verificarYNotificar()
 
 				local aciertosGuardar = snap.aciertosTotal or snap.conexiones
 
-				_servicioDatos:guardarResultado(_jugador, _nivelID, {
-					highScore = snap.puntajeBase,
+				_servicioDatos.guardarResultado(_jugador, _nivelID, {
+					puntaje = snap.puntajeBase,
 					estrellas = estrellas,
 					aciertos = aciertosGuardar,
 					fallos = snap.fallos,
-					tiempoMejor = snap.tiempo,
+					tiempo = snap.tiempo,
 				})
-				print("[ServicioMisiones] 💾 Guardado — estrellas:", estrellas, "/ aciertos:", aciertosGuardar)
+				print("[ServicioMisiones] 💾 Guardado en progreso — estrellas:", estrellas, "/ puntaje:", snap.puntajeBase)
+			else
+				print("[ServicioMisiones] ⚠ No se guardó: _servicioDatos =", tostring(_servicioDatos), "_nivelID =", tostring(_nivelID))
 			end
 
 			-- Enviar snap al cliente con campo "aciertos" explícito
@@ -208,6 +227,9 @@ local function verificarYNotificar()
 				puntajeBase = snap.puntajeBase,
 			}
 			_eventoNivelCompletado:FireClient(_jugador, snapCliente)
+			print("[ServicioMisiones] 🏆 Evento NivelCompletado enviado al cliente")
+		else
+			print("[ServicioMisiones] ⚠ No se pudo enviar victoria: _eventoNivelCompletado =", tostring(_eventoNivelCompletado), "_jugador =", tostring(_jugador))
 		end
 
 		_activo = false

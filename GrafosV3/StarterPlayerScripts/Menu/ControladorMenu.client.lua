@@ -40,6 +40,7 @@ local remotos = eventos:WaitForChild("Remotos")
 local obtenerProgresoFn = remotos:WaitForChild("ObtenerProgresoJugador")
 local iniciarNivelEvento = remotos:WaitForChild("IniciarNivel")
 local nivelListoEvento = remotos:WaitForChild("NivelListo")
+local nivelDescargadoEvento = remotos:WaitForChild("NivelDescargado")
 
 -- Variables de estado
 local nivelSeleccionado = nil
@@ -687,6 +688,13 @@ function cargarProgreso()
 	print("[ControladorMenu] Progreso cargado exitosamente")
 end
 
+-- Función para recargar el progreso al volver del nivel
+local function recargarProgreso()
+	print("[ControladorMenu] Recargando progreso...")
+	progresoCargado = false
+	cargarProgreso()
+end
+
 -- ============================================
 -- INICIAR NIVEL
 -- ============================================
@@ -881,6 +889,34 @@ if nivelListoEvento then
 		camara.CameraType = Enum.CameraType.Custom
 		
 		print("[ControladorMenu] Nivel iniciado:", nivelSeleccionado)
+	end)
+end
+
+-- Manejar vuelta al menu (recargar progreso)
+if nivelDescargadoEvento then
+	nivelDescargadoEvento.OnClientEvent:Connect(function()
+		print("[ControladorMenu] NivelDescargado recibido - Volviendo al menu y recargando progreso")
+		
+		-- Mostrar menu, ocultar HUD
+		menuGui.Enabled = true
+		
+		local hud = playerGui:FindFirstChild("GUIExploradorV2")
+		if hud then
+			hud.Enabled = false
+		end
+		
+		-- Configurar camara del menu
+		configurarCamaraMenu()
+		
+		-- Recargar el progreso para mostrar datos actualizados
+		recargarProgreso()
+		
+		-- Resetear estado
+		nivelSeleccionado = nil
+		cargando = false
+		
+		-- Volver a la pantalla de niveles
+		mostrarPantallaNiveles()
 	end)
 end
 

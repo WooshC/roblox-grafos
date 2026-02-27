@@ -79,13 +79,38 @@ end)
 
 -- ActualizarMisiones: El servidor envía actualización de estado de misiones
 EventosHUD.actualizarMisiones.OnClientEvent:Connect(function(data)
+	-- Inyectar zona actual desde atributo del jugador
+	local zonaActual = jugador:GetAttribute("ZonaActual")
+	if data then
+		data.zonaActual = zonaActual
+	end
 	PanelMisionesHUD.reconstruir(data)
+end)
+
+-- Escuchar cambios de zona para actualizar el panel
+jugador:GetAttributeChangedSignal("ZonaActual"):Connect(function()
+	local zonaActual = jugador:GetAttribute("ZonaActual")
+	print("[ControladorHUD] Zona cambiada a:", zonaActual)
+	
+	-- Solicitar actualización de misiones al servidor
+	-- El servidor reenviará ActualizarMisiones con la nueva zona
+	-- Por ahora reconstruimos con datos existentes + nueva zona
+	local datos = { zonaActual = zonaActual }
+	PanelMisionesHUD.reconstruir(datos)
 end)
 
 -- ActualizarPuntuacion: El servidor envía actualización de puntaje
 EventosHUD.actualizarPuntuacion.OnClientEvent:Connect(function(data)
-	if data and data.puntajeBase then
-		PuntajeHUD.fijar(data.puntajeBase)
+	if data then
+		if data.puntajeBase then
+			PuntajeHUD.fijar(data.puntajeBase)
+		end
+		if data.estrellas then
+			PuntajeHUD.fijarEstrellas(data.estrellas)
+		end
+		if data.dinero then
+			PuntajeHUD.fijarDinero(data.dinero)
+		end
 	end
 end)
 

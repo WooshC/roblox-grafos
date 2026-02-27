@@ -16,16 +16,46 @@ local LevelsConfig = require(Replicado:WaitForChild("Config"):WaitForChild("Leve
 -- Sistemas de gameplay (se cargan bajo demanda)
 local ConectarCables = nil
 local ServicioMisiones = nil
-local ServicioPuntaje = nil
+local GestorZonas = nil
+local ServicioProgreso = nil
 
+-- Cargar ServicioPuntaje directamente (workaround para problema de caché de Studio)
+local ServicioPuntaje = nil
+local function cargarServicioPuntajeDirecto()
+	local exito, resultado = pcall(function()
+		-- Intentar cargar directamente desde la ruta conocida
+		return require(ServerScriptService.SistemasGameplay.ServicioPuntaje)
+	end)
+	if exito then
+		return resultado
+	else
+		warn("[CargadorNiveles] No se pudo cargar ServicioPuntaje directamente:", resultado)
+		return nil
+	end
+end
+
+-- Cargar ServicioProgreso
+local function obtenerServicioProgreso()
+	if not ServicioProgreso then
+		local exito, resultado = pcall(function()
+			return require(script.Parent.ServicioProgreso)
+		end)
+		if exito then
+			ServicioProgreso = resultado
+		else
+			warn("[CargadorNiveles] Error al cargar ServicioProgreso:", resultado)
+		end
+	end
+	return ServicioProgreso
+end
+
+-- Cache de modulos
 local function obtenerConectarCables()
 	if not ConectarCables then
 		local sistemasFolder = ServerScriptService:FindFirstChild("SistemasGameplay")
 		if not sistemasFolder then return nil end
 		local modulo = sistemasFolder:FindFirstChild("ConectarCables")
-		if modulo then
-			ConectarCables = require(modulo)
-		end
+		if modulo then ConectarCables = require(modulo) end
 	end
 	return ConectarCables
 end
@@ -35,9 +65,7 @@ local function obtenerServicioMisiones()
 		local sistemasFolder = ServerScriptService:FindFirstChild("SistemasGameplay")
 		if not sistemasFolder then return nil end
 		local modulo = sistemasFolder:FindFirstChild("ServicioMisiones")
-		if modulo then
-			ServicioMisiones = require(modulo)
-		end
+		if modulo then ServicioMisiones = require(modulo) end
 	end
 	return ServicioMisiones
 end
@@ -45,13 +73,36 @@ end
 local function obtenerServicioPuntaje()
 	if not ServicioPuntaje then
 		local sistemasFolder = ServerScriptService:FindFirstChild("SistemasGameplay")
-		if not sistemasFolder then return nil end
+		if not sistemasFolder then 
+			warn("[CargadorNiveles] obtenerServicioPuntaje: No se encontro SistemasGameplay")
+			return nil 
+		end
 		local modulo = sistemasFolder:FindFirstChild("ServicioPuntaje")
 		if modulo then
-			ServicioPuntaje = require(modulo)
+			local exito, resultado = pcall(function()
+				return require(modulo)
+			end)
+			if exito then
+				ServicioPuntaje = resultado
+				print("[CargadorNiveles] ServicioPuntaje cargado correctamente")
+			else
+				warn("[CargadorNiveles] Error al cargar ServicioPuntaje:", resultado)
+			end
+		else
+			warn("[CargadorNiveles] No se encontro el modulo ServicioPuntaje en SistemasGameplay")
 		end
 	end
 	return ServicioPuntaje
+end
+
+local function obtenerGestorZonas()
+	if not GestorZonas then
+		local sistemasFolder = ServerScriptService:FindFirstChild("SistemasGameplay")
+		if not sistemasFolder then return nil end
+		local modulo = sistemasFolder:FindFirstChild("GestorZonas")
+		if modulo then GestorZonas = require(modulo) end
+	end
+	return GestorZonas
 end
 
 -- Eventos
@@ -67,21 +118,25 @@ local _nivelIDActual = nil
 -- DESCARGAR NIVEL ACTUAL
 -- ═══════════════════════════════════════════════════════════════════════════════
 function CargadorNiveles.descargar()
-	-- Desactivar sistemas de gameplay primero
+	-- Desactivar sistemas de gameplay primero (en orden inverso)
+	local moduloZonas = obtenerGestorZonas()
+	if moduloZonas and moduloZonas.estaActivo() then
+		moduloZonas.desactivar()
+		print("[CargadorNiveles] GestorZonas desactivado")
+	end
+	
 	local moduloCables = obtenerConectarCables()
 	if moduloCables and moduloCables.estaActivo() then
 		moduloCables.desactivar()
 		print("[CargadorNiveles] ConectarCables desactivado")
 	end
 	
-	-- Desactivar ServicioMisiones
 	local moduloMisiones = obtenerServicioMisiones()
 	if moduloMisiones and moduloMisiones.estaActivo() then
 		moduloMisiones.desactivar()
 		print("[CargadorNiveles] ServicioMisiones desactivado")
 	end
 	
-	-- Reiniciar ServicioPuntaje
 	local moduloPuntaje = obtenerServicioPuntaje()
 	if moduloPuntaje and _jugadorActual then
 		moduloPuntaje:reiniciar(_jugadorActual)
@@ -169,13 +224,14 @@ function CargadorNiveles.cargar(nivelID, jugador)
 	
 	-- 1. Inicializar ServicioPuntaje
 	local moduloPuntaje = obtenerServicioPuntaje()
+	print("[CargadorNiveles] moduloPuntaje:", moduloPuntaje and "OK" or "NIL")
+	
 	if moduloPuntaje then
 		local eventoActualizarPuntaje = Remotos:FindFirstChild("ActualizarPuntuacion")
 		if moduloPuntaje.init then
 			moduloPuntaje:init(eventoActualizarPuntaje)
 		end
 		
-		-- Iniciar tracking de puntaje para este nivel
 		local puntuacion = config.Puntuacion or {}
 		moduloPuntaje:iniciarNivel(
 			jugador, 
@@ -183,36 +239,82 @@ function CargadorNiveles.cargar(nivelID, jugador)
 			puntuacion.PuntosConexion or 50, 
 			puntuacion.PenaFallo or 10
 		)
+		print("[CargadorNiveles] ServicioPuntaje iniciado correctamente")
+	else
+		warn("[CargadorNiveles] ServicioPuntaje no se pudo cargar!")
 	end
 	
 	-- 2. Inicializar ServicioMisiones
 	local moduloMisiones = obtenerServicioMisiones()
+	local moduloProgreso = obtenerServicioProgreso()
+	print("[CargadorNiveles] moduloMisiones:", moduloMisiones and "OK" or "NIL")
+	print("[CargadorNiveles] moduloProgreso:", moduloProgreso and "OK" or "NIL")
+	
 	if moduloMisiones then
-		local servicioDatos = nil  -- Opcional: integrar con ServicioDatos si existe
-		
-		moduloMisiones.activar(
-			config,
-			nivelID,
-			jugador,
-			Remotos,
-			moduloPuntaje,
-			servicioDatos
-		)
+		moduloMisiones.activar(config, nivelID, jugador, Remotos, moduloPuntaje, moduloProgreso)
+		print("[CargadorNiveles] ServicioMisiones activado con moduloPuntaje:", moduloPuntaje and "OK" or "NIL", "moduloProgreso:", moduloProgreso and "OK" or "NIL")
 	end
 	
-	-- 3. Activar ConectarCables si hay adyacencias configuradas
+	-- 3. Inicializar GestorZonas si hay zonas configuradas
+	local moduloZonas = obtenerGestorZonas()
+	if moduloZonas and config.Zonas and next(config.Zonas) then
+		moduloZonas.activar(nivelActual, config.Zonas, jugador, moduloMisiones)
+	end
+	
+	-- 4. Activar ConectarCables si hay adyacencias configuradas
 	local moduloCables = obtenerConectarCables()
 	local sistemasActivados = false
 	
 	if moduloCables then
 		local adyacencias = config.Adyacencias
 		if adyacencias and next(adyacencias) then
-			moduloCables.activar(nivelActual, adyacencias, jugador, nivelID)
+			-- Preparar callbacks para notificar a los servicios
+			-- CAPTURAR moduloMisiones y moduloPuntaje en locals para los closures
+			local misionesRef = moduloMisiones
+			local puntajeRef = moduloPuntaje
+			local jugadorRef = jugador
+			
+			local callbacks = {
+				onCableCreado = function(nomA, nomB)
+					print(string.format("[CargadorNiveles.Callback] Cable creado: %s | %s", nomA, nomB))
+					print(string.format("[CargadorNiveles.Callback] misionesRef=%s puntajeRef=%s", tostring(misionesRef), tostring(puntajeRef)))
+					if misionesRef and misionesRef.estaActivo() then
+						print("[CargadorNiveles.Callback] -> Notificando a ServicioMisiones")
+						misionesRef.alCrearCable(nomA, nomB)
+					else
+						print("[CargadorNiveles.Callback] -> ServicioMisiones no activo")
+					end
+					if puntajeRef then
+						print("[CargadorNiveles.Callback] -> Notificando a ServicioPuntaje")
+						puntajeRef:registrarConexion(jugadorRef)
+					end
+				end,
+				onCableEliminado = function(nomA, nomB)
+					print(string.format("[CargadorNiveles.Callback] Cable eliminado: %s | %s", nomA, nomB))
+					if misionesRef and misionesRef.estaActivo() then
+						misionesRef.alEliminarCable(nomA, nomB)
+					end
+					if puntajeRef then
+						puntajeRef:registrarDesconexion(jugadorRef)
+					end
+				end,
+				onNodoSeleccionado = function(nomNodo)
+					print(string.format("[CargadorNiveles.Callback] Nodo seleccionado: %s", nomNodo))
+					if misionesRef and misionesRef.estaActivo() then
+						misionesRef.alSeleccionarNodo(nomNodo)
+					end
+				end,
+				onFalloConexion = function()
+					print("[CargadorNiveles.Callback] Fallo de conexion")
+					if puntajeRef then
+						puntajeRef:registrarFallo(jugadorRef)
+					end
+				end
+			}
+			
+			moduloCables.activar(nivelActual, adyacencias, jugador, nivelID, callbacks)
 			sistemasActivados = true
 			print("[CargadorNiveles] ConectarCables activado")
-			
-			-- Conectar eventos de ConectarCables a ServicioMisiones
-			CargadorNiveles._conectarEventosSistemas(moduloCables, moduloMisiones, moduloPuntaje)
 		end
 	end
 	
@@ -228,54 +330,27 @@ function CargadorNiveles.cargar(nivelID, jugador)
 end
 
 -- ═══════════════════════════════════════════════════════════════════════════════
--- CONECTAR EVENTOS ENTRE SISTEMAS
--- ═══════════════════════════════════════════════════════════════════════════════
-function CargadorNiveles._conectarEventosSistemas(moduloCables, moduloMisiones, moduloPuntaje)
-	-- Los eventos ya están conectados dentro de ConectarCables
-	-- Pero necesitamos propagarlos a ServicioMisiones y ServicioPuntaje
-	
-	-- Escuchar eventos remotos para propagar a los servicios
-	local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
-	if notificarEvento then
-		-- El evento ya es disparado por ConectarCables
-		-- Necesitamos interceptarlo para actualizar misiones y puntaje
-		
-		-- Crear conexión temporal para escuchar cuando se crean/eliminan cables
-		-- Nota: Esto se maneja mediante el sistema de eventos existente
-	end
-end
-
--- ═══════════════════════════════════════════════════════════════════════════════
 -- CARGAR PERSONAJE Y TELEPORTAR
 -- ═══════════════════════════════════════════════════════════════════════════════
 function CargadorNiveles.cargarPersonaje(jugador, nivelActual)
 	local spawnLoc = nivelActual:FindFirstChildOfClass("SpawnLocation", true)
 	
-	-- Desactivar SpawnLocation para que Roblox no lo use globalmente
 	if spawnLoc then
 		spawnLoc.Enabled = false
 	else
 		warn("[CargadorNiveles] No hay SpawnLocation en el nivel")
 	end
 	
-	-- Cargar personaje (con pcall para no bloquear)
 	local exito, errorMsg = pcall(function()
-		-- Destruir personaje actual
 		if jugador.Character then
 			jugador.Character:Destroy()
 			task.wait(0.1)
 		end
 		
-		-- Habilitar spawn automatico temporalmente
 		Jugadores.CharacterAutoLoads = true
-		
-		-- Cargar nuevo personaje
 		jugador:LoadCharacter()
-		
-		-- Restaurar configuracion
 		Jugadores.CharacterAutoLoads = false
 		
-		-- Esperar personaje
 		local personaje
 		local tiempo = 0
 		repeat
@@ -289,7 +364,6 @@ function CargadorNiveles.cargarPersonaje(jugador, nivelActual)
 			return
 		end
 		
-		-- Teleportar al spawn
 		if spawnLoc then
 			local hrp = personaje:WaitForChild("HumanoidRootPart", 8)
 			if hrp then
@@ -301,56 +375,6 @@ function CargadorNiveles.cargarPersonaje(jugador, nivelActual)
 	
 	if not exito then
 		warn("[CargadorNiveles] Error al cargar personaje:", errorMsg)
-	end
-end
-
--- ═══════════════════════════════════════════════════════════════════════════════
--- NOTIFICACIONES EXTERNAS (llamadas por otros sistemas)
--- ═══════════════════════════════════════════════════════════════════════════════
-
--- Llamado por ConectarCables cuando se crea un cable
-function CargadorNiveles.notificarCableCreado(nomA, nomB)
-	local moduloMisiones = obtenerServicioMisiones()
-	local moduloPuntaje = obtenerServicioPuntaje()
-	
-	if moduloMisiones and moduloMisiones.estaActivo() then
-		moduloMisiones.alCrearCable(nomA, nomB)
-	end
-	
-	if moduloPuntaje and _jugadorActual then
-		moduloPuntaje:registrarConexion(_jugadorActual)
-	end
-end
-
--- Llamado por ConectarCables cuando se elimina un cable
-function CargadorNiveles.notificarCableEliminado(nomA, nomB)
-	local moduloMisiones = obtenerServicioMisiones()
-	local moduloPuntaje = obtenerServicioPuntaje()
-	
-	if moduloMisiones and moduloMisiones.estaActivo() then
-		moduloMisiones.alEliminarCable(nomA, nomB)
-	end
-	
-	if moduloPuntaje and _jugadorActual then
-		moduloPuntaje:registrarDesconexion(_jugadorActual)
-	end
-end
-
--- Llamado por ConectarCables cuando se selecciona un nodo
-function CargadorNiveles.notificarNodoSeleccionado(nomNodo)
-	local moduloMisiones = obtenerServicioMisiones()
-	
-	if moduloMisiones and moduloMisiones.estaActivo() then
-		moduloMisiones.alSeleccionarNodo(nomNodo)
-	end
-end
-
--- Llamado por ConectarCables cuando hay un fallo de conexión
-function CargadorNiveles.notificarFalloConexion()
-	local moduloPuntaje = obtenerServicioPuntaje()
-	
-	if moduloPuntaje and _jugadorActual then
-		moduloPuntaje:registrarFallo(_jugadorActual)
 	end
 end
 

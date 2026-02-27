@@ -8,7 +8,6 @@ local ConectarCables = {}
 local Workspace = game:GetService("Workspace")
 local Replicado = game:GetService("ReplicatedStorage")
 local Jugadores = game:GetService("Players")
-local ServerScriptService = game:GetService("ServerScriptService")
 
 -- Eventos
 local Eventos = Replicado:WaitForChild("EventosGrafosV3")
@@ -16,17 +15,6 @@ local Remotos = Eventos:WaitForChild("Remotos")
 
 -- Configuracion de niveles para nombres
 local LevelsConfig = require(Replicado:WaitForChild("Config"):WaitForChild("LevelsConfig"))
-
--- Referencia al CargadorNiveles para notificar eventos
-local CargadorNiveles = nil
-local function obtenerCargadorNiveles()
-	if not CargadorNiveles then
-		local serviciosFolder = ServerScriptService:WaitForChild("Servicios")
-		local modulo = serviciosFolder:WaitForChild("CargadorNiveles")
-		CargadorNiveles = require(modulo)
-	end
-	return CargadorNiveles
-end
 
 -- Estado interno
 local _activo = false
@@ -38,6 +26,7 @@ local _cables = {}
 local _conexiones = {}
 local _lookupAdyacencias = nil
 local _nivelID = nil
+local _callbacks = nil  -- Callbacks para notificar a otros sistemas
 
 -- Constantes
 local COLOR_CABLE = Color3.fromRGB(0, 200, 255)
@@ -112,7 +101,7 @@ local function buscarCable(nomA, nomB)
 	return nil
 end
 
--- Recolectar todos los Selectors (Part) del nivel
+-- Recolectar todos los Selectores (Part) del nivel
 local function recolectarSelectores()
 	_selectoresPorNombre = {}
 	if not _nivel then return {} end
@@ -238,13 +227,19 @@ local function crearCable(selector1, selector2)
 		if pl ~= _jugador then return end
 		for i, cable in ipairs(_cables) do
 			if cable.hitbox == hitbox then
+				local nomA, nomB = cable.nomA, cable.nomB
 				cable.hitbox:Destroy()
 				table.remove(_cables, i)
 				
 				-- Notificar a cliente
 				local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
 				if notificarEvento then
-					notificarEvento:FireClient(pl, "CableDesconectado", cable.nomA, cable.nomB)
+					notificarEvento:FireClient(pl, "CableDesconectado", nomA, nomB)
+				end
+				
+				-- Notificar a sistemas via callbacks
+				if _callbacks and _callbacks.onCableEliminado then
+					_callbacks.onCableEliminado(nomA, nomB)
 				end
 				
 				print("[ConectarCables] Cable desconectado:", cable.clave)
@@ -259,6 +254,11 @@ local function crearCable(selector1, selector2)
 	if pulseEvento then
 		local bidir = esBidireccional(nomA, nomB)
 		pulseEvento:FireClient(_jugador, "IniciarPulso", selector1.Parent, selector2.Parent, bidir)
+	end
+	
+	-- Notificar a sistemas via callbacks
+	if _callbacks and _callbacks.onCableCreado then
+		_callbacks.onCableCreado(nomA, nomB)
 	end
 	
 	print("[ConectarCables] Cable creado:", clave)
@@ -304,12 +304,20 @@ local function intentarConectar(jugador, selector1, selector2)
 	local indice = buscarCable(nomA, nomB)
 	if indice then
 		local cable = _cables[indice]
+		local nomA, nomB = cable.nomA, cable.nomB
 		eliminarCable(indice)
 		
 		local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
 		if notificarEvento then
-			notificarEvento:FireClient(jugador, "CableDesconectado", cable.nomA, cable.nomB)
+			notificarEvento:FireClient(jugador, "CableDesconectado", nomA, nomB)
 		end
+		
+		-- Notificar a sistemas via callbacks
+		if _callbacks and _callbacks.onCableEliminado then
+			_callbacks.onCableEliminado(nomA, nomB)
+		end
+		
+		print("[ConectarCables] Cable desconectado via clic en nodos:", nomA, "|", nomB)
 		
 		finalizar()
 		return
@@ -330,6 +338,11 @@ local function intentarConectar(jugador, selector1, selector2)
 		local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
 		if notificarEvento then
 			notificarEvento:FireClient(jugador, "ConexionInvalida", selector2.Parent)
+		end
+		
+		-- Notificar fallo via callbacks
+		if _callbacks and _callbacks.onFalloConexion then
+			_callbacks.onFalloConexion()
 		end
 		
 		print("[ConectarCables] Fallo (" .. tipoError .. "):", nomA, "->", nomB)
@@ -355,6 +368,11 @@ local function alClickearSelector(jugador, selector)
 		local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
 		if notificarEvento then
 			notificarEvento:FireClient(jugador, "NodoSeleccionado", modeloNodo, modelosAdyacentes)
+		end
+		
+		-- Notificar a sistemas via callbacks
+		if _callbacks and _callbacks.onNodoSeleccionado then
+			_callbacks.onNodoSeleccionado(nomA)
 		end
 		
 		-- Iniciar preview de arrastre
@@ -395,7 +413,7 @@ end
 -- INTERFAZ PUBLICA
 -- ═══════════════════════════════════════════════════════════════════════════════
 
-function ConectarCables.activar(nivel, adyacencias, jugador, nivelID)
+function ConectarCables.activar(nivel, adyacencias, jugador, nivelID, callbacks)
 	if _activo then
 		ConectarCables.desactivar()
 	end
@@ -407,6 +425,7 @@ function ConectarCables.activar(nivel, adyacencias, jugador, nivelID)
 	_cables = {}
 	_conexiones = {}
 	_lookupAdyacencias = construirLookupAdyacencias(adyacencias)
+	_callbacks = callbacks or {}
 	_activo = true
 	
 	local selectores = recolectarSelectores()
@@ -461,6 +480,7 @@ function ConectarCables.desactivar()
 	_nivelID = nil
 	_lookupAdyacencias = nil
 	_selectoresPorNombre = {}
+	_callbacks = nil
 	
 	print("[ConectarCables] Desactivado")
 end
