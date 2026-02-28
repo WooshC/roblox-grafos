@@ -14,12 +14,13 @@ print("[ParticulasConexion] Sistema iniciado")
 
 -- Configuración
 local CONFIG = {
-	VelocidadParticula = 8,
-	TamanoParticula = 0.3,
-	ColorParticula = Color3.fromRGB(0, 207, 255),
-	BrilloParticula = 2,
-	FrecuenciaParticulas = 1.5,
-	MaxParticulasPorConexion = 3
+	VelocidadParticula = 10,       -- Más rápido
+	TamanoParticula = 0.6,         -- Más grande (antes 0.3)
+	ColorParticulaAB = Color3.fromRGB(0, 207, 255),  -- Azul cian (A -> B)
+	ColorParticulaBA = Color3.fromRGB(255, 50, 100), -- Rosa/Rojo (B -> A)
+	BrilloParticula = 3,           -- Más brillante
+	FrecuenciaParticulas = 1.2,    -- Más frecuente
+	MaxParticulasPorConexion = 4   -- Más partículas
 }
 
 -- Estado
@@ -90,34 +91,83 @@ local function obtenerPosicionesNodos(nodoA, nodoB)
 	return posA, posB
 end
 
+-- Obtener la carpeta Conexiones del grafo donde están los nodos
+local function obtenerCarpetaConexiones(nodoA, nodoB)
+	local nivelActual = Workspace:FindFirstChild("NivelActual")
+	if not nivelActual then return nil end
+
+	local grafos = nivelActual:FindFirstChild("Grafos")
+	if not grafos then return nil end
+
+	for _, grafo in ipairs(grafos:GetChildren()) do
+		local nodos = grafo:FindFirstChild("Nodos")
+		if nodos then
+			local modeloA = nodos:FindFirstChild(nodoA)
+			if modeloA then
+				-- Encontramos el grafo correcto, obtener o crear la carpeta Conexiones
+				local conexiones = grafo:FindFirstChild("Conexiones")
+				if not conexiones then
+					conexiones = Instance.new("Folder")
+					conexiones.Name = "Conexiones"
+					conexiones.Parent = grafo
+				end
+				return conexiones
+			end
+		end
+	end
+	return nil
+end
+
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- SISTEMA DE PARTÍCULAS
 -- ═══════════════════════════════════════════════════════════════════════════════
 
-local function crearParticulaVisual()
+local function crearParticulaVisual(direccion)
+	-- direccion: "AB" (A->B) o "BA" (B->A)
+	local color = (direccion == "AB") and CONFIG.ColorParticulaAB or CONFIG.ColorParticulaBA
+
 	local particula = Instance.new("Part")
-	particula.Name = "ParticulaConexion"
+	particula.Name = "ParticulaConexion_" .. direccion
 	particula.Shape = Enum.PartType.Ball
 	particula.Size = Vector3.new(CONFIG.TamanoParticula, CONFIG.TamanoParticula, CONFIG.TamanoParticula)
-	particula.BrickColor = BrickColor.new(CONFIG.ColorParticula)
+	particula.BrickColor = BrickColor.new(color)
 	particula.Material = Enum.Material.Neon
 	particula.Anchored = true
 	particula.CanCollide = false
 	particula.CanQuery = false
 	particula.CastShadow = false
 
+	-- Efecto de brillo con el color correspondiente
 	local puntoLuz = Instance.new("PointLight")
-	puntoLuz.Color = CONFIG.ColorParticula
+	puntoLuz.Color = color
 	puntoLuz.Brightness = CONFIG.BrilloParticula
-	puntoLuz.Range = 3
+	puntoLuz.Range = 5  -- Mayor alcance
 	puntoLuz.Parent = particula
+
+	-- Opcional: Añadir un efecto de trail/rastro
+	local trail = Instance.new("Trail")
+	trail.Color = ColorSequence.new(color)
+	trail.WidthScale = NumberSequence.new(0.5, 0)
+	trail.Lifetime = 0.3
+	trail.Parent = particula
+
+	-- Attachment para el trail
+	local att0 = Instance.new("Attachment")
+	att0.Position = Vector3.new(0, 0, 0.1)
+	att0.Parent = particula
+	local att1 = Instance.new("Attachment")
+	att1.Position = Vector3.new(0, 0, -0.1)
+	att1.Parent = particula
+	trail.Attachment0 = att0
+	trail.Attachment1 = att1
 
 	return particula
 end
 
-local function animarParticula(particula, desde, hasta, duracion, onCompleto)
+local function animarParticula(particula, desde, hasta, duracion, onCompleto, carpetaDestino)
 	particula.Position = desde
-	particula.Parent = Workspace.Terrain
+	-- Usar la carpeta Conexiones si se proporciona, si no usar Workspace.Terrain
+	particula.Parent = carpetaDestino or Workspace.Terrain
 
 	local tween = TweenService:Create(
 		particula,
@@ -145,6 +195,9 @@ local function iniciarFlujoParticulas(idConexion, nodoA, nodoB, esDirigido)
 		return
 	end
 
+	-- Obtener la carpeta donde se crearán las partículas
+	local carpetaConexiones = obtenerCarpetaConexiones(nodoA, nodoB)
+
 	local distancia = (posB - posA).Magnitude
 	local duracionViaje = distancia / CONFIG.VelocidadParticula
 
@@ -154,7 +207,8 @@ local function iniciarFlujoParticulas(idConexion, nodoA, nodoB, esDirigido)
 		posA = posA,
 		posB = posB,
 		esDirigido = esDirigido,
-		particulas = {}
+		particulas = {},
+		carpetaConexiones = carpetaConexiones
 	}
 
 	local conexion = conexionesActivas[idConexion]
@@ -163,7 +217,7 @@ local function iniciarFlujoParticulas(idConexion, nodoA, nodoB, esDirigido)
 		if not conexionesActivas[idConexion] then return end
 		if #conexion.particulas >= CONFIG.MaxParticulasPorConexion then return end
 
-		local particula = crearParticulaVisual()
+		local particula = crearParticulaVisual("AB")
 		table.insert(conexion.particulas, particula)
 
 		animarParticula(particula, posA, posB, duracionViaje, function()
@@ -173,14 +227,14 @@ local function iniciarFlujoParticulas(idConexion, nodoA, nodoB, esDirigido)
 					break
 				end
 			end
-		end)
+		end, conexion.carpetaConexiones)
 	end
 
 	local function crearParticulaBA()
 		if not conexionesActivas[idConexion] then return end
 		if #conexion.particulas >= CONFIG.MaxParticulasPorConexion then return end
 
-		local particula = crearParticulaVisual()
+		local particula = crearParticulaVisual("BA")
 		table.insert(conexion.particulas, particula)
 
 		animarParticula(particula, posB, posA, duracionViaje, function()
@@ -190,7 +244,7 @@ local function iniciarFlujoParticulas(idConexion, nodoA, nodoB, esDirigido)
 					break
 				end
 			end
-		end)
+		end, conexion.carpetaConexiones)
 	end
 
 	conexion.loopAB = task.spawn(function()
@@ -242,7 +296,7 @@ if notificarEvento then
 
 			print("[ParticulasConexion] Conexión creada:", nodoA, "->", nodoB, "Dirigido:", esDirigido)
 			iniciarFlujoParticulas(idConexion, nodoA, nodoB, esDirigido)
-			
+
 		elseif tipoMensaje == "CableDesconectado" and nodoA and nodoB then
 			local idConexion = nodoA .. "_" .. nodoB
 			print("[ParticulasConexion] Conexión eliminada:", nodoA, "->", nodoB)

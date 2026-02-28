@@ -200,8 +200,79 @@ local DIALOGOS = {
 			PuedeOmitir = true,
 			OcultarHUD = true,
 			UsarTTS = true
+		},
+		
+		-- ═══════════════════════════════════════════════════════════════
+		-- CONFIGURACIÓN DE RESTRICCIONES (Opcional)
+		-- ═══════════════════════════════════════════════════════════════
+		-- Aquí defines el comportamiento del diálogo
+		-- Se puede activar por: ProximityPrompt, Misión, Zona, o código
+		Configuracion = {
+			-- BLOQUEO DE CONTROLES
+			bloquearMovimiento = true,    -- El jugador no puede moverse (WASD)
+			bloquearSalto = true,         -- El jugador no puede saltar (Espacio)
+			bloquearCarrera = true,       -- El jugador no puede correr (Shift)
+			
+			-- CONTROL DE CÁMARA
+			apuntarCamara = true,         -- La cámara mira al punto de enfoque
+			
+			-- ENFOQUE DE CÁMARA (dónde mira)
+			-- Opciones:
+			--   nil                = Usa el promptPart (si existe)
+			--   "NombreNodo"       = Nombre de un nodo en el nivel
+			--   Vector3.new(x,y,z) = Posición específica
+			enfoqueCamara = "Nodo1_z1",   -- En este ejemplo, mira al nodo de la Zona 1
+			
+			-- PERMISOS ESPECIALES
+			permitirConexiones = false    -- Si true, el jugador puede conectar cables durante el diálogo
+			                              -- Útil para tutoriales guiados
 		}
 	}
 }
 
 return DIALOGOS
+
+
+--[[
+════════════════════════════════════════════════════════════════════════════════
+EJEMPLO: CÓMO LLAMAR ESTE DIÁLOGO DESDE CÓDIGO
+════════════════════════════════════════════════════════════════════════════════
+
+-- Desde un script de cliente (ej: al completar una misión):
+local ControladorDialogo = _G.ControladorDialogo
+
+-- Opción 1: Simple (usa la configuración del archivo)
+ControladorDialogo.iniciar("Nivel0_Carlos_Bienvenida")
+
+-- Opción 2: Con configuración personalizada (sobreescribe el archivo)
+ControladorDialogo.iniciar("Nivel0_Carlos_Bienvenida", {
+    promptPart = workspace.NivelActual.Grafos.Grafo_Zona1.Nodos.Nodo1_z1.Selector,
+    alIniciar = function() print("Diálogo iniciado!") end,
+    alCerrar = function() print("Diálogo terminado!") end,
+    restricciones = {
+        bloquearMovimiento = true,
+        bloquearSalto = true,
+        apuntarCamara = true,
+        permitirConexiones = false
+    }
+})
+
+-- Opción 3: Activar al entrar a una zona
+triggerZona.Touched:Connect(function(hit)
+    local humanoid = hit.Parent:FindFirstChildOfClass("Humanoid")
+    if humanoid and humanoid.Parent.Name == game.Players.LocalPlayer.Name then
+        ControladorDialogo.iniciar("Nivel0_Carlos_Bienvenida")
+    end
+end)
+
+-- Opción 4: Activar al completar misión
+function onMisionCompletada()
+    ControladorDialogo.iniciar("Nivel0_Carlos_Bienvenida", {
+        alCerrar = function()
+            -- Desbloquear siguiente área
+            desbloquearPuerta()
+        end
+    })
+end
+════════════════════════════════════════════════════════════════════════════════
+]]

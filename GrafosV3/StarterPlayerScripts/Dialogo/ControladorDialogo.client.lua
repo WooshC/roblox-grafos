@@ -430,8 +430,29 @@ function iniciarDialogo(dialogoID, metadata)
 	
 	dialogoActivo = true
 	
-	-- Obtener restricciones del diálogo o usar defaults
-	local restricciones = RESTRICCIONES_DEFAULT
+	-- Obtener datos del diálogo para leer Configuracion
+	local datosDialogo = nil
+	if DialogoGUISystem then
+		datosDialogo = DialogoGUISystem:LoadDialogue(dialogoID)
+	end
+	
+	-- Combinar restricciones: Defaults → Config del archivo → Config del prompt/atributos
+	local restricciones = {}
+	
+	-- 1. Empezar con defaults
+	for key, value in pairs(RESTRICCIONES_DEFAULT) do
+		restricciones[key] = value
+	end
+	
+	-- 2. Aplicar configuración del archivo de diálogo (si existe)
+	if datosDialogo and datosDialogo.Configuracion then
+		for key, value in pairs(datosDialogo.Configuracion) do
+			restricciones[key] = value
+		end
+		print("[ControladorDialogo] Configuración cargada del archivo de diálogo")
+	end
+	
+	-- 3. Aplicar configuración del prompt/atributos (si existe, tiene prioridad)
 	if metadata.config and metadata.config.restricciones then
 		for key, value in pairs(metadata.config.restricciones) do
 			restricciones[key] = value
@@ -441,12 +462,37 @@ function iniciarDialogo(dialogoID, metadata)
 	-- Guardar restricciones en metadata para que otros sistemas las consulten
 	metadata.restricciones = restricciones
 	
-	-- Bloquear movimiento si está configurado
-	if restricciones.bloquearMovimiento or restricciones.bloquearSalto or restricciones.apuntarCamara then
-		bloquearMovimiento(restricciones, metadata.promptPart)
+	-- Determinar el punto de enfoque de la cámara
+	local puntoEnfoque = metadata.promptPart
+	if datosDialogo and datosDialogo.Configuracion and datosDialogo.Configuracion.enfoqueCamara then
+		-- Si hay un enfoque específico configurado, buscarlo
+		local enfoque = datosDialogo.Configuracion.enfoqueCamara
+		if typeof(enfoque) == "Vector3" then
+			puntoEnfoque = {Position = enfoque}
+		elseif typeof(enfoque) == "string" then
+			-- Buscar nodo con ese nombre
+			local nivel = Workspace:FindFirstChild("NivelActual")
+			if nivel then
+				puntoEnfoque = nivel:FindFirstChild(enfoque, true)
+			end
+		end
 	end
 	
-	if metadata.config and metadata.config.ocultarHUD then
+	-- Bloquear movimiento si está configurado
+	if restricciones.bloquearMovimiento or restricciones.bloquearSalto or restricciones.apuntarCamara then
+		bloquearMovimiento(restricciones, puntoEnfoque)
+	end
+	
+	-- Verificar si ocultar HUD (del archivo o del prompt)
+	local ocultarHUD = true
+	if datosDialogo and datosDialogo.Metadata and datosDialogo.Metadata.OcultarHUD ~= nil then
+		ocultarHUD = datosDialogo.Metadata.OcultarHUD
+	end
+	if metadata.config and metadata.config.ocultarHUD ~= nil then
+		ocultarHUD = metadata.config.ocultarHUD
+	end
+	
+	if ocultarHUD then
 		ocultarHUD()
 	end
 	
@@ -483,8 +529,37 @@ end
 
 local ControladorDialogo = {}
 
-function ControladorDialogo.iniciar(dialogoID, metadata)
-	return iniciarDialogo(dialogoID, metadata or {})
+---Inicia un diálogo programáticamente
+-- @param dialogoID string - ID del diálogo (ej: "Nivel0_Carlos_Bienvenida")
+-- @param opciones table - Opcional. Configuración adicional:
+--   {
+--     promptPart = BasePart,  -- Parte para enfocar la cámara
+--     alIniciar = function,   -- Callback al iniciar
+--     alCerrar = function,    -- Callback al cerrar
+--     restricciones = {       -- Sobreescribe la configuración del archivo
+--       bloquearMovimiento = true/false,
+--       bloquearSalto = true/false,
+--       apuntarCamara = true/false,
+--       permitirConexiones = true/false
+--     }
+--   }
+function ControladorDialogo.iniciar(dialogoID, opciones)
+	opciones = opciones or {}
+	
+	-- Construir metadata compatible
+	local metadata = {
+		nivelID = jugador:GetAttribute("CurrentLevelID") or 0,
+		zonaActual = jugador:GetAttribute("ZonaActual") or "",
+		promptPart = opciones.promptPart,
+		config = {
+			restricciones = opciones.restricciones,
+			alIniciar = opciones.alIniciar,
+			alCerrar = opciones.alCerrar,
+			ocultarHUD = opciones.ocultarHUD
+		}
+	}
+	
+	return iniciarDialogo(dialogoID, metadata)
 end
 
 function ControladorDialogo.estaActivo()
