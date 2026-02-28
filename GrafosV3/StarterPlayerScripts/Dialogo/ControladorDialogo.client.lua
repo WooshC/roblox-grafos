@@ -167,9 +167,31 @@ local function bloquearMovimiento(restricciones, promptPart)
 		estadoJugador.camaraOriginal = camara.CameraType
 		estadoJugador.cframeOriginal = camara.CFrame
 		
+		-- Obtener posición del punto de enfoque
+		local posicionPrompt = nil
+		if typeof(promptPart) == "Vector3" then
+			posicionPrompt = promptPart
+		elseif promptPart:IsA("BasePart") then
+			posicionPrompt = promptPart.Position
+		elseif promptPart:IsA("Model") then
+			-- Si es un Model, usar el Selector o GetPivot
+			local selector = promptPart:FindFirstChild("Selector")
+			if selector and selector:IsA("BasePart") then
+				posicionPrompt = selector.Position
+			else
+				posicionPrompt = promptPart:GetPivot().Position
+			end
+		elseif promptPart.Position then
+			posicionPrompt = promptPart.Position
+		end
+		
+		if not posicionPrompt then
+			warn("[ControladorDialogo] No se pudo obtener posición del punto de enfoque")
+			return
+		end
+		
 		-- Crear CFrame que mire al prompt desde una posición cercana
 		local posicionJugador = personaje:WaitForChild("HumanoidRootPart").Position
-		local posicionPrompt = promptPart.Position
 		
 		-- Calcular posición de la cámara (detrás y arriba del jugador, mirando al prompt)
 		local direccion = (posicionPrompt - posicionJugador).Unit
@@ -468,12 +490,25 @@ function iniciarDialogo(dialogoID, metadata)
 		-- Si hay un enfoque específico configurado, buscarlo
 		local enfoque = datosDialogo.Configuracion.enfoqueCamara
 		if typeof(enfoque) == "Vector3" then
-			puntoEnfoque = {Position = enfoque}
+			puntoEnfoque = enfoque
 		elseif typeof(enfoque) == "string" then
 			-- Buscar nodo con ese nombre
 			local nivel = Workspace:FindFirstChild("NivelActual")
 			if nivel then
-				puntoEnfoque = nivel:FindFirstChild(enfoque, true)
+				local nodo = nivel:FindFirstChild(enfoque, true)
+				if nodo then
+					-- Si es un Model, buscar el Selector
+					if nodo:IsA("Model") then
+						local selector = nodo:FindFirstChild("Selector")
+						if selector then
+							puntoEnfoque = selector
+						else
+							puntoEnfoque = nodo:GetPivot().Position
+						end
+					else
+						puntoEnfoque = nodo
+					end
+				end
 			end
 		end
 	end
@@ -484,15 +519,15 @@ function iniciarDialogo(dialogoID, metadata)
 	end
 	
 	-- Verificar si ocultar HUD (del archivo o del prompt)
-	local ocultarHUD = true
+	local debeOcultarHUD = true
 	if datosDialogo and datosDialogo.Metadata and datosDialogo.Metadata.OcultarHUD ~= nil then
-		ocultarHUD = datosDialogo.Metadata.OcultarHUD
+		debeOcultarHUD = datosDialogo.Metadata.OcultarHUD
 	end
 	if metadata.config and metadata.config.ocultarHUD ~= nil then
-		ocultarHUD = metadata.config.ocultarHUD
+		debeOcultarHUD = metadata.config.ocultarHUD
 	end
 	
-	if ocultarHUD then
+	if debeOcultarHUD then
 		ocultarHUD()
 	end
 	

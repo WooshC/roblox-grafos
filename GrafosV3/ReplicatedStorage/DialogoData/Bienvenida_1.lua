@@ -8,7 +8,7 @@ local Workspace = game:GetService("Workspace")
 
 -- Referencias a servicios externos (si existen)
 local VisualEffectsService = nil
-local desbloquearZona = nil
+-- local desbloquearZona = nil  -- COMENTADO: No existe en este proyecto
 
 -- Cargar servicios opcionales
 local function cargarServicios()
@@ -18,10 +18,11 @@ local function cargarServicios()
 	end)
 	if exito then VisualEffectsService = resultado end
 	
-	exito, resultado = pcall(function()
-		return require(ReplicatedStorage:WaitForChild("DesbloquearZona"))
-	end)
-	if exito then desbloquearZona = resultado end
+	-- COMENTADO: DesbloquearZona no existe en este proyecto
+	-- exito, resultado = pcall(function()
+	-- 	return require(ReplicatedStorage:WaitForChild("DesbloquearZona"))
+	-- end)
+	-- if exito then desbloquearZona = resultado end
 end
 
 -- Ejecutar carga asíncrona
@@ -63,6 +64,8 @@ local function restoreCamera()
 	end
 end
 
+--[[ COMENTADO: Función de desbloqueo de zona
+-- Solo se usa si existe el módulo DesbloquearZona
 local function desbloquear(nombreZona)
 	if desbloquearZona then
 		desbloquearZona(nombreZona)
@@ -89,10 +92,16 @@ local function desbloquear(nombreZona)
 		end
 	end)
 end
+]]
+
+-- Función placeholder (no hace nada, para evitar errores)
+local function desbloquear(nombreZona)
+	print("[Diálogo] Desbloquear zona:", nombreZona, "(función desactivada)")
+end
 
 local DIALOGOS = {
 	
-	["Nivel0_Carlos_Bienvenida"] = {
+	["Nivel0_CarlosBienvenida"] = {
 		Zona = "Tutorial",
 		Nivel = 0,
 		
@@ -231,48 +240,3 @@ local DIALOGOS = {
 }
 
 return DIALOGOS
-
-
---[[
-════════════════════════════════════════════════════════════════════════════════
-EJEMPLO: CÓMO LLAMAR ESTE DIÁLOGO DESDE CÓDIGO
-════════════════════════════════════════════════════════════════════════════════
-
--- Desde un script de cliente (ej: al completar una misión):
-local ControladorDialogo = _G.ControladorDialogo
-
--- Opción 1: Simple (usa la configuración del archivo)
-ControladorDialogo.iniciar("Nivel0_Carlos_Bienvenida")
-
--- Opción 2: Con configuración personalizada (sobreescribe el archivo)
-ControladorDialogo.iniciar("Nivel0_Carlos_Bienvenida", {
-    promptPart = workspace.NivelActual.Grafos.Grafo_Zona1.Nodos.Nodo1_z1.Selector,
-    alIniciar = function() print("Diálogo iniciado!") end,
-    alCerrar = function() print("Diálogo terminado!") end,
-    restricciones = {
-        bloquearMovimiento = true,
-        bloquearSalto = true,
-        apuntarCamara = true,
-        permitirConexiones = false
-    }
-})
-
--- Opción 3: Activar al entrar a una zona
-triggerZona.Touched:Connect(function(hit)
-    local humanoid = hit.Parent:FindFirstChildOfClass("Humanoid")
-    if humanoid and humanoid.Parent.Name == game.Players.LocalPlayer.Name then
-        ControladorDialogo.iniciar("Nivel0_Carlos_Bienvenida")
-    end
-end)
-
--- Opción 4: Activar al completar misión
-function onMisionCompletada()
-    ControladorDialogo.iniciar("Nivel0_Carlos_Bienvenida", {
-        alCerrar = function()
-            -- Desbloquear siguiente área
-            desbloquearPuerta()
-        end
-    })
-end
-════════════════════════════════════════════════════════════════════════════════
-]]
