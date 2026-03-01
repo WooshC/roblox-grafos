@@ -1,9 +1,19 @@
 -- EfectosMapa.lua
 -- Sistema de efectos visuales específico para el modo mapa cenital
--- Modifica las partes directamente como en GrafosV2 (sin Highlight)
+-- Cambia color en el Selector Y añade Highlight en el Model del nodo
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- Require lazy para evitar problemas de resolución del type-checker
+local _EfectosHighlight = nil
+local function getEfectosHighlight()
+	if not _EfectosHighlight then
+		_EfectosHighlight = require(ReplicatedStorage.Efectos.EfectosHighlight)
+	end
+	return _EfectosHighlight
+end
 
 local EfectosMapa = {}
 
@@ -14,12 +24,20 @@ local partesOriginales = {} -- Guardar estado original para restaurar
 -- Módulo de estado de conexiones (se inicializa luego)
 local EstadoConexiones = nil
 
--- Colores del modo mapa
+-- Colores del modo mapa (para la part del Selector)
 local COLORES = {
 	SELECCIONADO = Color3.fromRGB(255, 255, 255),  -- Blanco
-	ADYACENTE = Color3.fromRGB(255, 200, 50),      -- Dorado
-	CONECTADO = Color3.fromRGB(0, 212, 255),       -- Cyan
-	AISLADO = Color3.fromRGB(239, 68, 68),         -- Rojo
+	ADYACENTE    = Color3.fromRGB(255, 200, 50),   -- Dorado
+	CONECTADO    = Color3.fromRGB(0, 212, 255),    -- Cyan
+	AISLADO      = Color3.fromRGB(239, 68, 68),    -- Rojo
+}
+
+-- Tipos de Highlight por estado (para el Model)
+local HIGHLIGHT_TIPO = {
+	SELECCIONADO = "SELECCIONADO",
+	ADYACENTE    = "ADYACENTE",
+	CONECTADO    = "CONECTADO",
+	AISLADO      = "AISLADO",
 }
 
 function EfectosMapa.inicializar(configNivel, estadoConexionesModulo)
@@ -34,18 +52,16 @@ function EfectosMapa.limpiarTodo()
 	-- Restaurar todas las partes a su estado original
 	for _, data in ipairs(partesOriginales) do
 		if data.parte and data.parte.Parent then
-			print("[EfectosMapa] Restaurando:", data.parte.Name, "Tamaño original:", data.tamanoOriginal)
 			data.parte.Color = data.colorOriginal
 			data.parte.Material = data.materialOriginal
 			data.parte.Transparency = data.transparencyOriginal
-			-- Restaurar tamaño original
 			if data.tamanoOriginal then
 				data.parte.Size = data.tamanoOriginal
 			end
 		end
 	end
 	partesOriginales = {}
-	
+
 	-- Limpiar billboards
 	local workspace = game:GetService("Workspace")
 	for _, obj in ipairs(workspace:GetChildren()) do
@@ -53,6 +69,9 @@ function EfectosMapa.limpiarTodo()
 			obj:Destroy()
 		end
 	end
+
+	-- Limpiar Highlights de nodos del mapa
+	getEfectosHighlight().limpiarMapaNodos()
 end
 
 function EfectosMapa.obtenerNombreAmigable(nombreNodo)
@@ -64,14 +83,9 @@ function EfectosMapa.esNodoConectado(nodo)
 	if EstadoConexiones and EstadoConexiones.tieneConexiones then
 		return EstadoConexiones.tieneConexiones(nodo.Name)
 	end
-	
-	-- Fallback: buscar en el modelo
-	local connections = nodo:FindFirstChild("Connections")
-	if connections and #connections:GetChildren() > 0 then
-		return true
-	end
-	
-	local grafo = nodo:FindFirstAncestorOfClass("Model")
+
+	-- Fallback: buscar Beams en la carpeta Conexiones del grafo padre
+	local grafo = nodo.Parent and nodo.Parent.Parent
 	if grafo then
 		local conexionesFolder = grafo:FindFirstChild("Conexiones")
 		if conexionesFolder then
@@ -91,14 +105,14 @@ function EfectosMapa.esNodoConectado(nodo)
 			end
 		end
 	end
-	
+
 	return false
 end
 
 function EfectosMapa.obtenerParteSelector(nodo)
 	local selector = nodo:FindFirstChild("Selector")
 	if not selector then return nil end
-	
+
 	if selector:IsA("BasePart") then
 		return selector
 	elseif selector:IsA("Model") then
@@ -108,77 +122,60 @@ function EfectosMapa.obtenerParteSelector(nodo)
 			end
 		end
 	end
-	
+
 	return nil
 end
 
 function EfectosMapa.guardarEstadoOriginal(parte)
-	-- Buscar si ya guardamos este estado - NUNCA sobrescribir el estado original
 	for _, data in ipairs(partesOriginales) do
 		if data.parte == parte then
-			-- Ya tenemos el estado original guardado, NO sobrescribir
-			return
+			return -- Ya guardado, no sobrescribir
 		end
 	end
-	
-	-- Guardar estado original incluyendo tamaño - SOLO LA PRIMERA VEZ
-	-- Usar cloned values para evitar referencias
+
 	table.insert(partesOriginales, {
-		parte = parte,
-		colorOriginal = parte.Color,
-		materialOriginal = parte.Material,
+		parte              = parte,
+		colorOriginal      = parte.Color,
+		materialOriginal   = parte.Material,
 		transparencyOriginal = parte.Transparency,
-		tamanoOriginal = Vector3.new(parte.Size.X, parte.Size.Y, parte.Size.Z) -- Clonar tamaño
+		tamanoOriginal     = Vector3.new(parte.Size.X, parte.Size.Y, parte.Size.Z),
 	})
-	
-	print("[EfectosMapa] Estado ORIGINAL guardado para:", parte.Name, "Tamaño:", parte.Size)
 end
 
 function EfectosMapa.aplicarColor(nodo, color, esSeleccionado)
 	local parte = EfectosMapa.obtenerParteSelector(nodo)
-	if not parte then 
-		warn("[EfectosMapa] No se encontró parte para nodo:", nodo.Name)
-		return 
+	if not parte then
+		warn("[EfectosMapa] No se encontró Selector para nodo:", nodo.Name)
+		return
 	end
-	
-	-- Guardar estado original si no lo hemos hecho
+
 	EfectosMapa.guardarEstadoOriginal(parte)
-	
-	-- Aplicar color y material
+
+	-- Cambiar color y material del Selector
 	parte.Color = color
 	parte.Material = Enum.Material.Neon
 	parte.Transparency = 0.0
-	
-	-- Encontrar el tamaño original guardado
-	local tamanoBase = nil
+
+	-- Escala del Selector: ligeramente mayor si está seleccionado
+	local tamanoBase
 	for _, data in ipairs(partesOriginales) do
 		if data.parte == parte then
 			tamanoBase = data.tamanoOriginal
 			break
 		end
 	end
-	
-	-- Si no encontramos tamaño base, usar el actual
-	if not tamanoBase then
-		tamanoBase = parte.Size
-	end
-	
-	-- Aplicar tamaño: base si no está seleccionado, 1.2x si está seleccionado
-	local tamanoObjetivo = esSeleccionado and (tamanoBase * 1.2) or tamanoBase
-	
-	-- Cancelar tween existente si hay uno
+	tamanoBase = tamanoBase or parte.Size
+
 	if parte:IsA("BasePart") then
-		-- Forzar tamaño inmediato si es muy diferente (evitar acumulación)
 		if (parte.Size - tamanoBase).Magnitude > (tamanoBase.Magnitude * 0.5) then
-			print("[EfectosMapa] Tamaño muy diferente, forzando reset a:", tamanoBase)
 			parte.Size = tamanoBase
 		end
 	end
-	
-	-- Solo hacer tween si el tamaño es diferente
+
+	local tamanoObjetivo = esSeleccionado and (tamanoBase * 1.2) or tamanoBase
 	if (parte.Size - tamanoObjetivo).Magnitude > 0.01 then
 		TweenService:Create(parte, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-			Size = tamanoObjetivo
+			Size = tamanoObjetivo,
 		}):Play()
 	end
 end
@@ -186,7 +183,7 @@ end
 function EfectosMapa.crearBillboard(nodo)
 	local selector = nodo:FindFirstChild("Selector")
 	if not selector then return nil end
-	
+
 	local parteAdornar = nil
 	if selector:IsA("BasePart") then
 		parteAdornar = selector
@@ -198,26 +195,23 @@ function EfectosMapa.crearBillboard(nodo)
 			end
 		end
 	end
-	
+
 	if not parteAdornar then return nil end
-	
-	-- Destruir billboard anterior si existe
+
 	local workspace = game:GetService("Workspace")
-	local nombreAnterior = "MapaBB_" .. nodo.Name
-	local anterior = workspace:FindFirstChild(nombreAnterior)
-	if anterior then
-		anterior:Destroy()
-	end
-	
+	local nombreBB = "MapaBB_" .. nodo.Name
+	local anterior = workspace:FindFirstChild(nombreBB)
+	if anterior then anterior:Destroy() end
+
 	local billboard = Instance.new("BillboardGui")
-	billboard.Name = nombreAnterior
+	billboard.Name = nombreBB
 	billboard.Adornee = parteAdornar
 	billboard.Size = UDim2.new(0, 160, 0, 40)
 	billboard.StudsOffset = Vector3.new(0, 5.5, 0)
 	billboard.AlwaysOnTop = true
 	billboard.LightInfluence = 0
 	billboard.Parent = workspace
-	
+
 	local label = Instance.new("TextLabel")
 	label.Name = "Label"
 	label.Size = UDim2.new(1, 0, 1, 0)
@@ -229,51 +223,55 @@ function EfectosMapa.crearBillboard(nodo)
 	label.Font = Enum.Font.GothamBold
 	label.TextSize = 14
 	label.Parent = billboard
-	
+
 	return billboard
 end
 
 function EfectosMapa.actualizarTodos(nivelActual, nodoSeleccionado, adyacentes)
-	if not nivelActual then 
+	if not nivelActual then
 		warn("[EfectosMapa] nivelActual es nil")
-		return 
+		return
 	end
-	
+
 	local grafosFolder = nivelActual:FindFirstChild("Grafos")
-	if not grafosFolder then 
-		warn("[EfectosMapa] No se encontró Grafos")
-		return 
+	if not grafosFolder then
+		warn("[EfectosMapa] No se encontró carpeta Grafos")
+		return
 	end
-	
-	local conteoNodos = 0
-	
+
 	for _, grafo in ipairs(grafosFolder:GetChildren()) do
 		local nodosFolder = grafo:FindFirstChild("Nodos")
 		if nodosFolder then
 			for _, nodo in ipairs(nodosFolder:GetChildren()) do
-				conteoNodos = conteoNodos + 1
-				local nombre = nodo.Name
+				local nombre      = nodo.Name
 				local esSeleccionado = (nodoSeleccionado and nodoSeleccionado.Name == nombre)
-				local esAdyacente = adyacentes and table.find(adyacentes, nombre)
-				local conectado = EfectosMapa.esNodoConectado(nodo)
-				
-				-- Crear billboard
-				EfectosMapa.crearBillboard(nodo)
-				
-				-- Determinar color
-				local color
+				local esAdyacente    = adyacentes and table.find(adyacentes, nombre)
+				local conectado      = EfectosMapa.esNodoConectado(nodo)
+
+				-- Determinar estado
+				local colorParte, tipoHighlight
 				if esSeleccionado then
-					color = COLORES.SELECCIONADO
+					colorParte    = COLORES.SELECCIONADO
+					tipoHighlight = HIGHLIGHT_TIPO.SELECCIONADO
 				elseif esAdyacente then
-					color = COLORES.ADYACENTE
+					colorParte    = COLORES.ADYACENTE
+					tipoHighlight = HIGHLIGHT_TIPO.ADYACENTE
 				elseif conectado then
-					color = COLORES.CONECTADO
+					colorParte    = COLORES.CONECTADO
+					tipoHighlight = HIGHLIGHT_TIPO.CONECTADO
 				else
-					color = COLORES.AISLADO
+					colorParte    = COLORES.AISLADO
+					tipoHighlight = HIGHLIGHT_TIPO.AISLADO
 				end
-				
-					-- Aplicar color a la parte
-				EfectosMapa.aplicarColor(nodo, color, esSeleccionado)
+
+				-- Billboard de nombre
+				EfectosMapa.crearBillboard(nodo)
+
+				-- Color en el Selector (part)
+				EfectosMapa.aplicarColor(nodo, colorParte, esSeleccionado)
+
+				-- Highlight en el Model completo
+				getEfectosHighlight().resaltarNodoMapa(nodo, tipoHighlight)
 			end
 		end
 	end

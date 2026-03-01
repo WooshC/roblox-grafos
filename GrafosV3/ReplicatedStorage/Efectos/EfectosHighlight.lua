@@ -12,12 +12,13 @@ local highlightsActivos = {} -- nombre -> Highlight instance
 
 -- Colores predefinidos
 EfectosHighlight.COLORES = {
-	ZONA = Color3.fromRGB(0, 212, 255),       -- Cyan para zonas
-	SELECCIONADO = Color3.fromRGB(0, 212, 255), -- Cyan
-	ADYACENTE = Color3.fromRGB(255, 200, 50),   -- Dorado/Amarillo
-	CONECTADO = Color3.fromRGB(0, 255, 128),    -- Verde
-	ERROR = Color3.fromRGB(239, 68, 68),        -- Rojo
-	EXITO = Color3.fromRGB(34, 197, 94),        -- Verde éxito
+	ZONA        = Color3.fromRGB(0, 212, 255),   -- Cyan
+	SELECCIONADO = Color3.fromRGB(0, 212, 255),  -- Cyan
+	ADYACENTE   = Color3.fromRGB(255, 200, 50),  -- Dorado
+	CONECTADO   = Color3.fromRGB(0, 212, 255),   -- Cyan (igual que zona/seleccionado)
+	AISLADO     = Color3.fromRGB(239, 68, 68),   -- Rojo
+	ERROR       = Color3.fromRGB(239, 68, 68),   -- Rojo
+	EXITO       = Color3.fromRGB(34, 197, 94),   -- Verde éxito
 }
 
 -- Configuración por tipo
@@ -41,6 +42,22 @@ EfectosHighlight.CONFIG = {
 		FillTransparency = 0.5,
 		OutlineColor = EfectosHighlight.COLORES.ADYACENTE,
 		OutlineTransparency = 0.1,
+		DepthMode = Enum.HighlightDepthMode.AlwaysOnTop,
+	},
+	-- Estado de nodo en modo mapa: tiene al menos una conexión
+	CONECTADO = {
+		FillColor = EfectosHighlight.COLORES.CONECTADO,
+		FillTransparency = 0.65,
+		OutlineColor = EfectosHighlight.COLORES.CONECTADO,
+		OutlineTransparency = 0.1,
+		DepthMode = Enum.HighlightDepthMode.AlwaysOnTop,
+	},
+	-- Estado de nodo en modo mapa: sin conexiones
+	AISLADO = {
+		FillColor = EfectosHighlight.COLORES.AISLADO,
+		FillTransparency = 0.75,
+		OutlineColor = EfectosHighlight.COLORES.AISLADO,
+		OutlineTransparency = 0.3,
 		DepthMode = Enum.HighlightDepthMode.AlwaysOnTop,
 	},
 	ERROR = {
@@ -240,6 +257,31 @@ end
 function EfectosHighlight.limpiarTodasZonas()
 	for nombre, highlight in pairs(highlightsActivos) do
 		if nombre:find("^Zona_") then
+			if highlight and highlight.Parent then
+				highlight:Destroy()
+			end
+			highlightsActivos[nombre] = nil
+		end
+	end
+end
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- HELPERS PARA MODO MAPA
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+---Crea (o actualiza) el highlight de un nodo en modo mapa según su estado
+-- @param nodo Model - El modelo del nodo
+-- @param tipo string - "SELECCIONADO" | "ADYACENTE" | "CONECTADO" | "AISLADO"
+function EfectosHighlight.resaltarNodoMapa(nodo, tipo)
+	if not nodo then return nil end
+	local nombre = "MapaNodo_" .. nodo.Name
+	return EfectosHighlight.crear(nombre, nodo, tipo)
+end
+
+---Limpia únicamente los highlights creados por el modo mapa (prefijo "MapaNodo_")
+function EfectosHighlight.limpiarMapaNodos()
+	for nombre, highlight in pairs(highlightsActivos) do
+		if nombre:find("^MapaNodo_") then
 			if highlight and highlight.Parent then
 				highlight:Destroy()
 			end
