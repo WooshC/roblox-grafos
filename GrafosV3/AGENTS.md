@@ -40,6 +40,7 @@ GrafosV3/
 │   └── Efectos/
 │       ├── BillboardNombres.lua
 │       ├── EfectosCable.lua
+│       ├── EfectosHighlight.lua             # Centralized Highlight system (Roblox)
 │       ├── EfectosNodo.lua
 │       └── PresetTween.lua
 │
@@ -75,6 +76,7 @@ GrafosV3/
     │   ├── ControladorHUD.client.lua        # HUD orchestrator
     │   └── ModulosHUD/
     │       ├── EfectosMapa.lua
+    │       ├── EfectosZonas.lua              # Zone billboards (map mode only)
     │       ├── EstadoConexiones.lua
     │       ├── EventosHUD.lua
     │       ├── ModuloMapa.lua
@@ -375,6 +377,158 @@ ControladorDialogo.iniciar("MiDialogo", {
 2. **No Duplication**: Map and Dialogs don't duplicate roof logic
 3. **Automatic Cleanup**: Controller handles level load/unload automatically
 4. **State Safety**: Original state is preserved and can be restored
+
+## Zone Billboard System (Map Mode)
+
+**NEW**: Billboards showing zone descriptions appear only in map mode.
+
+### EfectosZonas (HUD Module)
+Located in `StarterPlayerScripts/HUD/ModulosHUD/EfectosZonas.lua`
+
+**Responsibility**: Display zone description billboards above zone triggers when the map is open.
+
+Features:
+- Shows zone descriptions from `LevelsConfig.Zonas[*].Descripcion`
+- Only visible in map mode
+- Automatically hides the billboard of the player's current zone
+- Updates when player enters/exits zones
+
+### Configuration in LevelsConfig
+```lua
+Zonas = {
+    ["Zona_Estacion_1"] = { 
+        Trigger = "ZonaTrigger_Estacion1",  -- Name of the trigger part
+        Descripcion = "Nodos y Aristas"     -- Text shown in billboard
+    },
+    -- ... more zones
+}
+```
+
+### How It Works
+1. When map opens (`ModuloMapa.abrir()`):
+   - Creates billboards above all zone triggers
+   - Shows all zone descriptions
+   - Hides the billboard of the current zone (if any)
+
+2. When player enters a zone:
+   - `ZonaActual` attribute changes on player
+   - Billboard for that zone is hidden
+   - Billboard for previous zone is shown again
+
+3. When map closes:
+   - All zone billboards are hidden
+
+### API - EfectosZonas
+```lua
+local EfectosZonas = require(script.Parent.EfectosZonas)
+
+-- Initialize (called by ModuloMapa)
+EfectosZonas.inicializar(nivelModel, configNivel)
+
+-- Show all zone billboards (hides current zone automatically)
+EfectosZonas.mostrarTodos()
+
+-- Hide all zone billboards
+EfectosZonas.ocultarTodos()
+
+-- Set current zone (hides its billboard, shows previous)
+EfectosZonas.establecerZonaActual(nombreZona)
+
+-- Update visibility based on current zone
+EfectosZonas.actualizarVisibilidad()
+
+-- Clean up all billboards
+EfectosZonas.limpiar()
+```
+
+### Visual Style
+- Black background with transparency
+- Cyan border
+- White text with GothamBold font
+- Always on top rendering
+- Positioned 8 studs above the trigger part
+
+## Highlight System (Roblox Highlight Instances)
+
+**NEW**: Centralized system using Roblox's native Highlight instances for visual effects.
+
+### EfectosHighlight (Shared Module)
+Located in `ReplicatedStorage/Efectos/EfectosHighlight.lua`
+
+**Responsibility**: Manage Roblox Highlight instances for zones, nodes, and error effects.
+
+Features:
+- Type-based highlight configurations (ZONA, SELECCIONADO, ADYACENTE, ERROR)
+- Automatic cleanup and management
+- Flash effects for errors
+- Integration with zone and node systems
+
+### Highlight Types
+
+| Type | Fill Color | Outline | Use Case |
+|------|------------|---------|----------|
+| ZONA | Cyan | Cyan | Zone triggers in map mode |
+| SELECCIONADO | Cyan | Cyan | Selected node |
+| ADYACENTE | Gold | Gold | Adjacent/Connectable nodes |
+| ERROR | Red | Red | Invalid connection flash |
+
+### API - EfectosHighlight
+```lua
+local EfectosHighlight = require(ReplicatedStorage.Efectos.EfectosHighlight)
+
+-- Create a persistent highlight
+EfectosHighlight.crear("NombreUnico", adornee, "ZONA")
+EfectosHighlight.crear("NombreUnico", adornee, "SELECCIONADO")
+EfectosHighlight.crear("NombreUnico", adornee, "ADYACENTE")
+
+-- Create a temporary flash effect (auto-destroys)
+EfectosHighlight.flash("NombreUnico", adornee, "ERROR", 0.5)
+
+-- Destroy a specific highlight
+EfectosHighlight.destruir("NombreUnico")
+
+-- Clean all highlights
+EfectosHighlight.limpiarTodo()
+
+-- Clean by type
+EfectosHighlight.limpiarPorTipo("ZONA")
+
+-- Node-specific helpers
+EfectosHighlight.resaltarNodo(nodoModel, "SELECCIONADO")
+EfectosHighlight.resaltarAdyacente(nodoModel)
+EfectosHighlight.flashErrorNodo(nodoModel, 0.5)
+EfectosHighlight.limpiarNodo(nodoModel)
+
+-- Zone-specific helpers
+EfectosHighlight.resaltarZona(nombreZona, parteTrigger)
+EfectosHighlight.limpiarZona(nombreZona)
+EfectosHighlight.limpiarTodasZonas()
+```
+
+### Integration with Node Selection
+
+When a node is selected:
+1. `ControladorEfectos` receives "NodoSeleccionado" event
+2. Creates Highlight for selected node (cyan)
+3. Creates Highlights for adjacent nodes (gold)
+4. Clears previous highlights
+
+When connection fails:
+1. `ControladorEfectos` receives "ConexionInvalida" event
+2. Creates ERROR highlight with flash effect
+3. Auto-destroys after animation
+
+### Integration with Zone Map View
+
+When map opens:
+1. `EfectosZonas` creates billboards AND highlights for each zone
+2. Highlights make zone triggers visible through walls
+3. Current zone highlight is dimmed (player is there)
+
+When player enters zone:
+1. `ModuloMapa` detects ZonaActual change
+2. Dim highlight of current zone
+3. Restore highlight of previous zone
 
 ## Development Guidelines
 

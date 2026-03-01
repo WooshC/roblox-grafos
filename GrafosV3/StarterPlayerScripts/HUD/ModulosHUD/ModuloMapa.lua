@@ -10,6 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local EfectosNodo = require(ReplicatedStorage.Efectos.EfectosNodo)
 local EfectosMapa = require(script.Parent.EfectosMapa)
+local EfectosZonas = require(script.Parent.EfectosZonas)
 local EstadoConexiones = require(script.Parent.EstadoConexiones)
 local PresetTween = require(ReplicatedStorage.Efectos.PresetTween)
 local LevelsConfig = require(ReplicatedStorage.Config.LevelsConfig)
@@ -29,6 +30,7 @@ local selectores = {}
 local conexionRender = nil
 local conexionInput = nil
 local conexionVictoria = nil
+local conexionZona = nil -- Para escuchar cambios de zona
 local camara = workspace.CurrentCamera
 local jugador = Players.LocalPlayer
 
@@ -40,6 +42,7 @@ local btnCerrarMapa = nil
 
 -- El estado de cámara lo maneja ServicioCamara
 -- Los techos los gestiona GestorColisiones (ControladorColisiones.client.lua)
+-- Los billboards de zonas los gestiona EfectosZonas
 
 -- Estado de selección en el mapa
 local nodoSeleccionadoMapa = nil
@@ -137,6 +140,29 @@ function ModuloMapa.configurarNivel(nivelModel, id, config)
 	-- Inicializar efectos del mapa y estado de conexiones
 	EstadoConexiones.inicializar(config)
 	EfectosMapa.inicializar(config, EstadoConexiones)
+	
+	-- Inicializar efectos de zonas (billboards)
+	EfectosZonas.inicializar(nivelModel, config)
+	
+	-- Desconectar listener anterior si existe
+	if conexionZona then
+		conexionZona:Disconnect()
+		conexionZona = nil
+	end
+	
+	-- Escuchar cambios de zona para ocultar/mostrar billboards
+	conexionZona = jugador:GetAttributeChangedSignal("ZonaActual"):Connect(function()
+		local nuevaZona = jugador:GetAttribute("ZonaActual")
+		print("[ModuloMapa] Zona cambiada a:", nuevaZona)
+		
+		-- Actualizar zona en EfectosZonas
+		EfectosZonas.establecerZonaActual(nuevaZona)
+		
+		-- Si el mapa está abierto, actualizar visibilidad de billboards
+		if mapaAbierto then
+			EfectosZonas.actualizarVisibilidad()
+		end
+	end)
 
 	-- NOTA: No recolectamos selectores aquí para evitar interferencias
 	-- Los selectores se recolectan solo cuando se abre el mapa
@@ -450,6 +476,9 @@ function ModuloMapa.abrir()
 	
 	-- Mostrar efectos de todos los nodos inmediatamente
 	_actualizarHighlights()
+	
+	-- Mostrar billboards de zonas (la zona actual se oculta automáticamente)
+	EfectosZonas.mostrarTodos()
 
 	print("[ModuloMapa] Mapa abierto")
 end
@@ -481,6 +510,9 @@ function ModuloMapa.cerrar()
 
 	-- Restaurar techos usando GestorColisiones
 	GestorColisiones:restaurar()
+	
+	-- Ocultar billboards de zonas
+	EfectosZonas.ocultarTodos()
 
 	-- Restaurar camara usando ServicioCamara
 	ServicioCamara.restaurar(0.4)
@@ -514,10 +546,17 @@ function ModuloMapa.limpiar()
 		conexionVictoria:Disconnect()
 		conexionVictoria = nil
 	end
+	
+	-- Desconectar listener de zona
+	if conexionZona then
+		conexionZona:Disconnect()
+		conexionZona = nil
+	end
 
 	_detenerSeguimiento()
 	_detenerEscuchaInput()
 	EfectosMapa.limpiarTodo()
+	EfectosZonas.limpiar()
 	EstadoConexiones.limpiar()
 
 	-- Limpiar estado

@@ -7,6 +7,7 @@ local Workspace = game:GetService("Workspace")
 local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
+local EfectosHighlight = require(Replicado.Efectos.EfectosHighlight)
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- CONFIGURACION Y ESTADO
@@ -59,18 +60,17 @@ local function getSelector(nodoModel)
 	return selector, part
 end
 
--- Crear Highlight de Roblox
-local function addHighlight(adornee, color)
-	local h = Instance.new("Highlight")
-	h.Adornee = adornee
-	h.FillColor = color
-	h.FillTransparency = 0.45
-	h.OutlineColor = color
-	h.OutlineTransparency = 0
-	h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-	h.Parent = Workspace
-	table.insert(_highlights, h)
-	return h
+-- Crear Highlight usando el sistema centralizado
+local function addHighlight(adornee, color, tipo)
+	local tipoHighlight = tipo or "SELECCIONADO"
+	if color == COLOR_ADYACENTE then
+		tipoHighlight = "ADYACENTE"
+	elseif color == COLOR_ERROR then
+		tipoHighlight = "ERROR"
+	end
+	
+	local nombre = "Nodo_" .. (adornee.Name or tostring(adornee))
+	return EfectosHighlight.crear(nombre, adornee, tipoHighlight)
 end
 
 -- Cambiar estilo de una BasePart y guardar estado original
@@ -137,12 +137,11 @@ local function addBillboard(part, color, nodeName)
 	table.insert(_billboards, bb)
 end
 
--- Highlight completo de un nodo (selector + billboard)
+-- Highlight completo de un nodo (modelo + billboard en selector)
 local function highlightNode(nodoModel, color)
-	local adornee, basePart = getSelector(nodoModel)
-	if adornee then
-		addHighlight(adornee, color)
-	end
+	local _, basePart = getSelector(nodoModel)
+	-- Highlight va en el MODELO, no en el selector
+	addHighlight(nodoModel, color)
 	if basePart then
 		styleBasePart(basePart, color)
 		addBillboard(basePart, color, nodoModel.Name)
@@ -151,18 +150,16 @@ end
 
 -- Limpiar TODOS los efectos y restaurar estados originales
 local function clearAll()
-	-- Destruir highlights
-	for _, h in ipairs(_highlights) do
-		if h and h.Parent then h:Destroy() end
-	end
+	-- Destruir todos los Highlights gestionados por EfectosHighlight
+	EfectosHighlight.limpiarTodo()
 	_highlights = {}
-	
+
 	-- Destruir billboards
 	for _, b in ipairs(_billboards) do
 		if b and b.Parent then b:Destroy() end
 	end
 	_billboards = {}
-	
+
 	-- Restaurar partes modificadas
 	for _, state in ipairs(_savedStates) do
 		if state.part and state.part.Parent then
@@ -174,28 +171,35 @@ local function clearAll()
 	_savedStates = {}
 end
 
--- Flash de error (color rojo breve)
+-- Flash de error usando Highlight
 local function flashModel(model, color, duration)
 	if not model then return end
 	
-	local parts = {}
-	local originals = {}
-	
-	for _, desc in ipairs(model:GetDescendants()) do
-		if desc:IsA("BasePart") then
-			table.insert(parts, desc)
-			table.insert(originals, desc.Color)
-			desc.Color = color
-		end
-	end
-	
-	task.delay(duration or 0.35, function()
-		for i, part in ipairs(parts) do
-			if part and part.Parent then
-				part.Color = originals[i]
+	-- Usar el sistema de highlights para el error
+	local selector = model:FindFirstChild("Selector")
+	if selector then
+		EfectosHighlight.flashErrorNodo(model, duration or 0.5)
+	else
+		-- Fallback: cambiar color de partes directamente
+		local parts = {}
+		local originals = {}
+		
+		for _, desc in ipairs(model:GetDescendants()) do
+			if desc:IsA("BasePart") then
+				table.insert(parts, desc)
+				table.insert(originals, desc.Color)
+				desc.Color = color
 			end
 		end
-	end)
+		
+		task.delay(duration or 0.35, function()
+			for i, part in ipairs(parts) do
+				if part and part.Parent then
+					part.Color = originals[i]
+				end
+			end
+		end)
+	end
 end
 
 -- ═══════════════════════════════════════════════════════════════════════════════
