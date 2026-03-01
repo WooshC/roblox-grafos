@@ -29,17 +29,13 @@ GrafosV3/
 ├── ReplicatedStorage/                       # Shared between client and server
 │   ├── Audio/
 │   │   └── ConfigAudio.lua                  # Centralized audio configuration
+│   ├── Compartido/                          # Shared modules (client & server)
+│   │   └── ServicioCamara.lua               # Centralized camera control
 │   ├── Config/
 │   │   └── LevelsConfig.lua                 # Single source of truth for level data
-│   ├── Compartido/                          # Shared modules
 │   ├── DialogoData/                         # Dialog data files
-│   │   └── Nivel0_Dialogos.lua              # Example dialog data
-│   └── Efectos/
-│   ├── Audio/
-│   │   └── ConfigAudio.lua                  # Centralized audio configuration
-│   ├── Config/
-│   │   └── LevelsConfig.lua                 # Single source of truth for level data
-│   ├── Compartido/                          # Shared modules (currently empty)
+│   │   ├── Nivel0_CarlosBienvenida.lua      # Example dialog data
+│   │   └── Bienvenida_1.lua                 # Tutorial dialog
 │   └── Efectos/
 │       ├── BillboardNombres.lua
 │       ├── EfectosCable.lua
@@ -262,6 +258,47 @@ Requirements:
 - `ClickDetector.MaxActivationDistance = 50` (studs)
 - Does NOT require `CanCollide = true`
 
+## Camera Service Architecture
+
+**NEW**: Centralized camera control system to avoid code duplication and camera state conflicts.
+
+### ServicioCamara (Shared Module)
+Located in `ReplicatedStorage/Compartido/ServicioCamara.lua`
+
+Used by:
+- `ModuloMapa` - Overhead map view
+- `ControladorDialogo` - Dialog camera movements
+- Any other system needing camera control
+
+### API
+```lua
+local ServicioCamara = require(RS.Compartido.ServicioCamara)
+
+-- Save current camera state
+ServicioCamara.guardarEstado()
+
+-- Move camera to CFrame with animation
+ServicioCamara.moverA(cframeObjetivo, duracion, suave, onComplete)
+
+-- Move camera to TOP-DOWN view over a target
+ServicioCamara.moverTopDown(enfoque, altura, duracion)
+-- enfoque can be: string (node name), Vector3, BasePart, or Model
+
+-- Restore camera to saved state
+ServicioCamara.restaurar(duracion)
+ServicioCamara.restaurarInmediato()
+
+-- Quick block/unblock (set Scriptable without moving)
+ServicioCamara.bloquear()
+ServicioCamara.liberar()
+```
+
+### Camera State Management
+The service handles camera state automatically:
+- Saves original state on first camera operation
+- Prevents multiple simultaneous transitions
+- Cleans up state after restore
+
 ## Development Guidelines
 
 ### Adding a New Sound
@@ -275,9 +312,41 @@ Requirements:
 3. Ensure node structure follows conventions
 4. Add adjacency definitions for valid connections
 
-### Dialog System (New Implementation)
+### Dialog System (Refactored Implementation)
 
 The dialog system is now integrated into the main architecture and only works during gameplay.
+
+#### Important: Map Auto-Close
+**Before any dialog starts, the map is automatically closed if open.** This prevents camera state conflicts and ensures the dialog camera movements work correctly.
+
+```lua
+-- In ControladorDialogo.iniciarDialogo()
+if ModuloMapa.estaAbierto() then
+    ModuloMapa.cerrar()
+    task.wait(0.1) -- Wait for cleanup
+end
+```
+
+#### Camera Movement in Dialogs
+The camera does **NOT** move automatically when the dialog starts. Camera movements happen only when:
+1. A dialog line has an `Evento` function that calls `ControladorDialogo.moverCamara()`
+2. Explicitly called via the dialog's event system
+
+**Example dialog with camera movement:**
+```lua
+{
+    Id = "zona_1",
+    Actor = "Carlos",
+    Texto = "Dirígete a la Zona 1...",
+    
+    Evento = function(gui, metadata)
+        -- Move camera only when this line is shown
+        _G.ControladorDialogo.moverCamara("Nodo1_z1", 1.0)
+    end,
+    
+    Siguiente = "confirmacion_final"
+}
+```
 
 #### Structure
 ```
@@ -290,9 +359,10 @@ StarterGui/DialogoGUI                  # Dialog UI (ScreenGui)
 1. Level loads → `NivelActual` created in Workspace
 2. `ControladorDialogo` detects level and searches for `DialoguePrompts` folder
 3. ProximityPrompts are automatically configured
-4. Player triggers prompt → Dialog starts
-5. Player movement/camera controlled, HUD hides, dialog UI shows
-6. On close: movement restored, HUD restored
+4. Player triggers prompt → **Map closes if open** → Dialog starts
+5. Player movement blocked, HUD hidden, dialog UI shows
+6. Camera moves only when dialog lines request it
+7. On close: movement restored, camera restored, HUD restored
 
 #### Level Setup for Dialogs
 ```
@@ -307,7 +377,7 @@ NivelActual (Model)
         │   ├── UnaVez = true
         │   ├── BloquearMovimiento = true    -- Block player movement
         │   ├── BloquearSalto = true         -- Block jumping
-        │   ├── ApuntarCamara = true         -- Point camera to NPC
+        │   ├── ApuntarCamara = true         -- Block camera (Scriptable)
         │   └── PermitirConexiones = false   -- Allow cable connections
         └── PromptPart (Part)
             └── ProximityPrompt
@@ -321,7 +391,7 @@ NivelActual (Model)
 | `BloquearMovimiento` | Boolean | true | Block player walk |
 | `BloquearSalto` | Boolean | true | Block jumping |
 | `BloquearCarrera` | Boolean | true | Block sprint |
-| `ApuntarCamara` | Boolean | true | Camera points to NPC |
+| `ApuntarCamara` | Boolean | true | Block camera (sets Scriptable) |
 | `PermitirConexiones` | Boolean | false | Allow cable connections during dialog |
 | `OcultarHUD` | Boolean | true | Hide HUD during dialog |
 | `UnaVez` | Boolean | false | Only show dialog once |
@@ -358,3 +428,131 @@ Particles start automatically when connections are created via `CableCreado` Rem
 - **Strict Cleanup**: All systems must properly cleanup when returning to menu
 - **Audio Separation**: Menu and Gameplay audio never overlap
 - **Event-Driven**: Heavy use of RemoteEvents for client-server communication
+
+---
+
+## Architecture Observations & Future Improvements
+
+### Code Duplication Resolved
+
+#### Camera Control (FIXED)
+**Before**: Camera code was duplicated in:
+- `ModuloMapa.lua` - Map overhead view
+- `ControladorDialogo.client.lua` - Dialog camera movements
+
+**Solution**: Created `ServicioCamara` in `ReplicatedStorage/Compartido/`
+- Centralized camera state management
+- Consistent animation/easing
+- Prevents conflicting camera operations
+
+### Systems Integration Issues Resolved
+
+#### Map vs Dialog Camera Conflict (FIXED)
+**Problem**: If map was open when dialog started, both systems tried to control the camera simultaneously, causing bugs.
+
+**Solution**: 
+```lua
+-- ControladorDialogo now closes map before starting any dialog
+if ModuloMapa.estaAbierto() then
+    ModuloMapa.cerrar()
+    task.wait(0.1)
+end
+```
+
+### Recommended Future Improvements
+
+#### 1. Unified Visual Effects System
+**Current State**: 
+- `EfectosNodo.lua` - Node effects
+- `EfectosCable.lua` - Cable effects  
+- `EfectosMapa.lua` - Map effects
+- `DialogoRenderer.lua` - Dialog effects
+
+**Recommendation**: Create `ServicioEfectosVisuales` with:
+```lua
+ServicioEfectosVisuales.aplicar(nodo, tipoEfecto, configuracion)
+ServicioEfectosVisuales.limpiar(nodo)
+ServicioEfectosVisuales.limpiarTodo()
+```
+
+#### 2. Centralized Input Management
+**Current State**: Each system handles its own input:
+- `ModuloMapa` - Map click detection
+- `ConectarCables` - In-world clicks
+- `ControladorDialogo` - Dialog options
+
+**Recommendation**: Create `ServicioInput` that:
+- Prioritizes active systems (Dialog > Map > Gameplay)
+- Prevents conflicting input handling
+- Provides clean input state queries
+
+#### 3. State Machine for Game States
+**Current State**: Boolean flags scattered across systems:
+```lua
+-- In ControladorDialogo
+dialogoActivo = false
+
+-- In ModuloMapa
+mapaAbierto = false
+
+-- In HUD
+hudActivo = false
+```
+
+**Recommendation**: Centralized state machine:
+```lua
+ServicioEstado.cambiar("MENU")      -- Menu state
+ServicioEstado.cambiar("GAMEPLAY")  -- Normal gameplay
+ServicioEstado.cambiar("MAPA")      -- Map open
+ServicioEstado.cambiar("DIALOGO")   -- Dialog active
+
+-- Automatic handling:
+-- Entering DIALOGO: closes MAPA, blocks input
+-- Entering MAPA: blocks GAMEPLAY input
+```
+
+#### 4. Event Bus System
+**Current State**: Direct RemoteEvent connections everywhere
+
+**Recommendation**: Event bus for decoupled communication:
+```lua
+-- Publisher
+ServicioEventos.publicar("NodoSeleccionado", nodo)
+
+-- Subscriber
+ServicioEventos.suscribir("NodoSeleccionado", function(nodo)
+    -- Handle selection
+end)
+```
+
+#### 5. Service Locator Pattern
+**Current State**: Services accessed via `_G` or direct requires
+
+**Recommendation**: Centralized service registry:
+```lua
+local ServicioX = Servicios.obtener("ServicioX")
+-- Instead of:
+local ServicioX = require(path.to.ServicioX)
+-- or
+_G.ServicioX
+```
+
+### Current Anti-Patterns to Avoid
+
+1. **Direct `_G` usage**: Use dependency injection or service locator
+2. **Polling with loops**: Use events instead of `while true` loops
+3. **Deep nesting**: Flatten nested if-statements with early returns
+4. **Magic numbers**: Move to CONFIG tables
+5. **String literals**: Use constants for event names, attribute names
+
+### Testing Checklist for New Features
+
+- [ ] Works when map is open
+- [ ] Works when dialog is active
+- [ ] Proper cleanup on level exit
+- [ ] Proper cleanup on return to menu
+- [ ] Audio doesn't overlap between states
+- [ ] Camera state restored correctly
+- [ ] HUD shows/hides correctly
+- [ ] No memory leaks (disconnected events)
+

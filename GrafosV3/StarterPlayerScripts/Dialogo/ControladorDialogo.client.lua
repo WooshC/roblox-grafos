@@ -1,5 +1,6 @@
 -- StarterPlayerScripts/Dialogo/ControladorDialogo.client.lua
 -- Orquestador del sistema de diálogos - integra dialogos con el HUD
+-- REFACTORIZADO: Usa ServicioCamara y cierra mapa automáticamente
 
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
@@ -11,10 +12,46 @@ local playerGui = jugador:WaitForChild("PlayerGui")
 print("[GrafosV3] === ControladorDialogo Iniciando ===")
 
 -- ═══════════════════════════════════════════════════════════════════════════════
+-- SERVICIOS COMPARTIDOS
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+local ServicioCamara = require(RS:WaitForChild("Compartido"):WaitForChild("ServicioCamara"))
+
+-- Referencia al ModuloMapa (se obtiene dinámicamente para evitar dependencia circular)
+local function obtenerModuloMapa()
+	local StarterPlayerScripts = game:GetService("StarterPlayer").StarterPlayerScripts
+	local HUD = StarterPlayerScripts:FindFirstChild("HUD")
+	if HUD then
+		local ModulosHUD = HUD:FindFirstChild("ModulosHUD")
+		if ModulosHUD then
+			local exito, modulo = pcall(function()
+				return require(ModulosHUD:FindFirstChild("ModuloMapa"))
+			end)
+			if exito then return modulo end
+		end
+	end
+	return nil
+end
+
+-- ═══════════════════════════════════════════════════════════════════════════════
 -- REFERENCIAS A SISTEMAS EXTERNOS
 -- ═══════════════════════════════════════════════════════════════════════════════
 
-local hudGui = playerGui:WaitForChild("GUIExploradorV2", 30)
+local function obtenerHudGui()
+	local gui = playerGui:FindFirstChild("GUIExploradorV2")
+	if gui then return gui end
+	
+	for _, child in ipairs(playerGui:GetChildren()) do
+		if child:IsA("ScreenGui") then
+			if child.Name:match("HUD") or child.Name:match("Explorador") or child.Name:match("Gameplay") then
+				return child
+			end
+		end
+	end
+	return nil
+end
+
+local hudGui = obtenerHudGui()
 local eventos = RS:WaitForChild("EventosGrafosV3")
 local remotos = eventos:WaitForChild("Remotos")
 
@@ -140,7 +177,7 @@ local CONFIG = {
 -- ═══════════════════════════════════════════════════════════════════════════════
 
 ---Bloquea el movimiento del jugador
-local function bloquearMovimiento(restricciones, promptPart)
+local function bloquearMovimiento(restricciones)
 	local personaje = jugador.Character
 	if not personaje then return end
 	
@@ -161,61 +198,10 @@ local function bloquearMovimiento(restricciones, promptPart)
 		humanoid.JumpPower = 0
 	end
 	
-	-- Controlar cámara si está habilitado
-	if restricciones.apuntarCamara and promptPart then
-		local camara = workspace.CurrentCamera
-		estadoJugador.camaraOriginal = camara.CameraType
-		estadoJugador.cframeOriginal = camara.CFrame
-		
-		-- Obtener posición del punto de enfoque
-		local posicionPrompt = nil
-		if typeof(promptPart) == "Vector3" then
-			posicionPrompt = promptPart
-		elseif promptPart:IsA("BasePart") then
-			posicionPrompt = promptPart.Position
-		elseif promptPart:IsA("Model") then
-			-- Si es un Model, usar el Selector o GetPivot
-			local selector = promptPart:FindFirstChild("Selector")
-			if selector and selector:IsA("BasePart") then
-				posicionPrompt = selector.Position
-			else
-				posicionPrompt = promptPart:GetPivot().Position
-			end
-		elseif promptPart.Position then
-			posicionPrompt = promptPart.Position
-		end
-		
-		if not posicionPrompt then
-			warn("[ControladorDialogo] No se pudo obtener posición del punto de enfoque")
-			return
-		end
-		
-		-- Crear CFrame que mire al prompt desde una posición cercana
-		local posicionJugador = personaje:WaitForChild("HumanoidRootPart").Position
-		
-		-- Calcular posición de la cámara (detrás y arriba del jugador, mirando al prompt)
-		local direccion = (posicionPrompt - posicionJugador).Unit
-		local posicionCamara = posicionJugador - (direccion * CONFIG.Camara.Distancia) + Vector3.new(0, CONFIG.Camara.Altura, 0)
-		local nuevoCFrame = CFrame.lookAt(posicionCamara, posicionPrompt)
-		
-		-- Aplicar suavizado a la cámara
-		camara.CameraType = Enum.CameraType.Scriptable
-		
-		-- Animar la transición
-		task.spawn(function()
-			local duracion = 0.5
-			local inicio = tick()
-			local cframeInicial = camara.CFrame
-			
-			while tick() - inicio < duracion do
-				local alpha = (tick() - inicio) / duracion
-				alpha = math.sin(alpha * math.pi / 2) -- Easing suave
-				camara.CFrame = cframeInicial:Lerp(nuevoCFrame, alpha)
-				task.wait(0.016)
-			end
-			
-			camara.CFrame = nuevoCFrame
-		end)
+	-- Solo bloquear la cámara (Scriptable) si está habilitado, pero NO moverla
+	-- El movimiento de cámara se hace mediante ServicioCamara.moverTopDown() en eventos específicos
+	if restricciones.apuntarCamara then
+		ServicioCamara.bloquear()
 	end
 	
 	print("[ControladorDialogo] Movimiento bloqueado")
@@ -230,45 +216,21 @@ local function desbloquearMovimiento()
 	if humanoid then
 		-- Restaurar velocidad
 		if estadoJugador.puedeCorrerOriginal then
-			humanoid.WalkSpeed = 16  -- Velocidad default
+			humanoid.WalkSpeed = 16
 		else
 			humanoid.WalkSpeed = 10
 		end
 		
 		-- Restaurar salto
 		if estadoJugador.puedeSaltarOriginal then
-			humanoid.JumpPower = 50  -- JumpPower default
+			humanoid.JumpPower = 50
 		else
 			humanoid.JumpPower = 0
 		end
 	end
 	
-	-- Restaurar cámara
-	if estadoJugador.camaraOriginal then
-		local camara = workspace.CurrentCamera
-		
-		-- Animar regreso
-		task.spawn(function()
-			local duracion = 0.3
-			local inicio = tick()
-			local cframeInicial = camara.CFrame
-			local cframeFinal = estadoJugador.cframeOriginal
-			
-			while tick() - inicio < duracion do
-				local alpha = (tick() - inicio) / duracion
-				camara.CFrame = cframeInicial:Lerp(cframeFinal, alpha)
-				task.wait(0.016)
-			end
-			
-			camara.CFrame = cframeFinal
-			-- Solo restaurar CameraType si teníamos uno guardado
-			if estadoJugador.camaraOriginal then
-				camara.CameraType = estadoJugador.camaraOriginal
-			else
-				camara.CameraType = Enum.CameraType.Custom
-			end
-		end)
-	end
+	-- Restaurar cámara usando ServicioCamara
+	ServicioCamara.restaurar(0.5)
 	
 	-- Limpiar estado
 	estadoJugador = {
@@ -286,11 +248,14 @@ end
 -- FUNCIONES DE GESTIÓN DEL HUD
 -- ═══════════════════════════════════════════════════════════════════════════════
 
+-- Esta función ya no se usa (ahora se desactiva todo el ScreenGui)
+-- Se mantiene por compatibilidad
 local function obtenerFramesHUD()
-	if not hudGui then return end
+	local hud = obtenerHudGui()
+	if not hud then return end
 	
 	for _, nombreFrame in ipairs(CONFIG.FramesAOcultar) do
-		local frame = hudGui:FindFirstChild(nombreFrame, true)
+		local frame = hud:FindFirstChild(nombreFrame, true)
 		if frame then
 			framesHUD[nombreFrame] = frame
 		end
@@ -298,37 +263,36 @@ local function obtenerFramesHUD()
 end
 
 local function ocultarHUD()
-	for nombre, frame in pairs(framesHUD) do
-		if frame and frame:IsA("GuiObject") then
-			frame:SetAttribute("VisibleAntesDialogo", frame.Visible)
-			
-			local tween = game:GetService("TweenService"):Create(
-				frame,
-				TweenInfo.new(CONFIG.DuracionTransicion, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-				{BackgroundTransparency = 1}
-			)
-			tween:Play()
-			
-			task.delay(CONFIG.DuracionTransicion, function()
-				frame.Visible = false
-			end)
-		end
+	-- Buscar HUD dinámicamente
+	local hud = obtenerHudGui()
+	
+	-- Desactivar todo el ScreenGui del HUD
+	if hud then
+		hud:SetAttribute("EnabledAntesDialogo", hud.Enabled)
+		hud.Enabled = false
+		print("[ControladorDialogo] HUD ocultado:", hud.Name)
+	else
+		warn("[ControladorDialogo] No se encontró HUD para ocultar")
 	end
 end
 
 local function mostrarHUD()
-	for nombre, frame in pairs(framesHUD) do
-		if frame and frame:IsA("GuiObject") then
-			local eraVisible = frame:GetAttribute("VisibleAntesDialogo")
-			if eraVisible ~= false then
-				frame.Visible = true
-				
-				local tween = game:GetService("TweenService"):Create(
-					frame,
-					TweenInfo.new(CONFIG.DuracionTransicion, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-					{BackgroundTransparency = 0}
-				)
-				tween:Play()
+	-- Buscar HUD dinámicamente
+	local hud = obtenerHudGui()
+	
+	-- Restaurar el ScreenGui del HUD
+	if hud then
+		local eraEnabled = hud:GetAttribute("EnabledAntesDialogo")
+		if eraEnabled ~= false then
+			hud.Enabled = true
+		end
+		print("[ControladorDialogo] HUD mostrado:", hud.Name)
+	else
+		-- Fallback: restaurar cualquier ScreenGui que ocultamos
+		for _, gui in ipairs(playerGui:GetChildren()) do
+			if gui:IsA("ScreenGui") and gui:GetAttribute("EnabledAntesDialogo") ~= nil then
+				gui.Enabled = gui:GetAttribute("EnabledAntesDialogo")
+				print("[ControladorDialogo] HUD restaurado (fallback):", gui.Name)
 			end
 		end
 	end
@@ -450,6 +414,16 @@ function iniciarDialogo(dialogoID, metadata)
 		return false
 	end
 	
+	-- ═══════════════════════════════════════════════════════════════════════════════
+	-- PASO 0: CERRAR MAPA SI ESTÁ ABIERTO (evita bugs de cámara)
+	-- ═══════════════════════════════════════════════════════════════════════════════
+	local ModuloMapa = obtenerModuloMapa()
+	if ModuloMapa and ModuloMapa.estaAbierto and ModuloMapa.estaAbierto() then
+		print("[ControladorDialogo] Cerrando mapa antes de iniciar diálogo...")
+		ModuloMapa.cerrar()
+		task.wait(0.1) -- Pequeña espera para que termine el cierre
+	end
+	
 	dialogoActivo = true
 	
 	-- Obtener datos del diálogo para leer Configuracion
@@ -484,38 +458,12 @@ function iniciarDialogo(dialogoID, metadata)
 	-- Guardar restricciones en metadata para que otros sistemas las consulten
 	metadata.restricciones = restricciones
 	
-	-- Determinar el punto de enfoque de la cámara
-	local puntoEnfoque = metadata.promptPart
-	if datosDialogo and datosDialogo.Configuracion and datosDialogo.Configuracion.enfoqueCamara then
-		-- Si hay un enfoque específico configurado, buscarlo
-		local enfoque = datosDialogo.Configuracion.enfoqueCamara
-		if typeof(enfoque) == "Vector3" then
-			puntoEnfoque = enfoque
-		elseif typeof(enfoque) == "string" then
-			-- Buscar nodo con ese nombre
-			local nivel = Workspace:FindFirstChild("NivelActual")
-			if nivel then
-				local nodo = nivel:FindFirstChild(enfoque, true)
-				if nodo then
-					-- Si es un Model, buscar el Selector
-					if nodo:IsA("Model") then
-						local selector = nodo:FindFirstChild("Selector")
-						if selector then
-							puntoEnfoque = selector
-						else
-							puntoEnfoque = nodo:GetPivot().Position
-						end
-					else
-						puntoEnfoque = nodo
-					end
-				end
-			end
-		end
-	end
+	-- NOTA: La cámara NO se mueve aquí automáticamente.
+	-- El movimiento de cámara se hace mediante Eventos en las líneas de diálogo específicas.
 	
 	-- Bloquear movimiento si está configurado
 	if restricciones.bloquearMovimiento or restricciones.bloquearSalto or restricciones.apuntarCamara then
-		bloquearMovimiento(restricciones, puntoEnfoque)
+		bloquearMovimiento(restricciones)
 	end
 	
 	-- Verificar si ocultar HUD (del archivo o del prompt)
@@ -609,6 +557,25 @@ end
 
 function ControladorDialogo.obtenerSistema()
 	return DialogoGUISystem
+end
+
+---Mueve la cámara a un punto de enfoque (TOP-DOWN)
+-- Uso desde eventos de diálogo: _G.ControladorDialogo.moverCamara("Nodo1_z1")
+-- @param enfoque string (nombre nodo), Vector3, BasePart, o Model
+-- @param duracion number - Opcional, duración de la transición (default: 0.8)
+function ControladorDialogo.moverCamara(enfoque, duracion)
+	return ServicioCamara.moverTopDown(enfoque, 13, duracion)
+end
+
+---Restaura la cámara a su estado original
+-- Uso desde eventos de diálogo: _G.ControladorDialogo.restaurarCamara()
+function ControladorDialogo.restaurarCamara()
+	ServicioCamara.restaurar(0.5)
+end
+
+---Obtiene el servicio de cámara para uso avanzado
+function ControladorDialogo.obtenerServicioCamara()
+	return ServicioCamara
 end
 
 _G.ControladorDialogo = ControladorDialogo
