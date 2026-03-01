@@ -85,18 +85,22 @@ end
 
 -- Cargar módulos en orden
 local Modulos = {
-	DialogoController = cargarModulo("DialogoController"),
-	DialogoRenderer = cargarModulo("DialogoRenderer"),
-	DialogoNarrator = cargarModulo("DialogoNarrator"),
-	DialogoEvents = cargarModulo("DialogoEvents"),
-	DialogoTTS = cargarModulo("DialogoTTS"),
-	DialogoGUISystem = cargarModulo("DialogoGUISystem")
+	DialogoController        = cargarModulo("DialogoController"),
+	DialogoRenderer          = cargarModulo("DialogoRenderer"),
+	DialogoNarrator          = cargarModulo("DialogoNarrator"),
+	DialogoEvents            = cargarModulo("DialogoEvents"),
+	DialogoTTS               = cargarModulo("DialogoTTS"),
+	DialogoGUISystem         = cargarModulo("DialogoGUISystem"),
+	DialogoButtonHighlighter = cargarModulo("DialogoButtonHighlighter"),   -- señalización de botones HUD
 }
 
--- Verificar que todos los módulos se cargaron
+-- Módulos opcionales (no bloquean el inicio si faltan)
+local MODULOS_OPCIONALES = { DialogoButtonHighlighter = true }
+
+-- Verificar que todos los módulos requeridos se cargaron
 local modulosOk = true
 for nombre, modulo in pairs(Modulos) do
-	if not modulo then
+	if not modulo and not MODULOS_OPCIONALES[nombre] then
 		warn("[ControladorDialogo] Módulo faltante:", nombre)
 		modulosOk = false
 	end
@@ -455,6 +459,11 @@ function iniciarDialogo(dialogoID, metadata)
 	
 	-- Guardar restricciones en metadata para que otros sistemas las consulten
 	metadata.restricciones = restricciones
+
+	-- Crear instancia del highlighter de botones (nil si el módulo no cargó)
+	if Modulos.DialogoButtonHighlighter then
+		metadata.buttonHighlighter = Modulos.DialogoButtonHighlighter.new(obtenerHudGui())
+	end
 	
 	-- NOTA: La cámara NO se mueve aquí automáticamente.
 	-- El movimiento de cámara se hace mediante Eventos en las líneas de diálogo específicas.
@@ -482,7 +491,12 @@ function iniciarDialogo(dialogoID, metadata)
 	
 	DialogoGUISystem:OnClose(function()
 		print("[ControladorDialogo] Diálogo cerrado:", dialogoID)
-		
+
+		-- Restaurar botones del HUD destacados (por si quedaron activos)
+		if metadata.buttonHighlighter then
+			metadata.buttonHighlighter:restaurarTodo()
+		end
+
 		-- Restaurar movimiento
 		desbloquearMovimiento()
 		

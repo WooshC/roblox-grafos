@@ -18,7 +18,34 @@ function DialogoController.new(gui, system)
 	local self = setmetatable({}, DialogoController)
 	self.gui = gui
 	self.system = system
+	-- Rastreo de botones destacados activos: { {nombre, alTerminar, textoAyuda} }
+	self._botonesDestacados = {}
 	return self
+end
+
+---Devuelve MensajeLabel dentro de DialogoGUI (búsqueda lazy, sin caché para evitar refs stale)
+function DialogoController:_getMensajeLabel()
+	local playerGui = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
+	if not playerGui then return nil end
+	return playerGui:FindFirstChild("MensajeLabel", true)
+end
+
+---Escribe texto en MensajeFrame.MensajeLabel y muestra el frame
+function DialogoController:_setMensaje(texto)
+	local label = self:_getMensajeLabel()
+	if not label then return end
+	label.Text        = texto
+	label.TextScaled  = true
+	label.TextWrapped = true
+	if label.Parent then label.Parent.Visible = true end
+end
+
+---Limpia MensajeLabel y oculta el frame
+function DialogoController:_clearMensaje()
+	local label = self:_getMensajeLabel()
+	if not label then return end
+	label.Text = ""
+	if label.Parent then label.Parent.Visible = false end
 end
 
 -- ════════════════════════════════════════════════════════════════
@@ -29,7 +56,7 @@ end
 function DialogoController:RenderLine(lineIndex)
 	local linea = self.system.currentDialogue.Lineas[lineIndex]
 	if not linea then return end
-	
+
 	-- Verificar condición
 	if linea.Condicion then
 		if not linea.Condicion(self.system.metadata) then
@@ -38,16 +65,31 @@ function DialogoController:RenderLine(lineIndex)
 			return
 		end
 	end
-	
+
+	-- Restaurar botones de la línea anterior marcados como "restaurar"
+	local highlighter = self.system.metadata and self.system.metadata.buttonHighlighter
+	if highlighter then
+		local mantener = {}
+		for _, info in ipairs(self._botonesDestacados) do
+			if info.alTerminar == "restaurar" then
+				highlighter:restaurarBoton(info.nombre)
+				if info.textoAyuda then self:_clearMensaje() end
+			else
+				table.insert(mantener, info)
+			end
+		end
+		self._botonesDestacados = mantener
+	end
+
 	-- Limpiar efectos anteriores
 	self:ClearEffects()
-	
+
 	-- Actualizar información del hablante
 	self:UpdateSpeaker(linea)
-	
+
 	-- Mostrar imagen y expresión
 	self:UpdateCharacter(linea)
-	
+
 	-- Ejecutar evento de la línea
 	if linea.Evento then
 		local exito, err = pcall(function()
@@ -84,6 +126,30 @@ function DialogoController:RenderLine(lineIndex)
 
 	-- Actualizar progreso
 	self:UpdateProgress(lineIndex)
+
+	-- Destacar botón del HUD si la línea lo especifica
+	if linea.DestacarBoton and highlighter then
+		local config = linea.DestacarBoton
+		local nombre
+		if type(config) == "string" then
+			nombre = config
+			config = {}
+		else
+			nombre = config.nombre
+		end
+		if nombre then
+			highlighter:destacarBoton(nombre, config)
+			local textoAyuda = type(config) == "table" and config.textoAyuda or nil
+			if textoAyuda and textoAyuda ~= "" then
+				self:_setMensaje(textoAyuda)
+			end
+			table.insert(self._botonesDestacados, {
+				nombre     = nombre,
+				alTerminar = (type(linea.DestacarBoton) == "table" and linea.DestacarBoton.alTerminar) or "restaurar",
+				textoAyuda = textoAyuda,
+			})
+		end
+	end
 end
 
 -- ════════════════════════════════════════════════════════════════
@@ -93,7 +159,7 @@ end
 ---Actualiza el nombre del hablante
 function DialogoController:UpdateSpeaker(linea)
 	if not self.gui.speakerName then return end
-	
+
 	self.gui.speakerName.Text = linea.Actor or "Sistema"
 end
 
@@ -103,7 +169,7 @@ function DialogoController:UpdateCharacter(linea)
 	local actor = linea.Actor or "Default"
 	local expresion = linea.Expresion or "Normal"
 	local imagenFinal = nil
-	
+
 	-- Prioridad 1: Si hay ImagenPersonaje explícita, usarla
 	if linea.ImagenPersonaje and linea.ImagenPersonaje ~= "" and linea.ImagenPersonaje ~= "rbxassetid://0" then
 		imagenFinal = linea.ImagenPersonaje
@@ -111,7 +177,7 @@ function DialogoController:UpdateCharacter(linea)
 		-- Prioridad 2: Buscar la expresión en el catálogo
 		imagenFinal = DialogoExpressions.GetExpression(actor, expresion)
 	end
-	
+
 	-- Mostrar/ocultar área de personaje con la imagen correcta
 	if self.gui.charArea and self.gui.portraitImage then
 		if imagenFinal then
@@ -123,12 +189,12 @@ function DialogoController:UpdateCharacter(linea)
 			warn("[DialogoController] No se encontró imagen para:", actor, "-", expresion)
 		end
 	end
-	
+
 	-- Nombre del personaje
 	if linea.Actor and self.gui.charName then
 		self.gui.charName.Text = linea.Actor
 	end
-	
+
 	-- Expresión (como texto)
 	if self.gui.expressionLabel then
 		if linea.Expresion then
@@ -143,7 +209,7 @@ end
 ---Actualiza el texto del diálogo
 function DialogoController:UpdateText(linea)
 	local velocidad = (self.system.currentDialogue.Metadata or {}).VelocidadTypewriter or 0.03
-	
+
 	if self.gui.dialogueText then
 		self.system.renderer:RenderText(
 			linea.Texto or "",
@@ -156,7 +222,7 @@ end
 ---Actualiza el indicador de progreso
 function DialogoController:UpdateProgress(lineIndex)
 	if not self.gui.progCount then return end
-	
+
 	local total = self.system:GetTotalLines()
 	self.gui.progCount.Text = lineIndex .. " / " .. total
 end
@@ -184,7 +250,7 @@ function DialogoController:ShowChoices(opciones)
 	if linea and linea.Texto and self.gui.questionText then
 		self.gui.questionText.Text = linea.Texto
 	end
-	
+
 	-- Limpiar opciones anteriores
 	if self.gui.choicesList then
 		for _, child in pairs(self.gui.choicesList:GetChildren()) do
@@ -194,7 +260,7 @@ function DialogoController:ShowChoices(opciones)
 				end
 			end
 		end
-		
+
 		-- Crear botones de opciones
 		for i, opcion in ipairs(opciones) do
 			self:CreateChoiceButton(i, opcion)
@@ -215,7 +281,7 @@ end
 ---Crea un botón de opción dinámicamente
 function DialogoController:CreateChoiceButton(index, opcion)
 	if not self.gui.choicesList then return end
-	
+
 	local choiceBtn = Instance.new("Frame")
 	choiceBtn.Name = "Choice_" .. index
 	choiceBtn.Size = UDim2.new(1, -8, 0, 40)
@@ -223,12 +289,12 @@ function DialogoController:CreateChoiceButton(index, opcion)
 	choiceBtn.BorderSizePixel = 1
 	choiceBtn.BorderColor3 = opcion.Color or Color3.fromRGB(0, 207, 255)
 	choiceBtn.Parent = self.gui.choicesList
-	
+
 	-- UICorner
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 8)
 	corner.Parent = choiceBtn
-	
+
 	-- Índice
 	local indexLabel = Instance.new("TextLabel")
 	indexLabel.Name = "Index"
@@ -240,7 +306,7 @@ function DialogoController:CreateChoiceButton(index, opcion)
 	indexLabel.TextSize = 10
 	indexLabel.Font = Enum.Font.GothamBold
 	indexLabel.Parent = choiceBtn
-	
+
 	-- Texto
 	local textLabel = Instance.new("TextLabel")
 	textLabel.Name = "Text"
@@ -253,7 +319,7 @@ function DialogoController:CreateChoiceButton(index, opcion)
 	textLabel.Font = Enum.Font.Gotham
 	textLabel.TextWrapped = true
 	textLabel.Parent = choiceBtn
-	
+
 	-- Pista
 	if opcion.Pista then
 		local hintLabel = Instance.new("TextLabel")
@@ -267,7 +333,7 @@ function DialogoController:CreateChoiceButton(index, opcion)
 		hintLabel.Font = Enum.Font.Gotham
 		hintLabel.Parent = choiceBtn
 	end
-	
+
 	-- Flecha
 	local arrowLabel = Instance.new("TextLabel")
 	arrowLabel.Name = "Arrow"
@@ -279,7 +345,7 @@ function DialogoController:CreateChoiceButton(index, opcion)
 	arrowLabel.TextSize = 12
 	arrowLabel.Font = Enum.Font.Gotham
 	arrowLabel.Parent = choiceBtn
-	
+
 	-- Botón interactivo
 	local button = Instance.new("TextButton")
 	button.Name = "SelectBtn"
@@ -287,17 +353,17 @@ function DialogoController:CreateChoiceButton(index, opcion)
 	button.BackgroundTransparency = 1
 	button.TextTransparency = 1
 	button.Parent = choiceBtn
-	
+
 	local sistema = self.system
 	button.MouseButton1Click:Connect(function()
 		sistema:SelectChoice(index)
 	end)
-	
+
 	-- Efecto hover
 	button.MouseEnter:Connect(function()
 		choiceBtn.BackgroundColor3 = Color3.fromRGB(25, 40, 60)
 	end)
-	
+
 	button.MouseLeave:Connect(function()
 		choiceBtn.BackgroundColor3 = Color3.fromRGB(17, 28, 46)
 	end)

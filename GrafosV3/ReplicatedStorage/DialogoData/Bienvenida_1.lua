@@ -49,7 +49,7 @@ local DIALOGOS = {
 				Actor = "Carlos",
 				Expresion = "Sonriente",
 				Texto = "Hola. Tú debes ser Tocino, ¿verdad?",
-	
+
 				-- Opción de respuesta
 				Opciones = {
 					{
@@ -70,7 +70,7 @@ local DIALOGOS = {
 				Actor = "Carlos",
 				Expresion = "Presentacion",
 				Texto = "Qué bien que hayas venido. Necesitamos formar a alguien que entienda cómo funcionan las redes.",
-					Siguiente = "fundamentos"
+				Siguiente = "fundamentos"
 			},
 
 			-- 3. FUNDAMENTOS (Línea larga dividida)
@@ -80,7 +80,7 @@ local DIALOGOS = {
 				Actor = "Carlos",
 				Expresion = "Serio",
 				Texto = "Antes de resolver cualquier problema real, debes aprender los fundamentos básicos de los grafos.",
-					Siguiente = "fundamentos_2"
+				Siguiente = "fundamentos_2"
 			},
 
 			{
@@ -89,7 +89,7 @@ local DIALOGOS = {
 				Actor = "Carlos",
 				Expresion = "Serio",
 				Texto = "Sin comprender la estructura, no podrás analizar ninguna red.",
-					Siguiente = "zona_1"
+				Siguiente = "zona_1"
 			},
 
 			-- 4. ZONA 1 (Con efectos visuales - CÁMARA SE MUEVE AQUÍ)
@@ -99,7 +99,7 @@ local DIALOGOS = {
 				Actor = "Carlos",
 				Expresion = "Serio",
 				Texto = "Dirígete a la Zona 1. Allí comenzarás con los primeros conceptos: nodos y conexiones.",
-	
+
 				-- Este evento se ejecuta cuando se muestra esta línea
 				Evento = function(gui, metadata)
 					print("[Evento] Mostrando Zona 1...")
@@ -120,14 +120,14 @@ local DIALOGOS = {
 				Siguiente = "confirmacion_final"
 			},
 
-			-- 5. CONFIRMACIÓN FINAL (Con desbloqueo)
+			-- 5. CONFIRMACIÓN FINAL
 			{
 				Id = "confirmacion_final",
 				Numero = 6,
 				Actor = "Carlos",
 				Expresion = "Sonriente",
 				Texto = "¡Confío en ti. Suerte!",
-	
+
 				Evento = function(gui, metadata)
 					print("[Evento] Restaurando...")
 
@@ -140,6 +140,34 @@ local DIALOGOS = {
 					-- Mostrar techo nuevamente
 					toggleTecho(true)
 				end,
+
+				Siguiente = "tutorial_boton_mapa"
+			},
+
+			-- 6. TUTORIAL: DESTACAR BOTÓN DEL MAPA
+			{
+				Id = "tutorial_boton_mapa",
+				Numero = 7,
+				Actor = "Carlos",
+				Expresion = "Presentacion",
+				Texto = "Este es el botón para ver el mapa. Úsalo para tener una vista panorámica del nivel.",
+
+				-- BtnMapa aparece en su posición original del HUD con efecto pulse.
+				-- Una flecha animada parte del área del diálogo y apunta al botón.
+				-- Al pasar a FIN, el overlay se destruye automáticamente.
+				DestacarBoton = {
+					nombre         = "BtnMapa",
+					-- modo = "original" es el default: clon en posición exacta, sin moverse
+					escala         = 1.3,
+					duracion       = 0.4,
+					animacion      = "pulse",
+					flecha         = true,
+					punteroDesde   = "dialogo",  -- flecha sale desde el área del diálogo
+					punteroEstilo  = "flecha",   -- línea + arrowhead animado
+					textoAyuda     = "Click para ver el mapa",
+					oscurecerFondo = true,
+					alTerminar     = "restaurar",
+				},
 
 				Siguiente = "FIN"
 			}
