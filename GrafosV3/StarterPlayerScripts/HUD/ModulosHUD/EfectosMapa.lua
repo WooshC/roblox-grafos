@@ -113,14 +113,15 @@ function EfectosMapa.obtenerParteSelector(nodo)
 end
 
 function EfectosMapa.guardarEstadoOriginal(parte)
-	-- Buscar si ya guardamos este estado
+	-- Buscar si ya guardamos este estado - NUNCA sobrescribir el estado original
 	for _, data in ipairs(partesOriginales) do
 		if data.parte == parte then
-			return -- Ya guardado
+			-- Ya tenemos el estado original guardado, NO sobrescribir
+			return
 		end
 	end
 	
-	-- Guardar estado original incluyendo tamaño
+	-- Guardar estado original incluyendo tamaño - SOLO LA PRIMERA VEZ
 	-- Usar cloned values para evitar referencias
 	table.insert(partesOriginales, {
 		parte = parte,
@@ -130,7 +131,7 @@ function EfectosMapa.guardarEstadoOriginal(parte)
 		tamanoOriginal = Vector3.new(parte.Size.X, parte.Size.Y, parte.Size.Z) -- Clonar tamaño
 	})
 	
-	print("[EfectosMapa] Estado guardado para:", parte.Name, "Tamaño:", parte.Size)
+	print("[EfectosMapa] Estado ORIGINAL guardado para:", parte.Name, "Tamaño:", parte.Size)
 end
 
 function EfectosMapa.aplicarColor(nodo, color, esSeleccionado)

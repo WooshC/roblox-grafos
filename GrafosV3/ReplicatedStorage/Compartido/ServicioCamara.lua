@@ -39,7 +39,6 @@ function ServicioCamara.obtenerPosicion(enfoque)
 				end
 			end
 		end
-		end
 	elseif enfoque and enfoque:IsA("BasePart") then
 		return enfoque.Position
 	elseif enfoque and enfoque:IsA("Model") then
@@ -97,10 +96,13 @@ function ServicioCamara.moverA(cframeObjetivo, duracion, suave, onComplete)
 	-- Guardar estado si no está guardado
 	if not estadoOriginal then
 		ServicioCamara.guardarEstado()
+		print("[ServicioCamara] Estado guardado antes de mover")
 	end
 	
 	-- Cambiar a Scriptable
 	camara.CameraType = Enum.CameraType.Scriptable
+	
+	print("[ServicioCamara] Moviendo cámara a:", cframeObjetivo.Position, "Duración:", duracion)
 	
 	-- Animar
 	task.spawn(function()
@@ -118,6 +120,8 @@ function ServicioCamara.moverA(cframeObjetivo, duracion, suave, onComplete)
 		
 		camara.CFrame = cframeObjetivo
 		enTransicion = false
+		
+		print("[ServicioCamara] Cámara movida exitosamente")
 		
 		if onComplete then
 			onComplete()
@@ -156,6 +160,8 @@ function ServicioCamara.restaurar(duracion)
 		return
 	end
 	
+	print("[ServicioCamara] Restaurando cámara...")
+	
 	if enTransicion then
 		-- Esperar a que termine la transición actual
 		repeat task.wait(0.016) until not enTransicion
@@ -183,6 +189,8 @@ function ServicioCamara.restaurar(duracion)
 		
 		enTransicion = false
 		estadoOriginal = nil -- Limpiar estado después de restaurar
+		
+		print("[ServicioCamara] Cámara restaurada exitosamente")
 	end)
 end
 

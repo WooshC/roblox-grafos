@@ -108,10 +108,10 @@ local DIALOGOS = {
 				-- Este evento se ejecuta cuando se muestra esta línea
 				Evento = function(gui, metadata)
 					print("[Evento] Mostrando Zona 1...")
-					
+
 					-- Ocultar techo para ver la zona
 					toggleTecho(false)
-					
+
 					-- Mover cámara a Zona 1 (TOP-DOWN)
 					-- Usar el ControladorDialogo global
 					local ControladorDialogo = _G.ControladorDialogo
@@ -136,13 +136,13 @@ local DIALOGOS = {
 
 				Evento = function(gui, metadata)
 					print("[Evento] Restaurando...")
-					
+
 					-- Restaurar cámara al jugador
 					local ControladorDialogo = _G.ControladorDialogo
 					if ControladorDialogo and ControladorDialogo.restaurarCamara then
 						ControladorDialogo.restaurarCamara()
 					end
-					
+
 					-- Mostrar techo nuevamente
 					toggleTecho(true)
 				end,

@@ -13,6 +13,7 @@ local EfectosMapa = require(script.Parent.EfectosMapa)
 local EstadoConexiones = require(script.Parent.EstadoConexiones)
 local PresetTween = require(ReplicatedStorage.Efectos.PresetTween)
 local LevelsConfig = require(ReplicatedStorage.Config.LevelsConfig)
+local ServicioCamara = require(ReplicatedStorage.Compartido.ServicioCamara)
 
 local ModuloMapa = {}
 
@@ -36,8 +37,7 @@ local frameMapa = nil
 local btnMapa = nil
 local btnCerrarMapa = nil
 
--- Estado de camara
-local estadoCamaraOriginal = nil
+-- El estado de cámara ahora lo maneja ServicioCamara
 local techosOriginales = {}
 local techosCapturados = false
 
@@ -273,12 +273,9 @@ end
 -- CALCULOS DE CAMARA
 -- ================================================================
 
+-- [DEPRECATED] Ahora se usa ServicioCamara.guardarEstado()
 function _guardarEstadoCamara()
-	estadoCamaraOriginal = {
-		CFrame = camara.CFrame,
-		CameraType = camara.CameraType,
-		CameraSubject = camara.CameraSubject
-	}
+	ServicioCamara.guardarEstado()
 end
 
 function _calcularBoundsNivel()
@@ -323,15 +320,10 @@ function _calcularCFrameCenital(bounds)
 		CFrame.Angles(math.rad(-90), 0, 0)
 end
 
+-- [REFACTOR] Usa ServicioCamara para el movimiento
 function _hacerTweenCamara(cframeObjetivo, onComplete)
-	-- Cambio INMEDIATO sin animación
-	camara.CameraType = Enum.CameraType.Scriptable
-	camara.CFrame = cframeObjetivo
-	
-	-- Llamar callback inmediatamente si existe
-	if onComplete then
-		task.spawn(onComplete)
-	end
+	-- Usar ServicioCamara para movimiento animado
+	ServicioCamara.moverA(cframeObjetivo, 0.4, true, onComplete)
 end
 
 function _iniciarSeguimientoJugador()
@@ -513,8 +505,8 @@ function ModuloMapa.abrir()
 	-- Mostrar frame
 	frameMapa.Visible = true
 
-	-- Guardar estado de camara
-	_guardarEstadoCamara()
+	-- Guardar estado de camara (usando ServicioCamara)
+	ServicioCamara.guardarEstado()
 
 	-- Capturar y ocultar techos
 	_capturarTechos()
@@ -567,12 +559,8 @@ function ModuloMapa.cerrar()
 	-- Mostrar techos
 	_mostrarTechos()
 
-	-- Restaurar camara INMEDIATAMENTE (sin tween)
-	if estadoCamaraOriginal then
-		camara.CameraType = estadoCamaraOriginal.CameraType
-		camara.CameraSubject = estadoCamaraOriginal.CameraSubject
-		camara.CFrame = estadoCamaraOriginal.CFrame
-	end
+	-- Restaurar camara usando ServicioCamara
+	ServicioCamara.restaurar(0.4)
 
 	-- Ocultar frame
 	if frameMapa then
@@ -616,8 +604,12 @@ function ModuloMapa.limpiar()
 	configNivel = nil
 	nombresNodos = {}
 	selectores = {}
-	estadoCamaraOriginal = nil
 	_resetearTechos()
+	
+	-- Limpiar estado de cámara si quedó alguno
+	if ServicioCamara.tieneEstadoGuardado() then
+		ServicioCamara.restaurarInmediato()
+	end
 
 	estaActivo = false
 
