@@ -8,6 +8,7 @@ local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
 local EfectosHighlight = require(Replicado.Efectos.EfectosHighlight)
+local EfectosVideo     = require(Replicado.Efectos.EfectosVideo)
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- CONFIGURACION Y ESTADO
@@ -50,11 +51,11 @@ end)
 local function getSelector(nodoModel)
 	local selector = nodoModel:FindFirstChild("Selector")
 	if not selector then return nil, nil end
-	
+
 	if selector:IsA("BasePart") then
 		return selector, selector
 	end
-	
+
 	-- Selector es un Model, buscar BasePart dentro
 	local part = selector:FindFirstChildOfClass("BasePart")
 	return selector, part
@@ -68,7 +69,7 @@ local function addHighlight(adornee, color, tipo)
 	elseif color == COLOR_ERROR then
 		tipoHighlight = "ERROR"
 	end
-	
+
 	local nombre = "Nodo_" .. (adornee.Name or tostring(adornee))
 	return EfectosHighlight.crear(nombre, adornee, tipoHighlight)
 end
@@ -76,7 +77,7 @@ end
 -- Cambiar estilo de una BasePart y guardar estado original
 local function styleBasePart(part, color)
 	if not part then return end
-	
+
 	-- Guardar estado original
 	table.insert(_savedStates, {
 		part = part,
@@ -84,7 +85,7 @@ local function styleBasePart(part, color)
 		origMat = part.Material,
 		origTransp = part.Transparency,
 	})
-	
+
 	-- Aplicar nuevo estilo
 	part.Color = color
 	part.Material = Enum.Material.Neon
@@ -94,9 +95,9 @@ end
 -- Crear Billboard con nombre del nodo
 local function addBillboard(part, color, nodeName)
 	if not part or not part:IsA("BasePart") then return end
-	
+
 	local displayName = _nombresNodos[nodeName] or nodeName or ""
-	
+
 	local bb = Instance.new("BillboardGui")
 	bb.Name = "NombreNodo"
 	bb.Adornee = part
@@ -105,7 +106,7 @@ local function addBillboard(part, color, nodeName)
 	bb.Size = UDim2.fromOffset(120, 32)
 	bb.ResetOnSpawn = false
 	bb.Parent = Workspace
-	
+
 	-- Fondo
 	local bg = Instance.new("Frame")
 	bg.Size = UDim2.fromScale(1, 1)
@@ -113,17 +114,17 @@ local function addBillboard(part, color, nodeName)
 	bg.BackgroundTransparency = 0.45
 	bg.BorderSizePixel = 0
 	bg.Parent = bb
-	
+
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 6)
 	corner.Parent = bg
-	
+
 	-- Borde de color
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = color
 	stroke.Thickness = 2
 	stroke.Parent = bg
-	
+
 	-- Texto
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.fromScale(1, 1)
@@ -133,7 +134,7 @@ local function addBillboard(part, color, nodeName)
 	label.TextScaled = true
 	label.Font = Enum.Font.GothamBold
 	label.Parent = bg
-	
+
 	table.insert(_billboards, bb)
 end
 
@@ -174,7 +175,7 @@ end
 -- Flash de error usando Highlight
 local function flashModel(model, color, duration)
 	if not model then return end
-	
+
 	-- Usar el sistema de highlights para el error
 	local selector = model:FindFirstChild("Selector")
 	if selector then
@@ -183,7 +184,7 @@ local function flashModel(model, color, duration)
 		-- Fallback: cambiar color de partes directamente
 		local parts = {}
 		local originals = {}
-		
+
 		for _, desc in ipairs(model:GetDescendants()) do
 			if desc:IsA("BasePart") then
 				table.insert(parts, desc)
@@ -191,7 +192,7 @@ local function flashModel(model, color, duration)
 				desc.Color = color
 			end
 		end
-		
+
 		task.delay(duration or 0.35, function()
 			for i, part in ipairs(parts) do
 				if part and part.Parent then
@@ -226,7 +227,7 @@ end
 local notifyEv = Remotos:WaitForChild("NotificarSeleccionNodo")
 
 notifyEv.OnClientEvent:Connect(function(eventType, arg1, arg2)
-	
+
 	-- Nodo seleccionado: arg1 = nodo, arg2 = adyacentes
 	if eventType == "NodoSeleccionado" then
 		clearAll()
@@ -240,34 +241,37 @@ notifyEv.OnClientEvent:Connect(function(eventType, arg1, arg2)
 				end
 			end
 		end
-		
-	-- Conexión completada: iniciar partículas
+
+		-- Conexión completada: iniciar partículas + efecto VFX en cada Selector
 	elseif eventType == "ConexionCompletada" then
 		clearAll()
 		-- arg1 = nombreNodoA, arg2 = nombreNodoB
 		if ParticulasConexion and arg1 and arg2 then
-			local esDirigido = ParticulasConexion.esConexionDirigida 
-				and ParticulasConexion.esConexionDirigida(arg1, arg2) 
+			local esDirigido = ParticulasConexion.esConexionDirigida
+				and ParticulasConexion.esConexionDirigida(arg1, arg2)
 				or false
 			ParticulasConexion.iniciar(arg1, arg2, esDirigido)
 		end
-		
-	-- Cable desconectado: detener partículas
+		-- Efecto VFX en el Selector de cada nodo conectado
+		if arg1 then EfectosVideo.reproducirConexion(arg1, "EfectoConexion", 5, 2) end
+		if arg2 then EfectosVideo.reproducirConexion(arg2, "EfectoConexion", 5, 2) end
+
+		-- Cable desconectado: detener partículas
 	elseif eventType == "CableDesconectado" then
 		clearAll()
 		if ParticulasConexion and arg1 and arg2 then
 			ParticulasConexion.detener(arg1, arg2)
 		end
-		
-	-- Selección cancelada: solo limpiar
+
+		-- Selección cancelada: solo limpiar
 	elseif eventType == "SeleccionCancelada" then
 		clearAll()
-		
-	-- Error: flash rojo
+
+		-- Error: flash rojo
 	elseif eventType == "ConexionInvalida" then
 		clearAll()
 		flashModel(arg1, COLOR_ERROR, 0.35)
-		
+
 	end
 end)
 
