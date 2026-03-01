@@ -458,18 +458,21 @@ Located in `ReplicatedStorage/Efectos/EfectosHighlight.lua`
 **Responsibility**: Manage Roblox Highlight instances for zones, nodes, and error effects.
 
 Features:
-- Type-based highlight configurations (ZONA, SELECCIONADO, ADYACENTE, ERROR)
+- Type-based highlight configurations (ZONA, SELECCIONADO, ADYACENTE, CONECTADO, AISLADO, ERROR)
 - Automatic cleanup and management
 - Flash effects for errors
 - Integration with zone and node systems
+- Map-mode node highlights with state-based coloring
 
 ### Highlight Types
 
 | Type | Fill Color | Outline | Use Case |
 |------|------------|---------|----------|
 | ZONA | Cyan | Cyan | Zone triggers in map mode |
-| SELECCIONADO | Cyan | Cyan | Selected node |
-| ADYACENTE | Gold | Gold | Adjacent/Connectable nodes |
+| SELECCIONADO | Cyan | Cyan | Selected node (gameplay + map) |
+| ADYACENTE | Gold | Gold | Adjacent/connectable nodes |
+| CONECTADO | Cyan | Cyan | Node with ≥1 connection (map mode) |
+| AISLADO | Red | Red | Node with no connections (map mode) |
 | ERROR | Red | Red | Invalid connection flash |
 
 ### API - EfectosHighlight
@@ -493,11 +496,15 @@ EfectosHighlight.limpiarTodo()
 -- Clean by type
 EfectosHighlight.limpiarPorTipo("ZONA")
 
--- Node-specific helpers
+-- Node-specific helpers (adornee = Model, NOT Selector)
 EfectosHighlight.resaltarNodo(nodoModel, "SELECCIONADO")
 EfectosHighlight.resaltarAdyacente(nodoModel)
 EfectosHighlight.flashErrorNodo(nodoModel, 0.5)
 EfectosHighlight.limpiarNodo(nodoModel)
+
+-- Map-mode node helpers (prefix "MapaNodo_", separate from gameplay highlights)
+EfectosHighlight.resaltarNodoMapa(nodoModel, "CONECTADO")  -- "SELECCIONADO"|"ADYACENTE"|"CONECTADO"|"AISLADO"
+EfectosHighlight.limpiarMapaNodos()
 
 -- Zone-specific helpers
 EfectosHighlight.resaltarZona(nombreZona, parteTrigger)
@@ -505,30 +512,40 @@ EfectosHighlight.limpiarZona(nombreZona)
 EfectosHighlight.limpiarTodasZonas()
 ```
 
+### Key Rule: Highlight Adornee
+- **Node highlights** (`resaltarNodo`, `resaltarNodoMapa`) → adornee is the **Model** (not the Selector child)
+- **Zone highlights** (`resaltarZona`) → adornee is the **BasePart trigger**
+- Highlight on the Model covers the entire node visually; Highlight on the Selector only covers the small selector part
+
 ### Integration with Node Selection
 
 When a node is selected:
 1. `ControladorEfectos` receives "NodoSeleccionado" event
-2. Creates Highlight for selected node (cyan)
-3. Creates Highlights for adjacent nodes (gold)
-4. Clears previous highlights
+2. Calls `EfectosHighlight.limpiarTodo()` to clear all previous highlights
+3. Creates Highlight on the **Model** for selected node (cyan)
+4. Creates Highlights on the **Model** for adjacent nodes (gold)
 
 When connection fails:
 1. `ControladorEfectos` receives "ConexionInvalida" event
-2. Creates ERROR highlight with flash effect
+2. Creates ERROR highlight with flash effect on the **Model**
 3. Auto-destroys after animation
 
 ### Integration with Zone Map View
 
 When map opens:
-1. `EfectosZonas` creates billboards AND highlights for each zone
-2. Highlights make zone triggers visible through walls
-3. Current zone highlight is dimmed (player is there)
+1. `EfectosZonas.mostrarTodos()` creates billboards AND zone highlights for each zone trigger
+2. `EfectosMapa.actualizarTodos()` creates node highlights (SELECCIONADO/ADYACENTE/CONECTADO/AISLADO) on each node Model
+3. Zone highlight of current zone is disabled (player is already there)
 
-When player enters zone:
-1. `ModuloMapa` detects ZonaActual change
-2. Dim highlight of current zone
-3. Restore highlight of previous zone
+When player enters/exits zone while map is open:
+1. `EfectosZonas.establecerZonaActual(nombre)` updates `zonaActual`
+2. Disables billboard + highlight of entered zone; re-enables previous zone's
+
+When map closes:
+1. `EfectosZonas.ocultarTodos()` disables billboards, destroys zone highlights
+2. `EfectosMapa.limpiarTodo()` destroys `MapaNodo_*` highlights and `MapaBB_*` billboards
+
+**Race condition fix (2026-02)**: `EfectosZonas` tracks `mapaVisible` flag. If zone exit event fires after `ocultarTodos()` (map already closed), `establecerZonaActual` exits early and does NOT re-enable billboards.
 
 ## Development Guidelines
 
@@ -692,10 +709,61 @@ end
 
 ### Recommended Future Improvements
 
-#### 1. Unified Visual Effects System
-**Current State**: 
+#### 1. Centralized Billboard System via BillboardNombres
+**Current State**: Billboard creation is duplicated in three places with incompatible styles:
+
+| Location | Name prefix | Style | Parent |
+|----------|------------|-------|--------|
+| `EfectosMapa.crearBillboard` | `MapaBB_*` | Simple TextLabel, white text | Workspace |
+| `EfectosZonas._crearBillboardZona` | `ZonaBB_*` | Frame + UICorner + UIStroke + padding | Workspace |
+| `ControladorEfectos.addBillboard` | `NombreNodo` | Frame + UICorner + UIStroke, colored text | Workspace |
+
+**`BillboardNombres.lua`** already exists at `ReplicatedStorage/Efectos/BillboardNombres.lua` but only supports a single fixed style (dark bg, cyan text, MaxDistance=50, parented to node).
+
+**Recommendation**: Extend `BillboardNombres` to support named presets:
+```lua
+-- Presets to add:
+BillboardNombres.PRESETS = {
+    NODO_MAPA = {
+        -- Simple label, AlwaysOnTop, no MaxDistance, parent=Workspace
+        tamano = UDim2.new(0, 160, 0, 40),
+        colorTexto = Color3.fromRGB(255, 255, 255),
+        conFondo = false,
+    },
+    ZONA_DESCRIPCION = {
+        -- Frame + UICorner + UIStroke, cyan border, parent=Workspace
+        tamano = UDim2.new(0, 200, 0, 50),
+        colorTexto = Color3.fromRGB(255, 255, 255),
+        colorBorde = Color3.fromRGB(0, 212, 255),
+        conFondo = true,
+        MaxDistance = 500,
+    },
+    NODO_GAMEPLAY = {
+        -- Frame + UICorner + UIStroke, colored text/border, parent=Workspace
+        tamano = UDim2.fromOffset(120, 32),
+        conFondo = true,
+    },
+}
+
+-- New API:
+BillboardNombres.crear(adornee, texto, preset, nombreClave)
+-- preset: "NODO_MAPA" | "ZONA_DESCRIPCION" | "NODO_GAMEPLAY"
+-- nombreClave: unique key for cleanup (e.g. "MapaBB_" .. nodo.Name)
+
+BillboardNombres.destruir(nombreClave)
+BillboardNombres.destruirPorPrefijo("MapaBB_")
+BillboardNombres.destruirTodos()
+```
+
+Modules to refactor once `BillboardNombres` is updated:
+- `EfectosMapa.crearBillboard` → `BillboardNombres.crear(parte, nombre, "NODO_MAPA", "MapaBB_"..nodo.Name)`
+- `EfectosZonas._crearBillboardZona` → `BillboardNombres.crear(trigger, descripcion, "ZONA_DESCRIPCION", "ZonaBB_"..nombreZona)`
+- `ControladorEfectos.addBillboard` → `BillboardNombres.crear(parte, nombre, "NODO_GAMEPLAY", "NombreNodo_"..nodo.Name)`
+
+#### 2. Unified Visual Effects System
+**Current State**:
 - `EfectosNodo.lua` - Node effects
-- `EfectosCable.lua` - Cable effects  
+- `EfectosCable.lua` - Cable effects
 - `EfectosMapa.lua` - Map effects
 - `DialogoRenderer.lua` - Dialog effects
 
@@ -706,7 +774,7 @@ ServicioEfectosVisuales.limpiar(nodo)
 ServicioEfectosVisuales.limpiarTodo()
 ```
 
-#### 2. Centralized Input Management
+#### 3. Centralized Input Management
 **Current State**: Each system handles its own input:
 - `ModuloMapa` - Map click detection
 - `ConectarCables` - In-world clicks
@@ -717,7 +785,7 @@ ServicioEfectosVisuales.limpiarTodo()
 - Prevents conflicting input handling
 - Provides clean input state queries
 
-#### 3. State Machine for Game States
+#### 4. State Machine for Game States
 **Current State**: Boolean flags scattered across systems:
 ```lua
 -- In ControladorDialogo
@@ -742,7 +810,7 @@ ServicioEstado.cambiar("DIALOGO")   -- Dialog active
 -- Entering MAPA: blocks GAMEPLAY input
 ```
 
-#### 4. Event Bus System
+#### 5. Event Bus System
 **Current State**: Direct RemoteEvent connections everywhere
 
 **Recommendation**: Event bus for decoupled communication:
@@ -756,7 +824,7 @@ ServicioEventos.suscribir("NodoSeleccionado", function(nodo)
 end)
 ```
 
-#### 5. Service Locator Pattern
+#### 6. Service Locator Pattern
 **Current State**: Services accessed via `_G` or direct requires
 
 **Recommendation**: Centralized service registry:

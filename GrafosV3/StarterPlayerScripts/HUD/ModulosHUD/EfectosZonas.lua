@@ -14,6 +14,7 @@ local triggersCreados    = {} -- nombreZona -> BasePart (trigger part)
 local configZonas = nil      -- Configuración de zonas desde LevelsConfig
 local nivelActual = nil
 local zonaActual = nil       -- Zona donde está el jugador actualmente
+local mapaVisible = false    -- Si el mapa está actualmente abierto
 
 -- Configuración visual
 local CONFIG = {
@@ -38,6 +39,7 @@ function EfectosZonas.inicializar(nivelModel, configNivel)
 	billboardsCreados = {}
 	triggersCreados   = {}
 	zonaActual = nil
+	mapaVisible = false
 
 	print("[EfectosZonas] Inicializado")
 end
@@ -153,6 +155,7 @@ end
 -- ═══════════════════════════════════════════════════════════════════════════════
 
 function EfectosZonas.mostrarTodos()
+	mapaVisible = true
 	if not configZonas then return end
 
 	-- Crear billboards para las zonas que no existen aún
@@ -184,6 +187,7 @@ function EfectosZonas.mostrarTodos()
 end
 
 function EfectosZonas.ocultarTodos()
+	mapaVisible = false
 	-- Deshabilitar todos los billboards
 	for _, billboard in pairs(billboardsCreados) do
 		if billboard and billboard.Parent then
@@ -198,6 +202,7 @@ function EfectosZonas.ocultarTodos()
 end
 
 function EfectosZonas.limpiar()
+	mapaVisible = false
 	-- Destruir todos los billboards
 	for _, billboard in pairs(billboardsCreados) do
 		if billboard and billboard.Parent then
@@ -225,6 +230,9 @@ end
 function EfectosZonas.establecerZonaActual(nombreZona)
 	local zonaAnterior = zonaActual
 	zonaActual = nombreZona
+
+	-- Solo actualizar visibilidad si el mapa está abierto
+	if not mapaVisible then return end
 
 	-- Mostrar el billboard y highlight de la zona anterior
 	if zonaAnterior then
