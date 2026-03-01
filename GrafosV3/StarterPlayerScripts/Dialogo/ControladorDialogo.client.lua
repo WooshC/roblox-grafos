@@ -16,6 +16,7 @@ print("[GrafosV3] === ControladorDialogo Iniciando ===")
 -- ═══════════════════════════════════════════════════════════════════════════════
 
 local ServicioCamara = require(RS:WaitForChild("Compartido"):WaitForChild("ServicioCamara"))
+local GestorColisiones = require(RS:WaitForChild("Compartido"):WaitForChild("GestorColisiones"))
 
 -- Referencia al ModuloMapa (se obtiene dinámicamente para evitar dependencia circular)
 local function obtenerModuloMapa()
@@ -424,6 +425,14 @@ function iniciarDialogo(dialogoID, metadata)
 		task.wait(0.1) -- Pequeña espera para que termine el cierre
 	end
 	
+	-- ═══════════════════════════════════════════════════════════════════════════════
+	-- PASO 0.5: OCULTAR TECHOS SI ESTÁ CONFIGURADO
+	-- ═══════════════════════════════════════════════════════════════════════════════
+	if metadata.config and metadata.config.ocultarTechos then
+		print("[ControladorDialogo] Ocultando techos para diálogo...")
+		GestorColisiones:ocultarTecho()
+	end
+	
 	dialogoActivo = true
 	
 	-- Obtener datos del diálogo para leer Configuracion
@@ -479,11 +488,20 @@ function iniciarDialogo(dialogoID, metadata)
 		ocultarHUD()
 	end
 	
+	-- Determinar si debemos restaurar techos al cerrar
+	local debenRestaurarTechos = metadata.config and metadata.config.ocultarTechos
+	
 	DialogoGUISystem:OnClose(function()
 		print("[ControladorDialogo] Diálogo cerrado:", dialogoID)
 		
 		-- Restaurar movimiento
 		desbloquearMovimiento()
+		
+		-- Restaurar techos si es necesario
+		if debenRestaurarTechos then
+			print("[ControladorDialogo] Restaurando techos...")
+			GestorColisiones:restaurar()
+		end
 		
 		mostrarHUD()
 		
@@ -516,10 +534,12 @@ local ControladorDialogo = {}
 -- @param dialogoID string - ID del diálogo (ej: "Nivel0_Carlos_Bienvenida")
 -- @param opciones table - Opcional. Configuración adicional:
 --   {
---     promptPart = BasePart,  -- Parte para enfocar la cámara
---     alIniciar = function,   -- Callback al iniciar
---     alCerrar = function,    -- Callback al cerrar
---     restricciones = {       -- Sobreescribe la configuración del archivo
+--     promptPart = BasePart,    -- Parte para enfocar la cámara
+--     alIniciar = function,     -- Callback al iniciar
+--     alCerrar = function,      -- Callback al cerrar
+--     ocultarHUD = true/false,  -- Ocultar HUD durante diálogo (default: true)
+--     ocultarTechos = true/false, -- Ocultar techos durante diálogo (default: false)
+--     restricciones = {         -- Sobreescribe la configuración del archivo
 --       bloquearMovimiento = true/false,
 --       bloquearSalto = true/false,
 --       apuntarCamara = true/false,
@@ -538,7 +558,8 @@ function ControladorDialogo.iniciar(dialogoID, opciones)
 			restricciones = opciones.restricciones,
 			alIniciar = opciones.alIniciar,
 			alCerrar = opciones.alCerrar,
-			ocultarHUD = opciones.ocultarHUD
+			ocultarHUD = opciones.ocultarHUD,
+			ocultarTechos = opciones.ocultarTechos
 		}
 	}
 	

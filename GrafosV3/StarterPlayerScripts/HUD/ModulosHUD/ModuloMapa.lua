@@ -14,6 +14,7 @@ local EstadoConexiones = require(script.Parent.EstadoConexiones)
 local PresetTween = require(ReplicatedStorage.Efectos.PresetTween)
 local LevelsConfig = require(ReplicatedStorage.Config.LevelsConfig)
 local ServicioCamara = require(ReplicatedStorage.Compartido.ServicioCamara)
+local GestorColisiones = require(ReplicatedStorage.Compartido.GestorColisiones)
 
 local ModuloMapa = {}
 
@@ -37,9 +38,8 @@ local frameMapa = nil
 local btnMapa = nil
 local btnCerrarMapa = nil
 
--- El estado de cámara ahora lo maneja ServicioCamara
-local techosOriginales = {}
-local techosCapturados = false
+-- El estado de cámara lo maneja ServicioCamara
+-- Los techos los gestiona GestorColisiones (ControladorColisiones.client.lua)
 
 -- Estado de selección en el mapa
 local nodoSeleccionadoMapa = nil
@@ -173,82 +173,6 @@ function _collectarSelectores()
 	end
 
 	print("[ModuloMapa] Selectores collectados:", #selectores)
-end
-
--- ================================================================
--- GESTION DEL TECHO
--- ================================================================
-
-function _capturarTechos()
-	if techosCapturados then return end
-	if not nivelActual then return end
-
-	techosOriginales = {}
-
-	-- Buscar en estructura: Escenario/Colisionadores/Techos
-	local escenario = nivelActual:FindFirstChild("Escenario")
-	if escenario then
-		local colisionadores = escenario:FindFirstChild("Colisionadores")
-		if colisionadores then
-			local techosFolder = colisionadores:FindFirstChild("Techos")
-			if techosFolder then
-				for _, part in ipairs(techosFolder:GetChildren()) do
-					if part:IsA("BasePart") then
-						techosOriginales[part] = {
-							Transparency = part.Transparency,
-							CastShadow = part.CastShadow,
-							CanQuery = part.CanQuery
-						}
-					end
-				end
-			end
-		end
-	end
-
-	-- Fallback: buscar folder Techos directo
-	if next(techosOriginales) == nil then
-		local techosFolder = nivelActual:FindFirstChild("Techos")
-		if techosFolder then
-			for _, part in ipairs(techosFolder:GetChildren()) do
-				if part:IsA("BasePart") then
-					techosOriginales[part] = {
-						Transparency = part.Transparency,
-						CastShadow = part.CastShadow,
-						CanQuery = part.CanQuery
-					}
-				end
-			end
-		end
-	end
-
-	techosCapturados = true
-end
-
-function _ocultarTechos()
-	if not techosCapturados then return end
-
-	for part, orig in pairs(techosOriginales) do
-		if part and part.Parent then
-			part.Transparency = 0.95
-			part.CastShadow = false
-			part.CanQuery = false
-		end
-	end
-end
-
-function _mostrarTechos()
-	for part, orig in pairs(techosOriginales) do
-		if part and part.Parent then
-			part.Transparency = orig.Transparency
-			part.CastShadow = orig.CastShadow
-			part.CanQuery = orig.CanQuery
-		end
-	end
-end
-
-function _resetearTechos()
-	techosOriginales = {}
-	techosCapturados = false
 end
 
 -- ================================================================
@@ -508,9 +432,8 @@ function ModuloMapa.abrir()
 	-- Guardar estado de camara (usando ServicioCamara)
 	ServicioCamara.guardarEstado()
 
-	-- Capturar y ocultar techos
-	_capturarTechos()
-	_ocultarTechos()
+	-- Ocultar techos usando GestorColisiones
+	GestorColisiones:ocultarTecho()
 
 	-- Calcular posicion cenital
 	local bounds = _calcularBoundsNivel()
@@ -556,8 +479,8 @@ function ModuloMapa.cerrar()
 		EfectosNodo.limpiarSeleccion()
 	end)
 
-	-- Mostrar techos
-	_mostrarTechos()
+	-- Restaurar techos usando GestorColisiones
+	GestorColisiones:restaurar()
 
 	-- Restaurar camara usando ServicioCamara
 	ServicioCamara.restaurar(0.4)
@@ -604,7 +527,6 @@ function ModuloMapa.limpiar()
 	configNivel = nil
 	nombresNodos = {}
 	selectores = {}
-	_resetearTechos()
 	
 	-- Limpiar estado de cámara si quedó alguno
 	if ServicioCamara.tieneEstadoGuardado() then

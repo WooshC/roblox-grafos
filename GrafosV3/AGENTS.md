@@ -30,6 +30,7 @@ GrafosV3/
 │   ├── Audio/
 │   │   └── ConfigAudio.lua                  # Centralized audio configuration
 │   ├── Compartido/                          # Shared modules (client & server)
+│   │   ├── GestorColisiones.lua             # Roof/collision visibility manager
 │   │   └── ServicioCamara.lua               # Centralized camera control
 │   ├── Config/
 │   │   └── LevelsConfig.lua                 # Single source of truth for level data
@@ -86,6 +87,7 @@ GrafosV3/
     │   └── ControladorMenu.client.lua       # Level selection menu
     └── SistemasGameplay/
         ├── AudioGameplay.client.lua         # Gameplay-specific audio
+        ├── ControladorColisiones.client.lua # Roof visibility controller (auto-init)
         ├── ControladorEfectos.client.lua    # Visual effects controller
         └── ParticulasConexion.client.lua    # Particles on cable connections
 ```
@@ -298,6 +300,81 @@ The service handles camera state automatically:
 - Saves original state on first camera operation
 - Prevents multiple simultaneous transitions
 - Cleans up state after restore
+
+## Collision/Roof Management Architecture
+
+**NEW**: Centralized roof/ceiling visibility management system.
+
+### GestorColisiones (Shared Module)
+Located in `ReplicatedStorage/Compartido/GestorColisiones.lua`
+
+**Responsabilidad única**: Gestionar la visibilidad de techos y colisiones.
+
+Used by:
+- `ControladorColisiones` (client) - Auto-initializes on level load
+- `ModuloMapa` - Hides/shows roofs when opening/closing map
+- `ControladorDialogo` - Can hide roofs during specific dialogs
+
+### ControladorColisiones (Client Controller)
+Located in `StarterPlayerScripts/SistemasGameplay/ControladorColisiones.client.lua`
+
+Automatically initializes the `GestorColisiones` when a level loads:
+- Captures roof state on `NivelListo` event
+- Cleans up on `NivelDescargado` event
+
+### API - GestorColisiones
+```lua
+local GestorColisiones = require(RS.Compartido.GestorColisiones)
+
+-- Capture roof state from level model (call once on level load)
+GestorColisiones:capturar(nivelModelo)
+
+-- Hide roofs (for overhead map view)
+GestorColisiones:ocultarTecho()
+
+-- Restore roofs to original state
+GestorColisiones:restaurar()
+
+-- Clean up references (call on level unload)
+GestorColisiones:liberar()
+
+-- Check if roofs are captured
+GestorColisiones:tieneTechosCapturados()
+```
+
+### API - ControladorColisiones (Global)
+```lua
+-- Access via _G.ControladorColisiones
+local CC = _G.ControladorColisiones
+
+-- Hide/restore roofs manually
+CC.ocultarTechos()
+CC.restaurarTechos()
+CC.tieneTechos()
+
+-- Access underlying GestorColisiones
+local Gestor = CC.obtenerGestor()
+```
+
+### Usage in Dialogs
+To hide roofs during a specific dialog:
+```lua
+-- In dialog data file or prompt attributes:
+config = {
+    ocultarTechos = true  -- Hide roofs during this dialog
+}
+
+-- Or programmatically:
+ControladorDialogo.iniciar("MiDialogo", {
+    ocultarTechos = true
+})
+```
+
+### Architecture Benefits
+1. **Single Responsibility**: Only one system manages roof state
+2. **No Duplication**: Map and Dialogs don't duplicate roof logic
+3. **Automatic Cleanup**: Controller handles level load/unload automatically
+4. **State Safety**: Original state is preserved and can be restored
 
 ## Development Guidelines
 
