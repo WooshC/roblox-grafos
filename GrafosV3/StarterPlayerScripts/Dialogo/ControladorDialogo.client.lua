@@ -139,8 +139,8 @@ local estadoJugador = {
 	humanoid = nil,
 	camaraOriginal = nil,
 	cframeOriginal = nil,
-	puedeSaltarOriginal = nil,
-	puedeCorrerOriginal = nil
+	walkSpeedOriginal = nil,
+	jumpPowerOriginal = nil
 }
 
 -- Configuración por defecto de restricciones
@@ -185,10 +185,10 @@ local function bloquearMovimiento(restricciones)
 	local humanoid = personaje:FindFirstChildOfClass("Humanoid")
 	if not humanoid then return end
 	
-	-- Guardar estado original
+	-- Guardar estado original (valores numéricos exactos)
 	estadoJugador.humanoid = humanoid
-	estadoJugador.puedeSaltarOriginal = humanoid.JumpPower > 0
-	estadoJugador.puedeCorrerOriginal = humanoid.WalkSpeed > 10
+	estadoJugador.walkSpeedOriginal = humanoid.WalkSpeed
+	estadoJugador.jumpPowerOriginal = humanoid.JumpPower
 	
 	-- Aplicar restricciones
 	if restricciones.bloquearMovimiento then
@@ -215,19 +215,8 @@ local function desbloquearMovimiento()
 	
 	local humanoid = personaje:FindFirstChildOfClass("Humanoid")
 	if humanoid then
-		-- Restaurar velocidad
-		if estadoJugador.puedeCorrerOriginal then
-			humanoid.WalkSpeed = 16
-		else
-			humanoid.WalkSpeed = 10
-		end
-		
-		-- Restaurar salto
-		if estadoJugador.puedeSaltarOriginal then
-			humanoid.JumpPower = 50
-		else
-			humanoid.JumpPower = 0
-		end
+		humanoid.WalkSpeed = estadoJugador.walkSpeedOriginal or 16
+		humanoid.JumpPower = estadoJugador.jumpPowerOriginal or 50
 	end
 	
 	-- Restaurar cámara usando ServicioCamara
@@ -238,8 +227,8 @@ local function desbloquearMovimiento()
 		humanoid = nil,
 		camaraOriginal = nil,
 		cframeOriginal = nil,
-		puedeSaltarOriginal = nil,
-		puedeCorrerOriginal = nil
+		walkSpeedOriginal = nil,
+		jumpPowerOriginal = nil
 	}
 	
 	print("[ControladorDialogo] Movimiento restaurado")

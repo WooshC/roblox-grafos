@@ -297,6 +297,11 @@ function DialogoGUISystem:ObtenerReferenciasGUI(screenGui)
 	-- ChoicesPanel
 	gui.choicesPanel = canvas:FindFirstChild("ChoicesPanel")
 	if gui.choicesPanel then
+		local choicesSpeakerTag = gui.choicesPanel:FindFirstChild("SpeakerTag")
+		if choicesSpeakerTag then
+			gui.choicesSpeakerName = choicesSpeakerTag:FindFirstChild("SpeakerName")
+			gui.choicesEyeBtn = choicesSpeakerTag:FindFirstChild("EyeBtn")
+		end
 		local questionArea = gui.choicesPanel:FindFirstChild("QuestionArea")
 		if questionArea then
 			gui.questionText = questionArea:FindFirstChild("QuestionText")
@@ -360,15 +365,12 @@ end
 
 function DialogoGUISystem:Skip()
 	if not self.isPlaying then return end
-	
-	print("[DialogoGUISystem] Saltando diálogo...")
-	
-	-- Detener TTS si está reproduciendo
+
+	-- Destruir pipeline TTS (igual que al presionar CONTINUAR)
 	if self.narrator then
-		self.narrator:Stop()
+		self.narrator:Reiniciar()
 	end
-	
-	-- Cerrar el diálogo inmediatamente
+
 	self:Close()
 end
 

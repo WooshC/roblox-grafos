@@ -49,8 +49,7 @@ local DIALOGOS = {
 				Actor = "Carlos",
 				Expresion = "Sonriente",
 				Texto = "Hola. Tú debes ser Tocino, ¿verdad?",
-				ImagenPersonaje = "rbxassetid://0",
-
+	
 				-- Opción de respuesta
 				Opciones = {
 					{
@@ -71,8 +70,7 @@ local DIALOGOS = {
 				Actor = "Carlos",
 				Expresion = "Presentacion",
 				Texto = "Qué bien que hayas venido. Necesitamos formar a alguien que entienda cómo funcionan las redes.",
-				ImagenPersonaje = "rbxassetid://0",
-				Siguiente = "fundamentos"
+					Siguiente = "fundamentos"
 			},
 
 			-- 3. FUNDAMENTOS (Línea larga dividida)
@@ -82,8 +80,7 @@ local DIALOGOS = {
 				Actor = "Carlos",
 				Expresion = "Serio",
 				Texto = "Antes de resolver cualquier problema real, debes aprender los fundamentos básicos de los grafos.",
-				ImagenPersonaje = "rbxassetid://0",
-				Siguiente = "fundamentos_2"
+					Siguiente = "fundamentos_2"
 			},
 
 			{
@@ -92,8 +89,7 @@ local DIALOGOS = {
 				Actor = "Carlos",
 				Expresion = "Serio",
 				Texto = "Sin comprender la estructura, no podrás analizar ninguna red.",
-				ImagenPersonaje = "rbxassetid://0",
-				Siguiente = "zona_1"
+					Siguiente = "zona_1"
 			},
 
 			-- 4. ZONA 1 (Con efectos visuales - CÁMARA SE MUEVE AQUÍ)
@@ -103,8 +99,7 @@ local DIALOGOS = {
 				Actor = "Carlos",
 				Expresion = "Serio",
 				Texto = "Dirígete a la Zona 1. Allí comenzarás con los primeros conceptos: nodos y conexiones.",
-				ImagenPersonaje = "rbxassetid://0",
-
+	
 				-- Este evento se ejecuta cuando se muestra esta línea
 				Evento = function(gui, metadata)
 					print("[Evento] Mostrando Zona 1...")
@@ -132,8 +127,7 @@ local DIALOGOS = {
 				Actor = "Carlos",
 				Expresion = "Sonriente",
 				Texto = "¡Confío en ti. Suerte!",
-				ImagenPersonaje = "rbxassetid://0",
-
+	
 				Evento = function(gui, metadata)
 					print("[Evento] Restaurando...")
 
@@ -156,7 +150,8 @@ local DIALOGOS = {
 			VelocidadTypewriter = 0.03,
 			PuedeOmitir = true,
 			OcultarHUD = true,
-			UsarTTS = true
+			UsarTTS = true,
+			DelayTTS = 0.15,    -- Segundos que el typewriter espera tras iniciar TTS
 		},
 
 		-- ═══════════════════════════════════════════════════════════════

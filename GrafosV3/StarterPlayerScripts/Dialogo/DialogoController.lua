@@ -48,19 +48,6 @@ function DialogoController:RenderLine(lineIndex)
 	-- Mostrar imagen y expresión
 	self:UpdateCharacter(linea)
 	
-	-- Mostrar texto
-	self:UpdateText(linea)
-	
-	-- Mostrar opciones o botones normales
-	if linea.Opciones and #linea.Opciones > 0 then
-		self:ShowChoices(linea.Opciones)
-	else
-		self:ShowNormalControls()
-	end
-	
-	-- Actualizar progreso
-	self:UpdateProgress(lineIndex)
-	
 	-- Ejecutar evento de la línea
 	if linea.Evento then
 		local exito, err = pcall(function()
@@ -70,17 +57,33 @@ function DialogoController:RenderLine(lineIndex)
 			warn("[DialogoController] Error en Evento de línea:", err)
 		end
 	end
-	
-	-- Reproducir audio: prioridad al audio específico, luego TTS
+
+	-- Iniciar audio ANTES del texto para que el narrador arranque primero
 	if linea.Audio and linea.Audio ~= "" and linea.Audio ~= "rbxassetid://0" then
-		-- Audio personalizado configurado en el diálogo
 		print("[DialogoController] Reproduciendo audio personalizado:", linea.Audio)
 		self.system.narrator:Play(linea.Audio)
 	elseif linea.Texto and linea.Texto ~= "" then
-		-- No hay audio personalizado, usar TTS
 		print("[DialogoController] Usando TTS para:", linea.Actor)
 		self.system.narrator:Speak(linea.Texto, linea.Actor)
 	end
+
+	-- Esperar a que el pipeline TTS se active antes del typewriter
+	-- Configurable por diálogo en Metadata.DelayTTS (default 0.1s)
+	local delayTTS = (self.system.currentDialogue.Metadata or {}).DelayTTS or 0.1
+	task.wait(delayTTS)
+
+	-- Mostrar texto
+	self:UpdateText(linea)
+
+	-- Mostrar opciones o botones normales
+	if linea.Opciones and #linea.Opciones > 0 then
+		self:ShowChoices(linea.Opciones)
+	else
+		self:ShowNormalControls()
+	end
+
+	-- Actualizar progreso
+	self:UpdateProgress(lineIndex)
 end
 
 -- ════════════════════════════════════════════════════════════════
@@ -165,13 +168,19 @@ end
 ---Muestra el panel de opciones
 function DialogoController:ShowChoices(opciones)
 	if not self.gui.dialogueBox or not self.gui.choicesPanel then return end
-	
-	-- Ocultar diálogo normal
+
+	-- Ocultar diálogo normal, mostrar panel de elecciones
 	self.gui.dialogueBox.Visible = false
 	self.gui.choicesPanel.Visible = true
-	
-	-- Actualizar pregunta
+
 	local linea = self.system:GetCurrentLine()
+
+	-- Propagar nombre del actor al SpeakerTag del ChoicesPanel
+	if linea and self.gui.choicesSpeakerName then
+		self.gui.choicesSpeakerName.Text = linea.Actor or "Sistema"
+	end
+
+	-- Actualizar pregunta
 	if linea and linea.Texto and self.gui.questionText then
 		self.gui.questionText.Text = linea.Texto
 	end

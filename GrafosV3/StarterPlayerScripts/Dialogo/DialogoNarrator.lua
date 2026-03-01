@@ -122,11 +122,25 @@ function DialogoNarrator:Speak(texto, personaje)
 	end
 end
 
----Detiene la reproducción de audio
+---Detiene la reproducción de audio y TTS
 function DialogoNarrator:Stop()
 	if self.currentSound then
 		self.currentSound:Stop()
 		self.currentSound = nil
+	end
+	if self.tts then
+		self.tts:Detener()
+	end
+end
+
+---Destruye y recrea el pipeline de audio para eliminar cualquier estado acumulado
+function DialogoNarrator:Reiniciar()
+	if self.currentSound then
+		self.currentSound:Stop()
+		self.currentSound = nil
+	end
+	if self.tts then
+		self.tts:Reiniciar()
 	end
 end
 

@@ -82,7 +82,7 @@ end
 ---Se ejecuta cuando se presiona CONTINUAR
 function DialogoEvents:OnNextClicked()
 	if not self.controller.system.isPlaying then return end
-	
+
 	-- Si está escribiendo, completar el texto
 	if self.controller.system.renderer:IsTyping() then
 		local linea = self.controller.system:GetCurrentLine()
@@ -94,7 +94,11 @@ function DialogoEvents:OnNextClicked()
 		end
 		return
 	end
-	
+
+	-- Destruir y recrear pipeline de audio para eliminar cualquier estado acumulado
+	local narrator = self.controller.system.narrator
+	if narrator then narrator:Reiniciar() end
+
 	-- Avanzar a siguiente línea
 	self.controller.system:Next()
 end
