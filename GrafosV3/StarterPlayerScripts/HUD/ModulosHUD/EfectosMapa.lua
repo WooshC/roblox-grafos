@@ -15,6 +15,8 @@ local function getEfectosHighlight()
 	return _EfectosHighlight
 end
 
+local BillboardNombres = require(ReplicatedStorage.Efectos.BillboardNombres)
+
 local EfectosMapa = {}
 
 -- Estado
@@ -63,12 +65,7 @@ function EfectosMapa.limpiarTodo()
 	partesOriginales = {}
 
 	-- Limpiar billboards
-	local workspace = game:GetService("Workspace")
-	for _, obj in ipairs(workspace:GetChildren()) do
-		if obj.Name:match("^MapaBB_") or obj.Name:match("^MapaLabel_") then
-			obj:Destroy()
-		end
-	end
+	BillboardNombres.destruirPorPrefijo("MapaBB_")
 
 	-- Limpiar Highlights de nodos del mapa
 	getEfectosHighlight().limpiarMapaNodos()
@@ -198,33 +195,12 @@ function EfectosMapa.crearBillboard(nodo)
 
 	if not parteAdornar then return nil end
 
-	local workspace = game:GetService("Workspace")
-	local nombreBB = "MapaBB_" .. nodo.Name
-	local anterior = workspace:FindFirstChild(nombreBB)
-	if anterior then anterior:Destroy() end
-
-	local billboard = Instance.new("BillboardGui")
-	billboard.Name = nombreBB
-	billboard.Adornee = parteAdornar
-	billboard.Size = UDim2.new(0, 160, 0, 40)
-	billboard.StudsOffset = Vector3.new(0, 5.5, 0)
-	billboard.AlwaysOnTop = true
-	billboard.LightInfluence = 0
-	billboard.Parent = workspace
-
-	local label = Instance.new("TextLabel")
-	label.Name = "Label"
-	label.Size = UDim2.new(1, 0, 1, 0)
-	label.BackgroundTransparency = 1
-	label.Text = EfectosMapa.obtenerNombreAmigable(nodo.Name)
-	label.TextColor3 = Color3.fromRGB(255, 255, 255)
-	label.TextStrokeTransparency = 0.1
-	label.TextStrokeColor3 = Color3.new(0, 0, 0)
-	label.Font = Enum.Font.GothamBold
-	label.TextSize = 14
-	label.Parent = billboard
-
-	return billboard
+	return BillboardNombres.crear(
+		parteAdornar,
+		EfectosMapa.obtenerNombreAmigable(nodo.Name),
+		"NODO_MAPA",
+		"MapaBB_" .. nodo.Name
+	)
 end
 
 function EfectosMapa.actualizarTodos(nivelActual, nodoSeleccionado, adyacentes)

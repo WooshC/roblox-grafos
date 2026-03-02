@@ -37,6 +37,20 @@ else
 	warn("[GrafosV3] ControladorAudio no encontrado")
 end
 
+-- Cargar GuiaService (auto-init: se conecta internamente a NivelListo/NivelDescargado/ActualizarMisiones)
+task.spawn(function()
+	local sistemasFolder = StarterPlayerScripts:WaitForChild("SistemasGameplay", 10)
+	if sistemasFolder then
+		local guiaModulo = sistemasFolder:WaitForChild("GuiaService", 10)
+		if guiaModulo then
+			local ok, err = pcall(require, guiaModulo)
+			if not ok then warn("[GrafosV3] Error en GuiaService:", err) end
+		else
+			warn("[GrafosV3] GuiaService no encontrado en SistemasGameplay")
+		end
+	end
+end)
+
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- 2. ESPERAR ESTRUCTURA DE EVENTOS
 -- ═══════════════════════════════════════════════════════════════════════════════

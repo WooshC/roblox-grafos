@@ -80,23 +80,85 @@ LevelsConfig[0] = {
 
 	Misiones = {
 		-- Zona 1: Nodos y Aristas (Introducción)
-		{ 
-			ID=1, 
-			Zona="Zona_Estacion_1", 
+		{
+			ID=1,
+			Zona="Zona_Estacion_1",
 			Texto="Selecciona cualquier nodo",
-			Tipo="NODO_SELECCIONADO", 
-			Puntos=100, 
+			Tipo="NODO_SELECCIONADO",
+			Puntos=100,
 			Parametros={ Nodo="ANY" }
 		},
-		{ 
-			ID=2, 
-			Zona="Zona_Estacion_1", 
+		{
+			ID=2,
+			Zona="Zona_Estacion_1",
 			Texto="Conecta Nodo 1 con Nodo 2",
-			Tipo="ARISTA_CREADA",     
-			Puntos=150, 
-			Parametros={ NodoA="Nodo1_z1", NodoB="Nodo2_z1" } 
+			Tipo="ARISTA_CREADA",
+			Puntos=150,
+			Parametros={ NodoA="Nodo1_z1", NodoB="Nodo2_z1" }
 		},
-		
+
+	},
+
+	-- Secuencia de guia visual: un objetivo por zona.
+	-- GuiaService avanza automaticamente cuando todas las misiones de la zona se completan.
+	-- Para avance manual: require(GuiaService).GuiaAvanzar:Fire("carlos")
+	Guia = {
+		-- 0. Hablar con Carlos (Part pre-colocada en workspace/Navegacion/Waypoints/)
+		--    Avanzar desde el dialogo: require(GuiaService).GuiaAvanzar:Fire("carlos")
+		{
+			ID    = "carlos",
+			Label = "Hablar con Carlos",
+			WaypointRef = {
+				Tipo     = "PART_DIRECTA",
+				BuscarEn = "NIVEL_ACTUAL",
+				Nombre   = "Objetivo_Carlos",  -- busqueda recursiva en NivelActual
+			},
+			DestruirAlCompletar = false,
+		},
+		{
+			ID    = "estacion_1",
+			Zona  = "Zona_Estacion_1",
+			Label = "Ve a la Estacion 1",
+			WaypointRef = {
+				Tipo     = "PART_DIRECTA",
+				BuscarEn = "NIVEL_ACTUAL",
+				Nombre   = "ZonaTrigger_Estacion1",
+			},
+			DestruirAlCompletar = false,
+		},
+		{
+			ID    = "estacion_2",
+			Zona  = "Zona_Estacion_2",
+			Label = "Ve a la Estacion 2",
+			WaypointRef = {
+				Tipo     = "PART_DIRECTA",
+				BuscarEn = "NIVEL_ACTUAL",
+				Nombre   = "ZonaTrigger_Estacion2",
+			},
+			DestruirAlCompletar = false,
+		},
+		{
+			ID    = "estacion_3",
+			Zona  = "Zona_Estacion_3",
+			Label = "Ve a la Estacion 3",
+			WaypointRef = {
+				Tipo     = "PART_DIRECTA",
+				BuscarEn = "NIVEL_ACTUAL",
+				Nombre   = "ZonaTrigger_Estacion3",
+			},
+			DestruirAlCompletar = false,
+		},
+		{
+			ID    = "estacion_4",
+			Zona  = "Zona_Estacion_4",
+			Label = "Ve a la Estacion 4",
+			WaypointRef = {
+				Tipo     = "PART_DIRECTA",
+				BuscarEn = "NIVEL_ACTUAL",
+				Nombre   = "ZonaTrigger_Estacion4",
+			},
+			DestruirAlCompletar = false,
+		},
 	},
 }
 

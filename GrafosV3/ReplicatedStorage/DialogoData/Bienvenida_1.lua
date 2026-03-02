@@ -104,11 +104,19 @@ local DIALOGOS = {
 				Evento = function(gui, metadata)
 					print("[Evento] Mostrando Zona 1...")
 
+					-- Avanzar guía: carlos → estacion_1
+					-- El beacon y billboard de ZonaTrigger_Estacion1 aparecen aquí
+					local GuiaService = _G.GuiaService
+					if GuiaService then
+						GuiaService.GuiaAvanzar:Fire("carlos")
+					else
+						warn("[Evento] GuiaService no disponible")
+					end
+
 					-- Ocultar techo para ver la zona
 					toggleTecho(false)
 
 					-- Mover cámara a Zona 1 (TOP-DOWN)
-					-- Usar el ControladorDialogo global
 					local ControladorDialogo = _G.ControladorDialogo
 					if ControladorDialogo and ControladorDialogo.moverCamara then
 						ControladorDialogo.moverCamara("Nodo1_z1", 1.0) -- 1 segundo de transición
