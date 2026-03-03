@@ -29,7 +29,8 @@ local PanelMisionesHUD = require(ModulosHUD.PanelMisionesHUD)
 local VictoriaHUD = require(ModulosHUD.VictoriaHUD)
 local ModuloMapa   = require(ModulosHUD.ModuloMapa)
 local Minimap      = require(ModulosHUD.Minimap)
-local ModuloMatriz = require(ModulosHUD.ModuloMatriz)
+local ModuloMatriz   = require(ModulosHUD.ModuloMatriz)
+local ModuloAnalisis = require(ModulosHUD.ModuloAnalisis)
 
 -- Inicializar módulos con referencia al hud
 TransicionHUD.reset()
@@ -39,6 +40,7 @@ VictoriaHUD.init(hudGui)
 ModuloMapa.inicializar(hudGui)
 Minimap.inicializar(hudGui)
 ModuloMatriz.inicializar(hudGui)
+ModuloAnalisis.inicializar(hudGui)
 
 -- Helper: cuando el mapa intenta conectar/desconectar nodos,
 -- la matriz (si está abierta) se refresca automáticamente.
@@ -106,6 +108,13 @@ local function desactivarHUD()
 		warn("[ControladorHUD] Error al limpiar matriz:", errMatriz)
 	end
 
+	local exitoAna, errAna = pcall(function()
+		ModuloAnalisis.limpiar()
+	end)
+	if not exitoAna then
+		warn("[ControladorHUD] Error al limpiar analisis:", errAna)
+	end
+
 	print("[ControladorHUD] HUD desactivado")
 end
 
@@ -148,6 +157,13 @@ EventosHUD.nivelListo.OnClientEvent:Connect(function(data)
 		end)
 		if not exitoMatriz then
 			warn("[ControladorHUD] Error al configurar matriz:", errMatriz)
+		end
+
+		local exitoAna, errAna = pcall(function()
+			ModuloAnalisis.configurarNivel(nivelActual, nivelID, configNivel)
+		end)
+		if not exitoAna then
+			warn("[ControladorHUD] Error al configurar analisis:", errAna)
 		end
 	end
 
