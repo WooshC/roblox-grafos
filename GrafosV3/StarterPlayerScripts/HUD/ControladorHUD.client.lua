@@ -27,8 +27,9 @@ local TransicionHUD = require(ModulosHUD.TransicionHUD)
 local PuntajeHUD = require(ModulosHUD.PuntajeHUD)
 local PanelMisionesHUD = require(ModulosHUD.PanelMisionesHUD)
 local VictoriaHUD = require(ModulosHUD.VictoriaHUD)
-local ModuloMapa = require(ModulosHUD.ModuloMapa)
-local Minimap    = require(ModulosHUD.Minimap)
+local ModuloMapa   = require(ModulosHUD.ModuloMapa)
+local Minimap      = require(ModulosHUD.Minimap)
+local ModuloMatriz = require(ModulosHUD.ModuloMatriz)
 
 -- Inicializar módulos con referencia al hud
 TransicionHUD.reset()
@@ -37,6 +38,25 @@ PanelMisionesHUD.init(hudGui)
 VictoriaHUD.init(hudGui)
 ModuloMapa.inicializar(hudGui)
 Minimap.inicializar(hudGui)
+ModuloMatriz.inicializar(hudGui)
+
+-- Helper: cuando el mapa intenta conectar/desconectar nodos,
+-- la matriz (si está abierta) se refresca automáticamente.
+ModuloMapa.setConexionCallback(function()
+	ModuloMatriz.refrescar()
+end)
+
+-- Helper: cuando el jugador selecciona el PRIMER nodo en modo mapa,
+-- la matriz resalta su fila/columna sin esperar al servidor.
+ModuloMapa.setSeleccionCallback(function(nombre)
+	ModuloMatriz.seleccionarNodoExterno(nombre)
+end)
+
+-- Helper: cuando se cancela la selección en modo mapa,
+-- la matriz limpia el resaltado.
+ModuloMapa.setCancelCallback(function()
+	ModuloMatriz.cancelarSeleccion()
+end)
 
 -- Estado del HUD
 local hudActivo = false
@@ -79,6 +99,13 @@ local function desactivarHUD()
 		warn("[ControladorHUD] Error al limpiar minimap:", errMM)
 	end
 
+	local exitoMatriz, errMatriz = pcall(function()
+		ModuloMatriz.limpiar()
+	end)
+	if not exitoMatriz then
+		warn("[ControladorHUD] Error al limpiar matriz:", errMatriz)
+	end
+
 	print("[ControladorHUD] HUD desactivado")
 end
 
@@ -114,6 +141,13 @@ EventosHUD.nivelListo.OnClientEvent:Connect(function(data)
 		end)
 		if not exitoMM then
 			warn("[ControladorHUD] Error al configurar minimap:", errMM)
+		end
+
+		local exitoMatriz, errMatriz = pcall(function()
+			ModuloMatriz.configurarNivel(nivelActual, nivelID, configNivel)
+		end)
+		if not exitoMatriz then
+			warn("[ControladorHUD] Error al configurar matriz:", errMatriz)
 		end
 	end
 

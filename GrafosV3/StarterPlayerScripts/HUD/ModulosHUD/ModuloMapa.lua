@@ -48,6 +48,14 @@ local btnCerrarMapa = nil
 local nodoSeleccionadoMapa = nil
 local adyacentesSeleccionados = {}
 
+-- Callback opcional: se llama cuando se intenta conectar/desconectar desde el mapa.
+-- Lo conecta ControladorHUD para notificar a ModuloMatriz.
+local _conexionCallback  = nil
+-- Callback: se llama cuando se selecciona el PRIMER nodo (string nombre).
+local _seleccionCallback = nil
+-- Callback: se llama cuando se cancela la selección (mismo nodo clickeado de nuevo).
+local _cancelCallback    = nil
+
 -- Configuracion
 local CONFIG = {
 	alturaCamara = 80,
@@ -381,12 +389,22 @@ function _onNodoClickeado(nodo, selectorPart)
 			end
 		end
 
+		-- Notificar a ModuloMatriz para que resalte este nodo
+		if _seleccionCallback then
+			_seleccionCallback(nombreNodo)
+		end
+
 		print("[ModuloMapa] Primer nodo seleccionado:", nombreNodo)
 
 	elseif nodoSeleccionadoMapa == nodo then
 		-- Click en el mismo nodo: cancelar selección
 		nodoSeleccionadoMapa = nil
 		_actualizarHighlights()
+
+		-- Notificar a ModuloMatriz para que limpie el resaltado
+		if _cancelCallback then
+			_cancelCallback()
+		end
 
 		print("[ModuloMapa] Selección cancelada")
 
@@ -404,6 +422,11 @@ function _onNodoClickeado(nodo, selectorPart)
 			if conectarEvent then
 				conectarEvent:FireServer(nodoA, nodoB)
 			end
+		end
+
+		-- Notificar al módulo de Matriz (si está activo) para que refresque
+		if _conexionCallback then
+			task.delay(0.15, _conexionCallback)  -- pequeño delay para que el servidor procese
 		end
 
 		-- Limpiar selección y actualizar después de un momento
@@ -527,6 +550,25 @@ end
 
 function ModuloMapa.estaAbierto()
 	return mapaAbierto
+end
+
+-- Registra un callback que se dispara cada vez que el jugador intenta
+-- conectar/desconectar dos nodos desde el modo mapa.
+-- Usado por ControladorHUD para notificar a ModuloMatriz.
+function ModuloMapa.setConexionCallback(fn)
+	_conexionCallback = fn
+end
+
+-- Callback: se llama con el nombre del nodo cuando se hace el PRIMER click
+-- (selección en espera de segundo nodo). Usado para resaltar en ModuloMatriz.
+function ModuloMapa.setSeleccionCallback(fn)
+	_seleccionCallback = fn
+end
+
+-- Callback: se llama sin argumentos cuando se cancela la selección
+-- (mismo nodo clickeado de nuevo). Usado para limpiar resaltado en ModuloMatriz.
+function ModuloMapa.setCancelCallback(fn)
+	_cancelCallback = fn
 end
 
 -- ================================================================

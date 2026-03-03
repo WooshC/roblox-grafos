@@ -49,6 +49,9 @@ local EVENTOS_REMOTOS = {
 
 	-- Configuracion
 	{ nombre = "AplicarDificultad",      tipo = "RemoteEvent" },      -- Cliente -> Server (cambiar dificultad)
+
+	-- Teoria de Grafos
+	{ nombre = "GetAdjacencyMatrix",     tipo = "RemoteFunction" },   -- Cliente <-> Server (solicitar matriz de adyacencia)
 }
 
 -- ═══════════════════════════════════════════════════════════════════════════════
