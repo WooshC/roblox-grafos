@@ -9,6 +9,7 @@ local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
 local EfectosHighlight = require(Replicado.Efectos.EfectosHighlight)
 local EfectosVideo     = require(Replicado.Efectos.EfectosVideo)
+local EfectosNodo      = require(Replicado.Efectos.EfectosNodo)
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- CONFIGURACION Y ESTADO
@@ -151,6 +152,7 @@ end
 
 -- Limpiar TODOS los efectos y restaurar estados originales
 local function clearAll()
+	EfectosNodo.limpiarSeleccion()
 	-- Destruir todos los Highlights gestionados por EfectosHighlight
 	EfectosHighlight.limpiarTodo()
 	_highlights = {}
@@ -231,6 +233,19 @@ notifyEv.OnClientEvent:Connect(function(eventType, arg1, arg2)
 	-- Nodo seleccionado: arg1 = nodo, arg2 = adyacentes
 	if eventType == "NodoSeleccionado" then
 		clearAll()
+		-- Sincronizar estado de selección para el minimap
+		-- arg2 puede contener Instances (Model) o strings según el servidor
+		local adyNames = {}
+		if type(arg2) == "table" then
+			for _, adjModel in ipairs(arg2) do
+				if typeof(adjModel) == "Instance" then
+					table.insert(adyNames, adjModel.Name)
+				elseif type(adjModel) == "string" then
+					table.insert(adyNames, adjModel)
+				end
+			end
+		end
+		EfectosNodo.establecerSeleccion(arg1 and arg1.Name or nil, adyNames)
 		if arg1 then
 			highlightNode(arg1, COLOR_SELECCIONADO)
 		end

@@ -28,6 +28,7 @@ local PuntajeHUD = require(ModulosHUD.PuntajeHUD)
 local PanelMisionesHUD = require(ModulosHUD.PanelMisionesHUD)
 local VictoriaHUD = require(ModulosHUD.VictoriaHUD)
 local ModuloMapa = require(ModulosHUD.ModuloMapa)
+local Minimap    = require(ModulosHUD.Minimap)
 
 -- Inicializar módulos con referencia al hud
 TransicionHUD.reset()
@@ -35,6 +36,7 @@ PuntajeHUD.init(hudGui)
 PanelMisionesHUD.init(hudGui)
 VictoriaHUD.init(hudGui)
 ModuloMapa.inicializar(hudGui)
+Minimap.inicializar(hudGui)
 
 -- Estado del HUD
 local hudActivo = false
@@ -70,6 +72,13 @@ local function desactivarHUD()
 		warn("[ControladorHUD] Error al limpiar mapa:", err)
 	end
 
+	local exitoMM, errMM = pcall(function()
+		Minimap.limpiar()
+	end)
+	if not exitoMM then
+		warn("[ControladorHUD] Error al limpiar minimap:", errMM)
+	end
+
 	print("[ControladorHUD] HUD desactivado")
 end
 
@@ -98,6 +107,13 @@ EventosHUD.nivelListo.OnClientEvent:Connect(function(data)
 		end)
 		if not exito then
 			warn("[ControladorHUD] Error al configurar mapa:", err)
+		end
+
+		local exitoMM, errMM = pcall(function()
+			Minimap.configurarNivel(nivelActual, nivelID, configNivel)
+		end)
+		if not exitoMM then
+			warn("[ControladorHUD] Error al configurar minimap:", errMM)
 		end
 	end
 

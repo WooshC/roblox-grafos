@@ -7,7 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local EstadoConexiones = {}
 
 -- Estado local
-local conexionesActivas = {} -- { ["NodoA_NodoB"] = true }
+local conexionesActivas = {} -- { ["NodoA|NodoB"] = true }
 local nombresNodos = {}
 
 -- Eventos
@@ -20,9 +20,9 @@ local Remotos = Eventos:WaitForChild("Remotos")
 
 local function generarClave(nombreA, nombreB)
 	if nombreA < nombreB then
-		return nombreA .. "_" .. nombreB
+		return nombreA .. "|" .. nombreB
 	else
-		return nombreB .. "_" .. nombreA
+		return nombreB .. "|" .. nombreA
 	end
 end
 
@@ -102,7 +102,7 @@ end
 
 function EstadoConexiones.tieneConexiones(nombreNodo)
 	for clave, _ in pairs(conexionesActivas) do
-		if string.find(clave, nombreNodo .. "_") or string.find(clave, "_" .. nombreNodo) then
+		if string.find(clave, nombreNodo .. "|", 1, true) or string.find(clave, "|" .. nombreNodo, 1, true) then
 			return true
 		end
 	end
@@ -112,7 +112,7 @@ end
 function EstadoConexiones.obtenerConexiones(nombreNodo)
 	local conectados = {}
 	for clave, _ in pairs(conexionesActivas) do
-		local nodoA, nodoB = string.match(clave, "^(.-)_(.+)$")
+		local nodoA, nodoB = string.match(clave, "^(.+)|(.+)$")
 		if nodoA == nombreNodo then
 			table.insert(conectados, nodoB)
 		elseif nodoB == nombreNodo then
@@ -125,7 +125,7 @@ end
 function EstadoConexiones.obtenerGrado(nombreNodo)
 	local count = 0
 	for clave, _ in pairs(conexionesActivas) do
-		if string.find(clave, nombreNodo .. "_") or string.find(clave, "_" .. nombreNodo) then
+		if string.find(clave, nombreNodo .. "|", 1, true) or string.find(clave, "|" .. nombreNodo, 1, true) then
 			count = count + 1
 		end
 	end
