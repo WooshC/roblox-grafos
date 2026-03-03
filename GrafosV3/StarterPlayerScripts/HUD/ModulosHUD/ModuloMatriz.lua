@@ -41,6 +41,7 @@ local _zonaActual    = nil   -- última zona solicitada
 local _getMatrixFunc = nil   -- RemoteFunction (lazy)
 local _inicializado  = false
 local _refreshPending = false
+local _esDirigido    = false
 
 -- ════════════════════════════════════════════════════════════════
 -- COLORES
@@ -383,6 +384,28 @@ local function renderizarMatriz(data)
 end
 
 -- ════════════════════════════════════════════════════════════════
+-- PLACEHOLDER: texto en la cuadrícula cuando no hay matriz
+-- ════════════════════════════════════════════════════════════════
+local function mostrarMensaje(texto)
+	local scroll = getScroll()
+	if not scroll then return end
+	for _, c in ipairs(scroll:GetChildren()) do
+		if not c:IsA("UIListLayout") then c:Destroy() end
+	end
+	scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+	local lbl = Instance.new("TextLabel")
+	lbl.Size             = UDim2.new(1, 0, 1, 0)
+	lbl.BackgroundTransparency = 1
+	lbl.Text             = texto
+	lbl.TextColor3       = Color3.fromRGB(176, 190, 197)
+	lbl.Font             = Enum.Font.Gotham
+	lbl.TextSize         = 14
+	lbl.TextWrapped      = true
+	lbl.TextXAlignment   = Enum.TextXAlignment.Center
+	lbl.Parent           = scroll
+end
+
+-- ════════════════════════════════════════════════════════════════
 -- SOLICITAR MATRIZ AL SERVIDOR
 -- ════════════════════════════════════════════════════════════════
 local function solicitarMatriz(zonaID)
@@ -399,16 +422,6 @@ local function solicitarMatriz(zonaID)
 		end
 	end
 
-	-- Actualizar título
-	local panel = getPanel()
-	if panel then
-		local header = panel:FindFirstChild("MatrizHeader")
-		local titulo = header and header:FindFirstChild("TituloMatriz")
-		if titulo then
-			titulo.Text = "MATRIZ DE ADYACENCIA" .. (zonaID and (" — " .. zonaID) or "")
-		end
-	end
-
 	actualizarInfoNodo(nil, 0, 0, 0)
 
 	task.spawn(function()
@@ -416,16 +429,42 @@ local function solicitarMatriz(zonaID)
 			return _getMatrixFunc:InvokeServer(zonaID)
 		end)
 
-		if ok and resultado and resultado.Headers then
-			-- Preservar selección previa
+		if ok and resultado then
+			-- Zona sin datos o sin activar
+			if resultado.SinZona or #resultado.Headers == 0 then
+				_matrizData   = nil
+				_esDirigido   = false
+				_nodoSelecIdx = nil
+				mostrarMensaje(resultado.SinZona
+					and "Entra en una zona para ver su matriz"
+					or  "Esta zona no tiene grafo definido")
+				-- Limpiar título
+				local panel  = getPanel()
+				local header = panel and panel:FindFirstChild("MatrizHeader")
+				local titulo = header and header:FindFirstChild("TituloMatriz")
+				if titulo then titulo.Text = "MATRIZ DE ADYACENCIA" end
+				return
+			end
+
+			-- Preservar selección previa si el nodo sigue en la nueva zona
 			local nombrePrevio = nil
 			if _nodoSelecIdx and _matrizData and _matrizData.Headers then
 				nombrePrevio = _matrizData.Headers[_nodoSelecIdx]
 			end
 
-			_matrizData = resultado
-			_zonaActual = zonaID
+			_matrizData   = resultado
+			_esDirigido   = resultado.EsDirigido or false
+			_zonaActual   = zonaID
 			renderizarMatriz(resultado)
+
+			-- Actualizar título con tipo de grafo
+			local panel  = getPanel()
+			local header = panel and panel:FindFirstChild("MatrizHeader")
+			local titulo = header and header:FindFirstChild("TituloMatriz")
+			if titulo then
+				local tipo = _esDirigido and "DÍGRAFO" or "GRAFO NO DIRIGIDO"
+				titulo.Text = tipo .. " — " .. (zonaID or "")
+			end
 
 			if nombrePrevio then
 				local nuevoIdx = getHeaderIdx(nombrePrevio)
@@ -443,19 +482,7 @@ local function solicitarMatriz(zonaID)
 		else
 			warn("[ModuloMatriz] Error del servidor: " .. tostring(resultado))
 			_matrizData = nil
-			local scroll = getScroll()
-			if scroll then
-				for _, c in ipairs(scroll:GetChildren()) do
-					if not c:IsA("UIListLayout") then c:Destroy() end
-				end
-				local lbl = Instance.new("TextLabel")
-				lbl.Size = UDim2.new(1, 0, 0, 40)
-				lbl.BackgroundTransparency = 1
-				lbl.Text = "Sin datos para esta zona"
-				lbl.TextColor3 = Color3.fromRGB(176, 190, 197)
-				lbl.Font = Enum.Font.Gotham; lbl.TextSize = 13
-				lbl.Parent = scroll
-			end
+			mostrarMensaje("Error al obtener la matriz")
 		end
 	end)
 end
@@ -485,7 +512,18 @@ local function activar()
 	actualizarInfoNodo(nil, 0, 0, 0)
 
 	local zona = jugador:GetAttribute("ZonaActual") or ""
-	solicitarMatriz(zona ~= "" and zona or nil)
+	if zona == "" then
+		-- Sin zona activa: mostrar placeholder y no llamar al servidor
+		mostrarMensaje("Entra en una zona para ver su matriz")
+		local titulo = (panel:FindFirstChild("MatrizHeader") or {}) and
+		               panel:FindFirstChild("MatrizHeader")
+		local tl = titulo and titulo:FindFirstChild("TituloMatriz")
+		if tl then tl.Text = "MATRIZ DE ADYACENCIA" end
+		print("[ModuloMatriz] Activado (sin zona)")
+		return
+	end
+
+	solicitarMatriz(zona)
 	print("[ModuloMatriz] Activado")
 end
 
@@ -578,7 +616,15 @@ function ModuloMatriz.inicializar(hudGui)
 	jugador:GetAttributeChangedSignal("ZonaActual"):Connect(function()
 		if not isVisible() then return end
 		local zona = jugador:GetAttribute("ZonaActual") or ""
-		solicitarMatriz(zona ~= "" and zona or nil)
+		if zona == "" then
+			_matrizData   = nil
+			_esDirigido   = false
+			_nodoSelecIdx = nil
+			actualizarInfoNodo(nil, 0, 0, 0)
+			mostrarMensaje("Entra en una zona para ver su matriz")
+		else
+			solicitarMatriz(zona)
+		end
 	end)
 
 	print("[ModuloMatriz] Inicializado")

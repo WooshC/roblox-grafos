@@ -9,6 +9,9 @@
 --   Zonas[x].Trigger                           → Boot → ZoneTriggerManager
 --   NombresNodos                               → VisualEffectsService (billboard nodo)
 --   Misiones                                   → MissionService
+--   NodosZona[zonaID]                          → MatrizAdyacencia (mapeo explícito zona→nodos)
+--     Requerido para zonas cuyo nombre NO sigue el patron "Zona_Estacion_<N>"
+--     (e.g. "Zona_electrica"). Las zonas con patron numerico usan el fallback _z<N>.
 --
 -- Ubicacion Roblox: ReplicatedStorage/Config/LevelsConfig  (ModuleScript)
 
@@ -64,6 +67,19 @@ LevelsConfig[0] = {
 		["Zona_Estacion_2"] = { Trigger = "ZonaTrigger_Estacion2", Descripcion = "Grado de Nodo"    },
 		["Zona_Estacion_3"] = { Trigger = "ZonaTrigger_Estacion3", Descripcion = "Grafos Dirigidos" },
 		["Zona_Estacion_4"] = { Trigger = "ZonaTrigger_Estacion4", Descripcion = "Conectividad"     },
+		["Zona_electrica"]  = { Trigger = "ZonaTrigger_Electrica", Descripcion = "Circuito Electrico" },
+	},
+
+	-- Mapeo explícito zona → lista de nodos.
+	-- Requerido para zonas cuyo nombre no sigue el patrón _z<N> (e.g. Zona_electrica).
+	-- Las zonas con sufijo numérico ("Zona_Estacion_1" → _z1) funcionan sin este campo,
+	-- pero incluirlas aquí hace el config más explícito y evita depender del heurístico.
+	NodosZona = {
+		["Zona_Estacion_1"] = {"Nodo1_z1", "Nodo2_z1"},
+		["Zona_Estacion_2"] = {"Nodo1_z2", "Nodo2_z2", "Nodo3_z2", "Nodo4_z2"},
+		["Zona_Estacion_3"] = {"Nodo1_z3", "Nodo2_z3", "Nodo3_z3"},
+		["Zona_Estacion_4"] = {"Nodo1_z4", "Nodo2_z4", "Nodo3_z4", "Nodo4_z4"},
+		["Zona_electrica"]  = {"PostePanel", "toma_corriente"},
 	},
 
 	NombresNodos = {

@@ -202,10 +202,29 @@ ControladorAudio.cleanup()
 Centralized configuration for all levels including:
 - Level metadata (name, description, image, tag, section)
 - Scoring rules (three-star threshold, XP reward, penalties)
-- Graph adjacencies (valid node connections)
-- Zones and triggers
-- Node display names
-- Missions/objectives
+- `Adyacencias` — valid node connections (used by `ConectarCables`)
+- `Zonas` — zone IDs, trigger names, descriptions
+- `NombresNodos` — display names for node billboards
+- `NodosZona` — explicit zone → node list mapping (used by `MatrizAdyacencia`)
+- `Misiones` — mission/objective definitions
+
+#### NodosZona field
+Required for zones whose names do NOT follow the `Zona_Estacion_<N>` pattern
+(e.g. `Zona_electrica`). Zones with a numeric suffix fall back to the `_z<N>`
+heuristic automatically, but listing them explicitly here is preferred.
+
+```lua
+NodosZona = {
+    ["Zona_Estacion_1"] = {"Nodo1_z1", "Nodo2_z1"},
+    ["Zona_Estacion_2"] = {"Nodo1_z2", "Nodo2_z2", "Nodo3_z2", "Nodo4_z2"},
+    ["Zona_Estacion_3"] = {"Nodo1_z3", "Nodo2_z3", "Nodo3_z3"},
+    ["Zona_Estacion_4"] = {"Nodo1_z4", "Nodo2_z4", "Nodo3_z4", "Nodo4_z4"},
+    ["Zona_electrica"]  = {"PostePanel", "toma_corriente"},  -- arbitrary zone name
+},
+```
+
+Only nodes that also appear in `Adyacencias` are included in the matrix.
+Adding a new zone: add entry to both `Zonas` and `NodosZona`.
 
 ### ConectarCables.lua (Core Gameplay)
 - Handles node selection and cable creation
