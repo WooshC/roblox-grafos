@@ -172,4 +172,49 @@ function EfectosVideo.reproducirConexion(nombreNodo, nombreEfecto, multiplicador
 	return EfectosVideo.reproducirEnParte(nombreEfecto, selector, multiplicadorTamano, duracion)
 end
 
+---Clona "SignoObjetivo" y lo coloca encima de una Part sin auto-destruirlo.
+-- Pensado para marcar waypoints persistentes (GuiaService).
+--
+-- @param parte   BasePart - Part de referencia sobre la que aparece el signo
+-- @param offsetY number   - Studs de altura sobre la Part (default 10)
+-- @return Instance|nil - El clon creado (sin auto-destrucción)
+function EfectosVideo.clonarSigno(parte, offsetY)
+	if not parte or not parte.Parent then return nil end
+
+	local carpeta = getCarpetaVFX()
+	if not carpeta then
+		warn("[EfectosVideo] Carpeta 'EfectosVideo' no encontrada en ReplicatedStorage")
+		return nil
+	end
+
+	local plantilla = carpeta:FindFirstChild("SignoObjetivo")
+	if not plantilla then
+		warn("[EfectosVideo] 'SignoObjetivo' no encontrado en ReplicatedStorage/EfectosVideo")
+		return nil
+	end
+
+	offsetY = offsetY or 10
+	local clon    = plantilla:Clone()
+	local destPos = parte.Position + Vector3.new(0, offsetY, 0)
+
+	if clon:IsA("BasePart") then
+		clon.CFrame     = CFrame.new(destPos)
+		clon.Anchored   = true
+		clon.CanCollide = false
+		clon.CastShadow = false
+	elseif clon:IsA("Model") then
+		clon:PivotTo(CFrame.new(destPos))
+		for _, p in ipairs(clon:GetDescendants()) do
+			if p:IsA("BasePart") then
+				p.Anchored   = true
+				p.CanCollide = false
+				p.CastShadow = false
+			end
+		end
+	end
+
+	clon.Parent = parte
+	return clon
+end
+
 return EfectosVideo

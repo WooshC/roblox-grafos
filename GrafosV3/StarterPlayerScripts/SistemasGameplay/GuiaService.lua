@@ -29,6 +29,8 @@ local Players           = game:GetService("Players")
 local TweenService      = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local EfectosVideo = require(ReplicatedStorage:WaitForChild("Efectos"):WaitForChild("EfectosVideo"))
+
 local localPlayer = Players.LocalPlayer
 
 -- ============================================
@@ -284,26 +286,9 @@ local function createBeacon(part)
 	local old = part:FindFirstChild("GuiaBeacon")
 	if old then old:Destroy() end
 
-	local center = part:IsA("Model") and part:GetPivot().Position or part.Position
-	local beacon = Instance.new("Part")
-	beacon.Name         = "GuiaBeacon"
-	beacon.Anchored     = true
-	beacon.CanCollide   = false
-	beacon.CastShadow   = false
-	beacon.Size         = CFG.BEACON_SIZE
-	beacon.Color        = CFG.BEACON_COLOR
-	beacon.Material     = Enum.Material.Neon
-	beacon.Shape        = Enum.PartType.Cylinder
-	beacon.Transparency = 0.25
-	beacon.CFrame       = CFrame.new(center + Vector3.new(0, CFG.BEACON_OFFSET, 0))
-		* CFrame.Angles(0, 0, math.pi / 2)
-	beacon.Parent       = part
-
-	local basePos = beacon.CFrame
-	TweenService:Create(beacon,
-		TweenInfo.new(CFG.BEACON_SPEED, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-		{ CFrame = basePos + Vector3.new(0, CFG.BEACON_FLOAT, 0) }
-	):Play()
+	local signo = EfectosVideo.clonarSigno(part, 1)
+	if not signo then return end
+	signo.Name = "GuiaBeacon"
 end
 
 -- ============================================
@@ -521,12 +506,12 @@ function GuiaService:initForLevel(nivelID)
 		return
 	end
 
-	-- Obtener o crear la carpeta Objetivos dentro del nivel
-	objetivosFolder = levelModel:FindFirstChild("Objetivos")
+	-- Carpeta de waypoints: NivelActual/Navegacion/Waypoints
+	local navegacion = levelModel:FindFirstChild("Navegacion")
+	objetivosFolder  = navegacion and navegacion:FindFirstChild("Waypoints")
 	if not objetivosFolder then
-		objetivosFolder = Instance.new("Folder")
-		objetivosFolder.Name   = "Objetivos"
-		objetivosFolder.Parent = levelModel
+		warn("❌ GuiaService: NivelActual/Navegacion/Waypoints no encontrado")
+		return
 	end
 
 	-- Asegurar personaje disponible
@@ -568,10 +553,6 @@ end
 
 function GuiaService:init()
 	print("🧭 GuiaService: Inicializando...")
-
-	-- BindableEvent publica para que otros scripts cliente puedan avanzar la guia
-	GuiaService.GuiaAvanzar = Instance.new("BindableEvent")
-	GuiaService.GuiaAvanzar.Name = "GuiaAvanzar"
 
 	task.spawn(function()
 		local remotos = ReplicatedStorage
@@ -630,9 +611,19 @@ function GuiaService:init()
 		end
 
 		-- 4. GuiaAvanzar BindableEvent → avance manual desde otro script cliente
-		GuiaService.GuiaAvanzar.Event:Connect(function(id)
-			self:avanzar(id)
-		end)
+		local bindables = remotos.Parent:WaitForChild("Bindables", 5)
+		if bindables then
+			GuiaService.GuiaAvanzar = bindables:WaitForChild("GuiaAvanzar", 5)
+			if GuiaService.GuiaAvanzar then
+				GuiaService.GuiaAvanzar.Event:Connect(function(id)
+					self:avanzar(id)
+				end)
+			else
+				warn("⚠️ GuiaService: BindableEvent 'GuiaAvanzar' no encontrado en Bindables")
+			end
+		else
+			warn("⚠️ GuiaService: Carpeta 'Bindables' no encontrada en EventosGrafosV3")
+		end
 
 		print("✅ GuiaService: Inicializado correctamente")
 	end)

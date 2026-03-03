@@ -135,17 +135,71 @@ end
 -- @param duracion number - Duración de la transición (default: 0.8)
 function ServicioCamara.moverTopDown(enfoque, altura, duracion)
 	altura = altura or 13
-	
+
 	local posicionObjetivo = ServicioCamara.obtenerPosicion(enfoque)
 	if not posicionObjetivo then
 		warn("[ServicioCamara] No se pudo obtener posición del enfoque:", enfoque)
 		return false
 	end
-	
+
 	local posicionCamara = posicionObjetivo + Vector3.new(0, altura, 0)
-	local nuevoCFrame = CFrame.lookAt(posicionCamara, posicionObjetivo)
-	
+	local nuevoCFrame = CFrame.new(posicionCamara) * CFrame.Angles(math.rad(-90), 0, 0)
+
 	ServicioCamara.moverA(nuevoCFrame, duracion, true)
+	return true
+end
+
+---Mueve la cámara hacia un objetivo con altura y ángulo configurables.
+-- Soporta desde vista completamente cenital hasta vistas inclinadas/cinematográficas.
+--
+-- @param enfoque any - string (nombre nodo), Vector3, BasePart, o Model
+-- @param opciones table:
+--   altura    number  (default 13) — altura de la cámara por encima del objetivo
+--   angulo    number  (default 90) — ángulo de elevación en grados:
+--                                     90 = cenital (top-down puro)
+--                                     60 = 60° (inclinado, estilo estrategia)
+--                                     45 = isométrico
+--                                     30 = más horizontal, cinematográfico
+--   distancia number  (default 0)  — desplazamiento horizontal adicional (aleja la cámara)
+--   duracion  number  (default 0.8)
+--   suave     bool    (default true)
+--   onComplete function (opcional) — callback al terminar la animación
+--
+-- Ejemplos:
+--   ServicioCamara.moverHaciaObjetivo("Nodo1_z1", { altura=20, angulo=90 })  -- cenital
+--   ServicioCamara.moverHaciaObjetivo("Nodo1_z1", { altura=15, angulo=60 })  -- inclinado
+--   ServicioCamara.moverHaciaObjetivo("Nodo1_z1", { altura=10, angulo=45, distancia=5 }) -- isométrico + offset
+function ServicioCamara.moverHaciaObjetivo(enfoque, opciones)
+	opciones = opciones or {}
+	local altura    = opciones.altura    or 13
+	local angulo    = opciones.angulo    or 90
+	local distancia = opciones.distancia or 0
+	local duracion  = opciones.duracion  or 0.8
+
+	local posObjetivo = ServicioCamara.obtenerPosicion(enfoque)
+	if not posObjetivo then
+		warn("[ServicioCamara] moverHaciaObjetivo: no se pudo obtener posición:", tostring(enfoque))
+		return false
+	end
+
+	-- Para que el vector cámara→objetivo forme el ángulo de elevación pedido,
+	-- la distancia horizontal necesaria es: d = altura * cos(angulo) / sin(angulo)
+	local rad  = math.rad(angulo)
+	local sinA = math.sin(rad)
+	local cosA = math.cos(rad)
+	local d_back = (sinA > 0.02) and (altura * cosA / sinA) or 0
+
+	local posicionCamara = posObjetivo + Vector3.new(0, altura, d_back + distancia)
+
+	local nuevoCFrame
+	if angulo >= 85 then
+		-- Cerca de cenital: orientación explícita para evitar artefacto de CFrame.lookAt
+		nuevoCFrame = CFrame.new(posicionCamara) * CFrame.Angles(math.rad(-90), 0, 0)
+	else
+		nuevoCFrame = CFrame.lookAt(posicionCamara, posObjetivo)
+	end
+
+	ServicioCamara.moverA(nuevoCFrame, duracion, opciones.suave ~= false, opciones.onComplete)
 	return true
 end
 

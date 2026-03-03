@@ -55,6 +55,13 @@ local EVENTOS_REMOTOS = {
 }
 
 -- ═══════════════════════════════════════════════════════════════════════════════
+-- EVENTOS BINDABLES ESPERADOS
+-- ═══════════════════════════════════════════════════════════════════════════════
+local EVENTOS_BINDABLES = {
+	{ nombre = "GuiaAvanzar", tipo = "BindableEvent" }, -- Cliente: avanzar guia manualmente
+}
+
+-- ═══════════════════════════════════════════════════════════════════════════════
 -- HELPERS
 -- ═══════════════════════════════════════════════════════════════════════════════
 local function asegurarCarpeta(parent, nombre)
@@ -86,13 +93,19 @@ end
 local function inicializar()
 	print("[EventRegistry] === Inicializando Registro de Eventos ===")
 
-	-- Crear estructura de carpetas: ReplicatedStorage/EventosGrafosV3/Remotos
-	local carpetaEventos = asegurarCarpeta(Replicado, "EventosGrafosV3")
-	local carpetaRemotos = asegurarCarpeta(carpetaEventos, "Remotos")
+	-- Crear estructura de carpetas: ReplicatedStorage/EventosGrafosV3/Remotos y Bindables
+	local carpetaEventos  = asegurarCarpeta(Replicado, "EventosGrafosV3")
+	local carpetaRemotos  = asegurarCarpeta(carpetaEventos, "Remotos")
+	local carpetaBindables = asegurarCarpeta(carpetaEventos, "Bindables")
 
 	-- Crear todos los eventos remotos
 	for _, config in ipairs(EVENTOS_REMOTOS) do
 		asegurarEvento(carpetaRemotos, config.nombre, config.tipo)
+	end
+
+	-- Crear todos los eventos bindables
+	for _, config in ipairs(EVENTOS_BINDABLES) do
+		asegurarEvento(carpetaBindables, config.nombre, config.tipo)
 	end
 
 	print("[EventRegistry] === Todos los eventos verificados ===")

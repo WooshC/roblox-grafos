@@ -583,23 +583,37 @@ function ControladorDialogo.obtenerSistema()
 	return DialogoGUISystem
 end
 
----Mueve la cámara a un punto de enfoque (TOP-DOWN)
--- Uso desde eventos de diálogo: _G.ControladorDialogo.moverCamara("Nodo1_z1")
+---Mueve la cámara hacia un punto de enfoque.
+-- Uso simple (top-down):
+--   _G.ControladorDialogo.moverCamara("Nodo1_z1")
+--   _G.ControladorDialogo.moverCamara("Nodo1_z1", 1.0)       -- con duración
+-- Uso avanzado (tabla de opciones):
+--   _G.ControladorDialogo.moverCamara("Nodo1_z1", {
+--       altura   = 20,   -- altura sobre el objetivo (default: 13)
+--       angulo   = 65,   -- 90=cenital, 60=estrategia, 45=isométrico (default: 90)
+--       distancia = 0,   -- offset horizontal adicional (default: 0)
+--       duracion = 1.0,  -- duración de la transición (default: 0.8)
+--   })
 -- @param enfoque string (nombre nodo), Vector3, BasePart, o Model
--- @param duracion number - Opcional, duración de la transición (default: 0.8)
-function ControladorDialogo.moverCamara(enfoque, duracion)
-	return ServicioCamara.moverTopDown(enfoque, 13, duracion)
+-- @param opcionesODuracion table|number - Opciones avanzadas o duración simple
+function ControladorDialogo.moverCamara(enfoque, opcionesODuracion)
+	if type(opcionesODuracion) == "table" then
+		return ServicioCamara.moverHaciaObjetivo(enfoque, opcionesODuracion)
+	else
+		-- API simple: segundo arg es duracion (número) o nil → top-down con defaults
+		return ServicioCamara.moverHaciaObjetivo(enfoque, {
+			altura   = 13,
+			angulo   = 90,
+			duracion = opcionesODuracion or 0.8,
+		})
+	end
 end
 
 ---Restaura la cámara a su estado original
 -- Uso desde eventos de diálogo: _G.ControladorDialogo.restaurarCamara()
-function ControladorDialogo.restaurarCamara()
-	ServicioCamara.restaurar(0.5)
-end
-
----Obtiene el servicio de cámara para uso avanzado
-function ControladorDialogo.obtenerServicioCamara()
-	return ServicioCamara
+-- @param duracion number - Opcional, duración de la transición (default: 0.5)
+function ControladorDialogo.restaurarCamara(duracion)
+	ServicioCamara.restaurar(duracion or 0.5)
 end
 
 _G.ControladorDialogo = ControladorDialogo

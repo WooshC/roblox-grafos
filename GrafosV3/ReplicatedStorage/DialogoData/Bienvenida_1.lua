@@ -2,8 +2,6 @@
 -- Diálogo de bienvenida de Carlos - Tutorial del Nivel 0
 -- Adaptado del sistema antiguo al nuevo sistema de diálogos
 
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 -- Referencias a servicios externos (si existen)
@@ -116,13 +114,12 @@ local DIALOGOS = {
 					-- Ocultar techo para ver la zona
 					toggleTecho(false)
 
-					-- Mover cámara a Zona 1 (TOP-DOWN)
-					local ControladorDialogo = _G.ControladorDialogo
-					if ControladorDialogo and ControladorDialogo.moverCamara then
-						ControladorDialogo.moverCamara("Nodo1_z1", 1.0) -- 1 segundo de transición
-					else
-						warn("[Evento] ControladorDialogo no disponible")
-					end
+					-- Mover cámara hacia Zona 1 (inclinada, apuntando a Nodo1_z1)
+					_G.ControladorDialogo.moverCamara("Nodo1_z1", {
+						altura   = 25,   -- altura sobre el nodo
+						angulo   = 65,   -- 65°: no del todo cenital, algo de perspectiva
+						duracion = 1.0,
+					})
 				end,
 
 				Siguiente = "confirmacion_final"
@@ -140,10 +137,7 @@ local DIALOGOS = {
 					print("[Evento] Restaurando...")
 
 					-- Restaurar cámara al jugador
-					local ControladorDialogo = _G.ControladorDialogo
-					if ControladorDialogo and ControladorDialogo.restaurarCamara then
-						ControladorDialogo.restaurarCamara()
-					end
+					_G.ControladorDialogo.restaurarCamara(0.5)
 
 					-- Mostrar techo nuevamente
 					toggleTecho(true)
@@ -201,7 +195,7 @@ local DIALOGOS = {
 
 			-- CONTROL DE CÁMARA
 			-- NOTA: La cámara NO se mueve automáticamente al inicio.
-			-- Usar ControladorDialogo.moverCamara() en los Eventos de las líneas
+			-- Usar _G.ControladorDialogo.moverCamara() en los Eventos de las líneas.
 			apuntarCamara = true,         -- Bloquea la cámara (Scriptable) pero no la mueve
 
 			-- PERMISOS ESPECIALES
