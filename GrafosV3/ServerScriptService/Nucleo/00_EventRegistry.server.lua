@@ -52,6 +52,7 @@ local EVENTOS_REMOTOS = {
 
 	-- Teoria de Grafos
 	{ nombre = "GetAdjacencyMatrix",     tipo = "RemoteFunction" },   -- Cliente <-> Server (solicitar matriz de adyacencia)
+	{ nombre = "GetGrafoCompleto",       tipo = "RemoteFunction" },   -- Cliente <-> Server (grafo completo de LevelsConfig para análisis)
 }
 
 -- ═══════════════════════════════════════════════════════════════════════════════

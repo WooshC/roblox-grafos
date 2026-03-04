@@ -9,9 +9,6 @@
 --   Zonas[x].Trigger                           → Boot → ZoneTriggerManager
 --   NombresNodos                               → VisualEffectsService (billboard nodo)
 --   Misiones                                   → MissionService
---   NodosZona[zonaID]                          → MatrizAdyacencia (mapeo explícito zona→nodos)
---     Requerido para zonas cuyo nombre NO sigue el patron "Zona_Estacion_<N>"
---     (e.g. "Zona_electrica"). Las zonas con patron numerico usan el fallback _z<N>.
 --
 -- Ubicacion Roblox: ReplicatedStorage/Config/LevelsConfig  (ModuleScript)
 
@@ -41,22 +38,29 @@ LevelsConfig[0] = {
 	},
 
 	Adyacencias = {
+		-- Zona 1: Nodos y Aristas — grafo simple de 2 nodos
 		["Nodo1_z1"] = {"Nodo2_z1"},
 		["Nodo2_z1"] = {"Nodo1_z1"},
 
-		["Nodo1_z2"] = {"Nodo2_z2", "Nodo3_z2", "Nodo4_z2"},
-		["Nodo2_z2"] = {"Nodo1_z2"},
-		["Nodo3_z2"] = {"Nodo1_z2"},
-		["Nodo4_z2"] = {"Nodo1_z2"},
+		-- Zona 2: Grado de Nodo — grafo estrella (hub con 4 hojas)
+		["NodoCentro_z2"] = {"NodoA_z2", "NodoB_z2", "NodoC_z2", "NodoD_z2"},
+		["NodoA_z2"]      = {"NodoCentro_z2"},
+		["NodoB_z2"]      = {"NodoCentro_z2"},
+		["NodoC_z2"]      = {"NodoCentro_z2"},
+		["NodoD_z2"]      = {"NodoCentro_z2"},
 
-		["Nodo1_z3"] = {"Nodo2_z3"},
-		["Nodo2_z3"] = {"Nodo3_z3"},
-		["Nodo3_z3"] = {},
+		-- Zona 3: Grafos Dirigidos — cadena dirigida A → B → C
+		-- (sin reversa: representa direcciones explícitas)
+		["NodoA_z3"] = {"NodoB_z3"},
+		["NodoB_z3"] = {"NodoC_z3"},
+		["NodoC_z3"] = {},
 
-		["Nodo1_z4"] = {"Nodo2_z4", "Nodo3_z4"},
-		["Nodo2_z4"] = {"Nodo1_z4", "Nodo3_z4"},
-		["Nodo3_z4"] = {"Nodo1_z4", "Nodo2_z4"},
-		["Nodo4_z4"] = {"Nodo3_z4", "Nodo2_z4"},
+		-- Zona 4: Conectividad — cuatro nodos, dos pares inicialmente aislados
+		-- El jugador une los pares y luego los conecta entre sí → grafo conexo
+		["NodoA_z4"] = {"NodoB_z4", "NodoC_z4"},
+		["NodoB_z4"] = {"NodoA_z4", "NodoD_z4"},
+		["NodoC_z4"] = {"NodoA_z4", "NodoD_z4"},
+		["NodoD_z4"] = {"NodoB_z4", "NodoC_z4"},
 
 		["PostePanel"]     = {"toma_corriente"},
 		["toma_corriente"] = {"PostePanel"},
@@ -67,52 +71,128 @@ LevelsConfig[0] = {
 		["Zona_Estacion_2"] = { Trigger = "ZonaTrigger_Estacion2", Descripcion = "Grado de Nodo"    },
 		["Zona_Estacion_3"] = { Trigger = "ZonaTrigger_Estacion3", Descripcion = "Grafos Dirigidos" },
 		["Zona_Estacion_4"] = { Trigger = "ZonaTrigger_Estacion4", Descripcion = "Conectividad"     },
-		["Zona_electrica"]  = { Trigger = "ZonaTrigger_Electrica", Descripcion = "Circuito Electrico" },
-	},
-
-	-- Mapeo explícito zona → lista de nodos.
-	-- Requerido para zonas cuyo nombre no sigue el patrón _z<N> (e.g. Zona_electrica).
-	-- Las zonas con sufijo numérico ("Zona_Estacion_1" → _z1) funcionan sin este campo,
-	-- pero incluirlas aquí hace el config más explícito y evita depender del heurístico.
-	NodosZona = {
-		["Zona_Estacion_1"] = {"Nodo1_z1", "Nodo2_z1"},
-		["Zona_Estacion_2"] = {"Nodo1_z2", "Nodo2_z2", "Nodo3_z2", "Nodo4_z2"},
-		["Zona_Estacion_3"] = {"Nodo1_z3", "Nodo2_z3", "Nodo3_z3"},
-		["Zona_Estacion_4"] = {"Nodo1_z4", "Nodo2_z4", "Nodo3_z4", "Nodo4_z4"},
-		["Zona_electrica"]  = {"PostePanel", "toma_corriente"},
 	},
 
 	NombresNodos = {
-		["Nodo1_z1"] = "Nodo 1",    ["Nodo2_z1"] = "Nodo 2",
-		["Nodo1_z2"] = "Centro",    ["Nodo2_z2"] = "Vecino 1",
-		["Nodo3_z2"] = "Vecino 2",  ["Nodo4_z2"] = "Vecino 3",
-		["Nodo1_z3"] = "Nodo X",    ["Nodo2_z3"] = "Nodo Y",    ["Nodo3_z3"] = "Nodo Z",
-		["Nodo4_z3"] = "Nodo W",
-		["Nodo1_z4"] = "Nodo 1",    ["Nodo2_z4"] = "Nodo 2",    ["Nodo3_z4"] = "Nodo 3",
-		["Nodo4_z4"] = "Nodo 4",
+		-- Zona 1
+		["Nodo1_z1"] = "Nodo 1",
+		["Nodo2_z1"] = "Nodo 2",
+		-- Zona 2
+		["NodoCentro_z2"] = "Nodo Central",
+		["NodoA_z2"]      = "Vecino A",
+		["NodoB_z2"]      = "Vecino B",
+		["NodoC_z2"]      = "Vecino C",
+		["NodoD_z2"]      = "Vecino D",
+		-- Zona 3
+		["NodoA_z3"] = "Nodo A",
+		["NodoB_z3"] = "Nodo B",
+		["NodoC_z3"] = "Nodo C",
+		-- Zona 4
+		["NodoA_z4"] = "Nodo A",
+		["NodoB_z4"] = "Nodo B",
+		["NodoC_z4"] = "Nodo C",
+		["NodoD_z4"] = "Nodo D",
+		-- Especiales
 		["PostePanel"]     = "Panel Central",
 		["toma_corriente"] = "Tableta Especial",
 	},
 
 	Misiones = {
-		-- Zona 1: Nodos y Aristas (Introducción)
+		-- ── Zona 1: Nodos y Aristas ──────────────────────────────────────────────
 		{
-			ID=1,
-			Zona="Zona_Estacion_1",
-			Texto="Selecciona cualquier nodo",
-			Tipo="NODO_SELECCIONADO",
-			Puntos=100,
-			Parametros={ Nodo="ANY" }
+			ID     = 1,
+			Zona   = "Zona_Estacion_1",
+			Texto  = "Selecciona cualquier nodo",
+			Tipo   = "NODO_SELECCIONADO",
+			Puntos = 100,
+			Parametros = { Nodo = "ANY" },
 		},
 		{
-			ID=2,
-			Zona="Zona_Estacion_1",
-			Texto="Conecta Nodo 1 con Nodo 2",
-			Tipo="ARISTA_CREADA",
-			Puntos=150,
-			Parametros={ NodoA="Nodo1_z1", NodoB="Nodo2_z1" }
+			ID     = 2,
+			Zona   = "Zona_Estacion_1",
+			Texto  = "Conecta Nodo 1 con Nodo 2",
+			Tipo   = "ARISTA_CREADA",
+			Puntos = 150,
+			Parametros = { NodoA = "Nodo1_z1", NodoB = "Nodo2_z1" },
 		},
 
+		-- ── Zona 2: Grado de Nodo ────────────────────────────────────────────────
+		{
+			ID     = 3,
+			Zona   = "Zona_Estacion_2",
+			Texto  = "Selecciona el Nodo Central",
+			Tipo   = "NODO_SELECCIONADO",
+			Puntos = 100,
+			Parametros = { Nodo = "NodoCentro_z2" },
+		},
+		{
+			ID     = 4,
+			Zona   = "Zona_Estacion_2",
+			Texto  = "Conecta 2 vecinos al Nodo Central (grado 2)",
+			Tipo   = "GRADO_NODO",
+			Puntos = 150,
+			Parametros = { Nodo = "NodoCentro_z2", GradoRequerido = 2 },
+		},
+		{
+			ID     = 5,
+			Zona   = "Zona_Estacion_2",
+			Texto  = "Conecta todos los vecinos al Nodo Central (grado 4)",
+			Tipo   = "GRADO_NODO",
+			Puntos = 200,
+			Parametros = { Nodo = "NodoCentro_z2", GradoRequerido = 4 },
+		},
+
+		-- ── Zona 3: Grafos Dirigidos ─────────────────────────────────────────────
+		{
+			ID     = 6,
+			Zona   = "Zona_Estacion_3",
+			Texto  = "Selecciona Nodo A",
+			Tipo   = "NODO_SELECCIONADO",
+			Puntos = 100,
+			Parametros = { Nodo = "NodoA_z3" },
+		},
+		{
+			ID     = 7,
+			Zona   = "Zona_Estacion_3",
+			Texto  = "Conecta Nodo A → Nodo B",
+			Tipo   = "ARISTA_CREADA",
+			Puntos = 150,
+			Parametros = { NodoA = "NodoA_z3", NodoB = "NodoB_z3" },
+		},
+		{
+			ID     = 8,
+			Zona   = "Zona_Estacion_3",
+			Texto  = "Conecta Nodo B → Nodo C",
+			Tipo   = "ARISTA_CREADA",
+			Puntos = 150,
+			Parametros = { NodoA = "NodoB_z3", NodoB = "NodoC_z3" },
+		},
+
+		-- ── Zona 4: Conectividad ─────────────────────────────────────────────────
+		{
+			ID     = 9,
+			Zona   = "Zona_Estacion_4",
+			Texto  = "Crea una arista entre Nodo A y Nodo B",
+			Tipo   = "ARISTA_CREADA",
+			Puntos = 100,
+			Parametros = { NodoA = "NodoA_z4", NodoB = "NodoB_z4" },
+		},
+		{
+			ID     = 10,
+			Zona   = "Zona_Estacion_4",
+			Texto  = "Conecta Nodo C con Nodo D",
+			Tipo   = "ARISTA_CREADA",
+			Puntos = 100,
+			Parametros = { NodoA = "NodoC_z4", NodoB = "NodoD_z4" },
+		},
+		{
+			ID     = 11,
+			Zona   = "Zona_Estacion_4",
+			Texto  = "Haz que el grafo sea completamente conexo",
+			Tipo   = "GRAFO_CONEXO",
+			Puntos = 300,
+			Parametros = { Nodos = {"NodoA_z4", "NodoB_z4", "NodoC_z4", "NodoD_z4"} },
+		},
 	},
 
 	-- Secuencia de guia visual: un objetivo por zona.

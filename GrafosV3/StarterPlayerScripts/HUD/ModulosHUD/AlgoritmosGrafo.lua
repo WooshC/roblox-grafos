@@ -5,7 +5,11 @@
 -- Uso:
 --   local steps = AlgoritmosGrafo.bfs(nodos, adyacencias, inicio)
 --   -- steps[i] = { nodoActual, visitados, pendientes, distancias,
---   --              descripcion, lineaPseudo, struct, structConten }
+--   --              descripcion, lineaPseudo, struct, structConten,
+--   --              aristasRecorridas, aristaNueva }
+--
+-- aristasRecorridas : [ {nomA, nomB}, ... ] — árbol/camino acumulado hasta este paso
+-- aristaNueva       : {nomA, nomB} | nil   — arista específica recién añadida en este paso
 
 local AlgoritmosGrafo = {}
 
@@ -115,14 +119,6 @@ local function copiarDict(d)
 	return c
 end
 
-local function contiene(lista, valor)
-	for _, v in ipairs(lista) do
-		if v == valor then return true end
-	end
-	return false
-end
-
--- Convierte tabla de booleanos {[nodo]=true} en lista ordenada
 local function dictALista(dict, orden)
 	local lista = {}
 	for _, n in ipairs(orden) do
@@ -131,12 +127,16 @@ local function dictALista(dict, orden)
 	return lista
 end
 
--- Convierte {[nodo]=true, ...} en lista (sin orden garantizado)
-local function setALista(set)
-	local lista = {}
-	for k in pairs(set) do lista[#lista+1] = k end
-	table.sort(lista)
-	return lista
+-- Construye la lista de aristas del árbol a partir del dict padre.
+-- Orden: sigue la lista `orden` para que el resultado sea determinista.
+local function buildAristasRecorridas(orden, padre)
+	local aristas = {}
+	for _, n in ipairs(orden) do
+		if padre[n] then
+			aristas[#aristas+1] = { padre[n], n }
+		end
+	end
+	return aristas
 end
 
 -- ═══════════════════════════════════════════════════════════════════════════════
@@ -149,45 +149,45 @@ function AlgoritmosGrafo.bfs(nodos, adyacencias, inicio)
 
 	local steps = {}
 
-	-- Paso 0: Inicializar
 	local cola      = { inicio }
 	local visitados = { [inicio] = true }
 	local dist      = { [inicio] = 0 }
+	local padre     = {}  -- padre[v] = u  ↔  arista u→v en el árbol BFS
 
 	steps[#steps+1] = {
-		nodoActual   = inicio,
-		visitados    = { inicio },
-		pendientes   = copiarTabla(cola),
-		distancias   = copiarDict(dist),
-		descripcion  = "Inicializar: cola = [" .. inicio .. "], dist[" .. inicio .. "] = 0",
-		lineaPseudo  = 2,
-		struct       = "Cola",
-		structConten = copiarTabla(cola),
+		nodoActual       = inicio,
+		visitados        = { inicio },
+		pendientes       = copiarTabla(cola),
+		distancias       = copiarDict(dist),
+		descripcion      = "Inicializar: cola = [" .. inicio .. "], dist[" .. inicio .. "] = 0",
+		lineaPseudo      = 2,
+		struct           = "Cola",
+		structConten     = copiarTabla(cola),
+		aristasRecorridas = {},
+		aristaNueva      = nil,
 	}
 
-	local cabeza = 1  -- índice del frente de la cola
+	local cabeza = 1
 
 	while cabeza <= #cola do
 		local u = cola[cabeza]
 		cabeza += 1
 
-		-- Paso: desencolar u
-		local colaActual = {}
-		for i = cabeza, #cola do colaActual[#colaActual+1] = cola[i] end
-
-		local vecinos = adyacencias[u] or {}
+		local vecinos          = adyacencias[u] or {}
 		local nuevosPendientes = {}
+		local aristasNuevasStep = {}  -- aristas BFS descubiertas en ESTE paso
 
 		for _, v in ipairs(vecinos) do
 			if not visitados[v] then
 				visitados[v] = true
-				dist[v] = dist[u] + 1
+				dist[v]      = dist[u] + 1
+				padre[v]     = u
 				cola[#cola+1] = v
 				nuevosPendientes[#nuevosPendientes+1] = v
+				aristasNuevasStep[#aristasNuevasStep+1] = { u, v }
 			end
 		end
 
-		-- Construir lista de cola restante
 		local colaPost = {}
 		for i = cabeza, #cola do colaPost[#colaPost+1] = cola[i] end
 
@@ -198,28 +198,34 @@ function AlgoritmosGrafo.bfs(nodos, adyacencias, inicio)
 			desc = "Desencolar " .. u .. " — todos sus vecinos ya visitados"
 		end
 
+		-- Para BFS: aristaNueva = primera arista descubierta en este paso (la más representativa)
+		local aristaNueva = aristasNuevasStep[1] or nil
+
 		steps[#steps+1] = {
-			nodoActual   = u,
-			visitados    = dictALista(visitados, nodos),
-			pendientes   = colaPost,
-			distancias   = copiarDict(dist),
-			descripcion  = desc,
-			lineaPseudo  = 7,
-			struct       = "Cola",
-			structConten = colaPost,
+			nodoActual        = u,
+			visitados         = dictALista(visitados, nodos),
+			pendientes        = colaPost,
+			distancias        = copiarDict(dist),
+			descripcion       = desc,
+			lineaPseudo       = 7,
+			struct            = "Cola",
+			structConten      = colaPost,
+			aristasRecorridas = buildAristasRecorridas(nodos, padre),
+			aristaNueva       = aristaNueva,
 		}
 	end
 
-	-- Paso final
 	steps[#steps+1] = {
-		nodoActual   = nil,
-		visitados    = dictALista(visitados, nodos),
-		pendientes   = {},
-		distancias   = copiarDict(dist),
-		descripcion  = "Cola vacía — BFS completado. Distancias calculadas.",
-		lineaPseudo  = 13,
-		struct       = "Cola",
-		structConten = {},
+		nodoActual        = nil,
+		visitados         = dictALista(visitados, nodos),
+		pendientes        = {},
+		distancias        = copiarDict(dist),
+		descripcion       = "Cola vacía — BFS completado. Distancias calculadas.",
+		lineaPseudo       = 13,
+		struct            = "Cola",
+		structConten      = {},
+		aristasRecorridas = buildAristasRecorridas(nodos, padre),
+		aristaNueva       = nil,
 	}
 
 	return steps
@@ -235,36 +241,40 @@ function AlgoritmosGrafo.dfs(nodos, adyacencias, inicio)
 
 	local steps = {}
 
-	-- Paso 0: Inicializar
 	local pila      = { inicio }
 	local visitados = {}
+	local padre     = {}  -- padre[v] = u  ↔  arista u→v en el árbol DFS
 
 	steps[#steps+1] = {
-		nodoActual   = nil,
-		visitados    = {},
-		pendientes   = copiarTabla(pila),
-		distancias   = nil,
-		descripcion  = "Inicializar: pila = [" .. inicio .. "]",
-		lineaPseudo  = 2,
-		struct       = "Pila",
-		structConten = copiarTabla(pila),
+		nodoActual        = nil,
+		visitados         = {},
+		pendientes        = copiarTabla(pila),
+		distancias        = nil,
+		descripcion       = "Inicializar: pila = [" .. inicio .. "]",
+		lineaPseudo       = 2,
+		struct            = "Pila",
+		structConten      = copiarTabla(pila),
+		aristasRecorridas = {},
+		aristaNueva       = nil,
 	}
 
 	while #pila > 0 do
-		-- Desapilar (tope de la pila)
 		local u = pila[#pila]
 		pila[#pila] = nil
 
 		if not visitados[u] then
 			visitados[u] = true
-			local vecinos = adyacencias[u] or {}
+			local vecinos       = adyacencias[u] or {}
 			local apiladosAhora = {}
 
-			-- Apilar en orden inverso para mantener orden natural de visita
 			for i = #vecinos, 1, -1 do
 				local v = vecinos[i]
 				if not visitados[v] then
 					pila[#pila+1] = v
+					-- Solo registrar padre la primera vez que v aparece en pila
+					if not padre[v] then
+						padre[v] = u
+					end
 					table.insert(apiladosAhora, 1, v)
 				end
 			end
@@ -276,41 +286,48 @@ function AlgoritmosGrafo.dfs(nodos, adyacencias, inicio)
 				desc = "Visitar " .. u .. " — sin vecinos nuevos que apilar"
 			end
 
+			-- La arista nueva es la que llevó a visitar u (excepto el nodo inicial)
+			local aristaNueva = padre[u] and { padre[u], u } or nil
+
 			steps[#steps+1] = {
-				nodoActual   = u,
-				visitados    = dictALista(visitados, nodos),
-				pendientes   = copiarTabla(pila),
-				distancias   = nil,
-				descripcion  = desc,
-				lineaPseudo  = 8,
-				struct       = "Pila",
-				structConten = copiarTabla(pila),
+				nodoActual        = u,
+				visitados         = dictALista(visitados, nodos),
+				pendientes        = copiarTabla(pila),
+				distancias        = nil,
+				descripcion       = desc,
+				lineaPseudo       = 8,
+				struct            = "Pila",
+				structConten      = copiarTabla(pila),
+				aristasRecorridas = buildAristasRecorridas(nodos, padre),
+				aristaNueva       = aristaNueva,
 			}
 		else
-			-- Nodo ya visitado: descartar
 			steps[#steps+1] = {
-				nodoActual   = u,
-				visitados    = dictALista(visitados, nodos),
-				pendientes   = copiarTabla(pila),
-				distancias   = nil,
-				descripcion  = "Desapilar " .. u .. " — ya visitado, se descarta",
-				lineaPseudo  = 7,
-				struct       = "Pila",
-				structConten = copiarTabla(pila),
+				nodoActual        = u,
+				visitados         = dictALista(visitados, nodos),
+				pendientes        = copiarTabla(pila),
+				distancias        = nil,
+				descripcion       = "Desapilar " .. u .. " — ya visitado, se descarta",
+				lineaPseudo       = 7,
+				struct            = "Pila",
+				structConten      = copiarTabla(pila),
+				aristasRecorridas = buildAristasRecorridas(nodos, padre),
+				aristaNueva       = nil,
 			}
 		end
 	end
 
-	-- Paso final
 	steps[#steps+1] = {
-		nodoActual   = nil,
-		visitados    = dictALista(visitados, nodos),
-		pendientes   = {},
-		distancias   = nil,
-		descripcion  = "Pila vacía — DFS completado. Nodos visitados: " .. table.concat(dictALista(visitados, nodos), ", "),
-		lineaPseudo  = 12,
-		struct       = "Pila",
-		structConten = {},
+		nodoActual        = nil,
+		visitados         = dictALista(visitados, nodos),
+		pendientes        = {},
+		distancias        = nil,
+		descripcion       = "Pila vacía — DFS completado. Nodos visitados: " .. table.concat(dictALista(visitados, nodos), ", "),
+		lineaPseudo       = 12,
+		struct            = "Pila",
+		structConten      = {},
+		aristasRecorridas = buildAristasRecorridas(nodos, padre),
+		aristaNueva       = nil,
 	}
 
 	return steps
@@ -327,18 +344,17 @@ function AlgoritmosGrafo.dijkstra(nodos, adyacencias, inicio)
 	local INF = math.huge
 	local steps = {}
 
-	-- Inicializar distancias
-	local dist     = {}
-	local enPQ     = {}  -- {[nodo]=true} — nodos aún en la cola de prioridad
-	local extraidos = {} -- {[nodo]=true} — nodos ya procesados
+	local dist      = {}
+	local enPQ      = {}
+	local extraidos = {}
+	local pred      = {}  -- pred[v] = u  ↔  arista u→v en el árbol de caminos mínimos
 
 	for _, n in ipairs(nodos) do
-		dist[n]  = INF
-		enPQ[n]  = true
+		dist[n] = INF
+		enPQ[n] = true
 	end
 	dist[inicio] = 0
 
-	-- Representación de PQ como lista de pares para el UI
 	local function pqComoLista()
 		local lista = {}
 		for _, n in ipairs(nodos) do
@@ -350,7 +366,6 @@ function AlgoritmosGrafo.dijkstra(nodos, adyacencias, inicio)
 		return lista
 	end
 
-	-- Distancias para UI
 	local function distParaUI()
 		local d = {}
 		for k, v in pairs(dist) do
@@ -359,19 +374,19 @@ function AlgoritmosGrafo.dijkstra(nodos, adyacencias, inicio)
 		return d
 	end
 
-	-- Paso 0: Inicializar
 	steps[#steps+1] = {
-		nodoActual   = nil,
-		visitados    = {},
-		pendientes   = pqComoLista(),
-		distancias   = distParaUI(),
-		descripcion  = "Inicializar: dist[" .. inicio .. "]=0, resto=∞. PQ tiene todos los nodos.",
-		lineaPseudo  = 2,
-		struct       = "Cola de prioridad",
-		structConten = pqComoLista(),
+		nodoActual        = nil,
+		visitados         = {},
+		pendientes        = pqComoLista(),
+		distancias        = distParaUI(),
+		descripcion       = "Inicializar: dist[" .. inicio .. "]=0, resto=∞. PQ tiene todos los nodos.",
+		lineaPseudo       = 2,
+		struct            = "Cola de prioridad",
+		structConten      = pqComoLista(),
+		aristasRecorridas = {},
+		aristaNueva       = nil,
 	}
 
-	-- Función: extraer mínimo de PQ
 	local function extraerMin()
 		local minNodo = nil
 		local minDist = INF
@@ -384,23 +399,23 @@ function AlgoritmosGrafo.dijkstra(nodos, adyacencias, inicio)
 		return minNodo
 	end
 
-	-- Iterar
 	while true do
 		local u = extraerMin()
 		if not u then break end
-		if dist[u] == INF then break end  -- sin conexión
+		if dist[u] == INF then break end
 
-		enPQ[u] = nil
+		enPQ[u]      = nil
 		extraidos[u] = true
 
-		local vecinos = adyacencias[u] or {}
+		local vecinos    = adyacencias[u] or {}
 		local actualizados = {}
 
 		for _, v in ipairs(vecinos) do
 			if enPQ[v] then
-				local alt = dist[u] + 1  -- peso = 1
+				local alt = dist[u] + 1
 				if alt < dist[v] then
 					dist[v] = alt
+					pred[v] = u
 					actualizados[#actualizados+1] = v .. "(dist=" .. alt .. ")"
 				end
 			end
@@ -418,33 +433,39 @@ function AlgoritmosGrafo.dijkstra(nodos, adyacencias, inicio)
 			desc = "Extraer " .. u .. " (dist=" .. tostring(dist[u]) .. ") — sin actualizaciones"
 		end
 
+		-- La arista nueva es la que llevó a u con el menor coste
+		local aristaNueva = pred[u] and { pred[u], u } or nil
+
 		steps[#steps+1] = {
-			nodoActual   = u,
-			visitados    = visitList,
-			pendientes   = pqComoLista(),
-			distancias   = distParaUI(),
-			descripcion  = desc,
-			lineaPseudo  = 7,
-			struct       = "Cola de prioridad",
-			structConten = pqComoLista(),
+			nodoActual        = u,
+			visitados         = visitList,
+			pendientes        = pqComoLista(),
+			distancias        = distParaUI(),
+			descripcion       = desc,
+			lineaPseudo       = 7,
+			struct            = "Cola de prioridad",
+			structConten      = pqComoLista(),
+			aristasRecorridas = buildAristasRecorridas(nodos, pred),
+			aristaNueva       = aristaNueva,
 		}
 	end
 
-	-- Paso final
 	local visitList = {}
 	for _, n in ipairs(nodos) do
 		if extraidos[n] then visitList[#visitList+1] = n end
 	end
 
 	steps[#steps+1] = {
-		nodoActual   = nil,
-		visitados    = visitList,
-		pendientes   = {},
-		distancias   = distParaUI(),
-		descripcion  = "PQ vacía — Dijkstra completado. Distancias mínimas calculadas.",
-		lineaPseudo  = 13,
-		struct       = "Cola de prioridad",
-		structConten = {},
+		nodoActual        = nil,
+		visitados         = visitList,
+		pendientes        = {},
+		distancias        = distParaUI(),
+		descripcion       = "PQ vacía — Dijkstra completado. Distancias mínimas calculadas.",
+		lineaPseudo       = 13,
+		struct            = "Cola de prioridad",
+		structConten      = {},
+		aristasRecorridas = buildAristasRecorridas(nodos, pred),
+		aristaNueva       = nil,
 	}
 
 	return steps
@@ -461,10 +482,10 @@ function AlgoritmosGrafo.prim(nodos, adyacencias, raiz)
 	local INF = math.huge
 	local steps = {}
 
-	local key    = {}  -- coste mínimo para conectar el nodo al MST
-	local padre  = {}  -- padre en el MST
-	local enPQ   = {}  -- nodos aún en la cola de prioridad
-	local enMST  = {}  -- nodos ya incluidos en el MST
+	local key   = {}
+	local padre = {}
+	local enPQ  = {}
+	local enMST = {}
 
 	for _, n in ipairs(nodos) do
 		key[n]   = INF
@@ -484,16 +505,17 @@ function AlgoritmosGrafo.prim(nodos, adyacencias, raiz)
 		return lista
 	end
 
-	-- Paso 0
 	steps[#steps+1] = {
-		nodoActual   = nil,
-		visitados    = {},
-		pendientes   = pqComoLista(),
-		distancias   = nil,
-		descripcion  = "Inicializar: key[" .. raiz .. "]=0, resto=∞. PQ tiene todos los nodos.",
-		lineaPseudo  = 2,
-		struct       = "Cola de prioridad",
-		structConten = pqComoLista(),
+		nodoActual        = nil,
+		visitados         = {},
+		pendientes        = pqComoLista(),
+		distancias        = nil,
+		descripcion       = "Inicializar: key[" .. raiz .. "]=0, resto=∞. PQ tiene todos los nodos.",
+		lineaPseudo       = 2,
+		struct            = "Cola de prioridad",
+		structConten      = pqComoLista(),
+		aristasRecorridas = {},
+		aristaNueva       = nil,
 	}
 
 	local function extraerMin()
@@ -513,10 +535,10 @@ function AlgoritmosGrafo.prim(nodos, adyacencias, raiz)
 		if not u then break end
 		if key[u] == INF then break end
 
-		enPQ[u] = nil
+		enPQ[u]  = nil
 		enMST[u] = true
 
-		local vecinos = adyacencias[u] or {}
+		local vecinos    = adyacencias[u] or {}
 		local actualizados = {}
 
 		for _, v in ipairs(vecinos) do
@@ -539,39 +561,44 @@ function AlgoritmosGrafo.prim(nodos, adyacencias, raiz)
 			desc = "Agregar " .. u .. " al MST — sin vecinos que actualizar"
 		end
 
+		-- La arista nueva es la que conectó u al MST
+		local aristaNueva = padre[u] and { padre[u], u } or nil
+
 		steps[#steps+1] = {
-			nodoActual   = u,
-			visitados    = mstList,
-			pendientes   = pqComoLista(),
-			distancias   = nil,
-			descripcion  = desc,
-			lineaPseudo  = 8,
-			struct       = "Cola de prioridad",
-			structConten = pqComoLista(),
+			nodoActual        = u,
+			visitados         = mstList,
+			pendientes        = pqComoLista(),
+			distancias        = nil,
+			descripcion       = desc,
+			lineaPseudo       = 8,
+			struct            = "Cola de prioridad",
+			structConten      = pqComoLista(),
+			aristasRecorridas = buildAristasRecorridas(nodos, padre),
+			aristaNueva       = aristaNueva,
 		}
 	end
 
-	-- Paso final
 	local mstList = {}
 	for _, n in ipairs(nodos) do
 		if enMST[n] then mstList[#mstList+1] = n end
 	end
 
-	-- Construir descripción del MST (aristas padre→hijo)
 	local aristasDesc = {}
 	for _, n in ipairs(nodos) do
 		if padre[n] then aristasDesc[#aristasDesc+1] = padre[n] .. "—" .. n end
 	end
 
 	steps[#steps+1] = {
-		nodoActual   = nil,
-		visitados    = mstList,
-		pendientes   = {},
-		distancias   = nil,
-		descripcion  = "PQ vacía — MST completado. Aristas: " .. (next(aristasDesc) and table.concat(aristasDesc, ", ") or "(grafo desconectado)"),
-		lineaPseudo  = 13,
-		struct       = "Cola de prioridad",
-		structConten = {},
+		nodoActual        = nil,
+		visitados         = mstList,
+		pendientes        = {},
+		distancias        = nil,
+		descripcion       = "PQ vacía — MST completado. Aristas: " .. (next(aristasDesc) and table.concat(aristasDesc, ", ") or "(grafo desconectado)"),
+		lineaPseudo       = 13,
+		struct            = "Cola de prioridad",
+		structConten      = {},
+		aristasRecorridas = buildAristasRecorridas(nodos, padre),
+		aristaNueva       = nil,
 	}
 
 	return steps
