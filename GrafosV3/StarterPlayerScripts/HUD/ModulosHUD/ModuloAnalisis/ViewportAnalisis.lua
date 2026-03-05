@@ -1,12 +1,11 @@
 -- ModuloAnalisis/ViewportAnalisis.lua
 -- Gestiona el ViewportFrame 3D: nodos, aristas progresivas y partículas.
 --
--- Aristas en 3 capas (reconstruidas en cada paso):
---   Gris   / SmoothPlastic / 0.6 transparencia → grafo completo (fondo siempre visible)
---   Verde  / Neon          / 0   transparencia → aristas del árbol ya recorridas
---   Naranja/ Neon          / 0   transparencia → arista recién creada en este paso (aristaNueva)
+-- Partículas direccionales:
+--   Grafo NO dirigido → partículas en AMBAS direcciones (A→B y B→A)
+--   Grafo DIRIGIDO    → partícula solo en la dirección que existe en adyacencias (A→B)
 --
--- Partículas: solo en la arista recién creada (aristaNueva), efecto de "energía fluyendo".
+-- Para determinar la dirección de cada arista se consulta E.adyacencias y E.matrizData.EsDirigido.
 
 local TweenService = game:GetService("TweenService")
 
@@ -37,16 +36,30 @@ local function buscarPosNodo(nombre)
 				posRef = selector
 			elseif selector:IsA("Model") then
 				posRef = selector.PrimaryPart
-				    or selector:FindFirstChildWhichIsA("BasePart", true)
+					or selector:FindFirstChildWhichIsA("BasePart", true)
 			end
 		end
 		if not posRef then
 			posRef = nodoModelo.PrimaryPart
-			    or nodoModelo:FindFirstChildWhichIsA("BasePart", true)
+				or nodoModelo:FindFirstChildWhichIsA("BasePart", true)
 		end
 		if posRef then return posRef.Position end
 	end
 	return Vector3.zero
+end
+
+-- ════════════════════════════════════════════════════════════════
+-- HELPERS DE DIRECCIÓN
+-- ════════════════════════════════════════════════════════════════
+
+-- Devuelve true si nomA → nomB existe en adyacencias
+local function existeArista(nomA, nomB)
+	local lista = E.adyacencias[nomA]
+	if not lista then return false end
+	for _, v in ipairs(lista) do
+		if v == nomB then return true end
+	end
+	return false
 end
 
 -- ════════════════════════════════════════════════════════════════
@@ -87,30 +100,50 @@ local function idConexion(nomA, nomB)
 	return nomA < nomB and (nomA .. "_" .. nomB) or (nomB .. "_" .. nomA)
 end
 
-local function iniciarParticulasArista(id, posA, posB, colorAB, colorBA)
-	if E.partActivas[id] then return end
-	E.partActivas[id] = true
+-- ── Sistema de versiones ──────────────────────────────────────────────────────
+-- E.partActivas[id] guarda un número de versión (entero).
+-- Cada loop spawn captura su versión al nacer; si al despertar la versión
+-- en E.partActivas ya es distinta (o nil), el loop se considera zombie y muere.
+-- Así se eliminan los loops que estaban en task.wait cuando se llamó limpiar().
 
-	task.spawn(function()
-		while E.partActivas[id] do
-			spawnParticulaArista(posA, posB, colorAB)
-			task.wait(C.FREQ_PART)
-		end
-	end)
+local function iniciarParticulasArista(id, nomA, nomB, posA, posB, esDirigido)
+	-- Incrementar versión → invalida todos los loops anteriores de este id
+	local version = (E.partActivas[id] or 0) + 1
+	E.partActivas[id] = version
 
-	task.spawn(function()
-		task.wait(C.FREQ_PART / 2)
-		while E.partActivas[id] do
-			spawnParticulaArista(posB, posA, colorBA)
-			task.wait(C.FREQ_PART)
-		end
-	end)
+	local aDirigidoAB = esDirigido and existeArista(nomA, nomB)
+	local aDirigidoBA = esDirigido and existeArista(nomB, nomA)
+
+	-- Dirección A → B
+	if not esDirigido or aDirigidoAB then
+		local v = version
+		task.spawn(function()
+			while E.partActivas[id] == v do
+				spawnParticulaArista(posA, posB, C.COL_PART_NUEVA)
+				task.wait(C.FREQ_PART)
+			end
+		end)
+	end
+
+	-- Dirección B → A (solo si no dirigido, o si existe la arista inversa)
+	if not esDirigido or aDirigidoBA then
+		local v = version
+		task.spawn(function()
+			task.wait(C.FREQ_PART / 2)   -- desfase para que no salgan juntas
+			while E.partActivas[id] == v do
+				spawnParticulaArista(posB, posA, C.COL_PART_VISIT)
+				task.wait(C.FREQ_PART)
+			end
+		end)
+	end
 end
 
 function ViewportAnalisis.limpiarParticulas()
+	-- Poner 0 (en lugar de nil) invalida todos los loops activos sin romper el dict
 	for id in pairs(E.partActivas) do
-		E.partActivas[id] = nil
+		E.partActivas[id] = 0
 	end
+	table.clear(E.partActivas)
 end
 
 -- ════════════════════════════════════════════════════════════════
@@ -177,7 +210,7 @@ function ViewportAnalisis.construirViewport()
 end
 
 -- ════════════════════════════════════════════════════════════════
--- RECONSTRUIR ARISTAS — 3 capas progresivas
+-- RECONSTRUIR ARISTAS — 3 capas progresivas + partículas direccionales
 -- ════════════════════════════════════════════════════════════════
 
 function ViewportAnalisis.reconstruirAristas(step)
@@ -187,12 +220,12 @@ function ViewportAnalisis.reconstruirAristas(step)
 	end
 	E.aristaParts = {}
 
-	-- 2. Detener partículas
+	-- 2. Detener partículas del paso anterior
 	ViewportAnalisis.limpiarParticulas()
 
-	-- 3. Construir sets para clasificar aristas
-	local recorridasSet = {}  -- { ["A|B"] = true } aristas del árbol acumuladas
-	local nuevaKey      = nil -- "A|B" de la arista recién creada
+	-- 3. Clasificar aristas del paso
+	local recorridasSet = {}
+	local nuevaKey      = nil
 
 	if step then
 		for _, arista in ipairs(step.aristasRecorridas or {}) do
@@ -200,20 +233,32 @@ function ViewportAnalisis.reconstruirAristas(step)
 			local key  = a < b and (a .. "|" .. b) or (b .. "|" .. a)
 			recorridasSet[key] = true
 		end
-
 		if step.aristaNueva then
 			local a, b = step.aristaNueva[1], step.aristaNueva[2]
 			nuevaKey = a < b and (a .. "|" .. b) or (b .. "|" .. a)
 		end
 	end
 
-	-- 4. Dibujar TODAS las aristas del grafo completo
-	local vistos = {}
+	-- 4. ¿Es dirigido el grafo de esta zona?
+	local esDirigido = E.matrizData and E.matrizData.EsDirigido or false
+
+	-- 5. Dibujar TODAS las aristas del grafo completo
+	--    Para grafos dirigidos iteramos en pares ORDENADOS (nomA→nomB)
+	--    y dibujamos un cilindro por dirección existente.
+	--    Para no dirigidos, iteramos una sola vez por par (key canónica).
+	local vistosND = {}   -- para grafos no dirigidos: evitar duplicar cilindros
+
 	for nomA, lista in pairs(E.adyacencias) do
 		for _, nomB in ipairs(lista) do
+
+			-- Key canónica (para clasificar estado)
 			local key = nomA < nomB and (nomA .. "|" .. nomB) or (nomB .. "|" .. nomA)
-			if vistos[key] then continue end
-			vistos[key] = true
+
+			-- Para NO dirigido: dibujar solo una vez por par
+			if not esDirigido then
+				if vistosND[key] then continue end
+				vistosND[key] = true
+			end
 
 			local posA = E.posicionesNodos[nomA]
 			local posB = E.posicionesNodos[nomB]
@@ -222,7 +267,6 @@ function ViewportAnalisis.reconstruirAristas(step)
 			local dist = (posA - posB).Magnitude
 			if dist < 0.1 then continue end
 
-			-- Clasificar arista
 			local esNueva     = (key == nuevaKey)
 			local esRecorrida = recorridasSet[key]
 
@@ -241,26 +285,39 @@ function ViewportAnalisis.reconstruirAristas(step)
 				mat   = Enum.Material.SmoothPlastic
 			end
 
-			-- Crear cilindro
-			local centro       = (posA + posB) / 2
-			local arista       = Instance.new("Part")
+			-- Para grafos dirigidos: desplazar ligeramente el cilindro del lado
+			-- de la dirección para que A→B y B→A sean visualmente distintos.
+			local posACil, posBCil = posA, posB
+			if esDirigido then
+				-- Calcular vector perpendicular al eje de la arista (en XZ)
+				local dir    = (posB - posA)
+				local perpXZ = Vector3.new(-dir.Z, 0, dir.X).Unit * (C.TAM_ARISTA * 0.8)
+				posACil = posA + perpXZ
+				posBCil = posB + perpXZ
+			end
+
+			local centro  = (posACil + posBCil) / 2
+			local arista  = Instance.new("Part")
 			arista.Name        = "AristaANA"
 			arista.Anchored    = true
 			arista.CanCollide  = false
 			arista.CastShadow  = false
 			arista.Material    = mat
 			arista.Size        = Vector3.new(C.TAM_ARISTA, C.TAM_ARISTA, dist)
-			arista.CFrame      = CFrame.lookAt(centro, posB)
+			arista.CFrame      = CFrame.lookAt(centro, posBCil)
 			arista.Color       = color
 			arista.Transparency = alpha
 			arista.Parent      = E.worldModel
 
 			table.insert(E.aristaParts, arista)
 
-			-- Partículas solo en la arista nueva (recién creada)
-			if esNueva then
-				local id = idConexion(nomA, nomB)
-				iniciarParticulasArista(id, posA, posB, C.COL_PART_NUEVA, C.COL_PART_NUEVA)
+			-- Partículas solo en aristas nueva y recorridas activas
+			if esNueva or esRecorrida then
+				local id = esDirigido
+					and (nomA .. "_>" .. nomB)    -- ID único por dirección en dígrafo
+					or  idConexion(nomA, nomB)
+
+				iniciarParticulasArista(id, nomA, nomB, posA, posB, esDirigido)
 			end
 		end
 	end

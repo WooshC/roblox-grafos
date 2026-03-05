@@ -1,9 +1,5 @@
 -- ModuloAnalisis/EstadoAnalisis.lua
 -- Tabla mutable compartida entre todos los sub-módulos de ModuloAnalisis.
--- Todos los sub-módulos hacen: local E = require(script.Parent.EstadoAnalisis)
--- En ModuloAnalisis.lua (main): local E = require(script.EstadoAnalisis)
---
--- IMPORTANTE: esta tabla se mutea directamente; no hay getters/setters.
 
 local E = {}
 
@@ -17,26 +13,31 @@ E.nivelModel = nil
 E.nivelID    = nil
 
 -- ── Remote ──────────────────────────────────────────────────────────
-E.grafoCompletoFunc = nil   -- lazy-cached RemoteFunction GetGrafoCompleto
+E.grafoCompletoFunc = nil
 
 -- ── Datos del grafo / algoritmo ─────────────────────────────────────
-E.matrizData  = nil   -- { Headers, Matrix, NombresNodos, EsDirigido }
-E.adyacencias = {}    -- { [nombre] = { vecino, ... } }
-E.pasos       = {}
-E.pasoActual  = 0
-E.totalPasos  = 0
-E.algoActual  = "bfs"
+E.matrizData    = nil   -- { Headers, Matrix, NombresNodos, EsDirigido }
+E.adyacencias   = {}
+E.pasos         = {}
+E.pasoActual    = 0
+E.totalPasos    = 0
+E.algoActual    = "bfs"
+
+-- ── Configuración del analizador (de LevelsConfig.AnalisisConfig[zona]) ─
+E.analisisConfig  = nil   -- toda la tabla de la zona activa
+E.nodoInicio      = nil   -- string: nodo desde el que arranca el algoritmo
+E.nodoFin         = nil   -- string | nil: nodo destino para Dijkstra
 
 -- ── Viewport 3D ─────────────────────────────────────────────────────
 E.visor           = nil
 E.worldModel      = nil
 E.camAnalisis     = nil
-E.nodoParts       = {}   -- { [nombre] = Part esfera }
-E.aristaParts     = {}   -- array de Parts cilíndricas activas
-E.posicionesNodos = {}   -- { [nombre] = Vector3 }
+E.nodoParts       = {}
+E.aristaParts     = {}
+E.posicionesNodos = {}
 
 -- ── Partículas ───────────────────────────────────────────────────────
-E.partActivas = {}   -- { [idConexion] = true }
+E.partActivas = {}
 
 -- ── Auto-play ────────────────────────────────────────────────────────
 E.autoPlaying = false

@@ -1,43 +1,30 @@
 -- StarterPlayerScripts/HUD/ModulosHUD/ModuloAnalisis.lua
--- Orquestador principal del Modo Análisis.
--- Sub-módulos (hijos de este ModuleScript en Studio):
---   EstadoAnalisis, ConstantesAnalisis, ViewportAnalisis,
---   PseudocodigoAnalisis, PanelEstadoAnalisis
---
--- API pública (sin cambios respecto a la versión anterior):
---   ModuloAnalisis.inicializar(hudGui)
---   ModuloAnalisis.configurarNivel(nivelModel, nivelID, configNivel)
---   ModuloAnalisis.abrir()
---   ModuloAnalisis.cerrar()
---   ModuloAnalisis.limpiar()
---   ModuloAnalisis.estaAbierto() -> bool
 
 local Players = game:GetService("Players")
 local RS      = game:GetService("ReplicatedStorage")
 
--- Sub-módulos (hijos en Studio → script.<Nombre>)
-local E                  = require(script.EstadoAnalisis)
-local C                  = require(script.ConstantesAnalisis)
-local ViewportAnalisis   = require(script.ViewportAnalisis)
+local E                    = require(script.EstadoAnalisis)
+local C                    = require(script.ConstantesAnalisis)
+local ViewportAnalisis     = require(script.ViewportAnalisis)
 local PseudocodigoAnalisis = require(script.PseudocodigoAnalisis)
 local PanelEstadoAnalisis  = require(script.PanelEstadoAnalisis)
 
--- Sibling (en la misma carpeta ModulosHUD)
 local AlgoritmosGrafo = require(script.Parent.AlgoritmosGrafo)
+local LevelsConfig    = require(RS:WaitForChild("Config"):WaitForChild("LevelsConfig"))
 
 local jugador = Players.LocalPlayer
 
 local ModuloAnalisis = {}
 
 -- ════════════════════════════════════════════════════════════════
--- LAZY-GET RemoteFunction GetGrafoCompleto
+-- LAZY-GET RemoteFunction
 -- ════════════════════════════════════════════════════════════════
 local function getGrafoCompletoFunc()
 	if E.grafoCompletoFunc then return E.grafoCompletoFunc end
 	local ok, remote = pcall(function()
 		return RS:WaitForChild("EventosGrafosV3", 10)
-		          :WaitForChild("Remotos", 5)
-		          :WaitForChild("GetGrafoCompleto", 5)
+			:WaitForChild("Remotos", 5)
+			:WaitForChild("GetGrafoCompleto", 5)
 	end)
 	if ok and remote then
 		E.grafoCompletoFunc = remote
@@ -70,6 +57,48 @@ local function buildAdyacencias(data)
 end
 
 -- ════════════════════════════════════════════════════════════════
+-- LEER AnalisisConfig PARA LA ZONA ACTIVA
+-- ════════════════════════════════════════════════════════════════
+local function cargarAnalisisConfig(zona)
+	local nivelID = jugador:GetAttribute("CurrentLevelID") or 0
+	local config  = LevelsConfig[nivelID]
+	if not config or not config.AnalisisConfig then
+		E.analisisConfig = nil
+		E.nodoInicio     = nil
+		E.nodoFin        = nil
+		return
+	end
+
+	local cfg = config.AnalisisConfig[zona]
+	E.analisisConfig = cfg
+
+	if cfg then
+		-- nodoInicio: usar el definido en config; si no existe, el primer header
+		E.nodoInicio = cfg.nodoInicio
+		E.nodoFin    = cfg.nodoFin  -- puede ser nil
+
+		-- Filtrar las pills según los algoritmos permitidos en esta zona
+		PanelEstadoAnalisis.actualizarPillsVisibles(cfg.algoritmos)
+
+		-- Si el algo actual no está disponible en esta zona, cambiar al primero disponible
+		if cfg.algoritmos and #cfg.algoritmos > 0 then
+			local algoValido = false
+			for _, a in ipairs(cfg.algoritmos) do
+				if a == E.algoActual then algoValido = true break end
+			end
+			if not algoValido then
+				E.algoActual = cfg.algoritmos[1]
+			end
+		end
+	else
+		-- Zona sin AnalisisConfig: mostrar todos los algoritmos, usar primer nodo
+		E.nodoInicio = nil
+		E.nodoFin    = nil
+		PanelEstadoAnalisis.actualizarPillsVisibles(nil)  -- nil = mostrar todos
+	end
+end
+
+-- ════════════════════════════════════════════════════════════════
 -- AUTO-PLAY
 -- ════════════════════════════════════════════════════════════════
 local function detenerAutoPlay()
@@ -78,19 +107,14 @@ local function detenerAutoPlay()
 end
 
 local function iniciarAutoPlay()
-	if E.autoPlaying then
-		detenerAutoPlay()
-		return
-	end
+	if E.autoPlaying then detenerAutoPlay(); return end
 	if E.totalPasos == 0 then return end
 
 	E.autoPlaying = true
 	if E.btnEjecRef then E.btnEjecRef.Text = "⏹ Parar" end
 
 	task.spawn(function()
-		if E.pasoActual >= E.totalPasos then
-			E.pasoActual = 0
-		end
+		if E.pasoActual >= E.totalPasos then E.pasoActual = 0 end
 		while E.autoPlaying and E.pasoActual < E.totalPasos do
 			task.wait(C.VEL_AUTO)
 			if not E.autoPlaying then break end
@@ -116,20 +140,29 @@ local function ejecutarAlgoritmo()
 		return
 	end
 
-	E.pasos      = fn(nodos, E.adyacencias, nodos[1])
+	-- Usar nodoInicio de AnalisisConfig; fallback al primer nodo de la lista
+	local inicio = E.nodoInicio
+	if not inicio or not table.find(nodos, inicio) then
+		inicio = nodos[1]
+	end
+
+	E.pasos      = fn(nodos, E.adyacencias, inicio)
 	E.totalPasos = #E.pasos
 	E.pasoActual = 1
+
+	-- Mostrar intro pedagógica del algoritmo en la descripción inicial
+	PanelEstadoAnalisis.mostrarIntroAlgo(E.algoActual, inicio)
 
 	if E.totalPasos > 0 then
 		PanelEstadoAnalisis.aplicarPaso(E.pasos[E.pasoActual])
 	end
 
-	print(string.format("[ModuloAnalisis] %s — %d pasos sobre %d nodos",
-		E.algoActual:upper(), E.totalPasos, #nodos))
+	print(string.format("[ModuloAnalisis] %s desde '%s' — %d pasos sobre %d nodos",
+		E.algoActual:upper(), inicio, E.totalPasos, #nodos))
 end
 
 -- ════════════════════════════════════════════════════════════════
--- PILLS
+-- SELECCIONAR ALGORITMO
 -- ════════════════════════════════════════════════════════════════
 local function seleccionarAlgo(algo)
 	E.algoActual = algo
@@ -160,13 +193,13 @@ local function cargarGrafoCompleto(zona, onExito, onFallo)
 end
 
 -- ════════════════════════════════════════════════════════════════
--- HELPER: limpiar estado visual sin destruir overlay
+-- HELPER: limpiar estado visual
 -- ════════════════════════════════════════════════════════════════
 local function limpiarEstadoVisual()
 	detenerAutoPlay()
 	ViewportAnalisis.limpiarParticulas()
 	for _, p in ipairs(E.aristaParts) do if p and p.Parent then p:Destroy() end end
-	E.aristaParts = {}
+	E.aristaParts     = {}
 	if E.worldModel then E.worldModel:ClearAllChildren() end
 	E.nodoParts       = {}
 	E.posicionesNodos = {}
@@ -186,7 +219,7 @@ function ModuloAnalisis.inicializar(hudGui)
 
 	E.overlay = hudGui:FindFirstChild("OverlayAnalisis", true)
 	if not E.overlay then
-		warn("[ModuloAnalisis] OverlayAnalisis no encontrado en GUIExploradorV2")
+		warn("[ModuloAnalisis] OverlayAnalisis no encontrado")
 		return
 	end
 	E.overlay.Visible = false
@@ -199,7 +232,6 @@ function ModuloAnalisis.inicializar(hudGui)
 			E.worldModel        = Instance.new("WorldModel")
 			E.worldModel.Parent = E.visor
 		end
-
 		E.camAnalisis = E.visor.CurrentCamera
 		if not E.camAnalisis then
 			E.camAnalisis             = Instance.new("Camera")
@@ -213,13 +245,10 @@ function ModuloAnalisis.inicializar(hudGui)
 
 	-- Pills de algoritmo
 	for algo, _ in pairs(PanelEstadoAnalisis.PILL_NAMES) do
-		local pillName = PanelEstadoAnalisis.PILL_NAMES[algo]
-		local pill = C.buscar(E.overlay, pillName)
+		local pill = C.buscar(E.overlay, PanelEstadoAnalisis.PILL_NAMES[algo])
 		if pill then
 			local a = algo
-			pill.MouseButton1Click:Connect(function()
-				seleccionarAlgo(a)
-			end)
+			pill.MouseButton1Click:Connect(function() seleccionarAlgo(a) end)
 		end
 	end
 
@@ -241,9 +270,7 @@ function ModuloAnalisis.inicializar(hudGui)
 						ViewportAnalisis.construirViewport()
 						ejecutarAlgoritmo()
 					end,
-					function(msg)
-						PanelEstadoAnalisis.mostrarMensajeDesc(msg)
-					end
+					function(msg) PanelEstadoAnalisis.mostrarMensajeDesc(msg) end
 				)
 			else
 				iniciarAutoPlay()
@@ -253,13 +280,9 @@ function ModuloAnalisis.inicializar(hudGui)
 
 	-- Botones cerrar
 	local btnCerrar = C.buscar(E.overlay, "BtnCerrarAnalisis")
-	if btnCerrar then
-		btnCerrar.MouseButton1Click:Connect(function() ModuloAnalisis.cerrar() end)
-	end
+	if btnCerrar then btnCerrar.MouseButton1Click:Connect(function() ModuloAnalisis.cerrar() end) end
 	local btnSalir = C.buscar(E.overlay, "BtnSalirAnalisis")
-	if btnSalir then
-		btnSalir.MouseButton1Click:Connect(function() ModuloAnalisis.cerrar() end)
-	end
+	if btnSalir then btnSalir.MouseButton1Click:Connect(function() ModuloAnalisis.cerrar() end) end
 
 	-- BtnSiguiente
 	local btnSig = C.buscar(E.overlay, "BtnSiguiente")
@@ -287,7 +310,7 @@ function ModuloAnalisis.inicializar(hudGui)
 		end)
 	end
 
-	-- Escuchar cambios de zona mientras está abierto
+	-- Cambio de zona → recargar grafo y config
 	jugador:GetAttributeChangedSignal("ZonaActual"):Connect(function()
 		if not E.abierto then return end
 		limpiarEstadoVisual()
@@ -297,15 +320,14 @@ function ModuloAnalisis.inicializar(hudGui)
 			PanelEstadoAnalisis.actualizarScrollEstado(nil)
 			return
 		end
+		cargarAnalisisConfig(zona)
 		PanelEstadoAnalisis.mostrarMensajeDesc("Cargando zona: " .. zona .. "…")
 		cargarGrafoCompleto(zona,
 			function()
 				ViewportAnalisis.construirViewport()
 				seleccionarAlgo(E.algoActual)
 			end,
-			function(msg)
-				PanelEstadoAnalisis.mostrarMensajeDesc(msg)
-			end
+			function(msg) PanelEstadoAnalisis.mostrarMensajeDesc(msg) end
 		)
 	end)
 
@@ -315,20 +337,11 @@ function ModuloAnalisis.inicializar(hudGui)
 		local analisisBtn = selectorModos:FindFirstChild("AnalisisBtn")
 		if analisisBtn then
 			analisisBtn.MouseButton1Click:Connect(function()
-				if E.abierto then
-					ModuloAnalisis.cerrar()
-				else
-					ModuloAnalisis.abrir()
-				end
+				if E.abierto then ModuloAnalisis.cerrar() else ModuloAnalisis.abrir() end
 			end)
-		else
-			warn("[ModuloAnalisis] AnalisisBtn no encontrado en SelectorModos")
 		end
-	else
-		warn("[ModuloAnalisis] SelectorModos no encontrado")
 	end
 
-	-- Estado inicial de UI
 	PanelEstadoAnalisis.actualizarPills(E.algoActual)
 	PseudocodigoAnalisis.reconstruirPseudocodigo(E.algoActual)
 
@@ -342,7 +355,7 @@ end
 
 function ModuloAnalisis.abrir()
 	if not E.overlay then
-		warn("[ModuloAnalisis] Overlay no disponible — ¿inicializar() fue llamado?")
+		warn("[ModuloAnalisis] Overlay no disponible")
 		return
 	end
 
@@ -353,10 +366,11 @@ function ModuloAnalisis.abrir()
 	if zona == "" then
 		PanelEstadoAnalisis.mostrarMensajeDesc("Entra en una zona para ver el análisis de su grafo.")
 		PanelEstadoAnalisis.actualizarScrollEstado(nil)
-		print("[ModuloAnalisis] Abierto (sin zona activa)")
 		return
 	end
 
+	-- Cargar config de la zona antes de ejecutar
+	cargarAnalisisConfig(zona)
 	PanelEstadoAnalisis.mostrarMensajeDesc("Cargando grafo completo…")
 
 	cargarGrafoCompleto(zona,

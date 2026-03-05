@@ -119,6 +119,8 @@ local function copiarDict(d)
 	return c
 end
 
+-- NOTA: dictALista sigue disponible para uso interno pero ya no se usa
+-- en BFS ni DFS para el campo `visitados` (se reemplazó por visitOrder).
 local function dictALista(dict, orden)
 	local lista = {}
 	for _, n in ipairs(orden) do
@@ -254,7 +256,7 @@ function AlgoritmosGrafo.dfs(nodos, adyacencias, inicio)
 
 	local pila       = { inicio }
 	local visitados  = {}
-	local visitOrder = {}            -- orden real de visita (cuando se desapila y procesa)
+	local visitOrder = {}  -- orden real de visita (cuando se desapila y procesa)
 	local padre      = {}  -- padre[v] = u  ↔  arista u→v en el árbol DFS
 
 	steps[#steps+1] = {
@@ -276,15 +278,15 @@ function AlgoritmosGrafo.dfs(nodos, adyacencias, inicio)
 
 		if not visitados[u] then
 			visitados[u]              = true
-			visitOrder[#visitOrder+1] = u
-			local vecinos             = adyacencias[u] or {}
+			visitOrder[#visitOrder+1] = u   -- ← registrar en orden de visita real
+
+			local vecinos       = adyacencias[u] or {}
 			local apiladosAhora = {}
 
 			for i = #vecinos, 1, -1 do
 				local v = vecinos[i]
 				if not visitados[v] then
 					pila[#pila+1] = v
-					-- Solo registrar padre la primera vez que v aparece en pila
 					if not padre[v] then
 						padre[v] = u
 					end
@@ -299,12 +301,11 @@ function AlgoritmosGrafo.dfs(nodos, adyacencias, inicio)
 				desc = "Visitar " .. u .. " — sin vecinos nuevos que apilar"
 			end
 
-			-- La arista nueva es la que llevó a visitar u (excepto el nodo inicial)
 			local aristaNueva = padre[u] and { padre[u], u } or nil
 
 			steps[#steps+1] = {
 				nodoActual        = u,
-				visitados         = dictALista(visitados, nodos),
+				visitados         = copiarTabla(visitOrder),   -- ← orden real, no alfabético
 				pendientes        = copiarTabla(pila),
 				distancias        = nil,
 				descripcion       = desc,
@@ -317,7 +318,7 @@ function AlgoritmosGrafo.dfs(nodos, adyacencias, inicio)
 		else
 			steps[#steps+1] = {
 				nodoActual        = u,
-				visitados         = dictALista(visitados, nodos),
+				visitados         = copiarTabla(visitOrder),   -- ← orden real, no alfabético
 				pendientes        = copiarTabla(pila),
 				distancias        = nil,
 				descripcion       = "Desapilar " .. u .. " — ya visitado, se descarta",
@@ -332,10 +333,10 @@ function AlgoritmosGrafo.dfs(nodos, adyacencias, inicio)
 
 	steps[#steps+1] = {
 		nodoActual        = nil,
-		visitados         = dictALista(visitados, nodos),
+		visitados         = copiarTabla(visitOrder),           -- ← orden real, no alfabético
 		pendientes        = {},
 		distancias        = nil,
-		descripcion       = "Pila vacía — DFS completado. Nodos visitados: " .. table.concat(dictALista(visitados, nodos), ", "),
+		descripcion       = "Pila vacía — DFS completado. Nodos visitados: " .. table.concat(visitOrder, ", "),
 		lineaPseudo       = 12,
 		struct            = "Pila",
 		structConten      = {},
@@ -357,10 +358,11 @@ function AlgoritmosGrafo.dijkstra(nodos, adyacencias, inicio)
 	local INF = math.huge
 	local steps = {}
 
-	local dist      = {}
-	local enPQ      = {}
-	local extraidos = {}
-	local pred      = {}  -- pred[v] = u  ↔  arista u→v en el árbol de caminos mínimos
+	local dist       = {}
+	local enPQ       = {}
+	local extraidos  = {}
+	local extractOrder = {}  -- orden real de extracción (no alfabético)
+	local pred       = {}  -- pred[v] = u  ↔  arista u→v en el árbol de caminos mínimos
 
 	for _, n in ipairs(nodos) do
 		dist[n] = INF
@@ -417,10 +419,11 @@ function AlgoritmosGrafo.dijkstra(nodos, adyacencias, inicio)
 		if not u then break end
 		if dist[u] == INF then break end
 
-		enPQ[u]      = nil
-		extraidos[u] = true
+		enPQ[u]                    = nil
+		extraidos[u]               = true
+		extractOrder[#extractOrder+1] = u   -- ← registrar orden real de extracción
 
-		local vecinos    = adyacencias[u] or {}
+		local vecinos      = adyacencias[u] or {}
 		local actualizados = {}
 
 		for _, v in ipairs(vecinos) do
@@ -434,11 +437,6 @@ function AlgoritmosGrafo.dijkstra(nodos, adyacencias, inicio)
 			end
 		end
 
-		local visitList = {}
-		for _, n in ipairs(nodos) do
-			if extraidos[n] then visitList[#visitList+1] = n end
-		end
-
 		local desc
 		if #actualizados > 0 then
 			desc = "Extraer " .. u .. " (dist=" .. tostring(dist[u]) .. ") — actualizar: " .. table.concat(actualizados, ", ")
@@ -446,12 +444,11 @@ function AlgoritmosGrafo.dijkstra(nodos, adyacencias, inicio)
 			desc = "Extraer " .. u .. " (dist=" .. tostring(dist[u]) .. ") — sin actualizaciones"
 		end
 
-		-- La arista nueva es la que llevó a u con el menor coste
 		local aristaNueva = pred[u] and { pred[u], u } or nil
 
 		steps[#steps+1] = {
 			nodoActual        = u,
-			visitados         = visitList,
+			visitados         = copiarTabla(extractOrder),   -- ← orden real de extracción
 			pendientes        = pqComoLista(),
 			distancias        = distParaUI(),
 			descripcion       = desc,
@@ -463,14 +460,9 @@ function AlgoritmosGrafo.dijkstra(nodos, adyacencias, inicio)
 		}
 	end
 
-	local visitList = {}
-	for _, n in ipairs(nodos) do
-		if extraidos[n] then visitList[#visitList+1] = n end
-	end
-
 	steps[#steps+1] = {
 		nodoActual        = nil,
-		visitados         = visitList,
+		visitados         = copiarTabla(extractOrder),       -- ← orden real de extracción
 		pendientes        = {},
 		distancias        = distParaUI(),
 		descripcion       = "PQ vacía — Dijkstra completado. Distancias mínimas calculadas.",
@@ -495,10 +487,11 @@ function AlgoritmosGrafo.prim(nodos, adyacencias, raiz)
 	local INF = math.huge
 	local steps = {}
 
-	local key   = {}
-	local padre = {}
-	local enPQ  = {}
-	local enMST = {}
+	local key      = {}
+	local padre    = {}
+	local enPQ     = {}
+	local enMST    = {}
+	local mstOrder = {}  -- orden real de inserción en el MST (no alfabético)
 
 	for _, n in ipairs(nodos) do
 		key[n]   = INF
@@ -548,10 +541,11 @@ function AlgoritmosGrafo.prim(nodos, adyacencias, raiz)
 		if not u then break end
 		if key[u] == INF then break end
 
-		enPQ[u]  = nil
-		enMST[u] = true
+		enPQ[u]              = nil
+		enMST[u]             = true
+		mstOrder[#mstOrder+1] = u   -- ← registrar orden real de inserción en MST
 
-		local vecinos    = adyacencias[u] or {}
+		local vecinos      = adyacencias[u] or {}
 		local actualizados = {}
 
 		for _, v in ipairs(vecinos) do
@@ -562,11 +556,6 @@ function AlgoritmosGrafo.prim(nodos, adyacencias, raiz)
 			end
 		end
 
-		local mstList = {}
-		for _, n in ipairs(nodos) do
-			if enMST[n] then mstList[#mstList+1] = n end
-		end
-
 		local desc
 		if #actualizados > 0 then
 			desc = "Agregar " .. u .. " al MST — actualizar vecinos: " .. table.concat(actualizados, ", ")
@@ -574,12 +563,11 @@ function AlgoritmosGrafo.prim(nodos, adyacencias, raiz)
 			desc = "Agregar " .. u .. " al MST — sin vecinos que actualizar"
 		end
 
-		-- La arista nueva es la que conectó u al MST
 		local aristaNueva = padre[u] and { padre[u], u } or nil
 
 		steps[#steps+1] = {
 			nodoActual        = u,
-			visitados         = mstList,
+			visitados         = copiarTabla(mstOrder),   -- ← orden real de inserción en MST
 			pendientes        = pqComoLista(),
 			distancias        = nil,
 			descripcion       = desc,
@@ -591,11 +579,6 @@ function AlgoritmosGrafo.prim(nodos, adyacencias, raiz)
 		}
 	end
 
-	local mstList = {}
-	for _, n in ipairs(nodos) do
-		if enMST[n] then mstList[#mstList+1] = n end
-	end
-
 	local aristasDesc = {}
 	for _, n in ipairs(nodos) do
 		if padre[n] then aristasDesc[#aristasDesc+1] = padre[n] .. "—" .. n end
@@ -603,7 +586,7 @@ function AlgoritmosGrafo.prim(nodos, adyacencias, raiz)
 
 	steps[#steps+1] = {
 		nodoActual        = nil,
-		visitados         = mstList,
+		visitados         = copiarTabla(mstOrder),           -- ← orden real de inserción en MST
 		pendientes        = {},
 		distancias        = nil,
 		descripcion       = "PQ vacía — MST completado. Aristas: " .. (next(aristasDesc) and table.concat(aristasDesc, ", ") or "(grafo desconectado)"),
