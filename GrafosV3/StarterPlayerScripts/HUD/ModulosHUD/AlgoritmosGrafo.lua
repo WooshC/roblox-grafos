@@ -149,10 +149,11 @@ function AlgoritmosGrafo.bfs(nodos, adyacencias, inicio)
 
 	local steps = {}
 
-	local cola      = { inicio }
-	local visitados = { [inicio] = true }
-	local dist      = { [inicio] = 0 }
-	local padre     = {}  -- padre[v] = u  ↔  arista u→v en el árbol BFS
+	local cola       = { inicio }
+	local visitados  = { [inicio] = true }
+	local visitOrder = { inicio }            -- orden real de descubrimiento (no alfabético)
+	local dist       = { [inicio] = 0 }
+	local padre      = {}  -- padre[v] = u  ↔  arista u→v en el árbol BFS
 
 	steps[#steps+1] = {
 		nodoActual       = inicio,
@@ -173,51 +174,61 @@ function AlgoritmosGrafo.bfs(nodos, adyacencias, inicio)
 		local u = cola[cabeza]
 		cabeza += 1
 
-		local vecinos          = adyacencias[u] or {}
-		local nuevosPendientes = {}
-		local aristasNuevasStep = {}  -- aristas BFS descubiertas en ESTE paso
+		local vecinos   = adyacencias[u] or {}
+		local hayNuevos = false
 
 		for _, v in ipairs(vecinos) do
 			if not visitados[v] then
-				visitados[v] = true
-				dist[v]      = dist[u] + 1
-				padre[v]     = u
-				cola[#cola+1] = v
-				nuevosPendientes[#nuevosPendientes+1] = v
-				aristasNuevasStep[#aristasNuevasStep+1] = { u, v }
+				hayNuevos                 = true
+				visitados[v]              = true
+				visitOrder[#visitOrder+1] = v
+				dist[v]                   = dist[u] + 1
+				padre[v]                  = u
+				cola[#cola+1]             = v
+
+				-- Cola restante DESPUÉS de cabeza (ya incluye v recién encolado)
+				local colaPost = {}
+				for i = cabeza, #cola do colaPost[#colaPost+1] = cola[i] end
+
+				-- Un paso por cada nuevo vecino descubierto → una arista naranja a la vez
+				steps[#steps+1] = {
+					nodoActual        = u,
+					visitados         = copiarTabla(visitOrder),
+					pendientes        = colaPost,
+					distancias        = copiarDict(dist),
+					descripcion       = "Desde " .. u .. ": encolar " .. v .. " (dist=" .. dist[v] .. ")",
+					lineaPseudo       = 9,
+					struct            = "Cola",
+					structConten      = colaPost,
+					aristasRecorridas = buildAristasRecorridas(nodos, padre),
+					aristaNueva       = { u, v },
+				}
 			end
 		end
 
-		local colaPost = {}
-		for i = cabeza, #cola do colaPost[#colaPost+1] = cola[i] end
+		-- Sin vecinos nuevos: mostrar que u fue desencolado sin añadir aristas
+		if not hayNuevos then
+			local colaPost = {}
+			for i = cabeza, #cola do colaPost[#colaPost+1] = cola[i] end
 
-		local desc
-		if #nuevosPendientes > 0 then
-			desc = "Desencolar " .. u .. " — vecinos no visitados encolados: " .. table.concat(nuevosPendientes, ", ")
-		else
-			desc = "Desencolar " .. u .. " — todos sus vecinos ya visitados"
+			steps[#steps+1] = {
+				nodoActual        = u,
+				visitados         = copiarTabla(visitOrder),
+				pendientes        = colaPost,
+				distancias        = copiarDict(dist),
+				descripcion       = "Desencolar " .. u .. " — todos sus vecinos ya visitados",
+				lineaPseudo       = 7,
+				struct            = "Cola",
+				structConten      = colaPost,
+				aristasRecorridas = buildAristasRecorridas(nodos, padre),
+				aristaNueva       = nil,
+			}
 		end
-
-		-- Para BFS: aristaNueva = primera arista descubierta en este paso (la más representativa)
-		local aristaNueva = aristasNuevasStep[1] or nil
-
-		steps[#steps+1] = {
-			nodoActual        = u,
-			visitados         = dictALista(visitados, nodos),
-			pendientes        = colaPost,
-			distancias        = copiarDict(dist),
-			descripcion       = desc,
-			lineaPseudo       = 7,
-			struct            = "Cola",
-			structConten      = colaPost,
-			aristasRecorridas = buildAristasRecorridas(nodos, padre),
-			aristaNueva       = aristaNueva,
-		}
 	end
 
 	steps[#steps+1] = {
 		nodoActual        = nil,
-		visitados         = dictALista(visitados, nodos),
+		visitados         = copiarTabla(visitOrder),
 		pendientes        = {},
 		distancias        = copiarDict(dist),
 		descripcion       = "Cola vacía — BFS completado. Distancias calculadas.",
@@ -241,9 +252,10 @@ function AlgoritmosGrafo.dfs(nodos, adyacencias, inicio)
 
 	local steps = {}
 
-	local pila      = { inicio }
-	local visitados = {}
-	local padre     = {}  -- padre[v] = u  ↔  arista u→v en el árbol DFS
+	local pila       = { inicio }
+	local visitados  = {}
+	local visitOrder = {}            -- orden real de visita (cuando se desapila y procesa)
+	local padre      = {}  -- padre[v] = u  ↔  arista u→v en el árbol DFS
 
 	steps[#steps+1] = {
 		nodoActual        = nil,
@@ -263,8 +275,9 @@ function AlgoritmosGrafo.dfs(nodos, adyacencias, inicio)
 		pila[#pila] = nil
 
 		if not visitados[u] then
-			visitados[u] = true
-			local vecinos       = adyacencias[u] or {}
+			visitados[u]              = true
+			visitOrder[#visitOrder+1] = u
+			local vecinos             = adyacencias[u] or {}
 			local apiladosAhora = {}
 
 			for i = #vecinos, 1, -1 do
