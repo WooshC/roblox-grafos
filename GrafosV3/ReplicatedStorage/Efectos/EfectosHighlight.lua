@@ -83,12 +83,12 @@ function EfectosHighlight.crear(nombre, adornee, tipo)
 		warn("[EfectosHighlight] No se proporcionó adornee para:", nombre)
 		return nil
 	end
-	
+
 	-- Destruir highlight anterior si existe
 	EfectosHighlight.destruir(nombre)
-	
+
 	local config = EfectosHighlight.CONFIG[tipo] or EfectosHighlight.CONFIG.SELECCIONADO
-	
+
 	local highlight = Instance.new("Highlight")
 	highlight.Name = "Highlight_" .. nombre
 	highlight.Adornee = adornee
@@ -98,9 +98,9 @@ function EfectosHighlight.crear(nombre, adornee, tipo)
 	highlight.OutlineTransparency = config.OutlineTransparency
 	highlight.DepthMode = config.DepthMode
 	highlight.Parent = Workspace
-	
+
 	highlightsActivos[nombre] = highlight
-	
+
 	return highlight
 end
 
@@ -111,10 +111,10 @@ end
 -- @param duracion number - Segundos antes de destruir
 function EfectosHighlight.flash(nombre, adornee, tipo, duracion)
 	duracion = duracion or 0.5
-	
+
 	local highlight = EfectosHighlight.crear(nombre, adornee, tipo)
 	if not highlight then return end
-	
+
 	-- Animar opacidad de outline para hacerlo "pulsar"
 	task.spawn(function()
 		local inicio = tick()
@@ -126,10 +126,10 @@ function EfectosHighlight.flash(nombre, adornee, tipo, duracion)
 			highlight.OutlineTransparency = 0.5 - (pulse * 0.5)
 			task.wait(0.03)
 		end
-		
+
 		EfectosHighlight.destruir(nombre)
 	end)
-	
+
 	return highlight
 end
 
@@ -241,7 +241,7 @@ end
 -- @return Highlight|nil
 function EfectosHighlight.resaltarZona(nombreZona, parteTrigger)
 	if not parteTrigger then return nil end
-	
+
 	local nombre = "Zona_" .. nombreZona
 	return EfectosHighlight.crear(nombre, parteTrigger, "ZONA")
 end
@@ -289,5 +289,21 @@ function EfectosHighlight.limpiarMapaNodos()
 		end
 	end
 end
+
+function EfectosHighlight.destruirPorPrefijo(prefijo)
+	local aEliminar = {}
+	for clave in pairs(highlightsActivos) do
+		if clave:sub(1, #prefijo) == prefijo then
+			table.insert(aEliminar, clave)
+		end
+	end
+	for _, clave in ipairs(aEliminar) do
+		local h = highlightsActivos[clave]
+		if h and h.Parent then h:Destroy() end
+		highlightsActivos[clave] = nil
+	end
+end
+
+
 
 return EfectosHighlight

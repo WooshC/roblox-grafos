@@ -6,6 +6,14 @@
 --   Grafo DIRIGIDO    → partícula solo en la dirección que existe en adyacencias (A→B)
 --
 -- Para determinar la dirección de cada arista se consulta E.adyacencias y E.matrizData.EsDirigido.
+--
+-- FIX (duplicación de partículas):
+--   reconstruirAristas ya NO llama limpiarParticulas() globalmente en cada paso.
+--   En su lugar compara el conjunto activo anterior con el nuevo:
+--     • IDs que desaparecen  → se detienen (versión → 0)
+--     • IDs que permanecen   → se dejan intactos (sin reiniciar)
+--     • IDs genuinamente nuevos → se inician por primera vez
+--   limpiarParticulas() se reserva para el reset completo (cambio de algoritmo / cierre).
 
 local TweenService = game:GetService("TweenService")
 
@@ -103,7 +111,7 @@ end
 -- ── Sistema de versiones ──────────────────────────────────────────────────────
 -- E.partActivas[id] guarda un número de versión (entero).
 -- Cada loop spawn captura su versión al nacer; si al despertar la versión
--- en E.partActivas ya es distinta (o nil), el loop se considera zombie y muere.
+-- en E.partActivas ya es distinta (o nil / 0), el loop se considera zombie y muere.
 -- Así se eliminan los loops que estaban en task.wait cuando se llamó limpiar().
 
 local function iniciarParticulasArista(id, nomA, nomB, posA, posB, esDirigido)
@@ -138,8 +146,16 @@ local function iniciarParticulasArista(id, nomA, nomB, posA, posB, esDirigido)
 	end
 end
 
+-- Detiene loops de un ID específico sin tocar los demás.
+local function detenerParticulasId(id)
+	if E.partActivas[id] then
+		E.partActivas[id] = 0
+		E.partActivas[id] = nil
+	end
+end
+
+-- Reset total: para cuando se cambia de algoritmo, se cierra el panel, etc.
 function ViewportAnalisis.limpiarParticulas()
-	-- Poner 0 (en lugar de nil) invalida todos los loops activos sin romper el dict
 	for id in pairs(E.partActivas) do
 		E.partActivas[id] = 0
 	end
@@ -214,14 +230,14 @@ end
 -- ════════════════════════════════════════════════════════════════
 
 function ViewportAnalisis.reconstruirAristas(step)
-	-- 1. Destruir aristas anteriores
+	-- 1. Destruir cilindros de aristas del frame anterior
 	for _, part in ipairs(E.aristaParts) do
 		if part and part.Parent then part:Destroy() end
 	end
 	E.aristaParts = {}
 
-	-- 2. Detener partículas del paso anterior
-	ViewportAnalisis.limpiarParticulas()
+	-- 2. Calcular el NUEVO conjunto de IDs que deben tener partículas activas
+	local nuevoSetPart = {}   -- [id] = { nomA, nomB, posA, posB }
 
 	-- 3. Clasificar aristas del paso
 	local recorridasSet = {}
@@ -243,9 +259,6 @@ function ViewportAnalisis.reconstruirAristas(step)
 	local esDirigido = E.matrizData and E.matrizData.EsDirigido or false
 
 	-- 5. Dibujar TODAS las aristas del grafo completo
-	--    Para grafos dirigidos iteramos en pares ORDENADOS (nomA→nomB)
-	--    y dibujamos un cilindro por dirección existente.
-	--    Para no dirigidos, iteramos una sola vez por par (key canónica).
 	local vistosND = {}   -- para grafos no dirigidos: evitar duplicar cilindros
 
 	for nomA, lista in pairs(E.adyacencias) do
@@ -289,15 +302,14 @@ function ViewportAnalisis.reconstruirAristas(step)
 			-- de la dirección para que A→B y B→A sean visualmente distintos.
 			local posACil, posBCil = posA, posB
 			if esDirigido then
-				-- Calcular vector perpendicular al eje de la arista (en XZ)
 				local dir    = (posB - posA)
 				local perpXZ = Vector3.new(-dir.Z, 0, dir.X).Unit * (C.TAM_ARISTA * 0.8)
 				posACil = posA + perpXZ
 				posBCil = posB + perpXZ
 			end
 
-			local centro  = (posACil + posBCil) / 2
-			local arista  = Instance.new("Part")
+			local centro = (posACil + posBCil) / 2
+			local arista = Instance.new("Part")
 			arista.Name        = "AristaANA"
 			arista.Anchored    = true
 			arista.CanCollide  = false
@@ -311,14 +323,27 @@ function ViewportAnalisis.reconstruirAristas(step)
 
 			table.insert(E.aristaParts, arista)
 
-			-- Partículas solo en aristas nueva y recorridas activas
+			-- Registrar qué IDs necesitan partículas en este paso
 			if esNueva or esRecorrida then
 				local id = esDirigido
-					and (nomA .. "_>" .. nomB)    -- ID único por dirección en dígrafo
+					and (nomA .. "_>" .. nomB)
 					or  idConexion(nomA, nomB)
-
-				iniciarParticulasArista(id, nomA, nomB, posA, posB, esDirigido)
+				nuevoSetPart[id] = { nomA = nomA, nomB = nomB, posA = posA, posB = posB }
 			end
+		end
+	end
+
+	-- 6. Sincronización de partículas: SOLO toca lo que cambia
+	--    a) Detener IDs que ya no deben estar activos
+	for id in pairs(E.partActivas) do
+		if not nuevoSetPart[id] then
+			detenerParticulasId(id)
+		end
+	end
+	--    b) Iniciar SOLO los IDs genuinamente nuevos (no existían antes)
+	for id, info in pairs(nuevoSetPart) do
+		if not E.partActivas[id] then
+			iniciarParticulasArista(id, info.nomA, info.nomB, info.posA, info.posB, esDirigido)
 		end
 	end
 end

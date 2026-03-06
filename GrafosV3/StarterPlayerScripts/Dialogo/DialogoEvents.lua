@@ -18,9 +18,9 @@ function DialogoEvents.new(gui, controller)
 	self.gui = gui
 	self.controller = controller
 	self.connections = {}
-	
+
 	self:ConnectButtons()
-	
+
 	return self
 end
 
@@ -32,7 +32,7 @@ end
 function DialogoEvents:ConnectButtons()
 	-- Limpiar conexiones anteriores
 	self:DisconnectAll()
-	
+
 	-- Botón CONTINUAR
 	if self.gui.nextBtn then
 		local conn = self.gui.nextBtn.MouseButton1Click:Connect(function()
@@ -40,7 +40,7 @@ function DialogoEvents:ConnectButtons()
 		end)
 		table.insert(self.connections, conn)
 	end
-	
+
 	-- Botón SALTAR
 	if self.gui.skipBtn then
 		local conn = self.gui.skipBtn.MouseButton1Click:Connect(function()
@@ -48,7 +48,7 @@ function DialogoEvents:ConnectButtons()
 		end)
 		table.insert(self.connections, conn)
 	end
-	
+
 	-- Botón OJO (mostrar/ocultar personaje)
 	if self.gui.eyeBtn then
 		local conn = self.gui.eyeBtn.MouseButton1Click:Connect(function()
@@ -56,7 +56,7 @@ function DialogoEvents:ConnectButtons()
 		end)
 		table.insert(self.connections, conn)
 	end
-	
+
 	-- Teclado
 	local conn = UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		if gameProcessed then return end
@@ -106,14 +106,14 @@ end
 ---Se ejecuta cuando se presiona SALTAR
 function DialogoEvents:OnSkipClicked()
 	if not self.controller.system.isPlaying then return end
-	
+
 	self.controller.system:Skip()
 end
 
 ---Se ejecuta cuando se presiona el botón OJO
 function DialogoEvents:OnEyeClicked()
 	if not self.controller.system.isPlaying then return end
-	
+
 	-- Ocultar/mostrar personaje
 	if self.gui.charArea then
 		self.gui.charArea.Visible = not self.gui.charArea.Visible
@@ -127,27 +127,27 @@ end
 ---Se ejecuta cuando se presiona una tecla
 function DialogoEvents:OnKeyPressed(keyCode)
 	if not self.controller.system.isPlaying then return end
-	
+
 	-- ESPACIO o ENTER = CONTINUAR
 	if keyCode == Enum.KeyCode.Space or keyCode == Enum.KeyCode.Return then
 		self:OnNextClicked()
 	end
-	
+
 	-- ESC = SALTAR
 	if keyCode == Enum.KeyCode.Escape then
 		self:OnSkipClicked()
 	end
-	
+
 	-- H = OJO
 	if keyCode == Enum.KeyCode.H then
 		self:OnEyeClicked()
 	end
-	
+
 	-- FLECHAS (navegación opcional)
 	if keyCode == Enum.KeyCode.Right then
 		self.controller.system:Next()
 	end
-	
+
 	if keyCode == Enum.KeyCode.Left then
 		self.controller.system:Previous()
 	end
@@ -160,12 +160,12 @@ end
 ---Resalta un botón al pasar el mouse
 function DialogoEvents:HighlightButton(button)
 	if not button then return end
-	
+
 	button.MouseEnter:Connect(function()
 		button.BackgroundColor3 = Color3.fromRGB(25, 40, 60)
 		button.BackgroundTransparency = 0.2
 	end)
-	
+
 	button.MouseLeave:Connect(function()
 		button.BackgroundColor3 = Color3.fromRGB(17, 28, 46)
 		button.BackgroundTransparency = 0

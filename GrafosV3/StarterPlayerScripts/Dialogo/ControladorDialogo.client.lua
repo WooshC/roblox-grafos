@@ -17,6 +17,7 @@ print("[GrafosV3] === ControladorDialogo Iniciando ===")
 
 local ServicioCamara = require(RS:WaitForChild("Compartido"):WaitForChild("ServicioCamara"))
 local GestorColisiones = require(RS:WaitForChild("Compartido"):WaitForChild("GestorColisiones"))
+local LevelsConfig = require(RS:WaitForChild("Config"):WaitForChild("LevelsConfig"))
 
 -- Referencia al ModuloMapa (se obtiene dinámicamente para evitar dependencia circular)
 local function obtenerModuloMapa()
@@ -41,7 +42,7 @@ end
 local function obtenerHudGui()
 	local gui = playerGui:FindFirstChild("GUIExploradorV2")
 	if gui then return gui end
-	
+
 	for _, child in ipairs(playerGui:GetChildren()) do
 		if child:IsA("ScreenGui") then
 			if child.Name:match("HUD") or child.Name:match("Explorador") or child.Name:match("Gameplay") then
@@ -69,11 +70,11 @@ local function cargarModulo(nombre)
 		warn("[ControladorDialogo] Módulo no encontrado:", nombre)
 		return nil
 	end
-	
+
 	local exito, resultado = pcall(function()
 		return require(modulo)
 	end)
-	
+
 	if exito then
 		print("[ControladorDialogo] ✓ Módulo cargado:", nombre)
 		return resultado
@@ -168,7 +169,7 @@ local CONFIG = {
 		"BotonesAccion"
 	},
 	DuracionTransicion = 0.3,
-	
+
 	-- Configuración de cámara
 	Camara = {
 		Distancia = 8,           -- Distancia del personaje
@@ -185,30 +186,30 @@ local CONFIG = {
 local function bloquearMovimiento(restricciones)
 	local personaje = jugador.Character
 	if not personaje then return end
-	
+
 	local humanoid = personaje:FindFirstChildOfClass("Humanoid")
 	if not humanoid then return end
-	
+
 	-- Guardar estado original (valores numéricos exactos)
 	estadoJugador.humanoid = humanoid
 	estadoJugador.walkSpeedOriginal = humanoid.WalkSpeed
 	estadoJugador.jumpPowerOriginal = humanoid.JumpPower
-	
+
 	-- Aplicar restricciones
 	if restricciones.bloquearMovimiento then
 		humanoid.WalkSpeed = 0
 	end
-	
+
 	if restricciones.bloquearSalto then
 		humanoid.JumpPower = 0
 	end
-	
+
 	-- Solo bloquear la cámara (Scriptable) si está habilitado, pero NO moverla
 	-- El movimiento de cámara se hace mediante ServicioCamara.moverTopDown() en eventos específicos
 	if restricciones.apuntarCamara then
 		ServicioCamara.bloquear()
 	end
-	
+
 	print("[ControladorDialogo] Movimiento bloqueado")
 end
 
@@ -216,16 +217,16 @@ end
 local function desbloquearMovimiento()
 	local personaje = jugador.Character
 	if not personaje then return end
-	
+
 	local humanoid = personaje:FindFirstChildOfClass("Humanoid")
 	if humanoid then
 		humanoid.WalkSpeed = estadoJugador.walkSpeedOriginal or 16
 		humanoid.JumpPower = estadoJugador.jumpPowerOriginal or 50
 	end
-	
+
 	-- Restaurar cámara usando ServicioCamara
 	ServicioCamara.restaurar(0.5)
-	
+
 	-- Limpiar estado
 	estadoJugador = {
 		humanoid = nil,
@@ -234,7 +235,7 @@ local function desbloquearMovimiento()
 		walkSpeedOriginal = nil,
 		jumpPowerOriginal = nil
 	}
-	
+
 	print("[ControladorDialogo] Movimiento restaurado")
 end
 
@@ -247,7 +248,7 @@ end
 local function obtenerFramesHUD()
 	local hud = obtenerHudGui()
 	if not hud then return end
-	
+
 	for _, nombreFrame in ipairs(CONFIG.FramesAOcultar) do
 		local frame = hud:FindFirstChild(nombreFrame, true)
 		if frame then
@@ -259,7 +260,7 @@ end
 local function ocultarHUD()
 	-- Buscar HUD dinámicamente
 	local hud = obtenerHudGui()
-	
+
 	-- Desactivar todo el ScreenGui del HUD
 	if hud then
 		hud:SetAttribute("EnabledAntesDialogo", hud.Enabled)
@@ -273,7 +274,7 @@ end
 local function mostrarHUD()
 	-- Buscar HUD dinámicamente
 	local hud = obtenerHudGui()
-	
+
 	-- Restaurar el ScreenGui del HUD
 	if hud then
 		local eraEnabled = hud:GetAttribute("EnabledAntesDialogo")
@@ -298,24 +299,24 @@ end
 
 local function conectarPrompt(promptPart, configDialogo)
 	if not promptPart then return end
-	
+
 	local prompt = promptPart:FindFirstChildOfClass("ProximityPrompt")
 	if not prompt then
 		warn("[ControladorDialogo] No se encontró ProximityPrompt en:", promptPart.Name)
 		return
 	end
-	
+
 	if promptsConectados[prompt] then return end
 	promptsConectados[prompt] = true
-	
+
 	print("[ControladorDialogo] Conectando prompt:", promptPart.Name, "-> Dialogo:", configDialogo.id)
-	
+
 	prompt.ActionText = configDialogo.actionText or "Hablar"
 	prompt.ObjectText = configDialogo.objectText or "Personaje"
 	prompt.KeyboardKeyCode = configDialogo.tecla or Enum.KeyCode.E
 	prompt.MaxActivationDistance = configDialogo.distancia or 20
 	prompt.HoldDuration = configDialogo.holdDuration or 0
-	
+
 	prompt.Triggered:Connect(function(playerWhoTriggered)
 		if playerWhoTriggered ~= jugador then return end
 		if dialogoActivo then return end
@@ -323,49 +324,49 @@ local function conectarPrompt(promptPart, configDialogo)
 			print("[ControladorDialogo] Diálogo ya visto:", configDialogo.id)
 			return
 		end
-		
+
 		print("[ControladorDialogo] Iniciando diálogo:", configDialogo.id)
-		
+
 		if configDialogo.unaVez then
 			jugador:SetAttribute("DialogoVisto_" .. configDialogo.id, true)
 		end
-		
+
 		local metadata = {
 			nivelID = jugador:GetAttribute("CurrentLevelID") or 0,
 			zonaActual = jugador:GetAttribute("ZonaActual") or "",
 			promptPart = promptPart,
 			config = configDialogo
 		}
-		
+
 		if configDialogo.alIniciar then
 			configDialogo.alIniciar(metadata)
 		end
-		
+
 		iniciarDialogo(configDialogo.id, metadata)
 	end)
 end
 
 local function buscarYConectarPrompts()
 	promptsConectados = {}
-	
+
 	nivelActual = Workspace:FindFirstChild("NivelActual")
 	if not nivelActual then
 		warn("[ControladorDialogo] No se encontró NivelActual en Workspace")
 		return
 	end
-	
+
 	local dialoguePrompts = nivelActual:FindFirstChild("DialoguePrompts")
 	if not dialoguePrompts then
 		print("[ControladorDialogo] No hay DialoguePrompts en este nivel")
 		return
 	end
-	
+
 	print("[ControladorDialogo] Buscando prompts en:", dialoguePrompts.Name)
 	print("[ControladorDialogo] Hijos encontrados en DialoguePrompts:", #dialoguePrompts:GetChildren())
-	
+
 	for _, modeloDialogo in ipairs(dialoguePrompts:GetChildren()) do
 		print("[ControladorDialogo] Revisando:", modeloDialogo.Name, "Tipo:", modeloDialogo.ClassName)
-		
+
 		if modeloDialogo:IsA("Model") or modeloDialogo:IsA("Folder") then
 			local promptPart = modeloDialogo:FindFirstChild("PromptPart")
 			if promptPart then
@@ -379,7 +380,7 @@ local function buscarYConectarPrompts()
 					holdDuration = modeloDialogo:GetAttribute("HoldDuration") or 0,
 					unaVez = modeloDialogo:GetAttribute("UnaVez") or false,
 					ocultarHUD = modeloDialogo:GetAttribute("OcultarHUD") ~= false,
-					
+
 					-- Nuevas opciones de restricción
 					restricciones = {
 						bloquearMovimiento = modeloDialogo:GetAttribute("BloquearMovimiento") ~= false,  -- default true
@@ -389,7 +390,7 @@ local function buscarYConectarPrompts()
 						permitirConexiones = modeloDialogo:GetAttribute("PermitirConexiones") == true    -- default false
 					}
 				}
-				
+
 				conectarPrompt(promptPart, config)
 			else
 				warn("[ControladorDialogo] Modelo sin PromptPart:", modeloDialogo.Name)
@@ -407,7 +408,7 @@ function iniciarDialogo(dialogoID, metadata)
 		warn("[ControladorDialogo] Ya hay un diálogo activo")
 		return false
 	end
-	
+
 	-- ═══════════════════════════════════════════════════════════════════════════════
 	-- PASO 0: CERRAR MAPA SI ESTÁ ABIERTO (evita bugs de cámara)
 	-- ═══════════════════════════════════════════════════════════════════════════════
@@ -417,7 +418,7 @@ function iniciarDialogo(dialogoID, metadata)
 		ModuloMapa.cerrar()
 		task.wait(0.1) -- Pequeña espera para que termine el cierre
 	end
-	
+
 	-- ═══════════════════════════════════════════════════════════════════════════════
 	-- PASO 0.5: OCULTAR TECHOS SI ESTÁ CONFIGURADO
 	-- ═══════════════════════════════════════════════════════════════════════════════
@@ -425,23 +426,23 @@ function iniciarDialogo(dialogoID, metadata)
 		print("[ControladorDialogo] Ocultando techos para diálogo...")
 		GestorColisiones:ocultarTecho()
 	end
-	
+
 	dialogoActivo = true
-	
+
 	-- Obtener datos del diálogo para leer Configuracion
 	local datosDialogo = nil
 	if DialogoGUISystem then
 		datosDialogo = DialogoGUISystem:LoadDialogue(dialogoID)
 	end
-	
+
 	-- Combinar restricciones: Defaults → Config del archivo → Config del prompt/atributos
 	local restricciones = {}
-	
+
 	-- 1. Empezar con defaults
 	for key, value in pairs(RESTRICCIONES_DEFAULT) do
 		restricciones[key] = value
 	end
-	
+
 	-- 2. Aplicar configuración del archivo de diálogo (si existe)
 	if datosDialogo and datosDialogo.Configuracion then
 		for key, value in pairs(datosDialogo.Configuracion) do
@@ -449,14 +450,14 @@ function iniciarDialogo(dialogoID, metadata)
 		end
 		print("[ControladorDialogo] Configuración cargada del archivo de diálogo")
 	end
-	
+
 	-- 3. Aplicar configuración del prompt/atributos (si existe, tiene prioridad)
 	if metadata.config and metadata.config.restricciones then
 		for key, value in pairs(metadata.config.restricciones) do
 			restricciones[key] = value
 		end
 	end
-	
+
 	-- Guardar restricciones en metadata para que otros sistemas las consulten
 	metadata.restricciones = restricciones
 
@@ -464,15 +465,15 @@ function iniciarDialogo(dialogoID, metadata)
 	if Modulos.DialogoButtonHighlighter then
 		metadata.buttonHighlighter = Modulos.DialogoButtonHighlighter.new(obtenerHudGui())
 	end
-	
+
 	-- NOTA: La cámara NO se mueve aquí automáticamente.
 	-- El movimiento de cámara se hace mediante Eventos en las líneas de diálogo específicas.
-	
+
 	-- Bloquear movimiento si está configurado
 	if restricciones.bloquearMovimiento or restricciones.bloquearSalto or restricciones.apuntarCamara then
 		bloquearMovimiento(restricciones)
 	end
-	
+
 	-- Verificar si ocultar HUD (del archivo o del prompt)
 	local debeOcultarHUD = true
 	if datosDialogo and datosDialogo.Metadata and datosDialogo.Metadata.OcultarHUD ~= nil then
@@ -481,14 +482,14 @@ function iniciarDialogo(dialogoID, metadata)
 	if metadata.config and metadata.config.ocultarHUD ~= nil then
 		debeOcultarHUD = metadata.config.ocultarHUD
 	end
-	
+
 	if debeOcultarHUD then
 		ocultarHUD()
 	end
-	
+
 	-- Determinar si debemos restaurar techos al cerrar
 	local debenRestaurarTechos = metadata.config and metadata.config.ocultarTechos
-	
+
 	DialogoGUISystem:OnClose(function()
 		print("[ControladorDialogo] Diálogo cerrado:", dialogoID)
 
@@ -499,31 +500,31 @@ function iniciarDialogo(dialogoID, metadata)
 
 		-- Restaurar movimiento
 		desbloquearMovimiento()
-		
+
 		-- Restaurar techos si es necesario
 		if debenRestaurarTechos then
 			print("[ControladorDialogo] Restaurando techos...")
 			GestorColisiones:restaurar()
 		end
-		
+
 		mostrarHUD()
-		
+
 		if metadata.config and metadata.config.alCerrar then
 			metadata.config.alCerrar(metadata)
 		end
-		
+
 		dialogoActivo = false
 	end)
-	
+
 	local exito = DialogoGUISystem:Play(dialogoID, metadata)
-	
+
 	if not exito then
 		-- Si falla, restaurar todo
 		desbloquearMovimiento()
 		mostrarHUD()
 		dialogoActivo = false
 	end
-	
+
 	return exito
 end
 
@@ -551,7 +552,7 @@ local ControladorDialogo = {}
 --   }
 function ControladorDialogo.iniciar(dialogoID, opciones)
 	opciones = opciones or {}
-	
+
 	-- Construir metadata compatible
 	local metadata = {
 		nivelID = jugador:GetAttribute("CurrentLevelID") or 0,
@@ -565,7 +566,7 @@ function ControladorDialogo.iniciar(dialogoID, opciones)
 			ocultarTechos = opciones.ocultarTechos
 		}
 	}
-	
+
 	return iniciarDialogo(dialogoID, metadata)
 end
 
@@ -618,6 +619,57 @@ end
 
 _G.ControladorDialogo = ControladorDialogo
 
+local dialogosZonaVistos = {}
+
+local dialogosZonaVistos = {}
+
+---Devuelve el DialogoID configurado para una zona en el nivel actual, o nil si no tiene.
+local function obtenerDialogoDeZona(nombreZona)
+	local nivelID  = jugador:GetAttribute("CurrentLevelID") or 0
+	local config   = LevelsConfig[nivelID]
+	if not config or not config.Zonas then return nil end
+
+	local zonaData = config.Zonas[nombreZona]
+	return zonaData and zonaData.Dialogo or nil
+end
+
+---Se llama cada vez que ZonaActual cambia. Lanza el diálogo si la zona lo tiene configurado.
+local function onZonaChanged()
+	local nombreZona = jugador:GetAttribute("ZonaActual") or ""
+	if nombreZona == "" then return end
+
+	-- ¿Ya se mostró en este nivel?
+	if dialogosZonaVistos[nombreZona] then return end
+
+	-- ¿Esta zona tiene diálogo configurado?
+	local dialogoID = obtenerDialogoDeZona(nombreZona)
+	if not dialogoID then return end
+
+	-- ¿Ya hay un diálogo activo?
+	if dialogoActivo then
+		print("[ControladorDialogo] Diálogo activo al entrar a zona, omitiendo:", nombreZona)
+		return
+	end
+
+	-- Marcar antes del wait para evitar doble disparo si el jugador sale y vuelve rápido
+	dialogosZonaVistos[nombreZona] = true
+	print(string.format("[ControladorDialogo] Zona '%s' → iniciando diálogo '%s'", nombreZona, dialogoID))
+
+	-- Espera breve para que el jugador esté bien dentro de la zona
+	task.wait(0.6)
+
+	-- Re-verificar tras el wait (pudo haber cambiado de zona o ya hay diálogo activo)
+	if dialogoActivo then return end
+	if jugador:GetAttribute("ZonaActual") ~= nombreZona then return end
+
+	ControladorDialogo.iniciar(dialogoID, {
+		ocultarTechos = true,
+	})
+end
+
+jugador:GetAttributeChangedSignal("ZonaActual"):Connect(onZonaChanged)
+
+
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- INICIALIZACIÓN
 -- ═══════════════════════════════════════════════════════════════════════════════
@@ -626,20 +678,20 @@ obtenerFramesHUD()
 
 remotos.NivelListo.OnClientEvent:Connect(function(data)
 	if data and data.error then return end
-	
+
 	print("[ControladorDialogo] Nivel cargado - buscando prompts de diálogo")
-	
+
 	task.wait(0.5)
 	buscarYConectarPrompts()
 end)
 
 remotos.NivelDescargado.OnClientEvent:Connect(function()
 	print("[ControladorDialogo] Nivel descargado - limpiando")
-	
+
 	if dialogoActivo then
 		DialogoGUISystem:Close()
 	end
-	
+
 	promptsConectados = {}
 	nivelActual = nil
 end)
