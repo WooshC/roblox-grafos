@@ -101,10 +101,11 @@ function DialogoController:RenderLine(lineIndex)
 	end
 
 	-- Iniciar audio ANTES del texto para que el narrador arranque primero
+	local metadata = self.system.currentDialogue.Metadata or {}
 	if linea.Audio and linea.Audio ~= "" and linea.Audio ~= "rbxassetid://0" then
 		print("[DialogoController] Reproduciendo audio personalizado:", linea.Audio)
 		self.system.narrator:Play(linea.Audio)
-	elseif linea.Texto and linea.Texto ~= "" then
+	elseif linea.Texto and linea.Texto ~= "" and metadata.UsarTTS ~= false then
 		print("[DialogoController] Usando TTS para:", linea.Actor)
 		self.system.narrator:Speak(linea.Texto, linea.Actor)
 	end

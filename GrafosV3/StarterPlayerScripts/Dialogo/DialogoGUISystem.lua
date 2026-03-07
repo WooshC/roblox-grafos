@@ -380,6 +380,11 @@ function DialogoGUISystem:onAccionJugador(tipo, datos)
 		self.gui.nextBtn.Active = true
 	end
 
+	-- Detener narrador antes del auto-avance para evitar rate limiting de TTS
+	if self.narrator then
+		self.narrator:Reiniciar()
+	end
+
 	self:Next()
 end
 

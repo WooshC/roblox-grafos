@@ -300,14 +300,14 @@ function EfectosDialogo.mostrarArista(nombreA, nombreB, colorTipo, opciones)
 
 	-- BillboardGui sobre la ancla de la etiqueta
 	local bb = Instance.new("BillboardGui")
-	bb.Name           = "Dialogo_BillboardArista_" .. clave
-	bb.Adornee        = anclaLabel
-	bb.AlwaysOnTop    = true
-	bb.LightInfluence = 0
-	bb.Size           = UDim2.new(0, 180, 0, 52)
-	bb.StudsOffset    = Vector3.new(0, 3, 0)
-	bb.MaxDistance    = 0
-	bb.Parent         = workspace
+	bb.Name                    = "Dialogo_BillboardArista_" .. clave
+	bb.Adornee                 = anclaLabel
+	bb.AlwaysOnTop             = false
+	bb.LightInfluence          = 0
+	bb.Size                    = UDim2.new(0, 180, 0, 52)
+	bb.StudsOffsetWorldSpace   = Vector3.new(0, 3, 0)
+	bb.MaxDistance             = 25
+	bb.Parent                  = workspace
 
 	local frame = Instance.new("Frame")
 	frame.Size                   = UDim2.new(1, 0, 1, 0)

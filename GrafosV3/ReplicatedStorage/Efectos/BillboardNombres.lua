@@ -44,7 +44,8 @@ local PRESETS = {
 		tamano              = UDim2.fromOffset(120, 32),
 		offsetY             = 4.5,
 		offsetMundo         = true,   -- usa StudsOffsetWorldSpace
-		maxDistance         = 0,
+		maxDistance         = 30,     -- se oculta al alejarse
+		alwaysOnTop         = false,  -- respeta profundidad 3D (no se pinta sobre todo)
 		conFondo            = true,
 		colorFondo          = Color3.new(0, 0, 0),
 		transparenciaFondo  = 0.45,
@@ -112,7 +113,7 @@ function BillboardNombres.crear(adornee, texto, preset, nombreClave, opcs)
 	else
 		billboard.StudsOffset = Vector3.new(0, cfg.offsetY, 0)
 	end
-	billboard.AlwaysOnTop = true
+	billboard.AlwaysOnTop = cfg.alwaysOnTop ~= false   -- false solo si se pone explícitamente
 	billboard.LightInfluence = 0
 	billboard.MaxDistance = cfg.maxDistance or 0
 	billboard.Parent      = workspace
