@@ -166,6 +166,8 @@ local DIALOGOS = {
 					EfectosDialogo.blink("Nodo1_z1", "EXITO", 4)
 					enfocarNodo("Nodo1_z1", { altura = 14, angulo = 70, duracion = 1.0 })
 				end,
+				-- El jugador debe SELECCIONAR el nodo origen para avanzar
+				EsperarAccion = { tipo = "seleccionarNodo", nodo = "Nodo1_z1" },
 				Siguiente = "instruccion_destino",
 			},
 
@@ -175,7 +177,7 @@ local DIALOGOS = {
 				Numero    = 7,
 				Actor     = "Carlos",
 				Expresion = "Serio",
-				Texto     = "Luego selecciona el nodo destino (" .. alias2 .. ").",
+				Texto     = "Luego selecciona el nodo destino (" .. alias2 .. "). ¡Conéctalos!",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					-- Nodo 1 "ya elegido" (cyan suave), Nodo 2 próxima acción (dorado)
@@ -186,40 +188,26 @@ local DIALOGOS = {
 					EfectosDialogo.blink("Nodo2_z1", "ADYACENTE", 4)
 					enfocarNodo("Nodo2_z1", { altura = 14, angulo = 70, duracion = 1.0 })
 				end,
+				-- El jugador debe CONECTAR ambos nodos para avanzar
+				EsperarAccion = { tipo = "conectarNodos", nodoA = "Nodo1_z1", nodoB = "Nodo2_z1" },
 				Siguiente = "instruccion_resultado",
 			},
 
-			-- ── 8. RESULTADO ──────────────────────────────────────────
+			-- ── 8. RESULTADO ───────────────────────────────────────────
 			{
 				Id        = "instruccion_resultado",
 				Numero    = 8,
 				Actor     = "Carlos",
 				Expresion = "Feliz",
-				Texto     = "Así crearás una arista entre los dos nodos.",
+				Texto     = "Así crearás una arista entre dos nodos. ¡Bien hecho!",
 				Evento = function()
+					-- Limpia highlights del diálogo; el cable real del gameplay permanece
 					EfectosDialogo.limpiarTodo()
-					EfectosDialogo.resaltarNodo("Nodo1_z1", "SELECCIONADO")
-					EfectosDialogo.resaltarNodo("Nodo2_z1", "SELECCIONADO")
-					EfectosDialogo.mostrarLabel("Nodo1_z1", alias1)
-					EfectosDialogo.mostrarLabel("Nodo2_z1", alias2)
-					task.delay(0.4, function()
-						EfectosDialogo.mostrarArista("Nodo1_z1", "Nodo2_z1", "EXITO")
+					-- Muestra el beam sin partículas (el gameplay ya tiene sus propios efectos)
+					task.delay(0.3, function()
+						EfectosDialogo.mostrarArista("Nodo1_z1", "Nodo2_z1", "EXITO", { sinParticulas = true })
 					end)
 					enfocarMedio({ altura = 22, angulo = 65, duracion = 1.0 })
-				end,
-				Siguiente = "confirmacion",
-			},
-
-			-- ── 9. CONFIRMACIÓN ───────────────────────────────────────
-			{
-				Id        = "confirmacion",
-				Numero    = 9,
-				Actor     = "Carlos",
-				Expresion = "Sonriente",
-				Texto     = "Ahora es tu turno. ¡Conecta los nodos!",
-				Evento = function()
-					EfectosDialogo.limpiarTodo()
-					ServicioCamara.restaurar(0.8)
 				end,
 				Siguiente = "FIN",
 			},
@@ -238,7 +226,7 @@ local DIALOGOS = {
 			bloquearSalto      = true,
 			bloquearCarrera    = true,
 			apuntarCamara      = true,
-			permitirConexiones = false,
+			permitirConexiones = true,   -- necesario para las líneas interactivas 6 y 7
 			ocultarTechos      = true,
 		},
 	},

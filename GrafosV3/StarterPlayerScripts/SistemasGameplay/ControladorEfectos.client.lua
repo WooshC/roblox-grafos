@@ -10,6 +10,7 @@ local player = Players.LocalPlayer
 local EfectosHighlight = require(Replicado.Efectos.EfectosHighlight)
 local EfectosVideo     = require(Replicado.Efectos.EfectosVideo)
 local EfectosNodo      = require(Replicado.Efectos.EfectosNodo)
+local BillboardNombres = require(Replicado.Efectos.BillboardNombres)
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- CONFIGURACION Y ESTADO
@@ -20,8 +21,7 @@ local COLOR_ADYACENTE = Color3.fromRGB(255, 200, 50)      -- Dorado
 local COLOR_ERROR = Color3.fromRGB(239, 68, 68)           -- Rojo
 
 -- Estado
-local _highlights = {}      -- Instancias Highlight creadas
-local _billboards = {}      -- BillboardGuis creados
+local _highlights = {}      -- Instancias Highlight creadas (referencia local, limpiar vía EfectosHighlight)
 local _savedStates = {}     -- Estados originales de las partes
 local _nombresNodos = {}    -- Nombres amigables desde LevelsConfig
 
@@ -93,50 +93,17 @@ local function styleBasePart(part, color)
 	part.Transparency = 0.10
 end
 
--- Crear Billboard con nombre del nodo
+-- Crear Billboard con nombre del nodo usando el sistema centralizado
 local function addBillboard(part, color, nodeName)
 	if not part or not part:IsA("BasePart") then return end
 
 	local displayName = _nombresNodos[nodeName] or nodeName or ""
+	local clave = "CE_" .. (nodeName or tostring(part))
 
-	local bb = Instance.new("BillboardGui")
-	bb.Name = "NombreNodo"
-	bb.Adornee = part
-	bb.StudsOffsetWorldSpace = Vector3.new(0, 4.5, 0)
-	bb.AlwaysOnTop = true
-	bb.Size = UDim2.fromOffset(120, 32)
-	bb.ResetOnSpawn = false
-	bb.Parent = Workspace
-
-	-- Fondo
-	local bg = Instance.new("Frame")
-	bg.Size = UDim2.fromScale(1, 1)
-	bg.BackgroundColor3 = Color3.new(0, 0, 0)
-	bg.BackgroundTransparency = 0.45
-	bg.BorderSizePixel = 0
-	bg.Parent = bb
-
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 6)
-	corner.Parent = bg
-
-	-- Borde de color
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = color
-	stroke.Thickness = 2
-	stroke.Parent = bg
-
-	-- Texto
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.fromScale(1, 1)
-	label.BackgroundTransparency = 1
-	label.Text = displayName
-	label.TextColor3 = color
-	label.TextScaled = true
-	label.Font = Enum.Font.GothamBold
-	label.Parent = bg
-
-	table.insert(_billboards, bb)
+	BillboardNombres.crear(part, displayName, "NODO_INTERACCION", clave, {
+		colorBorde = color,
+		colorTexto = color,
+	})
 end
 
 -- Highlight completo de un nodo (modelo + billboard en selector)
@@ -157,11 +124,8 @@ local function clearAll()
 	EfectosHighlight.limpiarTodo()
 	_highlights = {}
 
-	-- Destruir billboards
-	for _, b in ipairs(_billboards) do
-		if b and b.Parent then b:Destroy() end
-	end
-	_billboards = {}
+	-- Destruir billboards gestionados por BillboardNombres
+	BillboardNombres.destruirPorPrefijo("CE_")
 
 	-- Restaurar partes modificadas
 	for _, state in ipairs(_savedStates) do

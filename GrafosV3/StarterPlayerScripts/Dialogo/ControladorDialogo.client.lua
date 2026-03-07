@@ -131,6 +131,35 @@ end
 print("[ControladorDialogo] ✓ Sistema de diálogos inicializado correctamente")
 
 -- ═══════════════════════════════════════════════════════════════════════════════
+-- FORWARDING DE ACCIONES DE GAMEPLAY AL SISTEMA DE DIÁLOGOS INTERACTIVOS
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- Escucha eventos de ConectarCables y los traduce para que un diálogo con
+-- EsperarAccion pueda avanzar automáticamente cuando el jugador actúa.
+
+local notificarSeleccionNodo = remotos:WaitForChild("NotificarSeleccionNodo", 10)
+if notificarSeleccionNodo then
+	notificarSeleccionNodo.OnClientEvent:Connect(function(tipo, argA, argB)
+		if not DialogoGUISystem.isPlaying or not DialogoGUISystem._esperandoAccion then return end
+
+		if tipo == "NodoSeleccionado" then
+			-- argA = Model del nodo seleccionado (instancia)
+			local nombreNodo = argA and argA.Name
+			if nombreNodo then
+				DialogoGUISystem:onAccionJugador("seleccionarNodo", { nodo = nombreNodo })
+			end
+		elseif tipo == "ConexionCompletada" then
+			-- argA = nomA (string), argB = nomB (string)
+			if argA and argB then
+				DialogoGUISystem:onAccionJugador("conectarNodos", { nodoA = argA, nodoB = argB })
+			end
+		end
+	end)
+	print("[ControladorDialogo] ✓ Forwarding de acciones de gameplay conectado")
+else
+	warn("[ControladorDialogo] NotificarSeleccionNodo no encontrado - diálogos interactivos no funcionarán")
+end
+
+-- ═══════════════════════════════════════════════════════════════════════════════
 -- ESTADO DEL SISTEMA
 -- ═══════════════════════════════════════════════════════════════════════════════
 
@@ -194,6 +223,7 @@ local function bloquearMovimiento(restricciones)
 	estadoJugador.humanoid = humanoid
 	estadoJugador.walkSpeedOriginal = humanoid.WalkSpeed
 	estadoJugador.jumpPowerOriginal = humanoid.JumpPower
+	estadoJugador.jumpHeightOriginal = humanoid.JumpHeight
 
 	-- Aplicar restricciones
 	if restricciones.bloquearMovimiento then
@@ -202,6 +232,7 @@ local function bloquearMovimiento(restricciones)
 
 	if restricciones.bloquearSalto then
 		humanoid.JumpPower = 0
+		humanoid.JumpHeight = 0   -- bloquea el salto en ambas APIs (legado y nueva)
 	end
 
 	-- Solo bloquear la cámara (Scriptable) si está habilitado, pero NO moverla
@@ -222,6 +253,7 @@ local function desbloquearMovimiento()
 	if humanoid then
 		humanoid.WalkSpeed = estadoJugador.walkSpeedOriginal or 16
 		humanoid.JumpPower = estadoJugador.jumpPowerOriginal or 50
+		humanoid.JumpHeight = estadoJugador.jumpHeightOriginal or 7.2
 	end
 
 	-- Restaurar cámara usando ServicioCamara
@@ -233,7 +265,8 @@ local function desbloquearMovimiento()
 		camaraOriginal = nil,
 		cframeOriginal = nil,
 		walkSpeedOriginal = nil,
-		jumpPowerOriginal = nil
+		jumpPowerOriginal = nil,
+		jumpHeightOriginal = nil
 	}
 
 	print("[ControladorDialogo] Movimiento restaurado")

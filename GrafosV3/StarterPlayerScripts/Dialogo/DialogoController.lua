@@ -122,6 +122,10 @@ function DialogoController:RenderLine(lineIndex)
 		self:ShowChoices(linea.Opciones)
 	else
 		self:ShowNormalControls()
+		-- Si la línea requiere una acción del jugador, activar modo espera
+		if linea.EsperarAccion then
+			self.system:_activarEsperaAccion(linea.EsperarAccion)
+		end
 	end
 
 	-- Actualizar progreso

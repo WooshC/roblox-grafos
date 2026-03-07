@@ -141,77 +141,84 @@ function EfectosDialogo.mostrarLabel(nombreNodo, texto, tipo)
 	if not sel then return end
 
 	local clave = "Dialogo_Label_" .. nombreNodo
-
-	-- Destruir anterior si existe
-	BillboardNombres.destruir(clave)
-
 	local color = TIPO_COLOR[tipo] or TIPO_COLOR.SELECCIONADO
 
-	-- BillboardGui
-	local bb = Instance.new("BillboardGui")
-	bb.Name                    = clave
-	bb.Adornee                 = sel
-	bb.StudsOffsetWorldSpace   = Vector3.new(0, 4.5, 0)
-	bb.AlwaysOnTop             = true
-	bb.Size                    = UDim2.fromOffset(120, 32)
-	bb.ResetOnSpawn            = false
-	bb.LightInfluence          = 0
-	bb.Parent                  = workspace
-
-	-- Fondo negro semitransparente
-	local bg = Instance.new("Frame")
-	bg.Size                    = UDim2.fromScale(1, 1)
-	bg.BackgroundColor3        = Color3.new(0, 0, 0)
-	bg.BackgroundTransparency  = 0.45
-	bg.BorderSizePixel         = 0
-	bg.Parent                  = bb
-
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius        = UDim.new(0, 6)
-	corner.Parent              = bg
-
-	-- Borde de color
-	local stroke = Instance.new("UIStroke")
-	stroke.Color               = color
-	stroke.Thickness           = 2
-	stroke.Parent              = bg
-
-	-- Texto
-	local label = Instance.new("TextLabel")
-	label.Size                 = UDim2.fromScale(1, 1)
-	label.BackgroundTransparency = 1
-	label.Text                 = texto
-	label.TextColor3           = color
-	label.TextScaled           = true
-	label.Font                 = Enum.Font.GothamBold
-	label.Parent               = bg
-
-	-- Registrar en BillboardNombres para que limpiarTodo() lo encuentre por prefijo
-	-- (accedemos al cache interno via un billboard "fantasma" registrado con la clave)
-	-- En su lugar, lo guardamos en _partsTemporales para destrucción manual
-	table.insert(_partsTemporales, bb)
+	BillboardNombres.crear(sel, texto, "NODO_INTERACCION", clave, {
+		colorBorde = color,
+		colorTexto = color,
+	})
 end
 
 ---Quita la etiqueta de un nodo
 function EfectosDialogo.quitarLabel(nombreNodo)
-	-- Buscar en workspace (registrado con el nombre = clave)
-	local clave = "Dialogo_Label_" .. nombreNodo
-	local bb = workspace:FindFirstChild(clave)
-	if bb then bb:Destroy() end
-	-- También limpiar del cache de BillboardNombres por si acaso
-	BillboardNombres.destruir(clave)
+	BillboardNombres.destruir("Dialogo_Label_" .. nombreNodo)
+end
+
+-- ── PARTÍCULAS DE ARISTA (privadas) ──────────────────────────────────
+
+local function _crearParticulaArista(color)
+	local p = Instance.new("Part")
+	p.Shape      = Enum.PartType.Ball
+	p.Size       = Vector3.new(0.5, 0.5, 0.5)
+	p.Material   = Enum.Material.Neon
+	p.Color      = color
+	p.Anchored   = true
+	p.CanCollide = false
+	p.CanQuery   = false
+	p.CastShadow = false
+
+	local luz = Instance.new("PointLight")
+	luz.Color      = color
+	luz.Brightness = 3
+	luz.Range      = 5
+	luz.Parent     = p
+
+	local att0 = Instance.new("Attachment")
+	att0.Position = Vector3.new(0, 0, 0.1)
+	att0.Parent   = p
+	local att1 = Instance.new("Attachment")
+	att1.Position = Vector3.new(0, 0, -0.1)
+	att1.Parent   = p
+
+	local trail = Instance.new("Trail")
+	trail.Color        = ColorSequence.new(color)
+	trail.WidthScale   = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.5),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	trail.Lifetime     = 0.3
+	trail.Attachment0  = att0
+	trail.Attachment1  = att1
+	trail.Parent       = p
+
+	return p
+end
+
+local function _lanzarParticula(desde, hasta, color, duracion, lista)
+	local p = _crearParticulaArista(color)
+	table.insert(lista, p)
+	p.Position = desde
+	p.Parent   = workspace
+	TweenService:Create(p, TweenInfo.new(duracion, Enum.EasingStyle.Linear), { Position = hasta }):Play()
+	task.delay(duracion + 0.15, function()
+		if p and p.Parent then p:Destroy() end
+		for i, x in ipairs(lista) do
+			if x == p then table.remove(lista, i) break end
+		end
+	end)
 end
 
 -- ── ARISTA FALSA ─────────────────────────────────────────────────────
--- Dibuja un Beam entre los Selector de dos nodos y
--- muestra un BillboardGui "⟵ ARISTA ⟶" en el punto medio.
--- También anima el Beam con un pulso de grosor.
+-- Dibuja un Beam entre los Selector de dos nodos,
+-- muestra un BillboardGui "⬇ ARISTA" en el punto medio
+-- y lanza partículas A→B y B→A.
 
 ---Crea una arista visual falsa entre dos nodos
--- @param nombreA   string — nombre del primer nodo
--- @param nombreB   string — nombre del segundo nodo
--- @param colorTipo string — "SELECCIONADO" | "ADYACENTE" | "EXITO" (define el color del beam)
-function EfectosDialogo.mostrarArista(nombreA, nombreB, colorTipo)
+-- @param nombreA    string — nombre del primer nodo
+-- @param nombreB    string — nombre del segundo nodo
+-- @param colorTipo  string — "SELECCIONADO" | "ADYACENTE" | "EXITO"
+-- @param opciones   table  — { sinParticulas = true } para omitir la animación de partículas
+function EfectosDialogo.mostrarArista(nombreA, nombreB, colorTipo, opciones)
 	local clave = clavePar(nombreA, nombreB)
 
 	-- Destruir anterior si existe
@@ -323,7 +330,7 @@ function EfectosDialogo.mostrarArista(nombreA, nombreB, colorTipo)
 	label.Size                   = UDim2.new(1, -8, 1, -4)
 	label.Position               = UDim2.new(0, 4, 0, 2)
 	label.BackgroundTransparency = 1
-	label.Text                   = "⟵  ARISTA  ⟶"
+	label.Text                   = "⬇ ARISTA"
 	label.TextColor3             = color
 	label.Font                   = Enum.Font.GothamBold
 	label.TextSize               = 15
@@ -346,6 +353,11 @@ function EfectosDialogo.mostrarArista(nombreA, nombreB, colorTipo)
 		bb.StudsOffset = Vector3.new(0, 3 + yOff, 0)
 	end)
 
+	-- Partículas A→B (cyan) y B→A (rosa)
+	local particulas = {}
+	local distancia = (posB - posA).Magnitude
+	local duracionViaje = math.max(0.4, distancia / 10)
+
 	_aristasFalsas[clave] = {
 		ancla      = ancla,
 		anclaLabel = anclaLabel,
@@ -353,7 +365,25 @@ function EfectosDialogo.mostrarArista(nombreA, nombreB, colorTipo)
 		beam       = beam,
 		pulsoConn  = pulsoConn,
 		floatConn  = floatConn,
+		particulas = particulas,
 	}
+
+	if not (opciones and opciones.sinParticulas) then
+		_aristasFalsas[clave].loopAB = task.spawn(function()
+			while _aristasFalsas[clave] do
+				_lanzarParticula(posA, posB, Color3.fromRGB(0, 207, 255), duracionViaje, particulas)
+				task.wait(1.2)
+			end
+		end)
+
+		_aristasFalsas[clave].loopBA = task.spawn(function()
+			task.wait(0.6)
+			while _aristasFalsas[clave] do
+				_lanzarParticula(posB, posA, Color3.fromRGB(255, 50, 100), duracionViaje, particulas)
+				task.wait(1.2)
+			end
+		end)
+	end
 end
 
 ---Destruye una arista falsa con fade-out
@@ -365,6 +395,11 @@ function EfectosDialogo.quitarArista(nombreA, nombreB)
 	-- Desconectar loops
 	if datos.pulsoConn then datos.pulsoConn:Disconnect() end
 	if datos.floatConn then datos.floatConn:Disconnect() end
+	if datos.loopAB    then task.cancel(datos.loopAB) end
+	if datos.loopBA    then task.cancel(datos.loopBA) end
+	for _, p in ipairs(datos.particulas or {}) do
+		if p and p.Parent then p:Destroy() end
+	end
 
 	-- Fade out
 	if datos.beam and datos.beam.Parent then
@@ -445,18 +480,18 @@ function EfectosDialogo.limpiarTodo()
 	-- Highlights con prefijo "Dialogo_"
 	EfectosHighlight.destruirPorPrefijo("Dialogo_")
 
-	-- Labels (BillboardGui en workspace con Name = "Dialogo_Label_*")
-	for _, obj in ipairs(workspace:GetChildren()) do
-		if obj:IsA("BillboardGui") and obj.Name:sub(1, 13) == "Dialogo_Label" then
-			obj:Destroy()
-		end
-	end
+	-- Labels
 	BillboardNombres.destruirPorPrefijo("Dialogo_Label_")
 
 	-- Aristas falsas
 	for clave, datos in pairs(_aristasFalsas) do
 		if datos.pulsoConn then datos.pulsoConn:Disconnect() end
 		if datos.floatConn then datos.floatConn:Disconnect() end
+		if datos.loopAB    then task.cancel(datos.loopAB) end
+		if datos.loopBA    then task.cancel(datos.loopBA) end
+		for _, p in ipairs(datos.particulas or {}) do
+			if p and p.Parent then p:Destroy() end
+		end
 		if datos.ancla      and datos.ancla.Parent      then datos.ancla:Destroy() end
 		if datos.anclaLabel and datos.anclaLabel.Parent then datos.anclaLabel:Destroy() end
 		if datos.billboard  and datos.billboard.Parent  then datos.billboard:Destroy() end

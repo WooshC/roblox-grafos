@@ -332,6 +332,8 @@ function DialogoGUISystem:Play(dialogueKey, metadata)
 	self.currentDialogue = dialogueData
 	self.currentLineIndex = 1
 	self.metadata = metadata or {}
+	self._esperandoAccion = false
+	self._accionRequerida = nil
 
 	print("[DialogoGUISystem] ▶ Iniciando diálogo: " .. tostring(dialogueKey))
 
@@ -341,8 +343,49 @@ function DialogoGUISystem:Play(dialogueKey, metadata)
 	return true
 end
 
+---Activa el modo de espera de acción del jugador para la línea actual.
+-- Oculta el botón Continuar y bloquea el avance hasta que se llame onAccionJugador.
+function DialogoGUISystem:_activarEsperaAccion(accion)
+	self._esperandoAccion = true
+	self._accionRequerida = accion
+	if self.gui.nextBtn then
+		self.gui.nextBtn.Text = "Realiza la accion..."
+		self.gui.nextBtn.Active = false
+	end
+end
+
+---Llamado desde ControladorDialogo cuando el jugador realiza una acción de gameplay.
+-- @param tipo   string — "seleccionarNodo" | "conectarNodos"
+-- @param datos  table  — { nodo } o { nodoA, nodoB }
+function DialogoGUISystem:onAccionJugador(tipo, datos)
+	if not self._esperandoAccion or not self._accionRequerida then return end
+
+	local req = self._accionRequerida
+	local match = false
+
+	if req.tipo == "seleccionarNodo" and tipo == "seleccionarNodo" then
+		match = (datos.nodo == req.nodo)
+	elseif req.tipo == "conectarNodos" and tipo == "conectarNodos" then
+		match = (datos.nodoA == req.nodoA and datos.nodoB == req.nodoB)
+			or  (datos.nodoA == req.nodoB and datos.nodoB == req.nodoA)
+	end
+
+	if not match then return end
+
+	-- Restaurar botón y avanzar automáticamente
+	self._esperandoAccion = false
+	self._accionRequerida = nil
+	if self.gui.nextBtn then
+		self.gui.nextBtn.Text = "Continuar"
+		self.gui.nextBtn.Active = true
+	end
+
+	self:Next()
+end
+
 function DialogoGUISystem:Next()
 	if not self.isPlaying then return end
+	if self._esperandoAccion then return end  -- bloqueado hasta que el jugador actúe
 
 	self.currentLineIndex = self.currentLineIndex + 1
 
@@ -425,6 +468,13 @@ function DialogoGUISystem:Close()
 	if not self.isPlaying then return end
 
 	self.isPlaying = false
+	self._esperandoAccion = false
+	self._accionRequerida = nil
+	-- Restaurar botón por si quedó desactivado al cerrar con Skip
+	if self.gui.nextBtn then
+		self.gui.nextBtn.Text = "Continuar"
+		self.gui.nextBtn.Active = true
+	end
 	self.gui.screenGui.Enabled = false
 	self.narrator:Stop()
 

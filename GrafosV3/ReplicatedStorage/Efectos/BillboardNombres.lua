@@ -38,6 +38,25 @@ local PRESETS = {
 		conPadding          = true,
 		textoEscalado       = true,
 	},
+	-- Etiqueta sobre nodo durante gameplay/diálogo: fondo negro, borde+texto del color del nodo.
+	-- Sobreescribir colorBorde y colorTexto via el parámetro opcs de BillboardNombres.crear().
+	NODO_INTERACCION = {
+		tamano              = UDim2.fromOffset(120, 32),
+		offsetY             = 4.5,
+		offsetMundo         = true,   -- usa StudsOffsetWorldSpace
+		maxDistance         = 0,
+		conFondo            = true,
+		colorFondo          = Color3.new(0, 0, 0),
+		transparenciaFondo  = 0.45,
+		colorTexto          = Color3.fromRGB(0, 212, 255),
+		fuente              = Enum.Font.GothamBold,
+		colorBorde          = Color3.fromRGB(0, 212, 255),
+		transparenciaBorde  = 0,
+		grosorBorde         = 2,
+		radioBorde          = UDim.new(0, 6),
+		conPadding          = false,
+		textoEscalado       = true,
+	},
 }
 
 -- ═══════════════════════════════════════════════════════════════════════════════
@@ -55,16 +74,24 @@ local billboardsActivos = {}
 -- texto      : texto a mostrar
 -- preset     : "NODO_MAPA" | "ZONA_DESCRIPCION"
 -- nombreClave: clave única de string para gestión posterior (también usada como Name)
-function BillboardNombres.crear(adornee, texto, preset, nombreClave)
+-- opcs (opcional): tabla con campos que sobreescriben el preset (ej. colorBorde, colorTexto)
+function BillboardNombres.crear(adornee, texto, preset, nombreClave, opcs)
 	if not adornee or not adornee.Parent then
 		warn("[BillboardNombres] adornee no válido para clave:", tostring(nombreClave))
 		return nil
 	end
 
-	local cfg = PRESETS[preset]
-	if not cfg then
+	local base = PRESETS[preset]
+	if not base then
 		warn("[BillboardNombres] Preset desconocido:", tostring(preset))
 		return nil
+	end
+
+	-- Construir config efectiva: copia del preset + overrides de opcs
+	local cfg = {}
+	for k, v in pairs(base) do cfg[k] = v end
+	if opcs then
+		for k, v in pairs(opcs) do cfg[k] = v end
 	end
 
 	-- Destruir anterior con la misma clave
@@ -80,7 +107,11 @@ function BillboardNombres.crear(adornee, texto, preset, nombreClave)
 	billboard.Name        = nombreClave
 	billboard.Adornee     = adornee
 	billboard.Size        = cfg.tamano
-	billboard.StudsOffset = Vector3.new(0, cfg.offsetY, 0)
+	if cfg.offsetMundo then
+		billboard.StudsOffsetWorldSpace = Vector3.new(0, cfg.offsetY, 0)
+	else
+		billboard.StudsOffset = Vector3.new(0, cfg.offsetY, 0)
+	end
 	billboard.AlwaysOnTop = true
 	billboard.LightInfluence = 0
 	billboard.MaxDistance = cfg.maxDistance or 0
@@ -101,10 +132,10 @@ function BillboardNombres.crear(adornee, texto, preset, nombreClave)
 
 		if cfg.colorBorde then
 			local stroke = Instance.new("UIStroke")
-			stroke.Color       = cfg.colorBorde
-			stroke.Thickness   = 2
+			stroke.Color        = cfg.colorBorde
+			stroke.Thickness    = cfg.grosorBorde or 2
 			stroke.Transparency = cfg.transparenciaBorde or 0
-			stroke.Parent      = frame
+			stroke.Parent       = frame
 		end
 
 		if cfg.conPadding then
