@@ -362,9 +362,23 @@ if mapaClickNodo then
 			end
 		end
 
-		-- NOTA: No enviamos NotificarSeleccionNodo aquí porque ese evento es SOLO para 
-		-- notificaciones del servidor de ConectarCables al cliente.
-		-- El mapa maneja sus propios efectos visuales localmente.
+		-- Enviar efectos visuales de selección al cliente (highlight cyan + adyacentes dorados)
+		local carpetaCables = Servidores:FindFirstChild("SistemasGameplay")
+		if carpetaCables then
+			local moduloCables = carpetaCables:FindFirstChild("ConectarCables")
+			if moduloCables then
+				local ok, cables = pcall(require, moduloCables)
+				if ok and cables and cables.estaActivo() then
+					local nodoModel, adyacentesModels = cables.obtenerInfoNodo(nombreNodo)
+					if nodoModel then
+						local notificar = Remotos:FindFirstChild("NotificarSeleccionNodo")
+						if notificar then
+							notificar:FireClient(jugador, "NodoSeleccionado", nodoModel, adyacentesModels)
+						end
+					end
+				end
+			end
+		end
 	end)
 else
 	warn("[Boot.server] Evento MapaClickNodo no encontrado")

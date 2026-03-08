@@ -513,6 +513,13 @@ function ConectarCables.obtenerValidador()
 	return ValidadorConexiones
 end
 
+-- Devuelve (nodoModel, adyacentesModels) para disparar efectos visuales de selección
+function ConectarCables.obtenerInfoNodo(nombreNodo)
+	local selector = _selectoresPorNombre[nombreNodo]
+	if not selector then return nil, {} end
+	return selector.Parent, obtenerModelosAdyacentes(nombreNodo)
+end
+
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- CONEXIÓN DESDE EL MAPA (API pública para el mapa cenital)
 -- ═══════════════════════════════════════════════════════════════════════════════

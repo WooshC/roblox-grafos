@@ -102,18 +102,23 @@ function DialogoController:RenderLine(lineIndex)
 
 	-- Iniciar audio ANTES del texto para que el narrador arranque primero
 	local metadata = self.system.currentDialogue.Metadata or {}
+	local ttsUsado = false
 	if linea.Audio and linea.Audio ~= "" and linea.Audio ~= "rbxassetid://0" then
 		print("[DialogoController] Reproduciendo audio personalizado:", linea.Audio)
 		self.system.narrator:Play(linea.Audio)
 	elseif linea.Texto and linea.Texto ~= "" and metadata.UsarTTS ~= false then
 		print("[DialogoController] Usando TTS para:", linea.Actor)
 		self.system.narrator:Speak(linea.Texto, linea.Actor)
+		ttsUsado = true
 	end
 
-	-- Esperar a que el pipeline TTS se active antes del typewriter
-	-- Configurable por diálogo en Metadata.DelayTTS (default 0.1s)
-	local delayTTS = (self.system.currentDialogue.Metadata or {}).DelayTTS or 0.1
-	task.wait(delayTTS)
+	-- Esperar a que el TTS empiece a reproducirse ANTES del typewriter.
+	-- AudioTextToSpeech necesita ~0.5s para cargar el audio del servidor de Roblox.
+	-- Solo aplicamos el delay cuando TTS está activo para no ralentizar diálogos sin audio.
+	if ttsUsado then
+		local delayTTS = metadata.DelayTTS or 0.5
+		task.wait(delayTTS)
+	end
 
 	-- Mostrar texto
 	self:UpdateText(linea)
@@ -308,7 +313,7 @@ function DialogoController:CreateChoiceButton(index, opcion)
 	indexLabel.Position = UDim2.new(0, 8, 0.5, -7)
 	indexLabel.BackgroundTransparency = 1
 	indexLabel.TextColor3 = opcion.Color or Color3.fromRGB(0, 207, 255)
-	indexLabel.TextSize = 10
+	indexLabel.TextSize = 12
 	indexLabel.Font = Enum.Font.GothamBold
 	indexLabel.Parent = choiceBtn
 
@@ -320,7 +325,7 @@ function DialogoController:CreateChoiceButton(index, opcion)
 	textLabel.Position = UDim2.new(0, 38, 0.5, -7)
 	textLabel.BackgroundTransparency = 1
 	textLabel.TextColor3 = Color3.fromRGB(221, 233, 245)
-	textLabel.TextSize = 12
+	textLabel.TextSize = 15
 	textLabel.Font = Enum.Font.Gotham
 	textLabel.TextWrapped = true
 	textLabel.Parent = choiceBtn

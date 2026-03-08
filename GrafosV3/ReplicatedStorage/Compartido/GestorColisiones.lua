@@ -36,9 +36,10 @@ function GestorColisiones:capturar(nivelModelo)
 	for _, parte in ipairs(techos) do
 		self.estadosGuardados[parte] = {
 			transparencia = parte.Transparency,
-			castShadow = parte.CastShadow,
-			canCollide = parte.CanCollide,
-			canQuery = parte.CanQuery,
+			castShadow    = parte.CastShadow,
+			canCollide    = parte.CanCollide,
+			canQuery      = parte.CanQuery,
+			cframe        = parte.CFrame,  -- para teleportar y restaurar posición
 		}
 	end
 
@@ -115,8 +116,11 @@ function GestorColisiones:ocultarTecho()
 	for parte, original in pairs(self.estadosGuardados) do
 		if parte and parte.Parent then
 			parte.Transparency = self.config.transparenciaOculta
-			parte.CastShadow = false
-			parte.CanQuery   = false  -- suficiente para pasar clics/raycasts; CanCollide no se toca
+			parte.CastShadow   = false
+			parte.CanQuery     = false
+			-- Mover muy alto: evita que bloquee ClickDetectors (legacy ray usa CanCollide)
+			-- sin necesidad de cambiar CanCollide (lo que causaría caídas al vacío)
+			parte.CFrame = parte.CFrame + Vector3.new(0, 10000, 0)
 			conteo = conteo + 1
 		end
 	end
@@ -143,9 +147,10 @@ function GestorColisiones:restaurar()
 	for parte, original in pairs(self.estadosGuardados) do
 		if parte and parte.Parent then
 			parte.Transparency = original.transparencia
-			parte.CastShadow = original.castShadow
-			parte.CanCollide = original.canCollide
-			parte.CanQuery = original.canQuery
+			parte.CastShadow   = original.castShadow
+			parte.CanCollide   = original.canCollide
+			parte.CanQuery     = original.canQuery
+			parte.CFrame       = original.cframe  -- restaurar posición original
 			conteo = conteo + 1
 		end
 	end

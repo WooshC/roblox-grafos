@@ -431,6 +431,114 @@ local function buscarYConectarPrompts()
 end
 
 -- ═══════════════════════════════════════════════════════════════════════════════
+-- MODO CLICK AÉREO
+-- Activo cuando un diálogo oculta techos (cámara cenital) y permite conexiones.
+-- Usa raycast desde la cámara en lugar de ClickDetectors, que no funcionan
+-- cuando CameraType = Scriptable y la cámara está muy alta.
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+local UIS = game:GetService("UserInputService")
+local _clickAereoConexion = nil
+local _primerNodoAereo    = nil
+
+local function _recolectarSelectores()
+	local lista = {}
+	local nivel = workspace:FindFirstChild("NivelActual")
+	if not nivel then return lista end
+	local grafos = nivel:FindFirstChild("Grafos")
+	if not grafos then return lista end
+	for _, grafo in ipairs(grafos:GetChildren()) do
+		local nodos = grafo:FindFirstChild("Nodos")
+		if nodos then
+			for _, nodo in ipairs(nodos:GetChildren()) do
+				if nodo:IsA("Model") then
+					local sel = nodo:FindFirstChild("Selector")
+					if sel and sel:IsA("BasePart") then
+						table.insert(lista, sel)
+					end
+				end
+			end
+		end
+	end
+	return lista
+end
+
+local function activarClickAereo()
+	if _clickAereoConexion then return end
+
+	local selectores = _recolectarSelectores()
+	if #selectores == 0 then
+		warn("[ControladorDialogo] Click aéreo: sin selectores")
+		return
+	end
+
+	-- Suprimir ClickDetectors del servidor mientras el diálogo maneja los clics
+	jugador:SetAttribute("MapaAbierto", true)
+
+	local camara = workspace.CurrentCamera
+	local conectarEvento = remotos:FindFirstChild("ConectarDesdeMapa")
+	local mapaNodoEvento  = remotos:FindFirstChild("MapaClickNodo")
+
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Include
+	params.FilterDescendantsInstances = selectores
+
+	_primerNodoAereo = nil
+
+	_clickAereoConexion = UIS.InputBegan:Connect(function(input, gameProcessed)
+		if gameProcessed then return end
+		if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+
+		local mousePos = UIS:GetMouseLocation()
+		local ray = camara:ViewportPointToRay(mousePos.X, mousePos.Y)
+		local resultado = workspace:Raycast(ray.Origin, ray.Direction * 2000, params)
+
+		if not (resultado and resultado.Instance) then
+			_primerNodoAereo = nil
+			return
+		end
+
+		local selector  = resultado.Instance
+		local nodo      = selector.Parent
+		if not (nodo and nodo:IsA("Model")) then return end
+		local nombreNodo = nodo.Name
+
+		if _primerNodoAereo == nil then
+			_primerNodoAereo = nombreNodo
+			if mapaNodoEvento then mapaNodoEvento:FireServer(nombreNodo) end
+			-- Notificar EsperarAccion "seleccionarNodo" directamente (sin roundtrip al servidor)
+			if DialogoGUISystem and DialogoGUISystem._esperandoAccion then
+				DialogoGUISystem:onAccionJugador("seleccionarNodo", { nodo = nombreNodo })
+			end
+		elseif _primerNodoAereo == nombreNodo then
+			_primerNodoAereo = nil  -- cancelar
+		else
+			local nodoA = _primerNodoAereo
+			_primerNodoAereo = nil
+			if conectarEvento then
+				conectarEvento:FireServer(nodoA, nombreNodo)
+			end
+		end
+	end)
+
+	print("[ControladorDialogo] Click aéreo activado —", #selectores, "selectores")
+end
+
+local function desactivarClickAereo()
+	if _clickAereoConexion then
+		_clickAereoConexion:Disconnect()
+		_clickAereoConexion = nil
+	end
+	_primerNodoAereo = nil
+	-- Limpiar atributo sólo si el mapa real no está abierto
+	local mapa = obtenerModuloMapa()
+	if not (mapa and mapa.estaAbierto and mapa.estaAbierto()) then
+		jugador:SetAttribute("MapaAbierto", nil)
+	end
+	print("[ControladorDialogo] Click aéreo desactivado")
+end
+
+-- ═══════════════════════════════════════════════════════════════════════════════
 -- FUNCIÓN PRINCIPAL: INICIAR DIÁLOGO
 -- ═══════════════════════════════════════════════════════════════════════════════
 
@@ -441,10 +549,23 @@ function iniciarDialogo(dialogoID, metadata)
 	end
 
 	-- ═══════════════════════════════════════════════════════════════════════════════
-	-- PASO 0: CERRAR MAPA SI ESTÁ ABIERTO (evita bugs de cámara)
-	-- Se omite si el diálogo declara cerrarMapa = false (p.ej. feedback en modo mapa)
+	-- PASO 0: CARGAR DATOS DEL DIÁLOGO (necesario antes de leer Configuracion)
 	-- ═══════════════════════════════════════════════════════════════════════════════
-	local cerrarMapaAlIniciar = not (metadata.config and metadata.config.cerrarMapa == false)
+	local datosDialogo = nil
+	if DialogoGUISystem then
+		datosDialogo = DialogoGUISystem:LoadDialogue(dialogoID)
+	end
+
+	-- ═══════════════════════════════════════════════════════════════════════════════
+	-- PASO 0.5: CERRAR MAPA SI ESTÁ ABIERTO (evita bugs de cámara)
+	-- Se omite si el diálogo (o las opciones) declaran cerrarMapa = false
+	-- ═══════════════════════════════════════════════════════════════════════════════
+	local cerrarMapaConfig = metadata.config and metadata.config.cerrarMapa
+	-- Leer del archivo de diálogo si no viene en las opciones
+	if cerrarMapaConfig == nil and datosDialogo and datosDialogo.Configuracion then
+		cerrarMapaConfig = datosDialogo.Configuracion.cerrarMapa
+	end
+	local cerrarMapaAlIniciar = not (cerrarMapaConfig == false)
 	if cerrarMapaAlIniciar then
 		local ModuloMapa = obtenerModuloMapa()
 		if ModuloMapa and ModuloMapa.estaAbierto and ModuloMapa.estaAbierto() then
@@ -455,20 +576,16 @@ function iniciarDialogo(dialogoID, metadata)
 	end
 
 	-- ═══════════════════════════════════════════════════════════════════════════════
-	-- PASO 0.5: OCULTAR TECHOS SI ESTÁ CONFIGURADO
+	-- PASO 1: OCULTAR TECHOS SI ESTÁ CONFIGURADO
 	-- ═══════════════════════════════════════════════════════════════════════════════
-	if metadata.config and metadata.config.ocultarTechos then
+	local ocultarTechosConfig = (metadata.config and metadata.config.ocultarTechos)
+		or (datosDialogo and datosDialogo.Configuracion and datosDialogo.Configuracion.ocultarTechos)
+	if ocultarTechosConfig then
 		print("[ControladorDialogo] Ocultando techos para diálogo...")
 		GestorColisiones:ocultarTecho()
 	end
 
 	dialogoActivo = true
-
-	-- Obtener datos del diálogo para leer Configuracion
-	local datosDialogo = nil
-	if DialogoGUISystem then
-		datosDialogo = DialogoGUISystem:LoadDialogue(dialogoID)
-	end
 
 	-- Combinar restricciones: Defaults → Config del archivo → Config del prompt/atributos
 	local restricciones = {}
@@ -523,7 +640,13 @@ function iniciarDialogo(dialogoID, metadata)
 	end
 
 	-- Determinar si debemos restaurar techos al cerrar
-	local debenRestaurarTechos = metadata.config and metadata.config.ocultarTechos
+	local debenRestaurarTechos = ocultarTechosConfig
+
+	-- Activar click aéreo si la cámara está cenital Y el diálogo permite conexiones
+	local permitirConexiones = restricciones.permitirConexiones
+	if ocultarTechosConfig and permitirConexiones then
+		activarClickAereo()
+	end
 
 	DialogoGUISystem:OnClose(function()
 		print("[ControladorDialogo] Diálogo cerrado:", dialogoID)
@@ -532,6 +655,9 @@ function iniciarDialogo(dialogoID, metadata)
 		if metadata.buttonHighlighter then
 			metadata.buttonHighlighter:restaurarTodo()
 		end
+
+		-- Desactivar click aéreo si estaba activo
+		desactivarClickAereo()
 
 		-- Restaurar movimiento
 		desbloquearMovimiento()
@@ -555,6 +681,7 @@ function iniciarDialogo(dialogoID, metadata)
 
 	if not exito then
 		-- Si falla, restaurar todo
+		desactivarClickAereo()
 		desbloquearMovimiento()
 		mostrarHUD()
 		dialogoActivo = false

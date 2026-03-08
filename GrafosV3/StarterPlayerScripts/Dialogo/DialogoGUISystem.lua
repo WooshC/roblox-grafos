@@ -105,8 +105,8 @@ function DialogoGUISystem:CrearGUIBasica(playerGui)
 	-- DialogueBox
 	local dialogueBox = Instance.new("Frame")
 	dialogueBox.Name = "DialogueBox"
-	dialogueBox.Size = UDim2.new(0.6, 0, 0.25, 0)
-	dialogueBox.Position = UDim2.new(0.2, 0, 0.7, 0)
+	dialogueBox.Size = UDim2.new(0.65, 0, 0.3, 0)
+	dialogueBox.Position = UDim2.new(0.175, 0, 0.68, 0)
 	dialogueBox.BackgroundColor3 = Color3.fromRGB(17, 28, 46)
 	dialogueBox.BorderSizePixel = 0
 	dialogueBox.Parent = canvas
@@ -133,7 +133,7 @@ function DialogoGUISystem:CrearGUIBasica(playerGui)
 	speakerName.BackgroundTransparency = 1
 	speakerName.Text = "Personaje"
 	speakerName.TextColor3 = Color3.fromRGB(255, 255, 255)
-	speakerName.TextSize = 14
+	speakerName.TextSize = 17
 	speakerName.Font = Enum.Font.GothamBold
 	speakerName.Parent = speakerTag
 
@@ -151,7 +151,7 @@ function DialogoGUISystem:CrearGUIBasica(playerGui)
 	dialogueText.BackgroundTransparency = 1
 	dialogueText.Text = ""
 	dialogueText.TextColor3 = Color3.fromRGB(221, 233, 245)
-	dialogueText.TextSize = 16
+	dialogueText.TextSize = 22
 	dialogueText.Font = Enum.Font.Gotham
 	dialogueText.TextWrapped = true
 	dialogueText.TextXAlignment = Enum.TextXAlignment.Left
@@ -173,7 +173,7 @@ function DialogoGUISystem:CrearGUIBasica(playerGui)
 	nextBtn.BackgroundColor3 = Color3.fromRGB(0, 207, 255)
 	nextBtn.Text = "Continuar"
 	nextBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	nextBtn.TextSize = 12
+	nextBtn.TextSize = 14
 	nextBtn.Font = Enum.Font.GothamBold
 	nextBtn.Parent = controls
 
@@ -184,7 +184,7 @@ function DialogoGUISystem:CrearGUIBasica(playerGui)
 	skipBtn.BackgroundColor3 = Color3.fromRGB(244, 63, 94)
 	skipBtn.Text = "Saltar"
 	skipBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	skipBtn.TextSize = 12
+	skipBtn.TextSize = 14
 	skipBtn.Font = Enum.Font.GothamBold
 	skipBtn.Parent = controls
 
@@ -233,7 +233,7 @@ function DialogoGUISystem:CrearGUIBasica(playerGui)
 	questionText.BackgroundTransparency = 1
 	questionText.Text = ""
 	questionText.TextColor3 = Color3.fromRGB(221, 233, 245)
-	questionText.TextSize = 18
+	questionText.TextSize = 20
 	questionText.Font = Enum.Font.GothamBold
 	questionText.TextWrapped = true
 	questionText.Parent = questionArea
