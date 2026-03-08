@@ -217,7 +217,9 @@ end
 -- @param nombreA    string — nombre del primer nodo
 -- @param nombreB    string — nombre del segundo nodo
 -- @param colorTipo  string — "SELECCIONADO" | "ADYACENTE" | "EXITO"
--- @param opciones   table  — { sinParticulas = true } para omitir la animación de partículas
+-- @param opciones   table  — { sinParticulas = true, dirigido = true }
+--   sinParticulas: omite la animación de partículas
+--   dirigido: partículas solo A→B (dígrafo); por defecto A↔B (no dirigido)
 function EfectosDialogo.mostrarArista(nombreA, nombreB, colorTipo, opciones)
 	local clave = clavePar(nombreA, nombreB)
 
@@ -330,7 +332,7 @@ function EfectosDialogo.mostrarArista(nombreA, nombreB, colorTipo, opciones)
 	label.Size                   = UDim2.new(1, -8, 1, -4)
 	label.Position               = UDim2.new(0, 4, 0, 2)
 	label.BackgroundTransparency = 1
-	label.Text                   = "⬇ ARISTA"
+	label.Text                   = (opciones and opciones.dirigido) and "→ ARISTA" or "⬇ ARISTA"
 	label.TextColor3             = color
 	label.Font                   = Enum.Font.GothamBold
 	label.TextSize               = 15
@@ -376,13 +378,16 @@ function EfectosDialogo.mostrarArista(nombreA, nombreB, colorTipo, opciones)
 			end
 		end)
 
-		_aristasFalsas[clave].loopBA = task.spawn(function()
-			task.wait(0.6)
-			while _aristasFalsas[clave] do
-				_lanzarParticula(posB, posA, Color3.fromRGB(255, 50, 100), duracionViaje, particulas)
-				task.wait(1.2)
-			end
-		end)
+		-- En grafos no dirigidos las partículas también van de B a A
+		if not (opciones and opciones.dirigido) then
+			_aristasFalsas[clave].loopBA = task.spawn(function()
+				task.wait(0.6)
+				while _aristasFalsas[clave] do
+					_lanzarParticula(posB, posA, Color3.fromRGB(255, 50, 100), duracionViaje, particulas)
+					task.wait(1.2)
+				end
+			end)
+		end
 	end
 end
 

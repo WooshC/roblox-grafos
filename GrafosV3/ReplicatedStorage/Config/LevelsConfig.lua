@@ -51,10 +51,10 @@ LevelsConfig[0] = {
 		["NodoC_z2"]      = {"NodoCentro_z2"},
 		["NodoD_z2"]      = {"NodoCentro_z2"},
 
-		-- Zona 3: Grafos Dirigidos — cadena dirigida A → B → C
+		-- Zona 3: Grafos Dirigidos — cadena dirigida A → B → C --> A
 		["NodoA_z3"] = {"NodoB_z3"},
 		["NodoB_z3"] = {"NodoC_z3"},
-		["NodoC_z3"] = {},
+		["NodoC_z3"] = {"NodoA_z3"},
 
 		-- Zona 4: Conectividad — cuatro nodos en cuadrado
 		["NodoA_z4"] = {"NodoB_z4", "NodoC_z4"},

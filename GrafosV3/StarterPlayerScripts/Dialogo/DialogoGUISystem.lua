@@ -308,26 +308,40 @@ function DialogoGUISystem:_configurarTextos()
 		end
 	end
 
-	-- ── Pregunta del panel de opciones ───────────────────────────
-	if g.questionText then
-		g.questionText.TextScaled  = true
-		g.questionText.TextWrapped = true
-		_addSizeConstraint(g.questionText, 14, 40)
-		-- Asegurar que QuestionArea sea suficientemente alta
-		local qa = g.questionText.Parent
-		if qa and qa:IsA("Frame") then
-			qa.Size = UDim2.new(1, -30, 0, 70)
-		end
-	end
-
-	-- ── ChoicesPanel: asegurarse que el panel sea suficientemente alto
+	-- ── Panel de opciones: layout en cascada ─────────────────────
 	if g.choicesPanel then
 		g.choicesPanel.Size     = UDim2.new(0.65, 0, 0.48, 0)
 		g.choicesPanel.Position = UDim2.new(0.175, 0, 0.48, 0)
-		-- ChoicesList: llenar el espacio restante
+
+		-- SpeakerTag: altura fija para poder calcular el resto
+		local TAG_H  = 32
+		local QA_H   = 100   -- altura de QuestionArea
+		local GAP    = 8     -- espacio entre QuestionArea y ChoicesList
+		local PAD    = 15    -- margen lateral
+
+		local speakerTag = g.choicesPanel:FindFirstChild("SpeakerTag")
+		if speakerTag then
+			speakerTag.Size     = UDim2.new(1, 0, 0, TAG_H)
+			speakerTag.Position = UDim2.new(0, 0, 0, 0)
+		end
+
+		-- QuestionArea: justo debajo del SpeakerTag
+		if g.questionText then
+			g.questionText.TextScaled  = true
+			g.questionText.TextWrapped = true
+			_addSizeConstraint(g.questionText, 14, 40)
+			local qa = g.questionText.Parent
+			if qa and qa:IsA("Frame") then
+				qa.Position = UDim2.new(0, PAD, 0, TAG_H + 4)
+				qa.Size     = UDim2.new(1, -PAD * 2, 0, QA_H)
+			end
+		end
+
+		-- ChoicesList: empieza después de SpeakerTag + QuestionArea + GAP
+		local listTop = TAG_H + 4 + QA_H + GAP   -- = 144
 		if g.choicesList then
-			g.choicesList.Size     = UDim2.new(1, -30, 1, -88)
-			g.choicesList.Position = UDim2.new(0, 15, 0, 80)
+			g.choicesList.Position = UDim2.new(0, PAD, 0, listTop)
+			g.choicesList.Size     = UDim2.new(1, -PAD * 2, 1, -(listTop + 10))
 		end
 	end
 

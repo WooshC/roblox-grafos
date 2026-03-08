@@ -19,6 +19,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local EfectosNodo       = require(ReplicatedStorage.Efectos.EfectosNodo)
 local EstadoConexiones  = require(script.Parent.EstadoConexiones)
+local LevelsConfig      = require(ReplicatedStorage:WaitForChild("Config"):WaitForChild("LevelsConfig"))
 
 local Minimap = {}
 
@@ -273,6 +274,17 @@ local function idConexion(nomA, nomB)
 	return nomA < nomB and (nomA .. "_" .. nomB) or (nomB .. "_" .. nomA)
 end
 
+-- Devuelve true si la conexión nomA→nomB es de un solo sentido según Adyacencias
+local function esDirigido(nomA, nomB)
+	local cfg = LevelsConfig[nivelID or 0]
+	if not cfg or not cfg.Adyacencias then return false end
+	local adjA = cfg.Adyacencias[nomA]
+	local adjB = cfg.Adyacencias[nomB]
+	local aContieneB = adjA and table.find(adjA, nomB)
+	local bContieneA = adjB and table.find(adjB, nomA)
+	return aContieneB and not bContieneA
+end
+
 local function iniciarParticulas(id, nomA, nomB)
 	if partActivas[id] then return end
 
@@ -282,10 +294,11 @@ local function iniciarParticulas(id, nomA, nomB)
 
 	local posA = dA.posRef.Position
 	local posB = dB.posRef.Position
+	local dirigido = esDirigido(nomA, nomB)
 
 	partActivas[id] = true
 
-	-- A → B
+	-- A → B (siempre)
 	task.spawn(function()
 		while partActivas[id] do
 			spawnParticula(posA, posB, CFG_PART.colorAB)
@@ -293,14 +306,16 @@ local function iniciarParticulas(id, nomA, nomB)
 		end
 	end)
 
-	-- B → A (desfasado medio ciclo)
-	task.spawn(function()
-		task.wait(CFG_PART.frecuencia / 2)
-		while partActivas[id] do
-			spawnParticula(posB, posA, CFG_PART.colorBA)
-			task.wait(CFG_PART.frecuencia)
-		end
-	end)
+	-- B → A solo si la conexión no es dirigida
+	if not dirigido then
+		task.spawn(function()
+			task.wait(CFG_PART.frecuencia / 2)
+			while partActivas[id] do
+				spawnParticula(posB, posA, CFG_PART.colorBA)
+				task.wait(CFG_PART.frecuencia)
+			end
+		end)
+	end
 end
 
 local function detenerParticulas(id)

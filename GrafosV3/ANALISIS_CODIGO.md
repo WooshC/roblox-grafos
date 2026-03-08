@@ -189,3 +189,4 @@ No son configurables por nivel.
 4. **Agregar nil-checks** tras cada `WaitForChild` en `EventosHUD.lua` y `Boot.server.lua`
 5. **Invertir orden** registro/notificación en `ConectarCables.lua` (líneas 261 vs 269)
 6. **Llenar LevelsConfig** para niveles 1–4 (Adyacencias + Zonas)
+z

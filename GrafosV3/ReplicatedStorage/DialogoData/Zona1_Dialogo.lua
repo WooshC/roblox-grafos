@@ -155,7 +155,7 @@ local DIALOGOS = {
 			{
 				Id        = "instruccion_origen",
 				Numero    = 6,
-				Actor     = "Sistema",
+				Actor     = "Carlos",
 				Expresion = "Normal",
 				Texto     = "Selecciona el nodo de origen (" .. alias1 .. ").",
 				Evento = function()
@@ -218,7 +218,7 @@ local DIALOGOS = {
 			VelocidadTypewriter = 0.03,
 			PuedeOmitir         = true,
 			OcultarHUD          = true,
-			UsarTTS             = false,
+			UsarTTS             = true,
 		},
 
 		Configuracion = {
@@ -228,6 +228,7 @@ local DIALOGOS = {
 			apuntarCamara      = true,
 			permitirConexiones = true,   -- necesario para las líneas interactivas 6 y 7
 			ocultarTechos      = true,
+			cerrarMapa         = true,
 		},
 	},
 }
