@@ -33,11 +33,11 @@ end
 function EstadoConexiones.inicializar(configNivel)
 	conexionesActivas = {}
 	nombresNodos = {}
-	
+
 	if configNivel and configNivel.NombresNodos then
 		nombresNodos = configNivel.NombresNodos
 	end
-	
+
 	-- Conectar a eventos del servidor
 	local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
 	if notificarEvento then
@@ -49,7 +49,7 @@ function EstadoConexiones.inicializar(configNivel)
 			end
 		end)
 	end
-	
+
 	-- Nuevo evento específico para actualización de estado de conexiones
 	local actualizarEstadoEvento = Remotos:FindFirstChild("ActualizarEstadoConexiones")
 	if actualizarEstadoEvento then
@@ -74,7 +74,7 @@ function EstadoConexiones.registrarConexion(nombreA, nombreB)
 	if typeof(nombreB) == "Instance" then
 		nombreB = nombreB.Name
 	end
-	
+
 	local clave = generarClave(nombreA, nombreB)
 	conexionesActivas[clave] = true
 end
@@ -86,7 +86,7 @@ function EstadoConexiones.eliminarConexion(nombreA, nombreB)
 	if typeof(nombreB) == "Instance" then
 		nombreB = nombreB.Name
 	end
-	
+
 	local clave = generarClave(nombreA, nombreB)
 	conexionesActivas[clave] = nil
 end

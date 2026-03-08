@@ -116,8 +116,7 @@ function GestorColisiones:ocultarTecho()
 		if parte and parte.Parent then
 			parte.Transparency = self.config.transparenciaOculta
 			parte.CastShadow = false
-			parte.CanQuery = false
-			-- No cambiamos CanCollide para evitar que el jugador caiga al vacio
+			parte.CanQuery   = false  -- suficiente para pasar clics/raycasts; CanCollide no se toca
 			conteo = conteo + 1
 		end
 	end

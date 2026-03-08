@@ -21,18 +21,16 @@ local LevelsConfig = require(RS:WaitForChild("Config"):WaitForChild("LevelsConfi
 
 -- Referencia al ModuloMapa (se obtiene dinámicamente para evitar dependencia circular)
 local function obtenerModuloMapa()
-	local StarterPlayerScripts = game:GetService("StarterPlayer").StarterPlayerScripts
-	local HUD = StarterPlayerScripts:FindFirstChild("HUD")
-	if HUD then
-		local ModulosHUD = HUD:FindFirstChild("ModulosHUD")
-		if ModulosHUD then
-			local exito, modulo = pcall(function()
-				return require(ModulosHUD:FindFirstChild("ModuloMapa"))
-			end)
-			if exito then return modulo end
-		end
-	end
-	return nil
+	local playerScripts = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerScripts")
+	if not playerScripts then return nil end
+	local HUD = playerScripts:FindFirstChild("HUD")
+	if not HUD then return nil end
+	local ModulosHUD = HUD:FindFirstChild("ModulosHUD")
+	if not ModulosHUD then return nil end
+	local exito, modulo = pcall(function()
+		return require(ModulosHUD:FindFirstChild("ModuloMapa"))
+	end)
+	return exito and modulo or nil
 end
 
 -- ═══════════════════════════════════════════════════════════════════════════════
@@ -246,20 +244,22 @@ end
 
 ---Restaura el movimiento del jugador
 local function desbloquearMovimiento()
-	local personaje = jugador.Character
-	if not personaje then return end
-
-	local humanoid = personaje:FindFirstChildOfClass("Humanoid")
-	if humanoid then
-		humanoid.WalkSpeed = estadoJugador.walkSpeedOriginal or 16
-		humanoid.JumpPower = estadoJugador.jumpPowerOriginal or 50
-		humanoid.JumpHeight = estadoJugador.jumpHeightOriginal or 7.2
+	-- Solo restaurar si bloquearMovimiento() fue realmente llamado
+	if estadoJugador.humanoid then
+		local personaje = jugador.Character
+		if personaje then
+			local humanoid = personaje:FindFirstChildOfClass("Humanoid")
+			if humanoid then
+				humanoid.WalkSpeed = estadoJugador.walkSpeedOriginal or 16
+				humanoid.JumpPower = estadoJugador.jumpPowerOriginal or 50
+				humanoid.JumpHeight = estadoJugador.jumpHeightOriginal or 7.2
+			end
+		end
+		ServicioCamara.restaurar(0.5)
+		print("[ControladorDialogo] Movimiento restaurado")
 	end
 
-	-- Restaurar cámara usando ServicioCamara
-	ServicioCamara.restaurar(0.5)
-
-	-- Limpiar estado
+	-- Limpiar estado siempre
 	estadoJugador = {
 		humanoid = nil,
 		camaraOriginal = nil,
@@ -268,8 +268,6 @@ local function desbloquearMovimiento()
 		jumpPowerOriginal = nil,
 		jumpHeightOriginal = nil
 	}
-
-	print("[ControladorDialogo] Movimiento restaurado")
 end
 
 -- ═══════════════════════════════════════════════════════════════════════════════
@@ -444,12 +442,16 @@ function iniciarDialogo(dialogoID, metadata)
 
 	-- ═══════════════════════════════════════════════════════════════════════════════
 	-- PASO 0: CERRAR MAPA SI ESTÁ ABIERTO (evita bugs de cámara)
+	-- Se omite si el diálogo declara cerrarMapa = false (p.ej. feedback en modo mapa)
 	-- ═══════════════════════════════════════════════════════════════════════════════
-	local ModuloMapa = obtenerModuloMapa()
-	if ModuloMapa and ModuloMapa.estaAbierto and ModuloMapa.estaAbierto() then
-		print("[ControladorDialogo] Cerrando mapa antes de iniciar diálogo...")
-		ModuloMapa.cerrar()
-		task.wait(0.1) -- Pequeña espera para que termine el cierre
+	local cerrarMapaAlIniciar = not (metadata.config and metadata.config.cerrarMapa == false)
+	if cerrarMapaAlIniciar then
+		local ModuloMapa = obtenerModuloMapa()
+		if ModuloMapa and ModuloMapa.estaAbierto and ModuloMapa.estaAbierto() then
+			print("[ControladorDialogo] Cerrando mapa antes de iniciar diálogo...")
+			ModuloMapa.cerrar()
+			task.wait(0.1)
+		end
 	end
 
 	-- ═══════════════════════════════════════════════════════════════════════════════
@@ -651,8 +653,6 @@ function ControladorDialogo.restaurarCamara(duracion)
 end
 
 _G.ControladorDialogo = ControladorDialogo
-
-local dialogosZonaVistos = {}
 
 local dialogosZonaVistos = {}
 

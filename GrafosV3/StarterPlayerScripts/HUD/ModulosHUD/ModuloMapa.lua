@@ -91,7 +91,7 @@ function ModuloMapa.inicializar(hudRef)
 				ModuloMapa.cerrar()
 			end)
 		end
-		
+
 		-- Escuchar cambios de conexiones para actualizar colores en tiempo real
 		local notificarSeleccion = eventosFolder.Remotos:FindFirstChild("NotificarSeleccionNodo")
 		if notificarSeleccion then
@@ -148,24 +148,24 @@ function ModuloMapa.configurarNivel(nivelModel, id, config)
 	-- Inicializar efectos del mapa y estado de conexiones
 	EstadoConexiones.inicializar(config)
 	EfectosMapa.inicializar(config, EstadoConexiones)
-	
+
 	-- Inicializar efectos de zonas (billboards)
 	EfectosZonas.inicializar(nivelModel, config)
-	
+
 	-- Desconectar listener anterior si existe
 	if conexionZona then
 		conexionZona:Disconnect()
 		conexionZona = nil
 	end
-	
+
 	-- Escuchar cambios de zona para ocultar/mostrar billboards
 	conexionZona = jugador:GetAttributeChangedSignal("ZonaActual"):Connect(function()
 		local nuevaZona = jugador:GetAttribute("ZonaActual")
 		print("[ModuloMapa] Zona cambiada a:", nuevaZona)
-		
+
 		-- Actualizar zona en EfectosZonas
 		EfectosZonas.establecerZonaActual(nuevaZona)
-		
+
 		-- Si el mapa está abierto, actualizar visibilidad de billboards
 		if mapaAbierto then
 			EfectosZonas.actualizarVisibilidad()
@@ -215,15 +215,15 @@ end
 
 function _actualizarHighlights()
 	print("[ModuloMapa] Actualizando highlights...")
-	
+
 	-- Usar el módulo de efectos del mapa
 	local adyacentes = {}
 	if nodoSeleccionadoMapa and configNivel and configNivel.Adyacencias then
 		adyacentes = configNivel.Adyacencias[nodoSeleccionadoMapa.Name] or {}
 	end
-	
+
 	print("[ModuloMapa] Nivel:", nivelActual and nivelActual.Name or "NIL", "Nodo seleccionado:", nodoSeleccionadoMapa and nodoSeleccionadoMapa.Name or "NINGUNO")
-	
+
 	EfectosMapa.actualizarTodos(nivelActual, nodoSeleccionadoMapa, adyacentes)
 end
 
@@ -432,7 +432,7 @@ function _onNodoClickeado(nodo, selectorPart)
 		-- Limpiar selección y actualizar después de un momento
 		nodoSeleccionadoMapa = nil
 		_actualizarHighlights() -- Actualizar inmediatamente (selección limpia)
-		
+
 		-- Actualizar de nuevo después de que el servidor procese la conexión
 		task.delay(0.2, function()
 			if mapaAbierto then
@@ -496,10 +496,10 @@ function ModuloMapa.abrir()
 
 	-- Iniciar escucha de input
 	_iniciarEscuchaInput()
-	
+
 	-- Mostrar efectos de todos los nodos inmediatamente
 	_actualizarHighlights()
-	
+
 	-- Mostrar billboards de zonas (la zona actual se oculta automáticamente)
 	EfectosZonas.mostrarTodos()
 
@@ -533,7 +533,7 @@ function ModuloMapa.cerrar()
 
 	-- Restaurar techos usando GestorColisiones
 	GestorColisiones:restaurar()
-	
+
 	-- Ocultar billboards de zonas
 	EfectosZonas.ocultarTodos()
 
@@ -588,7 +588,7 @@ function ModuloMapa.limpiar()
 		conexionVictoria:Disconnect()
 		conexionVictoria = nil
 	end
-	
+
 	-- Desconectar listener de zona
 	if conexionZona then
 		conexionZona:Disconnect()
@@ -608,7 +608,7 @@ function ModuloMapa.limpiar()
 	configNivel = nil
 	nombresNodos = {}
 	selectores = {}
-	
+
 	-- Limpiar estado de cámara si quedó alguno
 	if ServicioCamara.tieneEstadoGuardado() then
 		ServicioCamara.restaurarInmediato()
