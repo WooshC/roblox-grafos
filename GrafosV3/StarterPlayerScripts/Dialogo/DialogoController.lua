@@ -261,19 +261,32 @@ function DialogoController:ShowChoices(opciones)
 		self.gui.questionText.Text = linea.Texto
 	end
 
-	-- Limpiar opciones anteriores
+	-- Limpiar opciones anteriores (incluye layouts previos)
 	if self.gui.choicesList then
 		for _, child in pairs(self.gui.choicesList:GetChildren()) do
-			if child:IsA("Frame") or child:IsA("TextButton") then
-				if child.Name:match("^Choice_") then
-					child:Destroy()
-				end
-			end
+			child:Destroy()
 		end
 
-		-- Crear botones de opciones
+		local dosBotones = (#opciones == 2)
+
+		if dosBotones then
+			-- Layout en dos columnas (lado A izquierda, lado B derecha)
+			local grid = Instance.new("UIGridLayout")
+			grid.CellSize = UDim2.new(0.47, 0, 0, 80)
+			grid.CellPadding = UDim2.new(0.06, 0, 0, 8)
+			grid.FillDirection = Enum.FillDirection.Horizontal
+			grid.SortOrder = Enum.SortOrder.LayoutOrder
+			grid.Parent = self.gui.choicesList
+		else
+			-- Lista vertical para 3+ opciones
+			local list = Instance.new("UIListLayout")
+			list.Padding = UDim.new(0, 8)
+			list.SortOrder = Enum.SortOrder.LayoutOrder
+			list.Parent = self.gui.choicesList
+		end
+
 		for i, opcion in ipairs(opciones) do
-			self:CreateChoiceButton(i, opcion)
+			self:CreateChoiceButton(i, opcion, dosBotones)
 		end
 	end
 end
@@ -289,49 +302,76 @@ function DialogoController:ShowNormalControls()
 end
 
 ---Crea un botón de opción dinámicamente
-function DialogoController:CreateChoiceButton(index, opcion)
+-- @param dosBotones boolean — true cuando hay exactamente 2 opciones (grid horizontal)
+function DialogoController:CreateChoiceButton(index, opcion, dosBotones)
 	if not self.gui.choicesList then return end
+
+	local color = opcion.Color or Color3.fromRGB(0, 207, 255)
+	-- Letra de opción: A / B / C / D...
+	local letra = string.char(64 + index)  -- 65='A'
 
 	local choiceBtn = Instance.new("Frame")
 	choiceBtn.Name = "Choice_" .. index
-	choiceBtn.Size = UDim2.new(1, -8, 0, 40)
-	choiceBtn.BackgroundColor3 = Color3.fromRGB(17, 28, 46)
-	choiceBtn.BorderSizePixel = 1
-	choiceBtn.BorderColor3 = opcion.Color or Color3.fromRGB(0, 207, 255)
+	choiceBtn.LayoutOrder = index
+	-- tamaño solo usado en modo lista (el UIGridLayout controla en modo 2 columnas)
+	choiceBtn.Size = dosBotones and UDim2.new(1, 0, 1, 0) or UDim2.new(1, 0, 0, 52)
+	choiceBtn.BackgroundColor3 = Color3.fromRGB(22, 36, 58)
+	choiceBtn.BorderSizePixel = 0
 	choiceBtn.Parent = self.gui.choicesList
 
-	-- UICorner
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = color
+	stroke.Thickness = 2
+	stroke.Parent = choiceBtn
+
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 8)
+	corner.CornerRadius = UDim.new(0, 10)
 	corner.Parent = choiceBtn
 
-	-- Índice
-	local indexLabel = Instance.new("TextLabel")
-	indexLabel.Name = "Index"
-	indexLabel.Text = tostring(index)
-	indexLabel.Size = UDim2.new(0, 20, 0, 14)
-	indexLabel.Position = UDim2.new(0, 8, 0.5, -7)
-	indexLabel.BackgroundTransparency = 1
-	indexLabel.TextColor3 = opcion.Color or Color3.fromRGB(0, 207, 255)
-	indexLabel.TextSize = 12
-	indexLabel.Font = Enum.Font.GothamBold
-	indexLabel.Parent = choiceBtn
+	local pad = Instance.new("UIPadding")
+	pad.PaddingLeft   = UDim.new(0, 10)
+	pad.PaddingRight  = UDim.new(0, 10)
+	pad.PaddingTop    = UDim.new(0, 6)
+	pad.PaddingBottom = UDim.new(0, 6)
+	pad.Parent = choiceBtn
 
-	-- Texto
+	-- Letra indicadora (A / B / C…) con burbuja de color
+	local badge = Instance.new("TextLabel")
+	badge.Name = "Badge"
+	badge.Text = letra
+	badge.Size = UDim2.new(0, 26, 0, 26)
+	badge.Position = UDim2.new(0, 0, 0.5, -13)
+	badge.BackgroundColor3 = color
+	badge.TextColor3 = Color3.fromRGB(17, 28, 46)
+	badge.Font = Enum.Font.GothamBold
+	badge.TextScaled = true
+	badge.Parent = choiceBtn
+
+	local badgeCorner = Instance.new("UICorner")
+	badgeCorner.CornerRadius = UDim.new(0.5, 0)
+	badgeCorner.Parent = badge
+
+	-- Texto de la opción — TextScaled para llenar el espacio disponible
 	local textLabel = Instance.new("TextLabel")
 	textLabel.Name = "Text"
 	textLabel.Text = opcion.Texto or "Opción"
-	textLabel.Size = UDim2.new(0.6, -40, 0, 14)
-	textLabel.Position = UDim2.new(0, 38, 0.5, -7)
+	textLabel.Size = UDim2.new(1, -34, 1, 0)
+	textLabel.Position = UDim2.new(0, 34, 0, 0)
 	textLabel.BackgroundTransparency = 1
 	textLabel.TextColor3 = Color3.fromRGB(221, 233, 245)
-	textLabel.TextSize = 15
 	textLabel.Font = Enum.Font.Gotham
 	textLabel.TextWrapped = true
+	textLabel.TextScaled = true
+	textLabel.TextXAlignment = Enum.TextXAlignment.Left
 	textLabel.Parent = choiceBtn
 
-	-- Pista
-	if opcion.Pista then
+	local txtConstraint = Instance.new("UITextSizeConstraint")
+	txtConstraint.MinTextSize = 12
+	txtConstraint.MaxTextSize = 20
+	txtConstraint.Parent = textLabel
+
+	-- Pista (solo en modo lista; en grid no hay espacio)
+	if opcion.Pista and not dosBotones then
 		local hintLabel = Instance.new("TextLabel")
 		hintLabel.Name = "Hint"
 		hintLabel.Text = opcion.Pista
@@ -339,22 +379,10 @@ function DialogoController:CreateChoiceButton(index, opcion)
 		hintLabel.Position = UDim2.new(1, -88, 0.5, -7)
 		hintLabel.BackgroundTransparency = 1
 		hintLabel.TextColor3 = Color3.fromRGB(90, 122, 158)
-		hintLabel.TextSize = 8
+		hintLabel.TextScaled = true
 		hintLabel.Font = Enum.Font.Gotham
 		hintLabel.Parent = choiceBtn
 	end
-
-	-- Flecha
-	local arrowLabel = Instance.new("TextLabel")
-	arrowLabel.Name = "Arrow"
-	arrowLabel.Text = ">"
-	arrowLabel.Size = UDim2.new(0, 12, 0, 14)
-	arrowLabel.Position = UDim2.new(1, -16, 0.5, -7)
-	arrowLabel.BackgroundTransparency = 1
-	arrowLabel.TextColor3 = opcion.Color or Color3.fromRGB(0, 207, 255)
-	arrowLabel.TextSize = 12
-	arrowLabel.Font = Enum.Font.Gotham
-	arrowLabel.Parent = choiceBtn
 
 	-- Botón interactivo
 	local button = Instance.new("TextButton")
@@ -371,11 +399,11 @@ function DialogoController:CreateChoiceButton(index, opcion)
 
 	-- Efecto hover
 	button.MouseEnter:Connect(function()
-		choiceBtn.BackgroundColor3 = Color3.fromRGB(25, 40, 60)
+		choiceBtn.BackgroundColor3 = Color3.fromRGB(30, 50, 80)
 	end)
 
 	button.MouseLeave:Connect(function()
-		choiceBtn.BackgroundColor3 = Color3.fromRGB(17, 28, 46)
+		choiceBtn.BackgroundColor3 = Color3.fromRGB(22, 36, 58)
 	end)
 end
 

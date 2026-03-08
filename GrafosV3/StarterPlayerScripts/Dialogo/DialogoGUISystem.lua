@@ -66,6 +66,9 @@ function DialogoGUISystem:Init()
 	-- Obtener referencias a elementos GUI
 	self.gui = self:ObtenerReferenciasGUI(screenGui)
 
+	-- Aplicar TextScaled y ajustes de layout sobre el GUI existente en Studio
+	self:_configurarTextos()
+
 	-- Inicializar módulos
 	self.controller = DialogoController.new(self.gui, self)
 	self.renderer = DialogoRenderer.new(self.gui)
@@ -137,12 +140,13 @@ function DialogoGUISystem:CrearGUIBasica(playerGui)
 	speakerName.Font = Enum.Font.GothamBold
 	speakerName.Parent = speakerTag
 
-	-- DialogueText
+	-- DialogueText — ocupa todo el espacio entre el tag del hablante y los controles
 	local textArea = Instance.new("Frame")
 	textArea.Name = "TextArea"
-	textArea.Size = UDim2.new(1, -30, 0.6, 0)
-	textArea.Position = UDim2.new(0, 15, 0, 25)
+	textArea.Size = UDim2.new(1, -30, 1, -72)   -- llena el cuadro dejando margen para botones
+	textArea.Position = UDim2.new(0, 15, 0, 22)
 	textArea.BackgroundTransparency = 1
+	textArea.ClipsDescendants = true
 	textArea.Parent = dialogueBox
 
 	local dialogueText = Instance.new("TextLabel")
@@ -151,12 +155,18 @@ function DialogoGUISystem:CrearGUIBasica(playerGui)
 	dialogueText.BackgroundTransparency = 1
 	dialogueText.Text = ""
 	dialogueText.TextColor3 = Color3.fromRGB(221, 233, 245)
-	dialogueText.TextSize = 22
 	dialogueText.Font = Enum.Font.Gotham
 	dialogueText.TextWrapped = true
+	dialogueText.TextScaled = true    -- auto-encoge al llenarse el cuadro
 	dialogueText.TextXAlignment = Enum.TextXAlignment.Left
 	dialogueText.TextYAlignment = Enum.TextYAlignment.Top
 	dialogueText.Parent = textArea
+
+	-- Límite de escala mínimo de texto (no bajar de 14px equivalente)
+	local sizeConstraint = Instance.new("UITextSizeConstraint")
+	sizeConstraint.MinTextSize = 14
+	sizeConstraint.MaxTextSize = 26
+	sizeConstraint.Parent = dialogueText
 
 	-- Controls
 	local controls = Instance.new("Frame")
@@ -214,15 +224,19 @@ function DialogoGUISystem:CrearGUIBasica(playerGui)
 	-- ChoicesPanel
 	local choicesPanel = Instance.new("Frame")
 	choicesPanel.Name = "ChoicesPanel"
-	choicesPanel.Size = UDim2.new(0.6, 0, 0.4, 0)
-	choicesPanel.Position = UDim2.new(0.2, 0, 0.55, 0)
+	choicesPanel.Size = UDim2.new(0.65, 0, 0.45, 0)
+	choicesPanel.Position = UDim2.new(0.175, 0, 0.5, 0)
 	choicesPanel.BackgroundColor3 = Color3.fromRGB(17, 28, 46)
 	choicesPanel.Visible = false
 	choicesPanel.Parent = canvas
 
+	local cpCorner = Instance.new("UICorner")
+	cpCorner.CornerRadius = UDim.new(0, 12)
+	cpCorner.Parent = choicesPanel
+
 	local questionArea = Instance.new("Frame")
 	questionArea.Name = "QuestionArea"
-	questionArea.Size = UDim2.new(1, -30, 0, 50)
+	questionArea.Size = UDim2.new(1, -30, 0, 60)
 	questionArea.Position = UDim2.new(0, 15, 0, 10)
 	questionArea.BackgroundTransparency = 1
 	questionArea.Parent = choicesPanel
@@ -233,23 +247,91 @@ function DialogoGUISystem:CrearGUIBasica(playerGui)
 	questionText.BackgroundTransparency = 1
 	questionText.Text = ""
 	questionText.TextColor3 = Color3.fromRGB(221, 233, 245)
-	questionText.TextSize = 20
 	questionText.Font = Enum.Font.GothamBold
 	questionText.TextWrapped = true
+	questionText.TextScaled = true
 	questionText.Parent = questionArea
 
+	local qtConstraint = Instance.new("UITextSizeConstraint")
+	qtConstraint.MinTextSize = 14
+	qtConstraint.MaxTextSize = 24
+	qtConstraint.Parent = questionText
+
+	-- ChoicesList: el layout se recrea dinámicamente en ShowChoices según número de opciones
 	local choicesList = Instance.new("Frame")
 	choicesList.Name = "ChoicesList"
-	choicesList.Size = UDim2.new(1, -30, 0.7, 0)
-	choicesList.Position = UDim2.new(0, 15, 0, 70)
+	choicesList.Size = UDim2.new(1, -30, 1, -80)
+	choicesList.Position = UDim2.new(0, 15, 0, 75)
 	choicesList.BackgroundTransparency = 1
 	choicesList.Parent = choicesPanel
-
-	local listLayout = Instance.new("UIListLayout")
-	listLayout.Padding = UDim.new(0, 8)
-	listLayout.Parent = choicesList
+	-- (el UIListLayout/UIGridLayout se crea en ShowChoices)
 
 	return screenGui
+end
+
+-- ════════════════════════════════════════════════════════════════
+-- CONFIGURACIÓN DE TEXTOS SOBRE EL GUI EXISTENTE
+-- ════════════════════════════════════════════════════════════════
+
+local function _addSizeConstraint(label, minPx, maxPx)
+	-- Eliminar constraint previa si existe
+	local prev = label:FindFirstChildOfClass("UITextSizeConstraint")
+	if prev then prev:Destroy() end
+	local c = Instance.new("UITextSizeConstraint")
+	c.MinTextSize = minPx
+	c.MaxTextSize = maxPx
+	c.Parent = label
+end
+
+---Ajusta TextScaled + UITextSizeConstraint en los labels del GUI real (Studio)
+function DialogoGUISystem:_configurarTextos()
+	local g = self.gui
+
+	-- ── Texto principal del diálogo ──────────────────────────────
+	if g.dialogueText then
+		g.dialogueText.TextScaled  = true
+		g.dialogueText.TextWrapped = true
+		g.dialogueText.TextXAlignment = Enum.TextXAlignment.Left
+		g.dialogueText.TextYAlignment = Enum.TextYAlignment.Top
+		_addSizeConstraint(g.dialogueText, 14, 56)
+	end
+
+	-- TextArea: estirar para ocupar todo el espacio entre SpeakerTag y Controls
+	-- Dejamos 75px en la parte inferior para los botones de control
+	local dialogueBox = g.dialogueBox
+	if dialogueBox then
+		local textArea = dialogueBox:FindFirstChild("TextArea")
+		if textArea then
+			textArea.Size     = UDim2.new(1, -30, 1, -80)
+			textArea.Position = UDim2.new(0, 15, 0, 22)
+			textArea.ClipsDescendants = true
+		end
+	end
+
+	-- ── Pregunta del panel de opciones ───────────────────────────
+	if g.questionText then
+		g.questionText.TextScaled  = true
+		g.questionText.TextWrapped = true
+		_addSizeConstraint(g.questionText, 14, 40)
+		-- Asegurar que QuestionArea sea suficientemente alta
+		local qa = g.questionText.Parent
+		if qa and qa:IsA("Frame") then
+			qa.Size = UDim2.new(1, -30, 0, 70)
+		end
+	end
+
+	-- ── ChoicesPanel: asegurarse que el panel sea suficientemente alto
+	if g.choicesPanel then
+		g.choicesPanel.Size     = UDim2.new(0.65, 0, 0.48, 0)
+		g.choicesPanel.Position = UDim2.new(0.175, 0, 0.48, 0)
+		-- ChoicesList: llenar el espacio restante
+		if g.choicesList then
+			g.choicesList.Size     = UDim2.new(1, -30, 1, -88)
+			g.choicesList.Position = UDim2.new(0, 15, 0, 80)
+		end
+	end
+
+	print("[DialogoGUISystem] ✓ Textos configurados con TextScaled")
 end
 
 ---Obtiene referencias a los elementos de la GUI
