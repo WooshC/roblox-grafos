@@ -4,8 +4,11 @@
 
 local ValidadorConexiones = {}
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local GrafoHelpers = require(ReplicatedStorage:WaitForChild("Compartido"):WaitForChild("GrafoHelpers"))
+
 -- Estado interno
-local conexiones = {} -- { ["NodoA_NodoB"] = { nodoA = Instance, nodoB = Instance, cable = Instance } }
+local conexiones = {} -- { ["NodoA|NodoB"] = { nodoA = Instance, nodoB = Instance, cable = Instance } }
 local configNivel = nil
 local adyacencias = nil
 
@@ -18,18 +21,13 @@ local estadoCambiado = Instance.new("BindableEvent")
 -- UTILIDADES INTERNAS
 -- ================================================================
 
+-- Delegamos a GrafoHelpers para separador canónico "|"
 local function generarClave(nombreA, nombreB)
-	-- Clave consistente independiente del orden
-	if nombreA < nombreB then
-		return nombreA .. "_" .. nombreB
-	else
-		return nombreB .. "_" .. nombreA
-	end
+	return GrafoHelpers.clavePar(nombreA, nombreB)
 end
 
 local function parsearClave(clave)
-	local parts = string.split(clave, "_")
-	return parts[1], parts[2]
+	return GrafoHelpers.parsearClave(clave)
 end
 
 -- ================================================================

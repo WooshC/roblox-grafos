@@ -16,7 +16,8 @@ local Remotos = Eventos:WaitForChild("Remotos")
 -- Configuracion de niveles para nombres
 local LevelsConfig = require(Replicado:WaitForChild("Config"):WaitForChild("LevelsConfig"))
 
--- Validador de conexiones centralizado
+-- Helpers compartidos y validador centralizado
+local GrafoHelpers        = require(Replicado:WaitForChild("Compartido"):WaitForChild("GrafoHelpers"))
 local ValidadorConexiones = require(script.Parent:WaitForChild("ValidadorConexiones"))
 
 -- Estado interno
@@ -41,8 +42,7 @@ local DISTANCIA_CLICK = 50
 -- ═══════════════════════════════════════════════════════════════════════════════
 
 local function clavePar(nomA, nomB)
-	if nomA > nomB then nomA, nomB = nomB, nomA end
-	return nomA .. "|" .. nomB
+	return GrafoHelpers.clavePar(nomA, nomB)
 end
 
 -- El Selector es una Part dentro del Model Nodo
@@ -340,10 +340,10 @@ local function intentarConectar(jugador, selector1, selector2)
 	else
 		-- Error: no son adyacentes
 		local tipoError = esAdyacente(nomB, nomA) and "DireccionInvalida" or "ConexionInvalida"
-		
+
 		local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
 		if notificarEvento then
-			notificarEvento:FireClient(jugador, "ConexionInvalida", selector2.Parent)
+			notificarEvento:FireClient(jugador, tipoError, selector2.Parent)
 		end
 		
 		-- Notificar fallo via callbacks
@@ -577,10 +577,10 @@ function ConectarCables.conectarNodos(nombreNodoA, nombreNodoB, jugador)
 	if not esAdyacente(nombreNodoA, nombreNodoB) then
 		-- Error: no son adyacentes
 		local tipoError = esAdyacente(nombreNodoB, nombreNodoA) and "DireccionInvalida" or "ConexionInvalida"
-		
+
 		local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
 		if notificarEvento then
-			notificarEvento:FireClient(jugador, "ConexionInvalida", selectorB.Parent)
+			notificarEvento:FireClient(jugador, tipoError, selectorB.Parent)
 		end
 		
 		-- Llamar callback onFalloConexion para registrar el fallo

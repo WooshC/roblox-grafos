@@ -15,7 +15,8 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace         = game:GetService("Workspace")
 
-local LevelsConfig = require(ReplicatedStorage:WaitForChild("Config"):WaitForChild("LevelsConfig"))
+local LevelsConfig  = require(ReplicatedStorage:WaitForChild("Config"):WaitForChild("LevelsConfig"))
+local GrafoHelpers  = require(ReplicatedStorage:WaitForChild("Compartido"):WaitForChild("GrafoHelpers"))
 
 local Remotos = ReplicatedStorage
 	:WaitForChild("EventosGrafosV3", 10)
@@ -50,73 +51,6 @@ local function recolectarConexiones(nivelActual)
 	return conexiones
 end
 
--- Devuelve la lista ordenada de nodos que pertenecen a zonaID.
---
--- Estrategia 1 (prioritaria): config.NodosZona[zonaID] — mapeo explícito.
---   Soporta cualquier nombre de zona (e.g. "Zona_electrica").
---   Solo incluye nodos que tengan entradas en Adyacencias.
---
--- Estrategia 2 (fallback): sufijo "_z<N>" derivado del número en zonaID.
---   "Zona_Estacion_3" → busca nodos cuyo nombre termina en "_z3".
---   Retro-compatible con zonas que no declaren NodosZona.
-local function nodosDeZona(adyacencias, zonaID, config)
-	-- Estrategia 1: mapa explícito
-	if config and config.NodosZona and config.NodosZona[zonaID] then
-		local nodos = {}
-		for _, nom in ipairs(config.NodosZona[zonaID]) do
-			if adyacencias[nom] then   -- ignorar nodos sin aristas definidas
-				table.insert(nodos, nom)
-			end
-		end
-		table.sort(nodos)
-		return nodos
-	end
-
-	-- Estrategia 2: sufijo numérico _z<N>
-	local nodos = {}
-	local zonaNum = zonaID:match("_(%d+)$")
-
-	for nomNodo in pairs(adyacencias) do
-		local incluir
-		if zonaNum then
-			incluir = nomNodo:find("_z" .. zonaNum .. "$") ~= nil
-		else
-			incluir = true  -- formato desconocido: incluir todo
-		end
-		if incluir then
-			table.insert(nodos, nomNodo)
-		end
-	end
-
-	table.sort(nodos)
-	return nodos
-end
-
--- Detecta si el grafo (filtrado a los nodos de la zona) es dirigido.
--- Criterio: existe alguna arista A→B donde B→A NO aparece en adyacencias
---   (contando solo nodos presentes en la zona).
-local function detectarDirigido(adyacencias, nodos)
-	local enZona = {}
-	for _, nom in ipairs(nodos) do enZona[nom] = true end
-
-	for _, nomA in ipairs(nodos) do
-		local listaA = adyacencias[nomA] or {}
-		for _, nomB in ipairs(listaA) do
-			if not enZona[nomB] then continue end  -- nomB fuera de zona, ignorar
-
-			local listaB = adyacencias[nomB]
-			if not listaB then return true end  -- B sin aristas de vuelta → dirigido
-
-			local tieneReversa = false
-			for _, n in ipairs(listaB) do
-				if n == nomA then tieneReversa = true; break end
-			end
-			if not tieneReversa then return true end
-		end
-	end
-	return false
-end
-
 -- ═══════════════════════════════════════════════════════════════════
 -- HANDLER PRINCIPAL
 -- ═══════════════════════════════════════════════════════════════════
@@ -139,14 +73,14 @@ getMatrixFunc.OnServerInvoke = function(player, zonaID)
 	local nombresNodos = config and config.NombresNodos or {}
 
 	-- 1. Obtener nodos de la zona desde LevelsConfig
-	local nodos = nodosDeZona(adyacencias, zonaID, config)
+	local nodos = GrafoHelpers.nodosDeZona(adyacencias, zonaID, config)
 	if #nodos == 0 then
 		print(string.format("[MatrizAdyacencia] Sin nodos para zona=%s nivel=%d", zonaID, nivelID))
 		return { Headers = {}, Matrix = {}, NombresNodos = nombresNodos, EsDirigido = false }
 	end
 
 	-- 2. Detectar si el grafo de esta zona es dirigido
-	local esDirigido = detectarDirigido(adyacencias, nodos)
+	local esDirigido = GrafoHelpers.detectarDirigido(adyacencias, nodos)
 
 	-- 3. Construir headers y mapa nombre→índice
 	local n         = #nodos

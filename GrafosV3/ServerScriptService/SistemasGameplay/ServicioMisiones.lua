@@ -4,6 +4,9 @@
 
 local ServicioMisiones = {}
 
+local ReplicatedStorage   = game:GetService("ReplicatedStorage")
+local GrafoHelpers        = require(ReplicatedStorage:WaitForChild("Compartido"):WaitForChild("GrafoHelpers"))
+
 -- Validador de conexiones para obtener conteo real al finalizar
 local ValidadorConexiones = require(script.Parent:WaitForChild("ValidadorConexiones"))
 
@@ -26,8 +29,7 @@ local _eventoNivelCompletado = nil
 
 -- ── Helpers ───────────────────────────────────────────────────────────────────
 local function clavePar(a, b)
-	if a > b then a, b = b, a end
-	return a .. "|" .. b
+	return GrafoHelpers.clavePar(a, b)
 end
 
 local function contarConexiones(nodo)
