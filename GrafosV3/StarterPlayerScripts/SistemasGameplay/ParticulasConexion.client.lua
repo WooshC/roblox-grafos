@@ -7,8 +7,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local jugador = Players.LocalPlayer
-local eventos = ReplicatedStorage:WaitForChild("EventosGrafosV3")
-local remotos = eventos:WaitForChild("Remotos")
 
 print("[ParticulasConexion] Sistema iniciado")
 
@@ -283,58 +281,27 @@ local function detenerFlujoParticulas(idConexion)
 end
 
 -- ═══════════════════════════════════════════════════════════════════════════════
--- EVENTOS
+-- EVENTOS (via GestorEfectos — sin conexión directa al RemoteEvent)
 -- ═══════════════════════════════════════════════════════════════════════════════
 
--- El servidor usa NotificarSeleccionNodo con tipo de mensaje
-local notificarEvento = remotos:FindFirstChild("NotificarSeleccionNodo")
-if notificarEvento then
-	notificarEvento.OnClientEvent:Connect(function(tipoMensaje, nodoA, nodoB)
-		if tipoMensaje == "ConexionCompletada" and nodoA and nodoB then
-			local idConexion = nodoA .. "_" .. nodoB
-			local esDirigido = esConexionDirigida(nodoA, nodoB)
+local GestorEfectos = require(script.Parent:WaitForChild("GestorEfectos"))
 
-			print("[ParticulasConexion] Conexión creada:", nodoA, "->", nodoB, "Dirigido:", esDirigido)
-			iniciarFlujoParticulas(idConexion, nodoA, nodoB, esDirigido)
-
-		elseif tipoMensaje == "CableDesconectado" and nodoA and nodoB then
-			local idConexion = nodoA .. "_" .. nodoB
-			print("[ParticulasConexion] Conexión eliminada:", nodoA, "->", nodoB)
-			detenerFlujoParticulas(idConexion)
-		end
-	end)
-end
-
--- API Pública
-local ParticulasConexion = {}
-
-function ParticulasConexion.iniciar(nodoA, nodoB, esDirigido)
-	if not esDirigido then
-		esDirigido = esConexionDirigida(nodoA, nodoB)
-	end
+GestorEfectos.registrar("ConexionCompletada", function(params)
+	local nodoA, nodoB = params.arg1, params.arg2
+	if not nodoA or not nodoB then return end
 	local idConexion = nodoA .. "_" .. nodoB
+	local esDirigido = esConexionDirigida(nodoA, nodoB)
+	print("[ParticulasConexion] Conexión creada:", nodoA, "->", nodoB, "Dirigido:", esDirigido)
 	iniciarFlujoParticulas(idConexion, nodoA, nodoB, esDirigido)
-end
+end)
 
-function ParticulasConexion.detener(nodoA, nodoB)
+GestorEfectos.registrar("CableDesconectado", function(params)
+	local nodoA, nodoB = params.arg1, params.arg2
+	if not nodoA or not nodoB then return end
 	local idConexion = nodoA .. "_" .. nodoB
+	print("[ParticulasConexion] Conexión eliminada:", nodoA, "->", nodoB)
 	detenerFlujoParticulas(idConexion)
-	-- También intentar con la clave inversa
 	detenerFlujoParticulas(nodoB .. "_" .. nodoA)
-end
-
-function ParticulasConexion.esConexionDirigida(nodoA, nodoB)
-	return esConexionDirigida(nodoA, nodoB)
-end
-
-function ParticulasConexion.configurar(nuevaConfig)
-	for key, value in pairs(nuevaConfig) do
-		CONFIG[key] = value
-	end
-end
-
-_G.ParticulasConexion = ParticulasConexion
+end)
 
 print("[ParticulasConexion] Sistema listo")
-
-return ParticulasConexion

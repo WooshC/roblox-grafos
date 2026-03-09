@@ -1,19 +1,18 @@
 -- GrafosV3 - Boot.server.lua
 -- Punto de entrada UNICO del servidor.
 -- Responsabilidad: Iniciar el sistema y gestionar el ciclo de vida del jugador.
--- 
+--
 -- REGLA DE ORO: Mientras el menu esta activo, TODO lo relacionado al gameplay
 -- esta completamente desconectado.
 --
--- Principio: Separacion estricta entre "Sistema de Menu" y "Sistema de Gameplay".
--- Nunca deben coexistir activos.
+-- Estados por jugador: MENU → CARGANDO → GAMEPLAY → MENU
 
 local Servidores = game:GetService("ServerScriptService")
-local Jugadores = game:GetService("Players")
-local Replicado = game:GetService("ReplicatedStorage")
+local Jugadores  = game:GetService("Players")
+local Replicado  = game:GetService("ReplicatedStorage")
 local StarterGui = game:GetService("StarterGui")
 
--- Configuracion: Sin spawn automatico (el menu no necesita personaje)
+-- Sin spawn automatico (el menu no necesita personaje)
 Jugadores.CharacterAutoLoads = false
 
 print("[GrafosV3] === Boot Servidor Iniciando ===")
@@ -21,9 +20,6 @@ print("[GrafosV3] === Boot Servidor Iniciando ===")
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- 1. ESPERAR EVENTOS (creados por EventRegistry.server.lua)
 -- ═══════════════════════════════════════════════════════════════════════════════
--- NOTA: EventRegistry.server.lua debe ejecutarse PRIMERO para crear los eventos
--- Si hay error "Infinite yield", verificar que EventRegistry.server.lua exista
-
 local Eventos = Replicado:WaitForChild("EventosGrafosV3", 15)
 if not Eventos then
 	error("[GrafosV3] CRITICO: EventosGrafosV3 no encontrado. Asegurate de que EventRegistry.server.lua este en ServerScriptService/Nucleo/")
@@ -34,7 +30,7 @@ if not Remotos then
 	error("[GrafosV3] CRITICO: EventosGrafosV3/Remotos no encontrado")
 end
 
--- Función helper para esperar eventos con timeout
+-- Helper: buscar evento con timeout
 local function esperarEvento(nombre, timeout)
 	timeout = timeout or 5
 	local evento = Remotos:FindFirstChild(nombre)
@@ -55,21 +51,59 @@ end
 print("[GrafosV3] Eventos conectados correctamente")
 
 -- ═══════════════════════════════════════════════════════════════════════════════
--- 2. CARGAR SERVICIOS CORE
+-- 2. MÁQUINA DE ESTADOS POR JUGADOR (Regla de Oro)
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- Cada jugador tiene su propio estado. Los handlers de gameplay solo actúan
+-- cuando el jugador está en estado GAMEPLAY.
+
+local ESTADO = { MENU = "MENU", CARGANDO = "CARGANDO", GAMEPLAY = "GAMEPLAY" }
+
+local _estado = {}  -- [userId] = ESTADO.*
+local _ctx    = {}  -- [userId] = { cables = Module, misiones = Module }
+
+local function setEstado(jugador, nuevoEstado)
+	_estado[jugador.UserId] = nuevoEstado
+end
+
+local function estaEnGameplay(jugador)
+	return _estado[jugador.UserId] == ESTADO.GAMEPLAY
+end
+
+-- Cachear módulos de gameplay ya cargados (Lua devuelve desde caché, costo ~0)
+local function construirContexto(jugador)
+	local sistemasCarpeta = Servidores:FindFirstChild("SistemasGameplay")
+	if not sistemasCarpeta then return {} end
+
+	local ctx = {}
+
+	local mCables = sistemasCarpeta:FindFirstChild("ConectarCables")
+	if mCables then
+		local ok, ref = pcall(require, mCables)
+		if ok then ctx.cables = ref end
+	end
+
+	local mMisiones = sistemasCarpeta:FindFirstChild("ServicioMisiones")
+	if mMisiones then
+		local ok, ref = pcall(require, mMisiones)
+		if ok then ctx.misiones = ref end
+	end
+
+	return ctx
+end
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- 3. CARGAR SERVICIOS CORE
 -- ═══════════════════════════════════════════════════════════════════════════════
 local ServicioProgreso = nil
-local CargadorNiveles = nil
+local CargadorNiveles  = nil
 
 local function cargarServicios()
 	local carpetaServicios = script.Parent.Parent:WaitForChild("Servicios")
 
-	-- Cargar ServicioProgreso
 	local moduloProgreso = carpetaServicios:FindFirstChild("ServicioProgreso")
 	if moduloProgreso then
-		local exito, resultado = pcall(function()
-			return require(moduloProgreso)
-		end)
-		if exito then
+		local ok, resultado = pcall(require, moduloProgreso)
+		if ok then
 			ServicioProgreso = resultado
 			print("[GrafosV3] ServicioProgreso cargado")
 		else
@@ -77,13 +111,10 @@ local function cargarServicios()
 		end
 	end
 
-	-- Cargar CargadorNiveles
 	local moduloCargador = carpetaServicios:FindFirstChild("CargadorNiveles")
 	if moduloCargador then
-		local exito, resultado = pcall(function()
-			return require(moduloCargador)
-		end)
-		if exito then
+		local ok, resultado = pcall(require, moduloCargador)
+		if ok then
 			CargadorNiveles = resultado
 			print("[GrafosV3] CargadorNiveles cargado")
 		else
@@ -95,58 +126,52 @@ end
 cargarServicios()
 
 -- ═══════════════════════════════════════════════════════════════════════════════
--- 3. FUNCIONES DE GUI
+-- 4. FUNCIONES DE GUI
 -- ═══════════════════════════════════════════════════════════════════════════════
 local function copiarGuiAJugador(jugador)
-	print("[GrafosV3] Copiando GUI para", jugador.Name)
-
-	-- Con CharacterAutoLoads=false, PlayerGui NO se crea automaticamente
 	local playerGui = jugador:FindFirstChild("PlayerGui")
 	if not playerGui then
 		playerGui = Instance.new("PlayerGui")
 		playerGui.Name = "PlayerGui"
 		playerGui.Parent = jugador
-		print("[GrafosV3] PlayerGui creado para", jugador.Name)
 	end
 
 	local copiadas = 0
 	for _, gui in ipairs(StarterGui:GetChildren()) do
 		if gui:IsA("ScreenGui") and not playerGui:FindFirstChild(gui.Name) then
-			local clone = gui:Clone()
-			clone.Parent = playerGui
+			gui:Clone().Parent = playerGui
 			copiadas = copiadas + 1
-			print("[GrafosV3]   GUI copiada:", gui.Name)
 		end
 	end
 
 	if copiadas == 0 then
-		warn("[GrafosV3] No se copio ninguna GUI. StarterGui tiene las GUI?")
-	else
-		print("[GrafosV3] Total GUI copiadas:", copiadas)
+		warn("[GrafosV3] No se copio ninguna GUI. Verifica StarterGui.")
 	end
-
 	return copiadas > 0
 end
 
 -- ═══════════════════════════════════════════════════════════════════════════════
--- 4. JUGADOR CONECTADO
+-- 5. JUGADOR CONECTADO
 -- ═══════════════════════════════════════════════════════════════════════════════
 local function alJugadorConectado(jugador)
 	print("[GrafosV3] Jugador conectado:", jugador.Name)
 
-	-- 1. Copiar GUI inmediatamente (menu state)
+	-- Estado inicial: MENU
+	setEstado(jugador, ESTADO.MENU)
+
+	-- Copiar GUI (menu state)
 	task.spawn(function()
 		copiarGuiAJugador(jugador)
 	end)
 
-	-- 2. Cargar datos del jugador
+	-- Cargar datos del jugador
 	task.spawn(function()
 		if ServicioProgreso and ServicioProgreso.cargar then
 			ServicioProgreso.cargar(jugador)
 		end
 	end)
 
-	-- 3. Notificar al cliente (menu listo)
+	-- Notificar al cliente (menu listo)
 	task.delay(2, function()
 		if jugador and jugador.Parent then
 			local servidorListo = Remotos:FindFirstChild("ServidorListo")
@@ -166,216 +191,155 @@ for _, jugador in ipairs(Jugadores:GetPlayers()) do
 	alJugadorConectado(jugador)
 end
 
--- Jugador desconectado
+-- Limpiar al desconectar
 Jugadores.PlayerRemoving:Connect(function(jugador)
+	_estado[jugador.UserId] = nil
+	_ctx[jugador.UserId]    = nil
 	if ServicioProgreso and ServicioProgreso.alJugadorSalir then
 		ServicioProgreso.alJugadorSalir(jugador)
 	end
 end)
 
 -- ═══════════════════════════════════════════════════════════════════════════════
--- 5. HANDLERS DE EVENTOS (Menu System)
+-- 6. HANDLERS MENÚ (siempre activos)
 -- ═══════════════════════════════════════════════════════════════════════════════
 
--- ObtenerProgresoJugador: El menu solicita datos del jugador
+-- ObtenerProgresoJugador: el menu solicita datos del jugador
 local obtenerProgreso = Remotos:WaitForChild("ObtenerProgresoJugador")
 obtenerProgreso.OnServerInvoke = function(jugador)
-	print("[GrafosV3] ObtenerProgresoJugador solicitado por", jugador.Name)
-
 	if ServicioProgreso and ServicioProgreso.obtenerProgresoParaCliente then
 		return ServicioProgreso.obtenerProgresoParaCliente(jugador)
 	end
 
-	-- Fallback: construir desde LevelsConfig
+	-- Fallback desde LevelsConfig
 	local LevelsConfig = require(Replicado:WaitForChild("Config"):WaitForChild("LevelsConfig"))
 	local resultado = {}
-
 	for i = 0, 4 do
 		local config = LevelsConfig[i] or {}
-		local status = (i == 0) and "disponible" or "bloqueado"
-
 		resultado[tostring(i)] = {
-			nivelID = i,
-			nombre = config.Nombre or ("Nivel " .. i),
+			nivelID     = i,
+			nombre      = config.Nombre or ("Nivel " .. i),
 			descripcion = config.DescripcionCorta or "",
-			imageId = config.ImageId or "",
-			tag = config.Tag or ("NIVEL " .. i),
-			algoritmo = config.Algoritmo,
-			seccion = config.Seccion or "NIVELES",
-			conceptos = config.Conceptos or {},
-			status = status,
-			estrellas = 0,
-			highScore = 0,
-			aciertos = 0,
-			fallos = 0,
-			tiempoMejor = 0,
-			intentos = 0
+			imageId     = config.ImageId or "",
+			tag         = config.Tag or ("NIVEL " .. i),
+			algoritmo   = config.Algoritmo,
+			seccion     = config.Seccion or "NIVELES",
+			conceptos   = config.Conceptos or {},
+			status      = (i == 0) and "disponible" or "bloqueado",
+			estrellas   = 0, highScore = 0, aciertos = 0,
+			fallos      = 0, tiempoMejor = 0, intentos = 0,
 		}
 	end
-
 	return resultado
 end
 
--- IniciarNivel: El jugador quiere jugar un nivel
+-- IniciarNivel: jugador quiere jugar un nivel
 local iniciarNivel = Remotos:WaitForChild("IniciarNivel")
 iniciarNivel.OnServerEvent:Connect(function(jugador, idNivel)
 	print("[GrafosV3] IniciarNivel - Jugador:", jugador.Name, "Nivel:", idNivel)
 
-	-- Transicion de Menu -> Gameplay
+	setEstado(jugador, ESTADO.CARGANDO)
+	_ctx[jugador.UserId] = nil
+
 	if CargadorNiveles then
-		CargadorNiveles.cargar(idNivel, jugador)
+		local ok, err = pcall(CargadorNiveles.cargar, idNivel, jugador)
+		if ok then
+			-- Cachear referencias a módulos ya cargados (Regla de Oro: contexto listo)
+			_ctx[jugador.UserId] = construirContexto(jugador)
+			setEstado(jugador, ESTADO.GAMEPLAY)
+		else
+			warn("[GrafosV3] Error al cargar nivel:", err)
+			setEstado(jugador, ESTADO.MENU)
+			-- Notificar error al cliente para desbloquear pantalla
+			local nivelListo = Remotos:FindFirstChild("NivelListo")
+			if nivelListo then
+				nivelListo:FireClient(jugador, { nivelID = idNivel, error = tostring(err) })
+			end
+		end
 	else
 		warn("[GrafosV3] CargadorNiveles no disponible")
-		local nivelListo = Remotos:WaitForChild("NivelListo")
-		nivelListo:FireClient(jugador, {
-			nivelID = idNivel,
-			error = "Servidor no listo para cargar niveles"
-		})
+		setEstado(jugador, ESTADO.MENU)
+		local nivelListo = Remotos:FindFirstChild("NivelListo")
+		if nivelListo then
+			nivelListo:FireClient(jugador, { nivelID = idNivel, error = "Servidor no listo" })
+		end
 	end
 end)
 
--- VolverAlMenu: El jugador quiere volver al menu
+-- VolverAlMenu: jugador quiere salir del nivel
 local volverAlMenu = Remotos:WaitForChild("VolverAlMenu")
 volverAlMenu.OnServerEvent:Connect(function(jugador)
 	print("[GrafosV3] VolverAlMenu - Jugador:", jugador.Name)
 
-	-- Transicion de Gameplay -> Menu
+	-- PRIMERO: cambiar estado (Regla de Oro — gameplay handlers desconectados)
+	setEstado(jugador, ESTADO.MENU)
+	_ctx[jugador.UserId] = nil
+
 	if CargadorNiveles then
 		CargadorNiveles.descargar()
 	end
 
-	-- Destruir personaje del jugador
 	if jugador.Character then
 		jugador.Character:Destroy()
 	end
 
-	local nivelDescargado = Remotos:WaitForChild("NivelDescargado")
-	nivelDescargado:FireClient(jugador)
+	local nivelDescargado = Remotos:FindFirstChild("NivelDescargado")
+	if nivelDescargado then
+		nivelDescargado:FireClient(jugador)
+	end
 end)
 
--- ReiniciarNivel: El jugador quiere reiniciar el nivel actual
+-- ReiniciarNivel: jugador quiere reiniciar el nivel actual
 local reiniciarNivel = Remotos:WaitForChild("ReiniciarNivel")
 reiniciarNivel.OnServerEvent:Connect(function(jugador, nivelID)
 	print("[GrafosV3] ReiniciarNivel - Jugador:", jugador.Name, "Nivel:", nivelID)
 
-	-- Volver a cargar el mismo nivel
+	setEstado(jugador, ESTADO.CARGANDO)
+	_ctx[jugador.UserId] = nil
+
 	if CargadorNiveles then
-		-- Descargar primero
 		CargadorNiveles.descargar()
 		task.wait(0.5)
-
-		-- Volver a cargar
-		CargadorNiveles.cargar(nivelID, jugador)
+		local ok, err = pcall(CargadorNiveles.cargar, nivelID, jugador)
+		if ok then
+			_ctx[jugador.UserId] = construirContexto(jugador)
+			setEstado(jugador, ESTADO.GAMEPLAY)
+		else
+			warn("[GrafosV3] Error al reiniciar nivel:", err)
+			setEstado(jugador, ESTADO.MENU)
+		end
 	end
 end)
 
 -- ═══════════════════════════════════════════════════════════════════════════════
--- 6. SISTEMA DE GAMEPLAY (Desconectado inicialmente)
--- ═══════════════════════════════════════════════════════════════════════════════
--- NOTA: Todos los sistemas de gameplay se inicializan bajo demanda
--- cuando se inicia un nivel, y se destruyen al volver al menu.
-
--- Exportar SistemaGameplay globalmente para que otros módulos del servidor puedan acceder
-_G.SistemaGameplay = {
-	activo = false,
-	nivelActual = nil,
-	jugadoresEnNivel = {},
-}
-
-local SistemaGameplay = _G.SistemaGameplay
-
-function SistemaGameplay.iniciar(nivelID, jugador)
-	if SistemaGameplay.activo then
-		warn("[GrafosV3] SistemaGameplay ya esta activo")
-		return
-	end
-
-	print("[GrafosV3] Iniciando sistema de gameplay - Nivel:", nivelID)
-	SistemaGameplay.activo = true
-	SistemaGameplay.nivelActual = nivelID
-	SistemaGameplay.jugadoresEnNivel[jugador.UserId] = true
-
-	-- AQUI: Inicializar todos los sistemas de gameplay:
-	-- - MissionService
-	-- - ScoreTracker
-	-- - ZoneTriggerManager
-	-- - ConectarCables
-	-- - VisualEffectsManager
-	-- etc.
-end
-
-function SistemaGameplay.terminar(jugador)
-	if not SistemaGameplay.activo then
-		return
-	end
-
-	SistemaGameplay.jugadoresEnNivel[jugador.UserId] = nil
-
-	-- Si no quedan jugadores, terminar completamente
-	local quedanJugadores = false
-	for _, _ in pairs(SistemaGameplay.jugadoresEnNivel) do
-		quedanJugadores = true
-		break
-	end
-
-	if not quedanJugadores then
-		print("[GrafosV3] Terminando sistema de gameplay")
-		SistemaGameplay.activo = false
-		SistemaGameplay.nivelActual = nil
-
-		-- AQUI: Destruir todos los sistemas de gameplay
-	end
-end
-
--- ═══════════════════════════════════════════════════════════════════════════════
--- 7. HANDLERS DE EVENTOS DE GAMEPLAY (Después de definir SistemaGameplay)
+-- 7. HANDLERS GAMEPLAY (guardiados por estaEnGameplay — Regla de Oro)
 -- ═══════════════════════════════════════════════════════════════════════════════
 
--- MapaClickNodo: El jugador clickeó un nodo desde el mapa cenital
+-- MapaClickNodo: jugador clickeó un nodo desde el mapa cenital
 local mapaClickNodo = esperarEvento("MapaClickNodo", 10)
 if mapaClickNodo then
 	mapaClickNodo.OnServerEvent:Connect(function(jugador, nombreNodo)
+		-- REGLA DE ORO: ignorar si no está en gameplay
+		if not estaEnGameplay(jugador) then return end
 		if not nombreNodo then return end
-		if not SistemaGameplay.activo then
-			print("[GrafosV3] MapaClickNodo ignorado - SistemaGameplay no activo")
-			return
-		end
+
+		local ctx = _ctx[jugador.UserId]
+		if not ctx then return end
 
 		print("[GrafosV3] MapaClickNodo - Jugador:", jugador.Name, "Nodo:", nombreNodo)
 
-		-- Notificar al ServicioMisiones sobre la selección
-		local carpetaSistemas = Servidores:FindFirstChild("SistemasGameplay")
-		if carpetaSistemas then
-			local moduloMisiones = carpetaSistemas:FindFirstChild("ServicioMisiones")
-			if moduloMisiones then
-				local exito, servicio = pcall(function()
-					return require(moduloMisiones)
-				end)
-				if exito and servicio and servicio.estaActivo() then
-					local exito2, err = pcall(function()
-						servicio.alSeleccionarNodo(nombreNodo)
-					end)
-					if not exito2 then
-						warn("[GrafosV3] Error en alSeleccionarNodo:", err)
-					end
-				end
-			end
+		-- Notificar a ServicioMisiones
+		if ctx.misiones and ctx.misiones.estaActivo() then
+			pcall(ctx.misiones.alSeleccionarNodo, nombreNodo)
 		end
 
-		-- Enviar efectos visuales de selección al cliente (highlight cyan + adyacentes dorados)
-		local carpetaCables = Servidores:FindFirstChild("SistemasGameplay")
-		if carpetaCables then
-			local moduloCables = carpetaCables:FindFirstChild("ConectarCables")
-			if moduloCables then
-				local ok, cables = pcall(require, moduloCables)
-				if ok and cables and cables.estaActivo() then
-					local nodoModel, adyacentesModels = cables.obtenerInfoNodo(nombreNodo)
-					if nodoModel then
-						local notificar = Remotos:FindFirstChild("NotificarSeleccionNodo")
-						if notificar then
-							notificar:FireClient(jugador, "NodoSeleccionado", nodoModel, adyacentesModels)
-						end
-					end
+		-- Enviar efectos visuales al cliente
+		if ctx.cables and ctx.cables.estaActivo() then
+			local nodoModel, adyacentesModels = ctx.cables.obtenerInfoNodo(nombreNodo)
+			if nodoModel then
+				local notificar = Remotos:FindFirstChild("NotificarSeleccionNodo")
+				if notificar then
+					notificar:FireClient(jugador, "NodoSeleccionado", nodoModel, adyacentesModels)
 				end
 			end
 		end
@@ -384,48 +348,28 @@ else
 	warn("[Boot.server] Evento MapaClickNodo no encontrado")
 end
 
--- ConectarDesdeMapa: El jugador quiere conectar dos nodos desde el mapa
+-- ConectarDesdeMapa: jugador quiere conectar dos nodos desde el mapa
 local conectarDesdeMapa = esperarEvento("ConectarDesdeMapa", 10)
 if conectarDesdeMapa then
 	conectarDesdeMapa.OnServerEvent:Connect(function(jugador, nodoA, nodoB)
+		-- REGLA DE ORO: ignorar si no está en gameplay
+		if not estaEnGameplay(jugador) then return end
 		if not nodoA or not nodoB then return end
-		if not SistemaGameplay.activo then
-			print("[GrafosV3] ConectarDesdeMapa ignorado - SistemaGameplay no activo")
-			return
-		end
 
-		print("[GrafosV3] ConectarDesdeMapa - Jugador:", jugador.Name, "Nodos:", nodoA, "->", nodoB)
+		local ctx = _ctx[jugador.UserId]
+		if not ctx then return end
 
-		-- Obtener el módulo ConectarCables y llamar a su función de conexión
-		local carpetaSistemas = Servidores:FindFirstChild("SistemasGameplay")
-		if carpetaSistemas then
-			local moduloCables = carpetaSistemas:FindFirstChild("ConectarCables")
-			if moduloCables then
-				local exito, ConectarCables = pcall(function()
-					return require(moduloCables)
-				end)
+		print("[GrafosV3] ConectarDesdeMapa - Jugador:", jugador.Name, nodoA, "->", nodoB)
 
-				if exito and ConectarCables and ConectarCables.estaActivo() then
-					-- Verificar si hay una función pública para conectar
-					if ConectarCables.conectarNodos then
-						ConectarCables.conectarNodos(nodoA, nodoB, jugador)
-					else
-						-- El módulo no tiene función pública para conectar desde fuera
-						-- Se necesita agregar esta función a ConectarCables
-						warn("[GrafosV3] ConectarCables no tiene función conectarNodos - necesita implementarse")
-					end
-				else
-					warn("[GrafosV3] ConectarCables no está activo o no se pudo cargar")
-				end
-			end
+		if ctx.cables and ctx.cables.estaActivo() and ctx.cables.conectarNodos then
+			ctx.cables.conectarNodos(nodoA, nodoB, jugador)
+		else
+			warn("[GrafosV3] ConectarCables no activo o sin conectarNodos")
 		end
 	end)
 else
-	warn("[Boot.server] Evento ConectarDesdeMapa no encontrado - función de mapa deshabilitada")
+	warn("[Boot.server] Evento ConectarDesdeMapa no encontrado")
 end
 
--- NOTA: SistemaGameplay se inicia/termina directamente desde CargadorNiveles
--- via _G.SistemaGameplay para evitar complejidad de eventos
-
 print("[GrafosV3] === Boot Servidor Listo ===")
-print("[GrafosV3] Estado: Menu activo, Gameplay desconectado")
+print("[GrafosV3] Estado inicial: todos los jugadores en MENU")

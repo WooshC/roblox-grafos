@@ -10,7 +10,8 @@ local ServicioCamara = {}
 
 -- Estado
 local estadoOriginal = nil
-local enTransicion = false
+local enTransicion   = false
+local _taskActual    = nil  -- handle del task.spawn de la transición activa
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- FUNCIONES AUXILIARES
@@ -86,29 +87,32 @@ function ServicioCamara.moverA(cframeObjetivo, duracion, suave, onComplete)
 	duracion = duracion or 0.5
 	suave = suave ~= false -- true por defecto
 	
-	if enTransicion then
-		warn("[ServicioCamara] Ya hay una transición en curso")
+	-- Cancelar transición anterior si existe
+	if _taskActual then
+		task.cancel(_taskActual)
+		_taskActual    = nil
+		enTransicion   = false
 	end
-	
+
 	local camara = Workspace.CurrentCamera
 	enTransicion = true
-	
+
 	-- Guardar estado si no está guardado
 	if not estadoOriginal then
 		ServicioCamara.guardarEstado()
 		print("[ServicioCamara] Estado guardado antes de mover")
 	end
-	
+
 	-- Cambiar a Scriptable
 	camara.CameraType = Enum.CameraType.Scriptable
-	
+
 	print("[ServicioCamara] Moviendo cámara a:", cframeObjetivo.Position, "Duración:", duracion)
-	
-	-- Animar
-	task.spawn(function()
+
+	-- Animar en tarea independiente; guardar handle para poder cancelar
+	_taskActual = task.spawn(function()
 		local inicio = tick()
 		local cframeInicial = camara.CFrame
-		
+
 		while tick() - inicio < duracion do
 			local alpha = (tick() - inicio) / duracion
 			if suave then
@@ -117,12 +121,13 @@ function ServicioCamara.moverA(cframeObjetivo, duracion, suave, onComplete)
 			camara.CFrame = cframeInicial:Lerp(cframeObjetivo, alpha)
 			task.wait(0.016)
 		end
-		
+
 		camara.CFrame = cframeObjetivo
 		enTransicion = false
-		
+		_taskActual   = nil
+
 		print("[ServicioCamara] Cámara movida exitosamente")
-		
+
 		if onComplete then
 			onComplete()
 		end
@@ -215,17 +220,31 @@ function ServicioCamara.restaurar(duracion)
 	end
 	
 	print("[ServicioCamara] Restaurando cámara...")
-	
-	if enTransicion then
-		-- Esperar a que termine la transición actual
-		repeat task.wait(0.016) until not enTransicion
+
+	-- Cancelar transición activa (evita esperar y elimina riesgo de deadlock)
+	if _taskActual then
+		task.cancel(_taskActual)
+		_taskActual  = nil
+		enTransicion = false
 	end
-	
+
+	-- Si aún hay transición en curso (no tenemos handle), esperar con timeout de 2s
+	if enTransicion then
+		local t0 = tick()
+		while enTransicion and (tick() - t0) < 2 do
+			task.wait(0.016)
+		end
+		if enTransicion then
+			warn("[ServicioCamara] restaurar: timeout esperando transición — forzando restauración")
+			enTransicion = false
+		end
+	end
+
 	local camara = Workspace.CurrentCamera
 	enTransicion = true
-	
+
 	-- Animar restauración
-	task.spawn(function()
+	_taskActual = task.spawn(function()
 		local inicio = tick()
 		local cframeInicial = camara.CFrame
 		local cframeFinal = estadoOriginal.CFrame
@@ -240,10 +259,11 @@ function ServicioCamara.restaurar(duracion)
 		camara.CFrame = cframeFinal
 		camara.CameraType = estadoOriginal.CameraType
 		camara.CameraSubject = estadoOriginal.CameraSubject
-		
-		enTransicion = false
+
+		enTransicion  = false
+		_taskActual   = nil
 		estadoOriginal = nil -- Limpiar estado después de restaurar
-		
+
 		print("[ServicioCamara] Cámara restaurada exitosamente")
 	end)
 end

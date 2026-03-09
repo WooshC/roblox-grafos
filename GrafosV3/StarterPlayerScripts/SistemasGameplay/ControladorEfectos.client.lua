@@ -170,88 +170,64 @@ local function flashModel(model, color, duration)
 end
 
 -- ═══════════════════════════════════════════════════════════════════════════════
--- SISTEMA DE PARTÍCULAS
+-- EVENTOS (via GestorEfectos — conexión única centralizada)
 -- ═══════════════════════════════════════════════════════════════════════════════
 
--- Cargar sistema de partículas de conexiones
-local ParticulasConexion = nil
-local exito, resultado = pcall(function()
-	return require(script.Parent:FindFirstChild("ParticulasConexion"))
+local GestorEfectos = require(script.Parent:WaitForChild("GestorEfectos"))
+
+-- Nodo seleccionado: arg1 = Model nodo, arg2 = {Model,...} adyacentes
+GestorEfectos.registrar("NodoSeleccionado", function(params)
+	local arg1, arg2 = params.arg1, params.arg2
+	clearAll()
+	local adyNames = {}
+	if type(arg2) == "table" then
+		for _, adjModel in ipairs(arg2) do
+			if typeof(adjModel) == "Instance" then
+				table.insert(adyNames, adjModel.Name)
+			elseif type(adjModel) == "string" then
+				table.insert(adyNames, adjModel)
+			end
+		end
+	end
+	EfectosNodo.establecerSeleccion(arg1 and arg1.Name or nil, adyNames)
+	if arg1 then highlightNode(arg1, COLOR_SELECCIONADO) end
+	if type(arg2) == "table" then
+		for _, adjModel in ipairs(arg2) do
+			if adjModel and adjModel ~= arg1 then
+				highlightNode(adjModel, COLOR_ADYACENTE)
+			end
+		end
+	end
 end)
 
-if exito and resultado then
-	ParticulasConexion = resultado
-	print("[ControladorEfectos] ParticulasConexion integrado")
-else
-	warn("[ControladorEfectos] No se pudo cargar ParticulasConexion:", resultado)
-end
+-- Conexión completada: efecto VFX en cada Selector
+-- (partículas son responsabilidad de ParticulasConexion)
+GestorEfectos.registrar("ConexionCompletada", function(params)
+	local arg1, arg2 = params.arg1, params.arg2
+	clearAll()
+	if arg1 then EfectosVideo.reproducirConexion(arg1, "EfectoConexion", 5, 2) end
+	if arg2 then EfectosVideo.reproducirConexion(arg2, "EfectoConexion", 5, 2) end
+end)
 
--- ═══════════════════════════════════════════════════════════════════════════════
--- EVENTOS
--- ═══════════════════════════════════════════════════════════════════════════════
+-- Cable desconectado: solo limpiar highlights
+GestorEfectos.registrar("CableDesconectado", function(_params)
+	clearAll()
+end)
 
-local notifyEv = Remotos:WaitForChild("NotificarSeleccionNodo")
+-- Selección cancelada
+GestorEfectos.registrar("SeleccionCancelada", function(_params)
+	clearAll()
+end)
 
-notifyEv.OnClientEvent:Connect(function(eventType, arg1, arg2)
+-- Error de conexión: flash rojo
+GestorEfectos.registrar("ConexionInvalida", function(params)
+	clearAll()
+	flashModel(params.arg1, COLOR_ERROR, 0.35)
+end)
 
-	-- Nodo seleccionado: arg1 = nodo, arg2 = adyacentes
-	if eventType == "NodoSeleccionado" then
-		clearAll()
-		-- Sincronizar estado de selección para el minimap
-		-- arg2 puede contener Instances (Model) o strings según el servidor
-		local adyNames = {}
-		if type(arg2) == "table" then
-			for _, adjModel in ipairs(arg2) do
-				if typeof(adjModel) == "Instance" then
-					table.insert(adyNames, adjModel.Name)
-				elseif type(adjModel) == "string" then
-					table.insert(adyNames, adjModel)
-				end
-			end
-		end
-		EfectosNodo.establecerSeleccion(arg1 and arg1.Name or nil, adyNames)
-		if arg1 then
-			highlightNode(arg1, COLOR_SELECCIONADO)
-		end
-		if type(arg2) == "table" then
-			for _, adjModel in ipairs(arg2) do
-				if adjModel and adjModel ~= arg1 then
-					highlightNode(adjModel, COLOR_ADYACENTE)
-				end
-			end
-		end
-
-		-- Conexión completada: iniciar partículas + efecto VFX en cada Selector
-	elseif eventType == "ConexionCompletada" then
-		clearAll()
-		-- arg1 = nombreNodoA, arg2 = nombreNodoB
-		if ParticulasConexion and arg1 and arg2 then
-			local esDirigido = ParticulasConexion.esConexionDirigida
-				and ParticulasConexion.esConexionDirigida(arg1, arg2)
-				or false
-			ParticulasConexion.iniciar(arg1, arg2, esDirigido)
-		end
-		-- Efecto VFX en el Selector de cada nodo conectado
-		if arg1 then EfectosVideo.reproducirConexion(arg1, "EfectoConexion", 5, 2) end
-		if arg2 then EfectosVideo.reproducirConexion(arg2, "EfectoConexion", 5, 2) end
-
-		-- Cable desconectado: detener partículas
-	elseif eventType == "CableDesconectado" then
-		clearAll()
-		if ParticulasConexion and arg1 and arg2 then
-			ParticulasConexion.detener(arg1, arg2)
-		end
-
-		-- Selección cancelada: solo limpiar
-	elseif eventType == "SeleccionCancelada" then
-		clearAll()
-
-		-- Error: flash rojo
-	elseif eventType == "ConexionInvalida" then
-		clearAll()
-		flashModel(arg1, COLOR_ERROR, 0.35)
-
-	end
+GestorEfectos.registrar("DireccionInvalida", function(params)
+	clearAll()
+	flashModel(params.arg1, COLOR_ERROR, 0.35)
 end)
 
 print("[ControladorEfectos] Sistema de efectos inicializado")

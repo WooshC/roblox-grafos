@@ -2,16 +2,19 @@
 -- Escucha NotificarSeleccionNodo y abre el diálogo de retroalimentación educativa
 -- cuando el jugador intenta una conexión inválida o en dirección incorrecta.
 
-local Players          = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
 
 local jugador = Players.LocalPlayer
 
--- Mapa: tipo de evento → ID del diálogo de retroalimentación
+-- Mapa: tipo de efecto → ID del diálogo de retroalimentación
 local DIALOGO_POR_TIPO = {
 	ConexionInvalida  = "Feedback_ConexionInvalida",
 	DireccionInvalida = "Feedback_DireccionInvalida",
 }
+
+local function mapaEstaAbierto()
+	return jugador:GetAttribute("MapaAbierto") == true
+end
 
 -- Esperar a que ControladorDialogo esté listo (se registra en _G al iniciar)
 local function obtenerControlador()
@@ -23,20 +26,6 @@ local function obtenerControlador()
 	return _G.ControladorDialogo
 end
 
-local function mapaEstaAbierto()
-	return jugador:GetAttribute("MapaAbierto") == true
-end
-
-local eventos   = ReplicatedStorage:WaitForChild("EventosGrafosV3")
-local remotos   = eventos:WaitForChild("Remotos")
-local notificar = remotos:WaitForChild("NotificarSeleccionNodo", 10)
-
-if not notificar then
-	warn("[RetroalimentacionConexion] NotificarSeleccionNodo no encontrado")
-	return
-end
-
--- Obtener controlador en background para no bloquear la conexión del evento
 local controlador = nil
 task.spawn(function()
 	controlador = obtenerControlador()
@@ -47,21 +36,21 @@ task.spawn(function()
 	end
 end)
 
-notificar.OnClientEvent:Connect(function(tipo)
-	local dialogoID = DIALOGO_POR_TIPO[tipo]
-	if not dialogoID then return end
+-- Registrar en GestorEfectos en lugar de conectarse directamente al RemoteEvent
+local GestorEfectos = require(script.Parent:WaitForChild("GestorEfectos"))
 
-	-- Si el controlador aún no está listo, ignorar
+GestorEfectos.registrar("ConexionInvalida", function(_params)
 	if not controlador then return end
-
-	-- No interrumpir si ya hay un diálogo activo (por ejemplo, diálogo de zona)
 	if controlador.estaActivo() then return end
-
-	-- Si el mapa está abierto, NO abrir el diálogo: su GUI bloquearía los clics
-	-- del mapa (gameProcessed = true) impidiendo seleccionar nodos.
 	if mapaEstaAbierto() then return end
+	controlador.iniciar(DIALOGO_POR_TIPO.ConexionInvalida)
+end)
 
-	controlador.iniciar(dialogoID)
+GestorEfectos.registrar("DireccionInvalida", function(_params)
+	if not controlador then return end
+	if controlador.estaActivo() then return end
+	if mapaEstaAbierto() then return end
+	controlador.iniciar(DIALOGO_POR_TIPO.DireccionInvalida)
 end)
 
 print("[RetroalimentacionConexion] ✓ Escuchando errores de conexión")

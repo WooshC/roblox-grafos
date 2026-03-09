@@ -13,6 +13,9 @@ local ServerScriptService = game:GetService("ServerScriptService")
 -- Configuracion de niveles
 local LevelsConfig = require(Replicado:WaitForChild("Config"):WaitForChild("LevelsConfig"))
 
+-- ValidadorConexiones se carga inmediatamente (CargadorNiveles es dueño de su ciclo de vida)
+local ValidadorConexiones = require(ServerScriptService.SistemasGameplay.ValidadorConexiones)
+
 -- Sistemas de gameplay (se cargan bajo demanda)
 local ConectarCables = nil
 local ServicioMisiones = nil
@@ -110,20 +113,6 @@ local Eventos = Replicado:WaitForChild("EventosGrafosV3")
 local Remotos = Eventos:WaitForChild("Remotos")
 local nivelListoEvento = Remotos:WaitForChild("NivelListo")
 
--- Referencia a SistemaGameplay (se obtiene bajo demanda)
-local function obtenerSistemaGameplay()
-	local nucleo = ServerScriptService:FindFirstChild("Nucleo")
-	if nucleo then
-		local boot = nucleo:FindFirstChild("Boot.server")
-		if boot then
-			-- El SistemaGameplay está definido en Boot.server
-			-- Usar _G para compartir o requerir directamente
-			return _G.SistemaGameplay
-		end
-	end
-	return nil
-end
-
 local NOMBRE_NIVEL_ACTUAL = "NivelActual"
 local _jugadorActual = nil
 local _nivelIDActual = nil
@@ -144,6 +133,9 @@ function CargadorNiveles.descargar()
 		moduloCables.desactivar()
 		print("[CargadorNiveles] ConectarCables desactivado")
 	end
+
+	-- Limpiar ValidadorConexiones explícitamente (fuente de verdad del estado de conexiones)
+	ValidadorConexiones.limpiar()
 
 	local moduloMisiones = obtenerServicioMisiones()
 	if moduloMisiones and moduloMisiones.estaActivo() then
@@ -168,12 +160,6 @@ function CargadorNiveles.descargar()
 		if jugador.Character then
 			jugador.Character:Destroy()
 		end
-	end
-
-	-- Llamar directamente a SistemaGameplay.terminar() si existe
-	local sg = obtenerSistemaGameplay()
-	if sg and sg.terminar and _jugadorActual then
-		sg.terminar(_jugadorActual)
 	end
 
 	_jugadorActual = nil
@@ -276,7 +262,13 @@ function CargadorNiveles.cargar(nivelID, jugador)
 		moduloZonas.activar(nivelActual, config.Zonas, jugador, moduloMisiones)
 	end
 
-	-- 4. Activar ConectarCables si hay adyacencias configuradas
+	-- 4. Configurar ValidadorConexiones (fuente de verdad — antes de ConectarCables)
+	ValidadorConexiones.configurar({
+		Adyacencias = config.Adyacencias,
+		nivelID     = nivelID,
+	})
+
+	-- 5. Activar ConectarCables si hay adyacencias configuradas
 	local moduloCables = obtenerConectarCables()
 	local sistemasActivados = false
 
@@ -325,12 +317,6 @@ function CargadorNiveles.cargar(nivelID, jugador)
 			moduloCables.activar(nivelActual, adyacencias, jugador, nivelID, callbacks)
 			sistemasActivados = true
 		end
-	end
-
-	-- Llamar directamente a SistemaGameplay.iniciar() si existe
-	local sg = obtenerSistemaGameplay()
-	if sg and sg.iniciar then
-		sg.iniciar(nivelID, jugador)
 	end
 
 	-- Notificar al cliente

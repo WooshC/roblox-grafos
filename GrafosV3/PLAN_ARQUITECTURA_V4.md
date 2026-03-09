@@ -630,25 +630,28 @@ Y completar los datos de los niveles faltantes con la estructura real del modelo
 ### Fase A — Fundación (hacer primero, sin esto nada funciona correctamente)
 | # | Tarea | Archivos | Estado |
 |---|---|---|---|
-| 1 | Crear GrafoHelpers.lua | GrafoHelpers.lua (nuevo) | ⬜ |
-| 1b | Usar GrafoHelpers en MatrizAdyacencia + ServicioGrafosAnalisis | 2 archivos | ⬜ |
-| 1c | Usar GrafoHelpers.clavePar en ConectarCables + ServicioMisiones + ValidadorConexiones | 3 archivos | ⬜ |
-| 2 | Inicializar ValidadorConexiones en CargadorNiveles | CargadorNiveles.lua | ⬜ |
+| 1 | Crear GrafoHelpers.lua | GrafoHelpers.lua (nuevo) | ✅ |
+| 1b | Usar GrafoHelpers en MatrizAdyacencia + ServicioGrafosAnalisis | 2 archivos | ✅ |
+| 1c | Usar GrafoHelpers.clavePar en ConectarCables + ServicioMisiones + ValidadorConexiones | 3 archivos | ✅ |
+| 2 | Inicializar ValidadorConexiones en CargadorNiveles | CargadorNiveles.lua | ✅ |
 
 ### Fase B — Bugs Críticos (funcionalidad rota)
 | # | Tarea | Archivos | Estado |
 |---|---|---|---|
-| 3 | Fix deadlock ServicioCamara | ServicioCamara.lua | ⬜ |
-| 7 | Fix orden registro/notificación | ConectarCables.lua | ⬜ |
-| 8 | Fix cleanup GestorZonas | GestorZonas.lua | ⬜ |
+| 3 | Fix deadlock ServicioCamara | ServicioCamara.lua | ✅ |
+| 7 | Fix DireccionInvalida hardcodeada como ConexionInvalida | ConectarCables.lua | ✅ |
+| 8 | Fix cleanup GestorZonas (ya correcto — conn:Disconnect existía) | GestorZonas.lua | ✅ |
 
 ### Fase C — Regla de Oro (separación menú/gameplay)
 | # | Tarea | Archivos | Estado |
 |---|---|---|---|
-| 4 | Máquina de estados Boot.server.lua | Boot.server.lua | ⬜ |
-| 5 | Máquina de estados ClientBoot | ClientBoot.client.lua | ⬜ |
-| 6 | Crear GestorEfectos.client.lua | GestorEfectos.client.lua (nuevo) | ⬜ |
-| 6b | Adaptar módulos de efecto para registrarse | ControladorEfectos, Particulas, Retroalimentacion | ⬜ |
+| 4 | Máquina de estados Boot.server.lua + eliminar _G.SistemaGameplay | Boot.server.lua | ✅ |
+| 4b | Eliminar _G.SistemaGameplay de CargadorNiveles | CargadorNiveles.lua | ✅ |
+| 5 | Máquina de estados ClientBoot (INICIO→MENU→GAMEPLAY) | ClientBoot.client.lua | ✅ |
+| 6 | Crear GestorEfectos.lua (ModuleScript — bus centralizado) | GestorEfectos.lua (nuevo) | ✅ |
+| 6b | Adaptar ControladorEfectos para registrarse en GestorEfectos | ControladorEfectos.client.lua | ✅ |
+| 6c | Adaptar RetroalimentacionConexion para registrarse en GestorEfectos | RetroalimentacionConexion.client.lua | ✅ |
+| 6d | Adaptar ParticulasConexion para registrarse en GestorEfectos | ParticulasConexion.client.lua | ✅ |
 
 ### Fase D — Robustez y Limpieza
 | # | Tarea | Archivos | Estado |
