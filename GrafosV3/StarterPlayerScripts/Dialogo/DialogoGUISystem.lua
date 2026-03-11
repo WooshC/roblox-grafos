@@ -581,6 +581,11 @@ function DialogoGUISystem:Close()
 
 	print("[DialogoGUISystem] ◼ Diálogo cerrado")
 
+	-- Ejecutar limpieza de efectos definida en el dialogo (EventoSalida)
+	if self.currentDialogue and self.currentDialogue.EventoSalida then
+		pcall(self.currentDialogue.EventoSalida)
+	end
+
 	if self.onClose then
 		self.onClose()
 	end

@@ -56,21 +56,25 @@ LevelsConfig[0] = {
 		["NodoB_z3"] = {"NodoC_z3"},
 		["NodoC_z3"] = {"NodoA_z3"},
 
-		-- Zona 4: Conectividad — cuatro nodos en cuadrado
-		["NodoA_z4"] = {"NodoB_z4", "NodoC_z4"},
-		["NodoB_z4"] = {"NodoA_z4", "NodoD_z4"},
-		["NodoC_z4"] = {"NodoA_z4", "NodoD_z4"},
-		["NodoD_z4"] = {"NodoB_z4", "NodoC_z4"},
+		-- Zona 4: Conectividad — 5 estaciones + generador
+		--   Ruta sur→norte: El Ejido(A) · La Pradera(B) · La Carolina(C) · Iñaquito(F) · El Labrador(D)
+		--   Empresa Eléctrica(E) alimenta solo a El Ejido (nodo de entrada)
+		["NodoE_z4"] = {"NodoA_z4"},                                          -- Empresa Eléctrica
+		["NodoA_z4"] = {"NodoE_z4", "NodoB_z4", "NodoC_z4"},                  -- El Ejido
+		["NodoB_z4"] = {"NodoA_z4", "NodoC_z4", "NodoD_z4"},                  -- La Pradera
+		["NodoC_z4"] = {"NodoA_z4", "NodoB_z4", "NodoF_z4"},                  -- La Carolina
+		["NodoD_z4"] = {"NodoB_z4", "NodoF_z4"},                              -- El Labrador
+		["NodoF_z4"] = {"NodoC_z4", "NodoD_z4"},                              -- Iñaquito
 
 		["PostePanel"]     = {"toma_corriente"},
 		["toma_corriente"] = {"PostePanel"},
 	},
 
 	Zonas = {
-		["Zona_Estacion_1"] = { Trigger = "ZonaTrigger_Estacion1", Descripcion = "Nodos y Aristas",  Dialogo = "Zona1_NodosAristas"    },
-		["Zona_Estacion_2"] = { Trigger = "ZonaTrigger_Estacion2", Descripcion = "Grado de Nodo",    Dialogo = "Zona2_GradoNodo"        },
-		["Zona_Estacion_3"] = { Trigger = "ZonaTrigger_Estacion3", Descripcion = "Grafos Dirigidos", Dialogo = "Zona3_GrafosDirigidos"  },
-		["Zona_Estacion_4"] = { Trigger = "ZonaTrigger_Estacion4", Descripcion = "Conectividad",     Dialogo = "Zona4_Conectividad"     },
+		["Zona_Estacion_1"] = { Trigger = "ZonaTrigger_Estacion1", Descripcion = "Nodos y Aristas",  Dialogo = "Zona1_NodosAristas"   },
+		["Zona_Estacion_2"] = { Trigger = "ZonaTrigger_Estacion2", Descripcion = "Grado de Nodo",    Dialogo = "Zona2_GradoNodo",       CarpetaLuz = "Zona_luz_2" },
+		["Zona_Estacion_3"] = { Trigger = "ZonaTrigger_Estacion3", Descripcion = "Grafos Dirigidos", Dialogo = "Zona3_GrafosDirigidos", CarpetaLuz = "Zona_luz_3" },
+		["Zona_Estacion_4"] = { Trigger = "ZonaTrigger_Estacion4", Descripcion = "Conectividad",     Dialogo = "Zona4_Conectividad",    CarpetaLuz = "Zona_luz_4" },
 	},
 
 	NombresNodos = {
@@ -84,10 +88,12 @@ LevelsConfig[0] = {
 		["NodoA_z3"]      = "Nodo A",
 		["NodoB_z3"]      = "Nodo B",
 		["NodoC_z3"]      = "Nodo C",
-		["NodoA_z4"]      = "Nodo A",
-		["NodoB_z4"]      = "Nodo B",
-		["NodoC_z4"]      = "Nodo C",
-		["NodoD_z4"]      = "Nodo D",
+		["NodoE_z4"]      = "Empresa Eléctrica",
+		["NodoA_z4"]      = "Estacion El Ejido",
+		["NodoB_z4"]      = "Estacion La Pradera",
+		["NodoC_z4"]      = "Estacion La Carolina",
+		["NodoF_z4"]      = "Estacion Iñaquito",
+		["NodoD_z4"]      = "Estacion El Labrador",
 		["PostePanel"]     = "Panel Central",
 		["toma_corriente"] = "Tableta Especial",
 	},
@@ -183,43 +189,43 @@ LevelsConfig[0] = {
 
 		["Zona_Estacion_4"] = {
 			algoritmos = { "bfs", "dfs", "dijkstra", "prim" },
-			nodoInicio = "NodoA_z4",
+			nodoInicio = "NodoE_z4",
 			nodoFin    = "NodoD_z4",
 			conceptos  = {
 				bfs = {
-					intro = "BFS en este grafo de 4 nodos encuentra el camino más corto en número de saltos desde A hasta D.",
+					intro = "BFS parte desde Empresa Eléctrica y halla el camino más corto (en saltos) hasta cada estación del metro.",
 					pasos = {
-						[2]  = "Nivel 0: solo Nodo A. La cola crece por niveles.",
-						[7]  = "Procesamos nodo — todos sus vecinos no visitados se añaden al siguiente nivel.",
-						[9]  = "Nivel +1: nodo descubierto. La distancia es la cantidad de saltos desde A.",
-						[13] = "BFS halló las distancias mínimas (en saltos) desde A a todos los nodos.",
+						[2]  = "Nivel 0: solo Empresa Eléctrica en la cola. La red aún no fue explorada.",
+						[7]  = "Procesamos el nodo del frente — sus estaciones vecinas pasan al siguiente nivel.",
+						[9]  = "Nueva estación descubierta. Su distancia = saltos desde Empresa Eléctrica.",
+						[13] = "Cola vacía — BFS alcanzó todas las estaciones desde el generador.",
 					},
 				},
 				dfs = {
-					intro = "DFS explora en profundidad. El camino encontrado no es necesariamente el más corto.",
+					intro = "DFS parte desde Empresa Eléctrica y se adentra rama a rama. El camino hallado puede no ser el más corto.",
 					pasos = {
-						[2]  = "Apilamos Nodo A. DFS irá tan lejos como pueda antes de retroceder.",
-						[7]  = "Nodo ya procesado — lo descartamos del tope de la pila.",
-						[8]  = "Nuevo nodo: lo marcamos visitado y continuamos por sus vecinos.",
-						[12] = "DFS llegó a D, pero quizá no por el camino más corto.",
+						[2]  = "Apilamos Empresa Eléctrica. DFS irá tan profundo como pueda antes de retroceder.",
+						[7]  = "Estación ya visitada — la descartamos del tope de la pila.",
+						[8]  = "Nueva estación: la marcamos visitada y apilamos sus vecinas.",
+						[12] = "Pila vacía — DFS recorrió toda la red desde el generador.",
 					},
 				},
 				dijkstra = {
-					intro = "Dijkstra garantiza el camino de MENOR COSTO desde A hasta cualquier nodo. Con pesos iguales equivale a BFS.",
+					intro = "Dijkstra garantiza la ruta de MENOR COSTO desde Empresa Eléctrica hasta Est. El Labrador. En un grafo con pesos iguales equivale a BFS.",
 					pasos = {
-						[2]  = "Inicializamos: dist[A]=0, todos los demás=∞. Nadie ha sido explorado.",
-						[7]  = "Extraemos el nodo con menor distancia conocida — el más 'barato' hasta ahora.",
-						[9]  = "Relajación: si llegar por aquí es más corto, actualizamos la distancia.",
-						[13] = "PQ vacía — Dijkstra garantiza que todas las distancias son mínimas.",
+						[2]  = "Inicializamos: dist[Empresa Eléctrica]=0, todas las estaciones=∞.",
+						[7]  = "Extraemos la estación más 'barata' de alcanzar hasta el momento.",
+						[9]  = "Relajación: si llegar por aquí es más económico, actualizamos la distancia.",
+						[13] = "Cola vacía — Dijkstra garantiza las rutas mínimas a todas las estaciones.",
 					},
 				},
 				prim = {
-					intro = "Prim construye el Árbol de Expansión Mínima (MST): el subconjunto de aristas que conecta todos los nodos con el menor costo total.",
+					intro = "Prim construye el Árbol de Expansión Mínima (MST): el conjunto de cables que conecta todas las estaciones con el menor tendido total.",
 					pasos = {
-						[2]  = "Inicializamos: key[A]=0 (la raíz), todos los demás=∞.",
-						[8]  = "El nodo con key mínima se une al MST. Se actualizan sus vecinos.",
-						[9]  = "Si una arista ofrece un costo menor para llegar a este vecino, lo actualizamos.",
-						[13] = "MST completo — este árbol conecta todos los nodos con el mínimo de aristas.",
+						[2]  = "Raíz: Empresa Eléctrica con key=0. El resto de estaciones empieza en ∞.",
+						[8]  = "La estación con key mínima se integra al MST. Se actualizan sus vecinas.",
+						[9]  = "Si este cable es más corto para llegar a una estación, actualizamos su key.",
+						[13] = "MST completo — toda la red conectada con el tendido mínimo de cables.",
 					},
 				},
 			},
@@ -239,9 +245,9 @@ LevelsConfig[0] = {
 		{ ID=7, Zona="Zona_Estacion_3", Texto="Conecta Nodo A → Nodo B",           Tipo="ARISTA_CREADA",     Puntos=150, Parametros={ NodoA="NodoA_z3", NodoB="NodoB_z3" } },
 		{ ID=8, Zona="Zona_Estacion_3", Texto="Conecta Nodo B → Nodo C",           Tipo="ARISTA_CREADA",     Puntos=150, Parametros={ NodoA="NodoB_z3", NodoB="NodoC_z3" } },
 		-- ── Zona 4 ──────────────────────────────────────────────────────────────
-		{ ID=9,  Zona="Zona_Estacion_4", Texto="Crea una arista entre Nodo A y Nodo B",   Tipo="ARISTA_CREADA", Puntos=100, Parametros={ NodoA="NodoA_z4", NodoB="NodoB_z4" } },
-		{ ID=10, Zona="Zona_Estacion_4", Texto="Conecta Nodo C con Nodo D",               Tipo="ARISTA_CREADA", Puntos=100, Parametros={ NodoA="NodoC_z4", NodoB="NodoD_z4" } },
-		{ ID=11, Zona="Zona_Estacion_4", Texto="Haz que el grafo sea completamente conexo",Tipo="GRAFO_CONEXO",  Puntos=300, Parametros={ Nodos={"NodoA_z4","NodoB_z4","NodoC_z4","NodoD_z4"} } },
+		{ ID=9,  Zona="Zona_Estacion_4", Texto="Conecta Empresa Eléctrica con Est. El Ejido",         Tipo="ARISTA_CREADA", Puntos=100, Parametros={ NodoA="NodoE_z4", NodoB="NodoA_z4" } },
+		{ ID=10, Zona="Zona_Estacion_4", Texto="Conecta Est. Iñaquito con Est. El Labrador",          Tipo="ARISTA_CREADA", Puntos=100, Parametros={ NodoA="NodoF_z4", NodoB="NodoD_z4" } },
+		{ ID=11, Zona="Zona_Estacion_4", Texto="Haz el grafo completamente conexo (6 nodos)",         Tipo="GRAFO_CONEXO",  Puntos=300, Parametros={ Nodos={"NodoE_z4","NodoA_z4","NodoB_z4","NodoC_z4","NodoF_z4","NodoD_z4"} } },
 	},
 
 	Guia = {

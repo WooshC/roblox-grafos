@@ -25,7 +25,9 @@ local _servicioPuntaje = nil
 local _servicioDatos = nil
 local _puntosAcum = 0
 local _eventoActualizarMisiones = nil
-local _eventoNivelCompletado = nil
+local _eventoNivelCompletado    = nil
+local _eventoZonaEnergizada     = nil
+local _eventoZonaApagada        = nil
 
 -- ── Helpers ───────────────────────────────────────────────────────────────────
 local function clavePar(a, b)
@@ -147,9 +149,9 @@ local function verificarYNotificar()
 
 		if ok and not _completadas[m.ID] then
 			_completadas[m.ID] = true
-			-- Solo marcar como permanente si NO es una misión de cableado
-			-- Las misiones ARISTA_CREADA pueden revocarse al desconectar
-			if m.Tipo ~= "ARISTA_CREADA" and m.Tipo ~= "ARISTA_DIRIGIDA" then
+			-- Solo marcar como permanente si NO es una misión de cableado ni de conectividad
+			-- ARISTA_CREADA, ARISTA_DIRIGIDA y GRAFO_CONEXO pueden revocarse al desconectar
+			if m.Tipo ~= "ARISTA_CREADA" and m.Tipo ~= "ARISTA_DIRIGIDA" and m.Tipo ~= "GRAFO_CONEXO" then
 				_permanentes[m.ID] = true
 			end
 			_puntosAcum = _puntosAcum + (m.Puntos or 0)
@@ -157,11 +159,21 @@ local function verificarYNotificar()
 			cambiado = true
 			print(string.format("[ServicioMisiones] ✅ Misión %d completada — +%d pts (total: %d)",
 				m.ID, m.Puntos or 0, _puntosAcum))
+			-- Si es un grafo conexo completado → energizar la zona
+			if m.Tipo == "GRAFO_CONEXO" and m.Zona and _eventoZonaEnergizada and _jugador then
+				_eventoZonaEnergizada:FireClient(_jugador, m.Zona)
+				print("[ServicioMisiones] ⚡ ZonaEnergizada →", m.Zona)
+			end
 		elseif not ok and _completadas[m.ID] and not _permanentes[m.ID] then
 			_completadas[m.ID] = nil
 			_puntosAcum = math.max(0, _puntosAcum - (m.Puntos or 0))
 			if _servicioPuntaje then _servicioPuntaje:fijarPuntajeMision(_jugador, _puntosAcum) end
 			cambiado = true
+			-- Si era grafo conexo y ya no lo es → apagar la zona
+			if m.Tipo == "GRAFO_CONEXO" and m.Zona and _eventoZonaApagada and _jugador then
+				_eventoZonaApagada:FireClient(_jugador, m.Zona)
+				print("[ServicioMisiones] 💡 ZonaApagada →", m.Zona)
+			end
 		end
 	end
 
@@ -266,7 +278,9 @@ function ServicioMisiones.activar(config, nivelID, jugador, eventos, servicioPun
 
 	if eventos then
 		_eventoActualizarMisiones = eventos:FindFirstChild("ActualizarMisiones")
-		_eventoNivelCompletado = eventos:FindFirstChild("NivelCompletado")
+		_eventoNivelCompletado    = eventos:FindFirstChild("NivelCompletado")
+		_eventoZonaEnergizada     = eventos:FindFirstChild("ZonaEnergizada")
+		_eventoZonaApagada        = eventos:FindFirstChild("ZonaApagada")
 	end
 
 	task.delay(1, function()
@@ -290,7 +304,9 @@ function ServicioMisiones.desactivar()
 	_servicioPuntaje = nil
 	_puntosAcum = 0
 	_eventoActualizarMisiones = nil
-	_eventoNivelCompletado = nil
+	_eventoNivelCompletado    = nil
+	_eventoZonaEnergizada     = nil
+	_eventoZonaApagada        = nil
 	_servicioDatos = nil
 	_config = nil
 end
