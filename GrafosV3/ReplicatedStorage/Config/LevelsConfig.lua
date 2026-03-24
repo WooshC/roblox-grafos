@@ -260,11 +260,11 @@ LevelsConfig[0] = {
 }
 
 -- ============================================
--- NIVEL 1: EL BARRIO DE LAS SOMBRAS
+-- NIVEL 1: EL BARRIO DE LAS SOMBRAS (Centro Histórico de Quito)
 -- ============================================
 LevelsConfig[1] = {
 	Nombre           = "El Barrio de las Sombras",
-	DescripcionCorta = "Restaura la red electrica para iluminar todo el barrio.",
+	DescripcionCorta = "El Centro Historico de Quito esta a oscuras. Usa BFS para conectar el Bulevar hasta El Panecillo.",
 	ImageId          = "rbxassetid://87116895331866",
 	Modelo           = "Nivel1",
 
@@ -274,94 +274,138 @@ LevelsConfig[1] = {
 	Conceptos = { "BFS", "Cobertura", "Grafo Conexo", "Nodo Aislado" },
 
 	Puntuacion = {
-		TresEstrellas  = 1800,
-		DosEstrellas   = 1000,
-		RecompensaXP   = 600,
+		TresEstrellas  = 2500,
+		DosEstrellas   = 1500,
+		RecompensaXP   = 800,
 		PuntosConexion = 50,
-		PenaFallo      = 15,
+		PenaFallo      = 20,
+		PuntosPreguntaCorrecta = 100, -- Para otorgar 100 puntos en respuestas correctas
 	},
 
 	Adyacencias = {
-		-- Zona 1: Centro del Barrio
-		["Generador"] = {"Casa_A", "Casa_C"},
-		["Casa_A"]    = {"Generador", "Casa_B"},
-		["Casa_B"]    = {"Casa_A", "Poste_Calle"},
-		["Casa_C"]    = {"Generador"},
+		-- Zona 1: Bulevar 24 de Mayo
+		["Transformador_Bulevar"] = {"Casa_Bulevar1", "Casa_Bulevar2"},
+		["Casa_Bulevar1"]         = {"Transformador_Bulevar", "Poste_LaRonda"},
+		["Casa_Bulevar2"]         = {"Transformador_Bulevar"},
 
-		-- Zona 2: La Calle Oscura (puente hacia la periferia)
-		["Poste_Calle"] = {"Casa_B", "Casa_D"},
+		-- Zona 2: La Ronda
+		["Poste_LaRonda"]  = {"Casa_Bulevar1", "Taller_LaRonda"},
+		["Taller_LaRonda"] = {"Poste_LaRonda", "Iglesia_SantoDomingo"},
 		
-		-- Zona 3: La Periferia (componente aislado inicialmente)
-		["Casa_D"] = {"Poste_Calle", "Casa_E"},
-		["Casa_E"] = {"Casa_D", "Casa_F"},
-		["Casa_F"] = {"Casa_E"},
+		-- Zona 3: Plaza Santo Domingo
+		["Iglesia_SantoDomingo"] = {"Taller_LaRonda", "Casa_Plaza"},
+		["Casa_Plaza"]           = {"Iglesia_SantoDomingo"}, -- Falla aqui, falta puente al Panecillo
+		
+		-- Zona 4: El Panecillo (Componente inicialmente aislado)
+		["Poste_Subida"]     = {"Virgen_Panecillo"},
+		["Virgen_Panecillo"] = {"Poste_Subida", "Restaurante_Panecillo"},
+		["Restaurante_Panecillo"] = {"Virgen_Panecillo"}
 	},
 
 	Zonas = {
-		["Zona_Generador"] = { 
-			Trigger = "ZonaTrigger_Generador", 
-			Descripcion = "Centro del Barrio", 
-			Dialogo = "Nivel1_Intro" 
+		["Zona_Bulevar"] = { 
+			Trigger = "ZonaTrigger_Bulevar", 
+			Descripcion = "Bulevar 24 de Mayo", 
+			Dialogo = "Nivel1_Bulevar",
+			CarpetaLuz = "Zona_luz_1"
 		},
-		["Zona_Calle"] = { 
-			Trigger = "ZonaTrigger_Calle", 
-			Descripcion = "Calle Principal", 
-			Dialogo = "Nivel1_Calle" 
+		["Zona_Ronda"] = { 
+			Trigger = "ZonaTrigger_Ronda", 
+			Descripcion = "Calle La Ronda", 
+			Dialogo = "Nivel1_Ronda",
+			CarpetaLuz = "Zona_luz_2"
 		},
-		["Zona_Periferia"] = { 
-			Trigger = "ZonaTrigger_Periferia", 
-			Descripcion = "La Periferia", 
-			Dialogo = "Nivel1_Periferia" 
+		["Zona_SantoDomingo"] = { 
+			Trigger = "ZonaTrigger_SantoDomingo", 
+			Descripcion = "Plaza de Santo Domingo", 
+			Dialogo = "Nivel1_SantoDomingo",
+			CarpetaLuz = "Zona_luz_3"
+		},
+		["Zona_Panecillo"] = { 
+			Trigger = "ZonaTrigger_Panecillo", 
+			Descripcion = "El Panecillo", 
+			Dialogo = "Nivel1_Panecillo",
+			CarpetaLuz = "Zona_luz_4"
 		},
 	},
 
 	NombresNodos = {
-		["Generador"]   = "Generador Central",
-		["Casa_A"]      = "Casa Martinez",
-		["Casa_B"]      = "Bodega Don Pepe",
-		["Casa_C"]      = "Casa de la Viuda",
-		["Poste_Calle"] = "Poste de Alumbrado",
-		["Casa_D"]      = "Casa Abandonada",
-		["Casa_E"]      = "Taller de Costura",
-		["Casa_F"]      = "Casa del Alcalde",
+		["Transformador_Bulevar"]   = "Generador 24 de Mayo",
+		["Casa_Bulevar1"]           = "Museo de la Ciudad",
+		["Casa_Bulevar2"]           = "Casa Bulevar",
+		["Poste_LaRonda"]           = "Poste La Ronda",
+		["Taller_LaRonda"]          = "Taller de Máscaras",
+		["Iglesia_SantoDomingo"]    = "Iglesia Santo Domingo",
+		["Casa_Plaza"]              = "Cafetería Santo Domingo",
+		["Poste_Subida"]            = "Poste Subida al Panecillo",
+		["Virgen_Panecillo"]        = "Virgen de El Panecillo",
+		["Restaurante_Panecillo"]   = "Restaurante PIM'S",
 	},
 
 	Misiones = {
-		-- ── Zona 1: Generador ──────────────────────────────────────────────────
-		{ ID=101, Zona="Zona_Generador", Texto="Selecciona el Generador Central", Tipo="NODO_SELECCIONADO", Puntos=100, Parametros={ Nodo="Generador" } },
-		{ ID=102, Zona="Zona_Generador", Texto="Conecta el Generador a la Casa Martinez", Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Generador", NodoB="Casa_A" } },
+		-- ── Zona 1: Bulevar ──────────────────────────────────────────────────
+		{ ID=101, Zona="Zona_Bulevar", Texto="Revisa el Transformador del Bulevar", Tipo="NODO_SELECCIONADO", Puntos=100, Parametros={ Nodo="Transformador_Bulevar" } },
 		
-		-- ── Zona 2: La Calle ───────────────────────────────────────────────────
-		{ ID=103, Zona="Zona_Calle", Texto="Extiende la red hasta el Poste de Alumbrado", Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Casa_B", NodoB="Poste_Calle" } },
+		-- ── Zona 2: La Ronda ───────────────────────────────────────────────────
+		{ ID=102, Zona="Zona_Ronda", Texto="Conecta la La Ronda (Museo de la Ciudad a Poste La Ronda)", Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Casa_Bulevar1", NodoB="Poste_LaRonda" } },
 		
-		-- ── Zona 3: Periferia y Victoria ────────────────────────────────────────
-		{ ID=104, Zona="Zona_Periferia", Texto="Reconecta la Casa del Alcalde", Tipo="NODO_SELECCIONADO", Puntos=150, Parametros={ Nodo="Casa_F" } },
-		{ ID=105, Zona="Zona_Periferia", Texto="Restaura la conectividad total (8 nodos)", Tipo="GRAFO_CONEXO", Puntos=500, Parametros={ Nodos={"Generador","Casa_A","Casa_B","Casa_C","Poste_Calle","Casa_D","Casa_E","Casa_F"} } },
+		-- ── Zona 3: Santo Domingo ──────────────────────────────────────────────
+		{ ID=103, Zona="Zona_SantoDomingo", Texto="Revisa que la energía llegue a la Iglesia (Taller a Iglesia)", Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Taller_LaRonda", NodoB="Iglesia_SantoDomingo" } },
+
+		-- ── Zona 4: El Panecillo y Victoria ────────────────────────────────────
+		{ ID=104, Zona="Zona_Panecillo", Texto="Forma el puente: Cafetería a Poste Subida Panecillo", Tipo="ARISTA_CREADA", Puntos=300, Parametros={ NodoA="Casa_Plaza", NodoB="Poste_Subida" } },
+		{ ID=105, Zona="Zona_Panecillo", Texto="Logra un grafo 100% conexo iluminando a la Virgen", Tipo="GRAFO_CONEXO", Puntos=500, Parametros={ Nodos={"Transformador_Bulevar","Casa_Bulevar1","Casa_Bulevar2","Poste_LaRonda","Taller_LaRonda","Iglesia_SantoDomingo","Casa_Plaza","Poste_Subida","Virgen_Panecillo","Restaurante_Panecillo"} } },
 	},
 
 	AnalisisConfig = {
-		["Zona_Generador"] = {
+		["Zona_Bulevar"] = {
 			algoritmos = { "bfs" },
-			nodoInicio = "Generador",
+			nodoInicio = "Transformador_Bulevar",
 			conceptos = {
 				bfs = {
-					intro = "Usa el Pulso BFS para verificar que la energia llegue a los vecinos directos del Generador.",
+					intro = "El Panel de Análisis examina la cobertura local de tu zona. El BFS explora este subgrafo desde el Transformador hacia sus vecinos inmediatos.",
 					pasos = {
-						[2]  = "El pulso sale del Generador y busca casas conectadas.",
-						[13] = "Si el pulso no avanza, revisa los cables cercanos.",
+						[2]  = "El pulso eléctrico escanea el Bulevar para asegurar que ninguna casa cercana esté aislada.",
+						[13] = "Subgrafo del Bulevar 100% cubierto. La energía local fluye.",
 					},
 				},
 			},
 		},
-		["Zona_Periferia"] = {
+		["Zona_Ronda"] = {
 			algoritmos = { "bfs" },
-			nodoInicio = "Generador",
+			nodoInicio = "Poste_LaRonda",
 			conceptos = {
 				bfs = {
-					intro = "Alcanza la periferia. BFS cubrira todo el barrio si has cerrado el grafo.",
+					intro = "Esta es La Ronda. Has hecho un 'puente' desde el Bulevar y ahora verificamos que la luz viaje por esta calle estrecha usando BFS local.",
 					pasos = {
-						[2]  = "El pulso ahora viaja por la calle principal.",
-						[13] = "¡Cobertura total! Todas las casas estan iluminadas.",
+						[2]  = "El pulso recorre las calles en orden radial desde el poste de entrada.",
+						[13] = "Verificación completada. El subgrafo de La Ronda está iluminado.",
+					},
+				},
+			},
+		},
+		["Zona_SantoDomingo"] = {
+			algoritmos = { "bfs" },
+			nodoInicio = "Iglesia_SantoDomingo",
+			conceptos = {
+				bfs = {
+					intro = "En Santo Domingo el camino se corta. Al analizar la zona, confirmarás que la Plaza está bien, pero no hay forma de enviar luz hacia la montaña.",
+					pasos = {
+						[2]  = "Energía avanzando hacia la plaza localmente.",
+						[13] = "Subgrafo encendido. Sin embargo, carecemos de una arista hacia El Panecillo (Componente Aislado).",
+					},
+				},
+			},
+		},
+		["Zona_Panecillo"] = {
+			algoritmos = { "bfs" },
+			nodoInicio = "Poste_Subida",
+			conceptos = {
+				bfs = {
+					intro = "Al enlazar este último subgrafo aislado al resto de la red, garantizas que no quede ningún sector apagado en toda la ciudad.",
+					pasos = {
+						[2]  = "El pulso sube por el cerro, inspeccionando la Virgen y sus vecinos.",
+						[13] = "100% Cobertura local. ¡La suma de los subgrafos unidos ha formado un Grafo Conexo!",
 					},
 				},
 			},
