@@ -819,8 +819,14 @@ local function onZonaChanged()
 	task.wait(0.6)
 
 	-- Re-verificar tras el wait (pudo haber cambiado de zona o ya hay diálogo activo)
-	if dialogoActivo then return end
-	if jugador:GetAttribute("ZonaActual") ~= nombreZona then return end
+	if dialogoActivo then 
+		dialogosZonaVistos[nombreZona] = nil
+		return 
+	end
+	if jugador:GetAttribute("ZonaActual") ~= nombreZona then 
+		dialogosZonaVistos[nombreZona] = nil
+		return 
+	end
 
 	ControladorDialogo.iniciar(dialogoID, {
 		ocultarTechos = true,

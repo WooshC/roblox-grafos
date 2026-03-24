@@ -611,7 +611,7 @@ function DialogoGUISystem:LoadDialogue(key)
 
 	local modulosEncontrados = 0
 
-	for _, module in pairs(DialogoData:GetChildren()) do
+	for _, module in pairs(DialogoData:GetDescendants()) do
 		if module:IsA("ModuleScript") then
 			modulosEncontrados = modulosEncontrados + 1
 			print("[DialogoGUISystem] Intentando cargar módulo:", module.Name)

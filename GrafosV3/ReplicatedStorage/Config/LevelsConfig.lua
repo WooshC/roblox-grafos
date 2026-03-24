@@ -260,23 +260,113 @@ LevelsConfig[0] = {
 }
 
 -- ============================================
--- NIVEL 1: LA RED DESCONECTADA
+-- NIVEL 1: EL BARRIO DE LAS SOMBRAS
 -- ============================================
 LevelsConfig[1] = {
-	Nombre           = "La Red Desconectada",
-	DescripcionCorta = "Identifica componentes y conectalos para restaurar la red.",
-	ImageId          = "rbxassetid://1234567891",
+	Nombre           = "El Barrio de las Sombras",
+	DescripcionCorta = "Restaura la red electrica para iluminar todo el barrio.",
+	ImageId          = "rbxassetid://87116895331866",
 	Modelo           = "Nivel1",
+
 	Tag       = "NIVEL 1 · CONECTIVIDAD",
 	Seccion   = "Busqueda y Conectividad",
-	Algoritmo = "BFS / Componentes Conexas",
-	Conceptos = { "Conectividad", "Componentes", "BFS", "Caminos" },
-	Puntuacion    = { TresEstrellas=1500, DosEstrellas=900, RecompensaXP=150, PuntosConexion=50, PenaFallo=10 },
-	Adyacencias   = {},
-	Zonas         = {},
-	NombresNodos  = {},
-	AnalisisConfig = {},
-	Misiones      = {},
+	Algoritmo = "BFS",
+	Conceptos = { "BFS", "Cobertura", "Grafo Conexo", "Nodo Aislado" },
+
+	Puntuacion = {
+		TresEstrellas  = 1800,
+		DosEstrellas   = 1000,
+		RecompensaXP   = 600,
+		PuntosConexion = 50,
+		PenaFallo      = 15,
+	},
+
+	Adyacencias = {
+		-- Zona 1: Centro del Barrio
+		["Generador"] = {"Casa_A", "Casa_C"},
+		["Casa_A"]    = {"Generador", "Casa_B"},
+		["Casa_B"]    = {"Casa_A", "Poste_Calle"},
+		["Casa_C"]    = {"Generador"},
+
+		-- Zona 2: La Calle Oscura (puente hacia la periferia)
+		["Poste_Calle"] = {"Casa_B", "Casa_D"},
+		
+		-- Zona 3: La Periferia (componente aislado inicialmente)
+		["Casa_D"] = {"Poste_Calle", "Casa_E"},
+		["Casa_E"] = {"Casa_D", "Casa_F"},
+		["Casa_F"] = {"Casa_E"},
+	},
+
+	Zonas = {
+		["Zona_Generador"] = { 
+			Trigger = "ZonaTrigger_Generador", 
+			Descripcion = "Centro del Barrio", 
+			Dialogo = "Nivel1_Intro" 
+		},
+		["Zona_Calle"] = { 
+			Trigger = "ZonaTrigger_Calle", 
+			Descripcion = "Calle Principal", 
+			Dialogo = "Nivel1_Calle" 
+		},
+		["Zona_Periferia"] = { 
+			Trigger = "ZonaTrigger_Periferia", 
+			Descripcion = "La Periferia", 
+			Dialogo = "Nivel1_Periferia" 
+		},
+	},
+
+	NombresNodos = {
+		["Generador"]   = "Generador Central",
+		["Casa_A"]      = "Casa Martinez",
+		["Casa_B"]      = "Bodega Don Pepe",
+		["Casa_C"]      = "Casa de la Viuda",
+		["Poste_Calle"] = "Poste de Alumbrado",
+		["Casa_D"]      = "Casa Abandonada",
+		["Casa_E"]      = "Taller de Costura",
+		["Casa_F"]      = "Casa del Alcalde",
+	},
+
+	Misiones = {
+		-- ── Zona 1: Generador ──────────────────────────────────────────────────
+		{ ID=101, Zona="Zona_Generador", Texto="Selecciona el Generador Central", Tipo="NODO_SELECCIONADO", Puntos=100, Parametros={ Nodo="Generador" } },
+		{ ID=102, Zona="Zona_Generador", Texto="Conecta el Generador a la Casa Martinez", Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Generador", NodoB="Casa_A" } },
+		
+		-- ── Zona 2: La Calle ───────────────────────────────────────────────────
+		{ ID=103, Zona="Zona_Calle", Texto="Extiende la red hasta el Poste de Alumbrado", Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Casa_B", NodoB="Poste_Calle" } },
+		
+		-- ── Zona 3: Periferia y Victoria ────────────────────────────────────────
+		{ ID=104, Zona="Zona_Periferia", Texto="Reconecta la Casa del Alcalde", Tipo="NODO_SELECCIONADO", Puntos=150, Parametros={ Nodo="Casa_F" } },
+		{ ID=105, Zona="Zona_Periferia", Texto="Restaura la conectividad total (8 nodos)", Tipo="GRAFO_CONEXO", Puntos=500, Parametros={ Nodos={"Generador","Casa_A","Casa_B","Casa_C","Poste_Calle","Casa_D","Casa_E","Casa_F"} } },
+	},
+
+	AnalisisConfig = {
+		["Zona_Generador"] = {
+			algoritmos = { "bfs" },
+			nodoInicio = "Generador",
+			conceptos = {
+				bfs = {
+					intro = "Usa el Pulso BFS para verificar que la energia llegue a los vecinos directos del Generador.",
+					pasos = {
+						[2]  = "El pulso sale del Generador y busca casas conectadas.",
+						[13] = "Si el pulso no avanza, revisa los cables cercanos.",
+					},
+				},
+			},
+		},
+		["Zona_Periferia"] = {
+			algoritmos = { "bfs" },
+			nodoInicio = "Generador",
+			conceptos = {
+				bfs = {
+					intro = "Alcanza la periferia. BFS cubrira todo el barrio si has cerrado el grafo.",
+					pasos = {
+						[2]  = "El pulso ahora viaja por la calle principal.",
+						[13] = "¡Cobertura total! Todas las casas estan iluminadas.",
+					},
+				},
+			},
+		},
+	},
 }
 
 -- ============================================

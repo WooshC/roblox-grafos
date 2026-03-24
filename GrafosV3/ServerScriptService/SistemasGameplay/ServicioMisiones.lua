@@ -59,6 +59,16 @@ local function esAlcanzable(inicio, meta, visitados)
 	return false
 end
 
+local function calcularEstrellasHelper(puntos)
+	local puntuacion = _config and _config.Puntuacion or {}
+	local estrellas = 0
+	if puntos >= (puntuacion.TresEstrellas or 999999) then estrellas = 3
+	elseif puntos >= (puntuacion.DosEstrellas or 999999) then estrellas = 2
+	elseif puntos > 0 then estrellas = 1
+	end
+	return estrellas
+end
+
 -- ── Validadores ───────────────────────────────────────────────────────────────
 local Validadores = {}
 
@@ -155,7 +165,7 @@ local function verificarYNotificar()
 				_permanentes[m.ID] = true
 			end
 			_puntosAcum = _puntosAcum + (m.Puntos or 0)
-			if _servicioPuntaje then _servicioPuntaje:fijarPuntajeMision(_jugador, _puntosAcum) end
+			if _servicioPuntaje then _servicioPuntaje:fijarPuntajeMision(_jugador, _puntosAcum, calcularEstrellasHelper(_puntosAcum)) end
 			cambiado = true
 			print(string.format("[ServicioMisiones] ✅ Misión %d completada — +%d pts (total: %d)",
 				m.ID, m.Puntos or 0, _puntosAcum))
@@ -167,7 +177,7 @@ local function verificarYNotificar()
 		elseif not ok and _completadas[m.ID] and not _permanentes[m.ID] then
 			_completadas[m.ID] = nil
 			_puntosAcum = math.max(0, _puntosAcum - (m.Puntos or 0))
-			if _servicioPuntaje then _servicioPuntaje:fijarPuntajeMision(_jugador, _puntosAcum) end
+			if _servicioPuntaje then _servicioPuntaje:fijarPuntajeMision(_jugador, _puntosAcum, calcularEstrellasHelper(_puntosAcum)) end
 			cambiado = true
 			-- Si era grafo conexo y ya no lo es → apagar la zona
 			if m.Tipo == "GRAFO_CONEXO" and m.Zona and _eventoZonaApagada and _jugador then
@@ -212,12 +222,7 @@ local function verificarYNotificar()
 
 			-- Guardar en DataStore antes de mostrar victoria
 			if _servicioDatos and _nivelID ~= nil then
-				local puntuacion = _config and _config.Puntuacion or {}
-				local estrellas = 0
-				if snap.puntajeBase >= (puntuacion.TresEstrellas or 999999) then estrellas = 3
-				elseif snap.puntajeBase >= (puntuacion.DosEstrellas or 999999) then estrellas = 2
-				elseif snap.puntajeBase > 0 then estrellas = 1
-				end
+				local estrellas = calcularEstrellasHelper(snap.puntajeBase)
 
 				-- Usar conteo real del ValidadorConexiones (conexiones actuales)
 				local conexionesActuales = snap.conexiones

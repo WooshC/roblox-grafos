@@ -3,6 +3,9 @@
 
 local VictoriaHUD = {}
 
+local Players = game:GetService("Players")
+local playerModule = nil
+
 local parentHud = nil
 
 local victoriaFondo = nil
@@ -102,6 +105,9 @@ function VictoriaHUD.ocultar()
 	if victoriaFondo then
 		victoriaFondo.Visible = false
 	end
+	if playerModule then
+		playerModule:GetControls():Enable()
+	end
 	nivelIDActual = nil
 end
 
@@ -159,6 +165,19 @@ function VictoriaHUD.mostrar(snapshotVictoria)
 		if not snapshotVictoria then
 			warn("[VictoriaHUD] ❌ snapshotVictoria es nil")
 		end
+	end
+
+	if not playerModule then
+		local LocalPlayer = Players.LocalPlayer
+		if LocalPlayer and LocalPlayer:FindFirstChild("PlayerScripts") then
+			local pm = LocalPlayer.PlayerScripts:FindFirstChild("PlayerModule")
+			if pm then
+				playerModule = require(pm)
+			end
+		end
+	end
+	if playerModule then
+		playerModule:GetControls():Disable()
 	end
 
 	victoriaFondo.Visible = true

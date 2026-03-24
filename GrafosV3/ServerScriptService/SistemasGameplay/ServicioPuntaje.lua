@@ -24,6 +24,7 @@ function ServicioPuntaje:iniciarNivel(jugador, nivelID, puntosConexion, penaFall
 		puntosConexion = puntosConexion or 50,
 		penaFallo = penaFallo or 10,
 		puntajeMision = 0,
+		estrellasMision = 0,
 	}
 	self:_notificar(jugador)
 	print("[ServicioPuntaje] iniciarNivel — Nivel:", nivelID, "/ Jugador:", jugador.Name)
@@ -56,13 +57,14 @@ end
 
 -- Llamado por ServicioMisiones al completar/revocar misiones.
 -- ES el único que actualiza el HUD de puntaje.
-function ServicioPuntaje:fijarPuntajeMision(jugador, puntos)
+function ServicioPuntaje:fijarPuntajeMision(jugador, puntos, estrellas)
 	local d = _datos[jugador.UserId]
 	if not d then
 		warn("[ServicioPuntaje] fijarPuntajeMision — sin datos para", jugador.Name)
 		return
 	end
 	d.puntajeMision = puntos or 0
+	d.estrellasMision = estrellas or 0
 	self:_notificar(jugador)
 end
 
@@ -106,6 +108,7 @@ function ServicioPuntaje:_notificar(jugador)
 	_eventoActualizar:FireClient(jugador, {
 		conexiones = d.conexiones,
 		puntajeBase = d.puntajeMision,
+		estrellas = d.estrellasMision,
 	})
 end
 
