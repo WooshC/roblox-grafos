@@ -1,11 +1,11 @@
--- ReplicatedStorage/DialogoData/DialogosNivel1/Nivel1_SantoDomingo.lua
+-- ReplicatedStorage/DialogoData/DialogosNivel1/Nivel1_Canchas.lua
 
 local EfectosDialogo = require(game:GetService("ReplicatedStorage"):WaitForChild("Efectos"):WaitForChild("EfectosDialogo"))
 local ServicioCamara = require(game:GetService("ReplicatedStorage"):WaitForChild("Compartido"):WaitForChild("ServicioCamara"))
 
 local DIALOGOS = {
-	["Nivel1_SantoDomingo"] = {
-		Zona  = "Zona_SantoDomingo",
+	["Nivel1_Canchas"] = {
+		Zona  = "Zona_Canchas_3",
 		Nivel = 1,
 		Lineas = {
 			{
@@ -13,11 +13,11 @@ local DIALOGOS = {
 				Numero    = 1,
 				Actor     = "Carlos",
 				Expresion = "Preocupado",
-				Texto     = "Esta es la majestuosa Plaza de Santo Domingo. Pero si observas bien... aquí los cables desaparecen abruptamente.",
+				Texto     = "Llegamos a Las Canchas. Ejecuta el Analizador ahora: verás que la exploración avanza, procesa un par de casas y luego ¡puf!, se detiene con la cola vacía.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
-					ServicioCamara.moverHaciaObjetivo("Iglesia_SantoDomingo", { altura = 30, angulo = 60, duracion = 1.5 })
-					EfectosDialogo.resaltarNodo("Casa_Plaza", "ERROR")
+					ServicioCamara.moverHaciaObjetivo("Poste_Canchas_z3", { altura = 30, angulo = 60, duracion = 1.5 })
+					EfectosDialogo.resaltarNodo("Casa_Canchas_z3", "ERROR")
 				end,
 				Siguiente = "pregunta_3",
 			},
@@ -26,11 +26,11 @@ local DIALOGOS = {
 				Numero    = 2,
 				Actor     = "Carlos",
 				Expresion = "Serio",
-				Texto     = "Imagina que lanzas un pulso BFS ahora mismo. Si la onda de luz se detiene bruscamente en la Cafetería y no logra avanzar hacia El Panecillo... ¿Qué significa eso para nuestra red?",
+				Texto     = "Alcalde o no, los cables no mienten. Si el algoritmo de BFS se detiene abruptamente y el nodo 'Casa de las Canchas' nunca es visitado, ¿qué acabamos de descubrir?",
 				Opciones = {
-					{ Texto = "Que necesitamos lanzar un DFS.", Siguiente = "resp_3_incorrecta" },
+					{ Texto = "Que necesitamos lanzar un algoritmo DFS en su lugar.", Siguiente = "resp_3_incorrecta" },
 					{ Texto = "Que el Grafo es No Dirigido.", Siguiente = "resp_3_incorrecta" },
-					{ Texto = "Que tenemos un Componente Aislado.", Siguiente = "resp_3_correcta" },
+					{ Texto = "Que el barrio tiene un Componente Aislado.", Siguiente = "resp_3_correcta" },
 				},
 			},
 			{
@@ -38,7 +38,7 @@ local DIALOGOS = {
 				Numero    = 3,
 				Actor     = "Carlos",
 				Expresion = "Feliz",
-				Texto     = "¡Correcto! Si el pulso se detiene y quedan nodos apagados, significa que nuestro sistema eléctrico NO es un grafo conexo. Hemos detectado una componente aislada.",
+				Texto     = "¡Correcto! Si el algoritmo agota su cola y quedan nodos sin procesar, entonces no es un Grafo Conexo. ¡El alcalde dejó componentes aisladas completamente desconectadas!",
 				-- [TODO] Aquí agregaremos el puntaje +100 luego
 				Opciones = { { Texto = "Continuar", Siguiente = "instruccion" } },
 			},
@@ -47,14 +47,14 @@ local DIALOGOS = {
 				Numero    = 3,
 				Actor     = "Carlos",
 				Expresion = "Triste",
-				Texto     = "No exactamente. Si un BFS se detiene y quedan nodos sin visitar (en negro), significa que NO tenemos un grafo conexo. Esa zona apagada es un Componente Aislado.",
+				Texto     = "No exactamente, Tocino. Si un BFS se detiene y la cola queda vacía dejando nodos sin visitar, significa que graficamente NO somos conexos. Hay un Componente Aislado.",
 				Opciones = { { Texto = "Entendido", Siguiente = "instruccion" } },
 			},
 			{
 				Id        = "instruccion",
 				Numero    = 4,
 				Actor     = "Sistema",
-				Texto     = "Revisa que la energía llegue a la Iglesia de Santo Domingo, y prepárate para construir el puente hacia la montaña.",
+				Texto     = "Construye los puentes de cable necesarios desde las Canchas hacia el Parque para llevar energía al resto.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					ServicioCamara.restaurar(1.2)

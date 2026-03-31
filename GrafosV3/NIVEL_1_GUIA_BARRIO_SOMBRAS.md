@@ -1,61 +1,57 @@
-# Plan Estético y Educativo: Nivel 1 — El Barrio de las Sombras (Centro Histórico de Quito)
+# Plan Estético y Educativo: Nivel 1 — El Barrio Antiguo (La Ferroviaria)
 
-Este documento es el **Plan Base** para crear la estética y la estructura educativa del Nivel 1. El objetivo principal es usar la arquitectura del Centro Histórico de Quito para enseñar el algoritmo **BFS (Breadth-First Search)** aplicado a **Subgrafos (Zonas)**, y su relación con el concepto de un **Grafo Conexo Global**.
+Este documento es el **Plan Base** para crear la estética y la estructura educativa del Nivel 1. El objetivo principal es usar la planicie del Barrio Antiguo (un sector periférico inspirado en La Ferroviaria/Quitumbe, completamente llano sin montañas ni elevaciones) para enseñar el algoritmo **BFS (Breadth-First Search)** mediante el Módulo de Análisis HUD.
 
 ---
 
 ## 1. La Narrativa y el Problema
 
 **El Encargo Real:**
-Los vecinos del Centro Histórico están a oscuras. Debido al cableado antiguo, el sistema eléctrico se ha fragmentado en sectores aislados. El alcalde jura que "la red principal funciona", pero miente.
+La campaña sigue el crecimiento de Tocino dentro de la empresa eléctrica, enfrentando el desorden dejado por el alcalde. En el Barrio Antiguo, los vecinos se quejan de que la luz va y viene misteriosamente. El alcalde asegura que "todo el barrio está electrificado", pero miente. Debido al cableado negligente, hay manzanas enteras desconectadas.
 
 **El Desafío (Cobertura por Zonas y Conectividad Global):**
-La electricidad en Quito funciona por distritos (Zonas). Tu misión es reparar el cableado de forma local, zona por zona, asegurando que cada sector reciba energía. 
-Sin embargo, arreglar un sector no sirve si no está enlazado a la red principal. Por tanto, el jugador actúa como un técnico que verifica mediante BFS la cobertura local de cada **Subgrafo** (su zona actual), y debe crear "conexiones puente" entre sectores para que la energía fluya hacia la siguiente zona.
+No buscamos la ruta más rápida a un solo destino, nuestro objetivo es **Cobertura y Conectividad**. Tocino debe identificar qué casas están desconectadas (nodos aislados) usando su Analizador y luego "tender cables" en el mundo 3D para integrarlas a la red principal.
 
-Al encender la última zona en El Panecillo, habrás logrado que todos los subgrafos se unan en un único **Grafo Conexo**, donde el 100% de la ciudad está interconectada.
+*Algoritmo (BFS)*: Para comprender cómo fluye teóricamente la luz en el grafo que acaban de reparar (o que van a reparar), el jugador usa el **Panel de Análisis**. Visualmente en la HUD, verá el pseudocódigo ejecutándose y cómo BFS explora los nodos vecinos **capa por capa**. 
+
+*Victoria*: Si el jugador conecta correctamente todas las aristas exigidas, forma el Grafo Conexo y completa el nivel. 
+*Derrota o Advertencia Visual*: Si analizan la red sin repararla primero, el BFS se detendrá prematuramente al vaciar su cola, revelando en la interfaz la existencia de Nodos/Componentes Aislados.
 
 ---
 
 ## 2. Refuerzo de Conceptos y "Puntos por Sabiduría"
 
-A lo largo del nivel, Carlos lanzará **Preguntas de Validación** didácticas sobre conectividad. Responder estas preguntas correctamente recompensará al jugador con **+100 Puntos**.
+A lo largo del nivel, Carlos lanzará preguntas didácticas. Responder correctamente da **+100 Puntos**.
 
 Temas a reforzar:
-- ¿Qué significa explorar los niveles de un BFS localmente?
-- ¿Cómo actúa un "nodo puente" entre dos subgrafos?
-- ¿Qué es un Componente Aislado en la perspectiva de una zona entera?
-- Si unimos todos los subgrafos, ¿qué obtenemos? (Un Grafo Conexo).
+- ¿Cómo explora el algoritmo BFS la cola? (En Anillos/Capas procesando todos los vecinos inmediatos primero).
+- ¿Qué ventaja nos garantiza una red plana analizada por BFS? (Hallar las rutas mínimas usando el menor número de saltos/postes).
+- ¿Qué significa que el algoritmo vacíe su cola y deje nodos sin visitar? (Existencia de Nodos y Componentes Aislados).
+- ¿Qué se logra al conectar físicamente a todos sin dejar nodos aislados? (Un Grafo 100% Conexo global).
 
 ---
 
-## 3. Plan Estético: Las 4 Zonas de Quito y BFS Local
+## 3. Plan Estético: Las 4 Zonas del Barrio (Totalmente Planas)
 
-A continuación, la división en 4 zonas clave. El modo análisis y las luces se activan de forma local e independiente conforme resuelves cada sector:
+### Zona 1: La Estación Plana (Centro de Distribución)
+- **Concepto BFS:** Expansión Capa por Capa (Cola FIFO).
+- **Mecánica:** El jugador estudia el Analizador viendo cómo BFS encola el Generador Principal y expande a sus vecinos inmediatos, capa a capa.
+- **Narrativa:** "El alcalde jura que todo funciona. Abre el panel Analizador para ver cómo BFS realmente procesa la red y revélalo."
 
-### Zona 1: Bulevar 24 de Mayo (`Zona_Bulevar`)
-- **Estética:** Adoquines anchos, bancas coloniales, faroles de suelo.
-- **Análisis BFS:** Inicia en el Transformador del Bulevar. El pulso revisa únicamente la cobertura del subgrafo central (Nivel 1 y Nivel 2 locales).
-- **Mecánica y Luz:** Al conectar "Museo de la Ciudad", se ilumina toda la *CarpetaLuz* del Bulevar.
-- **Narrativa:** "Este es nuestro corazón eléctrico. Aquí aprendemos a mapear los vecinos directos".
+### Zona 2: El Mercado Central
+- **Concepto BFS:** Distancia Mínima en Saltos.
+- **Mecánica:** El jugador entiende en el Analizador que BFS llega a cada nodo por la menor cantidad posible de postes atravesados.
+- **Narrativa:** "Al expandirse en capas organizadas, BFS siempre descubrirá el camino a cada puesto del mercado que requiera atravesar la menor cantidad de postes."
 
-### Zona 2: Calle La Ronda (`Zona_Ronda`)
-- **Estética:** Calle estrecha y empedrada, balcones de madera llenos de geranios, faroles anclados a la pared.
-- **Análisis BFS:** Se inicia en el "Poste La Ronda". El pulso verifica que la estrecha calle esté cubierta de extremo a extremo.
-- **Mecánica y Luz:** Se debe crear una arista puente desde el Bulevar hacia La Ronda. Al completarla, la zona romántica se enciende.
-- **Narrativa:** "Para que este sector reciba luz, la energía debe heredar el pulso cruzando desde el Bulevar a través de un nodo puente. BFS nos mostrará si la calle entera tiene cobertura local".
+### Zona 3: Las Canchas Barriales
+- **Concepto BFS:** Nodos y Subgrafos Aislados.
+- **Mecánica:** Al estudiar la red actual en el HUD, BFS procesará media zona y agotará su cola abruptamente, dejando nodos oscuros de las Canchas sin indexar.
+- **Narrativa:** "¡El alcalde mintió! El algoritmo de exploración terminó, pero estas casas quedaron fuera. Hemos hallado un Componente Aislado por falta de cableado."
 
-### Zona 3: Plaza de Santo Domingo (`Zona_SantoDomingo`)
-- **Estética:** Plaza abierta, monumentos, imponente fachada de adobe/roca de la Iglesia.
-- **Análisis BFS:** Analiza el subgrafo de la plaza. Carlos usará el Panel para mostrar por qué, aunque esta zona local tenga luz, la conexión principal se "corta" de cara a la montaña.
-- **Mecánica y Luz:** Se exige conectar el Taller a la Iglesia. La plaza se enciende, relevando el problema mayor.
-- **Narrativa:** "La plaza está a salvo, pero BFS se detiene abruptamente en la Cafetería. Delante de nosotros hay un sector entero en penumbras: un Componente Aislado masivo".
-
-### Zona 4: El Panecillo (`Zona_Panecillo`)
-- **Estética:** Pendiente pronunciada que corona en la estatua monumental de la Virgen de Quito.
-- **Análisis BFS:** Inicia en la escalinata ("Poste Subida"). BFS trepará internamente los nodos de la montaña.
-- **Mecánica y Victoria:** El jugador conecta el último gran "puente" (Cafetería hacia Poste Subida). Al restaurar esta componente aislada y conectar sus nodos locales, la Virgen se ilumina.
-- **Narrativa Clímax:** "Al unir este último subgrafo a la red, cada zona de Quito forma parte de la misma telaraña. Hemos creado un Grafo Conexo global y la ciudad brilla entera".
+### Zona 4: Parque del Barrio
+- **Concepto BFS:** Grafo Conexo Completo.
+- **Mecánica:** Al tender los puentes faltantes en el mapa 3D y lograr el objetivo del sistema, el último chequeo garantizará que el 100% del mapa nivelado está interconectado en un Grafo Conexo.
+- **Narrativa:** "Logramos la conectividad total. Al reparar las conexiones formamos un Grafo Conexo. ¡Victoria!"
 
 ---
 
@@ -63,23 +59,22 @@ A continuación, la división en 4 zonas clave. El modo análisis y las luces se
 
 ```text
 Nivel1/
-├── Escenario/ (Mallas 3D de Quito Colonial, adoquines, balcones)
+├── Escenario/ (Mallas 3D del Barrio, terrenos planos sin pendientes)
 ├── Grafos/
 │   └── Grafo_Barrio/
-│       ├── Conexiones/ (Cables iniciales vacíos en la cima)
+│       ├── Conexiones/ (Cables iniciales vacíos en zonas críticas a reparar)
 │       ├── Meta/ (Activo=true)
 │       └── Nodos/ 
-│           ├── Transformador_Bulevar / Casa_Bulevar1 / Casa_Bulevar2
-│           ├── Poste_LaRonda / Taller_LaRonda
-│           ├── Iglesia_SantoDomingo / Casa_Plaza
-│           └── Poste_Subida / Virgen_Panecillo / Restaurante_Panecillo
+│           ├── Generador Principal / Casa Estación 1 / Casa Estación 2
+│           ├── Poste del Mercado / Puesto del Mercado
+│           ├── Poste de las Canchas / Casa de las Canchas
+│           └── Poste del Parque / Casa del Parque 1 / Casa del Parque 2
 └── Zonas/
     └── Triggers/
-        ├── ZonaTrigger_Bulevar
-        ├── ZonaTrigger_Ronda
-        ├── ZonaTrigger_SantoDomingo
-        └── ZonaTrigger_Panecillo
+        ├── ZonaTrigger_Bulevar (Estación)
+        ├── ZonaTrigger_Ronda (Mercado)
+        ├── ZonaTrigger_SantoDomingo (Canchas)
+        └── ZonaTrigger_Panecillo (Parque)
 ```
 
-*(No olvides crear posteriormente los archivos `DialogoData/DialogosNivel1/Nivel1_Bulevar.lua`, `Nivel1_Ronda.lua`, etc., e incluir en ellos las opciones con el flag `OpcionCorrecta = true` para otorgar los 100 puntos).*
-
+*(Nota de Sistema: Los scripts y nombres base de los GameObjects como triggers o archivos de diálogo se han preservado con sus nombres de iteraciones pasadas (Bulevar, Panecillo, etc.) por estabilidad, sin embargo los nombres mostrados en GUI y mecánicas corresponden a La Ferroviaria/Barrio Antiguo y al análisis educativo.)*

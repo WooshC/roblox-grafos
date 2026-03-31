@@ -221,6 +221,7 @@ function CargadorNiveles.cargar(nivelID, jugador)
 
 	-- Cargar personaje y teleportar
 	if jugador then
+		jugador:SetAttribute("CurrentLevelID", nivelID)
 		CargadorNiveles.cargarPersonaje(jugador, nivelActual)
 	end
 

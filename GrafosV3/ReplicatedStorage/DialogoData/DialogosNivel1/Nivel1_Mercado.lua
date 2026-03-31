@@ -1,11 +1,11 @@
--- ReplicatedStorage/DialogoData/DialogosNivel1/Nivel1_Ronda.lua
+-- ReplicatedStorage/DialogoData/DialogosNivel1/Nivel1_Mercado.lua
 
 local EfectosDialogo = require(game:GetService("ReplicatedStorage"):WaitForChild("Efectos"):WaitForChild("EfectosDialogo"))
 local ServicioCamara = require(game:GetService("ReplicatedStorage"):WaitForChild("Compartido"):WaitForChild("ServicioCamara"))
 
 local DIALOGOS = {
-	["Nivel1_Ronda"] = {
-		Zona  = "Zona_Ronda",
+	["Nivel1_Mercado"] = {
+		Zona  = "Zona_Mercado_2",
 		Nivel = 1,
 		Lineas = {
 			{
@@ -13,11 +13,11 @@ local DIALOGOS = {
 				Numero    = 1,
 				Actor     = "Carlos",
 				Expresion = "Feliz",
-				Texto     = "Esta calle depende del Bulevar. Hemos creado un 'puente' para traer la energía. Ahora usaremos BFS localmente desde el poste de entrada.",
+				Texto     = "Buen trabajo con el puente. Hemos llegado al Mercado Central de la locación. El Panel de Análisis nos mostrará cómo BFS continúa expandiéndose.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
-					ServicioCamara.moverHaciaObjetivo("Poste_LaRonda", { altura = 25, angulo = 65, duracion = 1.5 })
-					EfectosDialogo.resaltarNodo("Poste_LaRonda", "ADYACENTE")
+					ServicioCamara.moverHaciaObjetivo("Poste_Mercado_z2", { altura = 25, angulo = 65, duracion = 1.5 })
+					EfectosDialogo.resaltarNodo("Poste_Mercado_z2", "ADYACENTE")
 				end,
 				Siguiente = "pregunta_2",
 			},
@@ -26,11 +26,11 @@ local DIALOGOS = {
 				Numero    = 2,
 				Actor     = "Carlos",
 				Expresion = "Pensativo",
-				Texto     = "¿Qué verificamos exactamente al lanzar un BFS solo en esta calle, iniciando desde el Poste La Ronda?",
+				Texto     = "¿Qué beneficio especial obtenemos al expandir la exploración por 'capas' concéntricas usando BFS en este barrio plano?",
 				Opciones = {
-					{ Texto = "La conexión con todo Quito.", Siguiente = "resp_2_incorrecta" },
-					{ Texto = "La cobertura interna del Subgrafo local.", Siguiente = "resp_2_correcta" },
-					{ Texto = "Si el puente está roto.", Siguiente = "resp_2_incorrecta" },
+					{ Texto = "Las luces encienden todas exactamente en la misma dirección cardinal.", Siguiente = "resp_2_incorrecta" },
+					{ Texto = "Hallamos el camino usando la menor cantidad de uniones o saltos.", Siguiente = "resp_2_correcta" },
+					{ Texto = "Ahorramos consumo eléctrico en redes con distancias pesadas.", Siguiente = "resp_2_incorrecta" },
 				},
 			},
 			{
@@ -38,7 +38,7 @@ local DIALOGOS = {
 				Numero    = 3,
 				Actor     = "Carlos",
 				Expresion = "Sonriente",
-				Texto     = "¡Exacto! El analizador revisará que las casas dentro de La Ronda estén bien enredadas. Al asegurar el subgrafo interno, heredamos bien la luz del Bulevar.",
+				Texto     = "¡Exacto! Al no tener cables de distintos pesos, probar el algoritmo por capas de BFS nos garantiza la ruta con menos saltos posibles.",
 				-- [TODO] Aquí agregaremos el puntaje +100 luego
 				Opciones = { { Texto = "Continuar", Siguiente = "instruccion" } },
 			},
@@ -47,14 +47,14 @@ local DIALOGOS = {
 				Numero    = 3,
 				Actor     = "Carlos",
 				Expresion = "Serio",
-				Texto     = "Recuerda que estamos analizando zonas de forma local. Al lanzar el pulso desde el poste, comprobamos la cobertura interna exclusiva del subgrafo de esta calle.",
+				Texto     = "Piénsalo bien. Explorar en capas permite que BFS alcance sus destinos usando el camino que necesita atravesar la menor cantidad de 'postes' o 'saltos'.",
 				Opciones = { { Texto = "Entendido", Siguiente = "instruccion" } },
 			},
 			{
 				Id        = "instruccion",
 				Numero    = 4,
 				Actor     = "Sistema",
-				Texto     = "Tiende el cable cruzando toda La Ronda para que el pulso pueda avanzar hacia Santo Domingo.",
+				Texto     = "Verifica la red del Mercado con el Analizador y tiende el nuevo cable para seguir cruzando el barrio.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					ServicioCamara.restaurar(1.2)

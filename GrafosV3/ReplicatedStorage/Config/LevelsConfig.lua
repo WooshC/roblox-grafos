@@ -259,19 +259,20 @@ LevelsConfig[0] = {
 	},
 }
 
+
 -- ============================================
--- NIVEL 1: EL BARRIO DE LAS SOMBRAS (Centro Histórico de Quito)
+-- NIVEL 1: EL BARRIO ANTIGUO (La Ferroviaria)
 -- ============================================
 LevelsConfig[1] = {
-	Nombre           = "El Barrio de las Sombras",
-	DescripcionCorta = "El Centro Historico de Quito esta a oscuras. Usa BFS para conectar el Bulevar hasta El Panecillo.",
+	Nombre           = "El Barrio Antiguo",
+	DescripcionCorta = "El Barrio Antiguo esta a oscuras. Usa el Panel de Analisis para estudiar el cableado desordenado y reconecta los nodos aislados.",
 	ImageId          = "rbxassetid://87116895331866",
 	Modelo           = "Nivel1",
 
 	Tag       = "NIVEL 1 · CONECTIVIDAD",
 	Seccion   = "Busqueda y Conectividad",
 	Algoritmo = "BFS",
-	Conceptos = { "BFS", "Cobertura", "Grafo Conexo", "Nodo Aislado" },
+	Conceptos = { "Onda por Capas", "Mínimo de Saltos", "Nodos Aislados", "Grafo Conexo (100%)" },
 
 	Puntuacion = {
 		TresEstrellas  = 2500,
@@ -283,135 +284,137 @@ LevelsConfig[1] = {
 	},
 
 	Adyacencias = {
-		-- Zona 1: Bulevar 24 de Mayo
-		["Transformador_Bulevar"] = {"Casa_Bulevar1", "Casa_Bulevar2"},
-		["Casa_Bulevar1"]         = {"Transformador_Bulevar", "Poste_LaRonda"},
-		["Casa_Bulevar2"]         = {"Transformador_Bulevar"},
+		-- Zona 1: Estación Plana
+		["Gen_Estacion_z1"] = {"Casa_Estacion1_z1", "Casa_Estacion2_z1"},
+		["Casa_Estacion1_z1"] = {"Gen_Estacion_z1", "Poste_Mercado_z2"},
+		["Casa_Estacion2_z1"] = {"Gen_Estacion_z1"},
 
-		-- Zona 2: La Ronda
-		["Poste_LaRonda"]  = {"Casa_Bulevar1", "Taller_LaRonda"},
-		["Taller_LaRonda"] = {"Poste_LaRonda", "Iglesia_SantoDomingo"},
-		
-		-- Zona 3: Plaza Santo Domingo
-		["Iglesia_SantoDomingo"] = {"Taller_LaRonda", "Casa_Plaza"},
-		["Casa_Plaza"]           = {"Iglesia_SantoDomingo"}, -- Falla aqui, falta puente al Panecillo
-		
-		-- Zona 4: El Panecillo (Componente inicialmente aislado)
-		["Poste_Subida"]     = {"Virgen_Panecillo"},
-		["Virgen_Panecillo"] = {"Poste_Subida", "Restaurante_Panecillo"},
-		["Restaurante_Panecillo"] = {"Virgen_Panecillo"}
-	},
+		-- Zona 2: Mercado Central
+		["Poste_Mercado_z2"]  = {"Casa_Estacion1_z1", "Puesto_Mercado_z2"},
+		["Puesto_Mercado_z2"] = {"Poste_Mercado_z2", "Poste_Canchas_z3"},
+
+		-- Zona 3: Las Canchas
+		["Poste_Canchas_z3"] = {"Puesto_Mercado_z2", "Casa_Canchas_z3"},
+		["Casa_Canchas_z3"]  = {"Poste_Canchas_z3"}, -- Falla aqui, falta puente al Parque
+
+		-- Zona 4: Parque Central (Componente inicialmente aislado)
+		["Poste_Parque_z4"] = {"Casa_Parque1_z4"},
+		["Casa_Parque1_z4"] = {"Poste_Parque_z4", "Casa_Parque2_z4"},
+		["Casa_Parque2_z4"] = {"Casa_Parque1_z4"}
+
 
 	Zonas = {
-		["Zona_Bulevar"] = { 
-			Trigger = "ZonaTrigger_Bulevar", 
-			Descripcion = "Bulevar 24 de Mayo", 
-			Dialogo = "Nivel1_Bulevar",
+		["Zona_Ferroviaria_1"] = { 
+			Trigger = "ZonaTrigger_Inicio",  
+			Descripcion = "La Estación Plana", 
+			Dialogo = "Nivel1_Estacion",
 			CarpetaLuz = "Zona_luz_1"
 		},
-		["Zona_Ronda"] = { 
-			Trigger = "ZonaTrigger_Ronda", 
-			Descripcion = "Calle La Ronda", 
-			Dialogo = "Nivel1_Ronda",
+		["Zona_Mercado_2"] = { 
+			Trigger = "ZonaTrigger_Mercado", 
+			Descripcion = "Mercado Central", 
+			Dialogo = "Nivel1_Mercado",
 			CarpetaLuz = "Zona_luz_2"
 		},
-		["Zona_SantoDomingo"] = { 
-			Trigger = "ZonaTrigger_SantoDomingo", 
-			Descripcion = "Plaza de Santo Domingo", 
-			Dialogo = "Nivel1_SantoDomingo",
+		["Zona_Canchas_3"] = { 
+			Trigger = "ZonaTrigger_Canchas", 
+			Descripcion = "Las Canchas Barriales", 
+			Dialogo = "Nivel1_Canchas",
 			CarpetaLuz = "Zona_luz_3"
 		},
-		["Zona_Panecillo"] = { 
-			Trigger = "ZonaTrigger_Panecillo", 
-			Descripcion = "El Panecillo", 
-			Dialogo = "Nivel1_Panecillo",
+		["Zona_Parque_4"] = { 
+			Trigger = "ZonaTrigger_Parque", 
+			Descripcion = "Parque del Barrio", 
+			Dialogo = "Nivel1_Parque",
 			CarpetaLuz = "Zona_luz_4"
 		},
 	},
 
 	NombresNodos = {
-		["Transformador_Bulevar"]   = "Generador 24 de Mayo",
-		["Casa_Bulevar1"]           = "Museo de la Ciudad",
-		["Casa_Bulevar2"]           = "Casa Bulevar",
-		["Poste_LaRonda"]           = "Poste La Ronda",
-		["Taller_LaRonda"]          = "Taller de Máscaras",
-		["Iglesia_SantoDomingo"]    = "Iglesia Santo Domingo",
-		["Casa_Plaza"]              = "Cafetería Santo Domingo",
-		["Poste_Subida"]            = "Poste Subida al Panecillo",
-		["Virgen_Panecillo"]        = "Virgen de El Panecillo",
-		["Restaurante_Panecillo"]   = "Restaurante PIM'S",
+		["Gen_Estacion_z1"]     = "Generador Principal",
+		["Casa_Estacion1_z1"]   = "Casa Estación 1",
+		["Casa_Estacion2_z1"]   = "Casa Estación 2",
+		["Poste_Mercado_z2"]    = "Poste del Mercado",
+		["Puesto_Mercado_z2"]   = "Puesto del Mercado",
+		["Poste_Canchas_z3"]    = "Poste de las Canchas",
+		["Casa_Canchas_z3"]     = "Casa de las Canchas",
+		["Poste_Parque_z4"]     = "Poste del Parque",
+		["Casa_Parque1_z4"]     = "Casa del Parque 1",
+		["Casa_Parque2_z4"]     = "Casa del Parque 2",
 	},
 
 	Misiones = {
-		-- ── Zona 1: Bulevar ──────────────────────────────────────────────────
-		{ ID=101, Zona="Zona_Bulevar", Texto="Revisa el Transformador del Bulevar", Tipo="NODO_SELECCIONADO", Puntos=100, Parametros={ Nodo="Transformador_Bulevar" } },
-		
-		-- ── Zona 2: La Ronda ───────────────────────────────────────────────────
-		{ ID=102, Zona="Zona_Ronda", Texto="Conecta la La Ronda (Museo de la Ciudad a Poste La Ronda)", Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Casa_Bulevar1", NodoB="Poste_LaRonda" } },
-		
-		-- ── Zona 3: Santo Domingo ──────────────────────────────────────────────
-		{ ID=103, Zona="Zona_SantoDomingo", Texto="Revisa que la energía llegue a la Iglesia (Taller a Iglesia)", Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Taller_LaRonda", NodoB="Iglesia_SantoDomingo" } },
+		-- ── Zona 1: Estación ──────────────────────────────────────────────────
+		{ ID=101, Zona="Zona_Ferroviaria_1", Texto="Revisa el Generador Principal de la Estación", Tipo="NODO_SELECCIONADO", Puntos=100, Parametros={ Nodo="Gen_Estacion_z1" } },
 
-		-- ── Zona 4: El Panecillo y Victoria ────────────────────────────────────
-		{ ID=104, Zona="Zona_Panecillo", Texto="Forma el puente: Cafetería a Poste Subida Panecillo", Tipo="ARISTA_CREADA", Puntos=300, Parametros={ NodoA="Casa_Plaza", NodoB="Poste_Subida" } },
-		{ ID=105, Zona="Zona_Panecillo", Texto="Logra un grafo 100% conexo iluminando a la Virgen", Tipo="GRAFO_CONEXO", Puntos=500, Parametros={ Nodos={"Transformador_Bulevar","Casa_Bulevar1","Casa_Bulevar2","Poste_LaRonda","Taller_LaRonda","Iglesia_SantoDomingo","Casa_Plaza","Poste_Subida","Virgen_Panecillo","Restaurante_Panecillo"} } },
+		-- ── Zona 2: Mercado ───────────────────────────────────────────────────
+		{ ID=102, Zona="Zona_Mercado_2", Texto="Conecta la Estación con el Poste del Mercado", Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Casa_Estacion1_z1", NodoB="Poste_Mercado_z2" } },
+
+		-- ── Zona 3: Canchas ──────────────────────────────────────────────
+		{ ID=103, Zona="Zona_Canchas_3", Texto="Revisa que la energía llegue a las Canchas", Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Puesto_Mercado_z2", NodoB="Poste_Canchas_z3" } },
+
+		-- ── Zona 4: Parque y Victoria ────────────────────────────────────
+		{ ID=104, Zona="Zona_Parque_4", Texto="Forma el puente desde las Canchas hacia el Parque", Tipo="ARISTA_CREADA", Puntos=300, Parametros={ NodoA="Casa_Canchas_z3", NodoB="Poste_Parque_z4" } },
+		{ ID=105, Zona="Zona_Parque_4", Texto="Logra un grafo 100% conexo iluminando a todo el barrio", Tipo="GRAFO_CONEXO", Puntos=500, Parametros={ Nodos={"Gen_Estacion_z1","Casa_Estacion1_z1","Casa_Estacion2_z1","Poste_Mercado_z2","Puesto_Mercado_z2","Poste_Canchas_z3","Casa_Canchas_z3","Poste_Parque_z4","Casa_Parque1_z4","Casa_Parque2_z4"} } },
 	},
 
 	AnalisisConfig = {
-		["Zona_Bulevar"] = {
+		["Zona_Ferroviaria_1"] = {
 			algoritmos = { "bfs" },
-			nodoInicio = "Transformador_Bulevar",
+			nodoInicio = "Gen_Estacion_z1",
 			conceptos = {
 				bfs = {
-					intro = "El Panel de Análisis examina la cobertura local de tu zona. El BFS explora este subgrafo desde el Transformador hacia sus vecinos inmediatos.",
+					intro = "Abre el Panel de Análisis. Al ejecutar BFS paso a paso, verás cómo el algoritmo explora la red capa por capa, encolando todos los vecinos directos simultáneamente.",
 					pasos = {
-						[2]  = "El pulso eléctrico escanea el Bulevar para asegurar que ninguna casa cercana esté aislada.",
-						[13] = "Subgrafo del Bulevar 100% cubierto. La energía local fluye.",
+						[2]  = "El algoritmo encola el Generador y comienza a escanear sus vecinos directos en el Nivel 1.",
+						[13] = "Exploración terminada. El algoritmo ha recorrido todos los nodos alcanzables de esta zona.",
 					},
 				},
 			},
 		},
-		["Zona_Ronda"] = {
+		["Zona_Mercado_2"] = {
 			algoritmos = { "bfs" },
-			nodoInicio = "Poste_LaRonda",
+			nodoInicio = "Poste_Mercado_z2",
 			conceptos = {
 				bfs = {
-					intro = "Esta es La Ronda. Has hecho un 'puente' desde el Bulevar y ahora verificamos que la luz viaje por esta calle estrecha usando BFS local.",
+					intro = "En el Analizador, observa cómo explorar por capas le garantiza a BFS hallar las rutas con la menor cantidad posible de postes (vía más corta en saltos).",
 					pasos = {
-						[2]  = "El pulso recorre las calles en orden radial desde el poste de entrada.",
-						[13] = "Verificación completada. El subgrafo de La Ronda está iluminado.",
+						[2]  = "El algoritmo recorre la red sin importar distancias métricas, priorizando el nivel de saltos.",
+						[13] = "Verificación completada. El Mercado ha sido explorado con el mínimo de saltos posibles.",
 					},
 				},
 			},
 		},
-		["Zona_SantoDomingo"] = {
+		["Zona_Canchas_3"] = {
 			algoritmos = { "bfs" },
-			nodoInicio = "Iglesia_SantoDomingo",
+			nodoInicio = "Poste_Canchas_z3",
 			conceptos = {
 				bfs = {
-					intro = "En Santo Domingo el camino se corta. Al analizar la zona, confirmarás que la Plaza está bien, pero no hay forma de enviar luz hacia la montaña.",
+					intro = "Aquí descubrirás gráficamente si el Alcalde mintió. Ejecuta el algoritmo y verás que la exploración se detiene al encontrar un vacío: un sector aislado.",
 					pasos = {
-						[2]  = "Energía avanzando hacia la plaza localmente.",
-						[13] = "Subgrafo encendido. Sin embargo, carecemos de una arista hacia El Panecillo (Componente Aislado).",
+						[2]  = "El algoritmo avanza por Las Canchas añadiendo vecinos a su Cola FIFO.",
+						[13] = "Algoritmo detenido con cola vacía. Hay casas sin visitar. ¡Acabamos de detectar un Componente Aislado por falta de cables!",
 					},
 				},
 			},
 		},
-		["Zona_Panecillo"] = {
+		["Zona_Parque_4"] = {
 			algoritmos = { "bfs" },
-			nodoInicio = "Poste_Subida",
+			nodoInicio = "Poste_Parque_z4",
 			conceptos = {
 				bfs = {
-					intro = "Al enlazar este último subgrafo aislado al resto de la red, garantizas que no quede ningún sector apagado en toda la ciudad.",
+					intro = "Una vez que tiendas los cables faltantes, el Analizador podrá recorrer el 100% de las casas sin dejar nodos pendientes en su lista.",
 					pasos = {
-						[2]  = "El pulso sube por el cerro, inspeccionando la Virgen y sus vecinos.",
-						[13] = "100% Cobertura local. ¡La suma de los subgrafos unidos ha formado un Grafo Conexo!",
+						[2]  = "El algoritmo viaja a través de las nuevas conexiones que tú construiste.",
+						[13] = "¡100% de nodos visitados! Al analizar la red hemos comprobado que forma un poderoso Grafo Conexo.",
 					},
 				},
 			},
 		},
 	},
 }
+
+
 
 -- ============================================
 -- NIVEL 2: LA FABRICA DE SENALES

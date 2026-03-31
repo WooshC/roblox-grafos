@@ -1,11 +1,11 @@
--- ReplicatedStorage/DialogoData/DialogosNivel1/Nivel1_Panecillo.lua
+-- ReplicatedStorage/DialogoData/DialogosNivel1/Nivel1_Parque.lua
 
 local EfectosDialogo = require(game:GetService("ReplicatedStorage"):WaitForChild("Efectos"):WaitForChild("EfectosDialogo"))
 local ServicioCamara = require(game:GetService("ReplicatedStorage"):WaitForChild("Compartido"):WaitForChild("ServicioCamara"))
 
 local DIALOGOS = {
-	["Nivel1_Panecillo"] = {
-		Zona  = "Zona_Panecillo",
+	["Nivel1_Parque"] = {
+		Zona  = "Zona_Parque_4",
 		Nivel = 1,
 		Lineas = {
 			{
@@ -13,11 +13,11 @@ local DIALOGOS = {
 				Numero    = 1,
 				Actor     = "Carlos",
 				Expresion = "Sonriente",
-				Texto     = "Finalmente, El Panecillo. La Virgen es un Componente Aislado gigantesco. Está apagada porque carece de un puente hacia nuestra red reparada.",
+				Texto     = "Este es el Parque del Barrio. Aquí culmina nuestra misión. Revisa que no queden más casas desconectadas como las que el alcalde intentó ocultar.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
-					ServicioCamara.moverHaciaObjetivo("Virgen_Panecillo", { altura = 40, angulo = 70, duracion = 1.8 })
-					EfectosDialogo.resaltarNodo("Virgen_Panecillo", "ERROR")
+					ServicioCamara.moverHaciaObjetivo("Casa_Parque1_z4", { altura = 40, angulo = 70, duracion = 1.8 })
+					EfectosDialogo.resaltarNodo("Casa_Parque1_z4", "ERROR")
 				end,
 				Siguiente = "pregunta_4",
 			},
@@ -26,11 +26,11 @@ local DIALOGOS = {
 				Numero    = 2,
 				Actor     = "Carlos",
 				Expresion = "Pensativo",
-				Texto     = "Una pregunta teórica: si tendemos el puente conectando este último subgrafo aislado al resto de zonas ya iluminadas... ¿Qué lograremos a nivel global?",
+				Texto     = "Para resolver el problema permanentemente y arreglar la red, ¿cuál debe ser el estado final de nuestro grafo al terminar de conectar los cables?",
 				Opciones = {
-					{ Texto = "Múltiples componentes.", Siguiente = "resp_4_incorrecta" },
-					{ Texto = "Un único Grafo Conexo.", Siguiente = "resp_4_correcta" },
-					{ Texto = "Varios subgrafos cerrados.", Siguiente = "resp_4_incorrecta" },
+					{ Texto = "Que existan múltiples componentes aislados.", Siguiente = "resp_4_incorrecta" },
+					{ Texto = "Que la red abarque el 100% de los nodos, formando un Grafo Conexo.", Siguiente = "resp_4_correcta" },
+					{ Texto = "Que varios subgrafos permanezcan cerrados.", Siguiente = "resp_4_incorrecta" },
 				},
 			},
 			{
@@ -38,7 +38,7 @@ local DIALOGOS = {
 				Numero    = 3,
 				Actor     = "Carlos",
 				Expresion = "Extasiado",
-				Texto     = "¡SÍ! Al unir las zonas con aristas puente, todos sus subgrafos locales se fusionan. Toda la ciudad se vuelve alcanzable. ¡Esto es un Grafo Conexo!",
+				Texto     = "¡SÍ! Nuestra misión es la conectividad total. Si ningún nodo se queda fuera tras crear los bordes, hemos logrado el 100% de cobertura. ¡Termina las conexiones y salva el barrio!",
 				-- [TODO] Aquí agregaremos el puntaje +100 luego
 				Opciones = { { Texto = "Continuar", Siguiente = "instruccion" } },
 			},
@@ -47,14 +47,14 @@ local DIALOGOS = {
 				Numero    = 3,
 				Actor     = "Carlos",
 				Expresion = "Triste",
-				Texto     = "Incorrecto. Cuando logramos que absolutamente todos los subgrafos se conecten entre sí, forman un único bloque maestro donde cualquier nodo es alcanzable: un Grafo Conexo.",
+				Texto     = "Incorrecto. Cuando logramos crear cables (aristas) que integren absolutamente todos los subgrafos, forman un único bloque maestro llamado Grafo Conexo. Esa es nuestra meta.",
 				Opciones = { { Texto = "Entendido", Siguiente = "instruccion" } },
 			},
 			{
 				Id        = "instruccion",
 				Numero    = 4,
 				Actor     = "Sistema",
-				Texto     = "Crea el puente conectando la Cafetería Santo Domingo con el Poste de Subida, e ilumina la Virgen para ganar.",
+				Texto     = "Crea el puente final desde la Casa de las Canchas al Poste del Parque e ilumina todo el barrio para ganar.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					ServicioCamara.restaurar(1.5)
