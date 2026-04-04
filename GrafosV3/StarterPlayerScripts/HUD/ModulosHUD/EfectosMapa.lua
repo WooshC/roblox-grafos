@@ -22,6 +22,8 @@ local EfectosMapa = {}
 -- Estado
 local nombresNodos = {}
 local partesOriginales = {} -- Guardar estado original para restaurar
+local beamsOriginales = {} -- Guardar estado original de los beams
+local configNivelGlobal = nil
 
 -- Módulo de estado de conexiones (se inicializa luego)
 local EstadoConexiones = nil
@@ -30,8 +32,10 @@ local EstadoConexiones = nil
 local COLORES = {
 	SELECCIONADO = Color3.fromRGB(255, 255, 255),  -- Blanco
 	ADYACENTE    = Color3.fromRGB(255, 200, 50),   -- Dorado
-	CONECTADO    = Color3.fromRGB(0, 212, 255),    -- Cyan
-	AISLADO      = Color3.fromRGB(239, 68, 68),    -- Rojo
+	CONECTADO    = Color3.fromRGB(0, 212, 255),    -- Cyan (Energizado)
+	SIN_ENERGIA  = Color3.fromRGB(255, 50, 100),   -- Rosado/Rojo claro
+	AISLADO      = Color3.fromRGB(239, 68, 68),    -- Rojo oscuro
+	INICIAL      = Color3.fromRGB(85, 170, 255),   -- Azul
 }
 
 -- Tipos de Highlight por estado (para el Model)
@@ -39,11 +43,14 @@ local HIGHLIGHT_TIPO = {
 	SELECCIONADO = "SELECCIONADO",
 	ADYACENTE    = "ADYACENTE",
 	CONECTADO    = "CONECTADO",
+	SIN_ENERGIA  = "ERROR", -- Usaremos ERROR de EfectosHighlight temporalmente (color rojo transparente) para resaltar nodos que fallan en recibir energía
 	AISLADO      = "AISLADO",
+	INICIAL      = "INICIAL",
 }
 
 function EfectosMapa.inicializar(configNivel, estadoConexionesModulo)
 	nombresNodos = {}
+	configNivelGlobal = configNivel
 	if configNivel and configNivel.NombresNodos then
 		nombresNodos = configNivel.NombresNodos
 	end
@@ -63,6 +70,14 @@ function EfectosMapa.limpiarTodo()
 		end
 	end
 	partesOriginales = {}
+	
+	-- Restaurar Beams
+	for _, data in ipairs(beamsOriginales) do
+		if data.beam and data.beam.Parent then
+			data.beam.Color = data.colorOriginal
+		end
+	end
+	beamsOriginales = {}
 
 	-- Limpiar billboards
 	BillboardNombres.destruirPorPrefijo("MapaBB_")
@@ -136,6 +151,19 @@ function EfectosMapa.guardarEstadoOriginal(parte)
 		materialOriginal   = parte.Material,
 		transparencyOriginal = parte.Transparency,
 		tamanoOriginal     = Vector3.new(parte.Size.X, parte.Size.Y, parte.Size.Z),
+	})
+end
+
+function EfectosMapa.guardarEstadoBeamOriginal(beam)
+	for _, data in ipairs(beamsOriginales) do
+		if data.beam == beam then
+			return
+		end
+	end
+
+	table.insert(beamsOriginales, {
+		beam = beam,
+		colorOriginal = beam.Color
 	})
 end
 
@@ -214,6 +242,30 @@ function EfectosMapa.actualizarTodos(nivelActual, nodoSeleccionado, adyacentes)
 		warn("[EfectosMapa] No se encontró carpeta Grafos")
 		return
 	end
+	
+	-- Algoritmo BFS para encontrar la propagación de la energía a partir de los Generadores
+	local nodosEnergizados = {}
+	if configNivelGlobal and configNivelGlobal.Generadores and EstadoConexiones then
+		local queue = {}
+		for _, gen in ipairs(configNivelGlobal.Generadores) do
+			nodosEnergizados[gen] = true
+			table.insert(queue, gen)
+		end
+		
+		while #queue > 0 do
+			local actual = table.remove(queue, 1)
+			-- Obtener nodos directamente conectados
+			local vecinos = EstadoConexiones.obtenerConexiones(actual)
+			if vecinos then
+				for _, vecino in ipairs(vecinos) do
+					if not nodosEnergizados[vecino] then
+						nodosEnergizados[vecino] = true
+						table.insert(queue, vecino)
+					end
+				end
+			end
+		end
+	end
 
 	for _, grafo in ipairs(grafosFolder:GetChildren()) do
 		local nodosFolder = grafo:FindFirstChild("Nodos")
@@ -223,12 +275,22 @@ function EfectosMapa.actualizarTodos(nivelActual, nodoSeleccionado, adyacentes)
 				local esSeleccionado = (nodoSeleccionado and nodoSeleccionado.Name == nombre)
 				local esAdyacente    = adyacentes and table.find(adyacentes, nombre)
 				local conectado      = EfectosMapa.esNodoConectado(nodo)
+				local esInicial      = false
+				
+				if configNivelGlobal and configNivelGlobal.Generadores then
+					esInicial = table.find(configNivelGlobal.Generadores, nombre) ~= nil
+				end
+				
+				local tieneEnergia = nodosEnergizados[nombre] == true
 
 				-- Determinar estado
 				local colorParte, tipoHighlight
 				if esSeleccionado then
 					colorParte    = COLORES.SELECCIONADO
 					tipoHighlight = HIGHLIGHT_TIPO.SELECCIONADO
+				elseif esInicial then
+					colorParte    = COLORES.INICIAL
+					tipoHighlight = HIGHLIGHT_TIPO.INICIAL
 				elseif esAdyacente then
 					colorParte    = COLORES.ADYACENTE
 					tipoHighlight = HIGHLIGHT_TIPO.ADYACENTE
@@ -248,6 +310,26 @@ function EfectosMapa.actualizarTodos(nivelActual, nodoSeleccionado, adyacentes)
 
 				-- Highlight en el Model completo
 				getEfectosHighlight().resaltarNodoMapa(nodo, tipoHighlight)
+			end
+		end
+		
+		-- Recorrer cables/aristas para actualizarlos según energía
+		local conexionesFolder = grafo:FindFirstChild("Conexiones")
+		if conexionesFolder then
+			for _, child in ipairs(conexionesFolder:GetChildren()) do
+				local beam = child:FindFirstChildOfClass("Beam")
+				if beam then
+					local nomA, nomB = string.match(child.Name, "^Hitbox_(.+)|(.+)$")
+					if nomA and nomB then
+						EfectosMapa.guardarEstadoBeamOriginal(beam)
+						-- Un cable transmite energía solo si ambos extremos tienen energía (están en la red del Generador)
+						if nodosEnergizados[nomA] and nodosEnergizados[nomB] then
+							beam.Color = ColorSequence.new(COLORES.CONECTADO) -- Celeste/Azul
+						else
+							beam.Color = ColorSequence.new(COLORES.SIN_ENERGIA) -- Rosado
+						end
+					end
+				end
 			end
 		end
 	end

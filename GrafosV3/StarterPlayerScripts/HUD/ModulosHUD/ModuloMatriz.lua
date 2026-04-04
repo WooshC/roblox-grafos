@@ -661,4 +661,16 @@ function ModuloMatriz.limpiar()
 	print("[ModuloMatriz] Limpiado")
 end
 
+function ModuloMatriz.estaAbierta()
+	return isVisible()
+end
+
+function ModuloMatriz.abrir()
+	activar()
+end
+
+function ModuloMatriz.cerrar()
+	desactivar()
+end
+
 return ModuloMatriz

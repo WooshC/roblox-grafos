@@ -47,8 +47,13 @@ local lblInfoNodos = nil
 local lblInfoAristas = nil
 local lblInfoTipo = nil
 
--- Leyenda
+-- Leyenda y Otros Paneles
 local frameLeyenda = nil
+local frameSelectorModos = nil
+
+-- Modulos Adicionales (para botones del mapa)
+local PanelMisionesHUD = nil
+local ModuloMatriz = nil
 
 -- El estado de cámara lo maneja ServicioCamara
 -- Los techos los gestiona GestorColisiones (ControladorColisiones.client.lua)
@@ -94,6 +99,32 @@ function ModuloMapa.inicializar(hudRef)
 		btnCerrarMapa = frameMapa:FindFirstChild("BtnCerrarMapa", true)
 		lblMapaTitulo = frameMapa:FindFirstChild("MapaTitulo", true)
 		
+		-- Botones dentro del encabezado del mapa
+		-- btnCerrarMapa ya se está extrayendo arriba por si acaso, lo buscamos aquí:
+		btnCerrarMapa = frameMapa:FindFirstChild("BtnCerrarMapa", true) or btnCerrarMapa
+		local btnMisionesMapa = frameMapa:FindFirstChild("BtnMisionesEnMapa", true)
+		local btnMatematicoMapa = frameMapa:FindFirstChild("BtnMatematico", true)
+		
+		if btnMisionesMapa then
+			PanelMisionesHUD = require(script.Parent.PanelMisionesHUD)
+			btnMisionesMapa.MouseButton1Click:Connect(function()
+				if PanelMisionesHUD then PanelMisionesHUD.alternar() end
+			end)
+		end
+		
+		if btnMatematicoMapa then
+			ModuloMatriz = require(script.Parent.ModuloMatriz)
+			btnMatematicoMapa.MouseButton1Click:Connect(function()
+				if ModuloMatriz then
+					if ModuloMatriz.estaAbierta and ModuloMatriz.estaAbierta() then
+						ModuloMatriz.cerrar()
+					else
+						ModuloMatriz.abrir()
+					end
+				end
+			end)
+		end
+		
 		local infoStrip = frameMapa:FindFirstChild("MapaInfoStrip", true)
 		if infoStrip then
 			local bn = infoStrip:FindFirstChild("MapInfoNodos")
@@ -105,9 +136,11 @@ function ModuloMapa.inicializar(hudRef)
 			local bt = infoStrip:FindFirstChild("MapInfoTipo")
 			if bt then lblInfoTipo = bt:FindFirstChild("V") end
 		end
-		
-		frameLeyenda = frameMapa:FindFirstChild("Leyenda", true)
 	end
+	
+	-- Leyenda es hermano de PantallaMapaGrande en GUIExploradorV2 según GUI_ESTRUCTURA
+	frameLeyenda = hudGui:FindFirstChild("Leyenda", true)
+	frameSelectorModos = hudGui:FindFirstChild("SelectorModos", true)
 	
 	frameMinimapa = hudGui:FindFirstChild("ContenedorMiniMapa", true) or hudGui:FindFirstChild("ContenedorMinimapa", true) or hudGui:FindFirstChild("PanelMinimapa", true) or hudGui:FindFirstChild("PanelNavegacion", true)
 	if not frameMinimapa then
@@ -380,18 +413,61 @@ function _iniciarEscuchaInput()
 		local mousePos = UserInputService:GetMouseLocation()
 		local ray = camara:ViewportPointToRay(mousePos.X, mousePos.Y)
 
+		local selectoresActuales = {}
+		for _, s in ipairs(selectores) do table.insert(selectoresActuales, s) end
+		
+		-- Agregar dinámicamente las carpetas 'Conexiones' para detectar clicks en los cables (Hitboxes)
+		if nivelActual then
+			local grafosFolder = nivelActual:FindFirstChild("Grafos")
+			if grafosFolder then
+				for _, grafo in ipairs(grafosFolder:GetChildren()) do
+					local conns = grafo:FindFirstChild("Conexiones")
+					if conns then table.insert(selectoresActuales, conns) end
+				end
+			end
+		end
+
 		local params = RaycastParams.new()
 		params.FilterType = Enum.RaycastFilterType.Include
-		params.FilterDescendantsInstances = selectores
+		params.FilterDescendantsInstances = selectoresActuales
 
 		local resultado = workspace:Raycast(ray.Origin, ray.Direction * CONFIG.maxDistanciaRaycast, params)
 
 		if resultado and resultado.Instance then
-			local selectorPart = resultado.Instance
-			local nodo = _obtenerNodoDesdeSelector(selectorPart)
-
-			if nodo then
-				_onNodoClickeado(nodo, selectorPart)
+			local part = resultado.Instance
+			
+			if string.match(part.Name, "^Hitbox_") then
+				-- Se cliqueó una conexión (arista) para desconectarla
+				local nomA, nomB = string.match(part.Name, "^Hitbox_(.+)|(.+)$")
+				if nomA and nomB then
+					print("[ModuloMapa] Intentando desconectar arista:", nomA, nomB)
+					local eventosFolder = ReplicatedStorage:FindFirstChild("EventosGrafosV3")
+					if eventosFolder then
+						local conectarEvent = eventosFolder.Remotos:FindFirstChild("ConectarDesdeMapa")
+						if conectarEvent then
+							-- ConectarDesdeMapa funciona como toggle: enviar A y B la desconectará
+							conectarEvent:FireServer(nomA, nomB)
+							
+							-- Limpiar selección y actualizar
+							nodoSeleccionadoMapa = nil
+							_actualizarHighlights()
+							
+							task.delay(0.2, function()
+								if mapaAbierto then
+									_actualizarHighlights()
+								end
+							end)
+						end
+					end
+				end
+			else
+				-- Se cliqueó un nodo normal
+				local selectorPart = part
+				local nodo = _obtenerNodoDesdeSelector(selectorPart)
+	
+				if nodo then
+					_onNodoClickeado(nodo, selectorPart)
+				end
 			end
 		end
 	end)
@@ -580,6 +656,21 @@ end
 function _actualizarLegend()
 	if not frameLeyenda then return end
 	
+	-- Asegurar que la leyenda tenga un tamaño más legible (3x) usando UIScale
+	local scaleObj = frameLeyenda:FindFirstChildOfClass("UIScale")
+	if not scaleObj then
+		scaleObj = Instance.new("UIScale")
+		scaleObj.Scale = 2.2 -- ~3 veces más área visual / presencia
+		scaleObj.Parent = frameLeyenda
+		
+		-- Reposicionarlo dinámicamente para la derecha
+		frameLeyenda.AnchorPoint = Vector2.new(1, 0.5)
+		frameLeyenda.Position = UDim2.new(1, -40, 0.5, 0)
+		
+		-- Activar redimensionado automático por si se añaden ítems
+		frameLeyenda.AutomaticSize = Enum.AutomaticSize.Y
+	end
+	
 	local function setDotColor(legName, color)
 		local leg = frameLeyenda:FindFirstChild(legName)
 		if leg then
@@ -590,12 +681,75 @@ function _actualizarLegend()
 		end
 	end
 	
+	-- Modificar Energizado para que parezca una Arista (Línea en vez de punto)
+	local legEnergizado = frameLeyenda:FindFirstChild("LegEnergizado")
+	if legEnergizado then
+		local dot = legEnergizado:FindFirstChild("Dot")
+		if dot then 
+			dot.Size = UDim2.new(0, 18, 0, 4)
+			dot.UICorner.CornerRadius = UDim.new(1, 0)
+		end
+		local text = legEnergizado:FindFirstChild("K")
+		if text then text.Text = "Arista Energ." end
+		
+		-- Clonar para crear la leyenda de Arista Sin Energía
+		local legSinEnergia = frameLeyenda:FindFirstChild("LegSinEnergia")
+		if not legSinEnergia then
+			legSinEnergia = legEnergizado:Clone()
+			legSinEnergia.Name = "LegSinEnergia"
+			legSinEnergia.Parent = frameLeyenda
+			local txtSE = legSinEnergia:FindFirstChild("K")
+			if txtSE then txtSE.Text = "Arista S/E" end
+		end
+	end
+	
+	-- FORZAR DOS COLUMNAS EN TODAS LAS FILAS DE LA LEYENDA
+	for _, child in ipairs(frameLeyenda:GetChildren()) do
+		if child:IsA("Frame") and child.Name:sub(1,3) == "Leg" then
+			-- Asegurarse de tener un UIListLayout horizontal
+			local layout = child:FindFirstChildOfClass("UIListLayout")
+			if not layout then
+				layout = Instance.new("UIListLayout")
+				layout.FillDirection = Enum.FillDirection.Horizontal
+				layout.VerticalAlignment = Enum.VerticalAlignment.Center
+				layout.SortOrder = Enum.SortOrder.LayoutOrder
+				layout.Padding = UDim.new(0, 12)
+				layout.Parent = child
+			end
+			
+			local dot = child:FindFirstChild("Dot")
+			local text = child:FindFirstChild("K")
+			
+			if dot then
+				dot.LayoutOrder = 1
+				-- Limpiar posiciones forzadas que entran en conflicto
+				dot.Position = UDim2.new(0,0,0,0)
+				dot.AnchorPoint = Vector2.new(0,0)
+			end
+			
+			if text then
+				text.LayoutOrder = 2
+				text.Position = UDim2.new(0,0,0,0)
+				text.AnchorPoint = Vector2.new(0,0)
+				-- TextSize automático no recorta
+				text.Size = UDim2.new(1, -25, 1, 0)
+				text.TextXAlignment = Enum.TextXAlignment.Left
+			end
+		end
+	end
+
 	-- Colores asumiendo la paleta que se está usando
 	setDotColor("LegInicial", Color3.fromRGB(85, 170, 255)) -- Azul
-	setDotColor("LegEnergizado", Color3.fromRGB(244, 255, 114)) -- Amarillo eléctrico
-	setDotColor("LegMeta", Color3.fromRGB(255, 85, 85)) -- Rojo
-	setDotColor("LegAdyacente", Color3.fromRGB(0, 255, 127)) -- Verde
-	setDotColor("LegAislado", Color3.fromRGB(150, 150, 150)) -- Gris
+	setDotColor("LegEnergizado", Color3.fromRGB(0, 212, 255)) -- Celeste (CONECTADO)
+	setDotColor("LegSinEnergia", Color3.fromRGB(255, 50, 100)) -- Rosado (NO ENERGIZADO)
+	setDotColor("LegAdyacente", Color3.fromRGB(255, 200, 50)) -- Dorado (ADYACENTE según EfectosMapa)
+	setDotColor("LegAislado", Color3.fromRGB(239, 68, 68)) -- Rojo oscuro (AISLADO según EfectosMapa)
+	
+	-- Ocultar LegMeta ya que no se usa en este modo
+	local legMeta = frameLeyenda:FindFirstChild("LegMeta")
+	if legMeta then legMeta.Visible = false end
+	
+	frameLeyenda.Visible = true
 end
 
 -- ================================================================
@@ -644,6 +798,11 @@ function ModuloMapa.abrir()
 	-- Ocultar Minimapa
 	if frameMinimapa then
 		frameMinimapa.Visible = false
+	end
+
+	-- Ocultar SelectorModos
+	if frameSelectorModos then
+		frameSelectorModos.Visible = false
 	end
 
 	-- Actualizar UI Informativa
@@ -730,9 +889,17 @@ function ModuloMapa.cerrar()
 		frameMapa.Visible = false
 	end
 
-	-- Mostrar Minimapa
+	-- Ocultar Leyenda
+	if frameLeyenda then
+		frameLeyenda.Visible = false
+	end
+
+	-- Mostrar Minimapa y SelectorModos
 	if frameMinimapa then
 		frameMinimapa.Visible = true
+	end
+	if frameSelectorModos then
+		frameSelectorModos.Visible = true
 	end
 
 	print("[ModuloMapa] Mapa cerrado")

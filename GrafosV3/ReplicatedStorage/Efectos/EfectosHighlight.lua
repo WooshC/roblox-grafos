@@ -17,6 +17,7 @@ EfectosHighlight.COLORES = {
 	ADYACENTE   = Color3.fromRGB(255, 200, 50),  -- Dorado
 	CONECTADO   = Color3.fromRGB(0, 212, 255),   -- Cyan (igual que zona/seleccionado)
 	AISLADO     = Color3.fromRGB(239, 68, 68),   -- Rojo
+	INICIAL     = Color3.fromRGB(85, 170, 255),  -- Azul (Nodos Iniciales o Generadores)
 	ERROR       = Color3.fromRGB(239, 68, 68),   -- Rojo
 	EXITO       = Color3.fromRGB(34, 197, 94),   -- Verde éxito
 }
@@ -58,6 +59,13 @@ EfectosHighlight.CONFIG = {
 		FillTransparency = 0.75,
 		OutlineColor = EfectosHighlight.COLORES.AISLADO,
 		OutlineTransparency = 0.3,
+		DepthMode = Enum.HighlightDepthMode.AlwaysOnTop,
+	},
+	INICIAL = {
+		FillColor = EfectosHighlight.COLORES.INICIAL,
+		FillTransparency = 0.6,
+		OutlineColor = EfectosHighlight.COLORES.INICIAL,
+		OutlineTransparency = 0.1,
 		DepthMode = Enum.HighlightDepthMode.AlwaysOnTop,
 	},
 	ERROR = {
