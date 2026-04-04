@@ -219,6 +219,19 @@ function CargadorNiveles.cargar(nivelID, jugador)
 
 	print("[CargadorNiveles] Nivel cargado:", config.Nombre, "(ID:", nivelID, ")")
 
+	-- Aplicar configuración de entorno/iluminación
+	local Lighting = game:GetService("Lighting")
+	if config.ConfiguracionEntorno then
+		Lighting.ClockTime = config.ConfiguracionEntorno.Reloj or 14
+		Lighting.Ambient = config.ConfiguracionEntorno.IluminacionAmbiental or Color3.fromRGB(128, 128, 128)
+		Lighting.OutdoorAmbient = config.ConfiguracionEntorno.IluminacionExteriores or Color3.fromRGB(128, 128, 128)
+	else
+		Lighting.ClockTime = 14
+		Lighting.Ambient = Color3.fromRGB(128, 128, 128)
+		Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+	end
+
+
 	-- Cargar personaje y teleportar
 	if jugador then
 		jugador:SetAttribute("CurrentLevelID", nivelID)
@@ -371,6 +384,19 @@ function CargadorNiveles.cargarPersonaje(jugador, nivelActual)
 			if hrp then
 				hrp.CFrame = spawnLoc.CFrame * CFrame.new(0, 5, 0)
 				print("[CargadorNiveles] Jugador teleportado al nivel")
+				
+				-- Añadir luz al jugador si la configuración lo pide
+				local nivelIDActual = jugador:GetAttribute("CurrentLevelID")
+				local cfg = LevelsConfig[nivelIDActual]
+				if cfg and cfg.ConfiguracionEntorno and cfg.ConfiguracionEntorno.LinternaJugador then
+					local linterna = Instance.new("PointLight")
+					linterna.Name = "LuzJugadorNoche"
+					linterna.Brightness = 1.2
+					linterna.Range = 25
+					linterna.Color = Color3.fromRGB(255, 230, 200)
+					linterna.Shadows = false -- Apagado para evitar bugs visuales pegados al jugador
+					linterna.Parent = hrp
+				end
 			end
 		end
 	end)

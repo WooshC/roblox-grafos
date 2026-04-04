@@ -52,11 +52,8 @@ local function desactivar()
 	
 	print("[AudioGameplay] Desactivando audio del gameplay")
 	
-	-- Desconectar conexiones de eventos de gameplay
-	for _, conn in ipairs(_conexiones) do
-		if conn then conn:Disconnect() end
-	end
-	_conexiones = {}
+	-- No desconectamos los eventos (ya validan internamente 'if not _activo').
+	-- Eso prevendría que dejen de funcionar si el jugador vuelve a entrar a un nivel.
 	
 	if ControladorAudio then
 		-- Detener ambiente

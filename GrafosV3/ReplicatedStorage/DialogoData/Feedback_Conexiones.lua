@@ -35,7 +35,7 @@ local DIALOGOS = {
 			VelocidadTypewriter = 0.025,
 			PuedeOmitir         = true,
 			OcultarHUD          = false,
-			UsarTTS             = false,
+			UsarTTS             = true,
 		},
 
 		Configuracion = {
@@ -80,7 +80,7 @@ local DIALOGOS = {
 			VelocidadTypewriter = 0.025,
 			PuedeOmitir         = true,
 			OcultarHUD          = false,
-			UsarTTS             = false,
+			UsarTTS             = true,
 		},
 
 		Configuracion = {

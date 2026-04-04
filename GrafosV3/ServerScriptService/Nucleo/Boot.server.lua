@@ -371,5 +371,16 @@ else
 	warn("[Boot.server] Evento ConectarDesdeMapa no encontrado")
 end
 
+-- ToggleMapaAbierto: jugador abrió/cerró el mapa (para ignorar clics)
+local toggleMapa = esperarEvento("ToggleMapaAbierto", 5)
+if toggleMapa then
+	toggleMapa.OnServerEvent:Connect(function(jugador, isOpen)
+		if not estaEnGameplay(jugador) then return end
+		jugador:SetAttribute("MapaAbierto", isOpen and true or nil)
+	end)
+else
+	warn("[Boot.server] Evento ToggleMapaAbierto no encontrado")
+end
+
 print("[GrafosV3] === Boot Servidor Listo ===")
 print("[GrafosV3] Estado inicial: todos los jugadores en MENU")

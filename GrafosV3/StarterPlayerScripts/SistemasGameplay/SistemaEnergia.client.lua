@@ -55,10 +55,16 @@ local function esLuz(obj)
 	return obj:IsA("PointLight") or obj:IsA("SpotLight") or obj:IsA("SurfaceLight")
 end
 
--- Itera solo los descendientes de carpetas "ComponentesEnergeticos" dentro de la zona
+-- Itera descendientes de "ComponentesEnergeticos" (Nivel 0) o las partes llamadas "Foco" (Nivel 1)
 local function iterarComponentes(carpeta, callback)
 	for _, ce in ipairs(carpeta:GetDescendants()) do
 		if ce.Name == "ComponentesEnergeticos" then
+			for _, desc in ipairs(ce:GetDescendants()) do
+				callback(desc)
+			end
+		elseif ce.Name == "Foco" then
+			-- En Nivel 1, el 'Foco' es la parte en sí y contiene la luz
+			callback(ce)
 			for _, desc in ipairs(ce:GetDescendants()) do
 				callback(desc)
 			end

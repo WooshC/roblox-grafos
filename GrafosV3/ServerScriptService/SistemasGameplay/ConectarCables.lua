@@ -228,6 +228,8 @@ local function crearCable(selector1, selector2)
 	-- Evento de desconexion
 	local conn = cd.MouseClick:Connect(function(pl)
 		if pl ~= _jugador then return end
+		if pl:GetAttribute("MapaAbierto") then return end
+		
 		for i, cable in ipairs(_cables) do
 			if cable.hitbox == hitbox then
 				local nomA, nomB = cable.nomA, cable.nomB
@@ -361,6 +363,7 @@ end
 local function alClickearSelector(jugador, selector)
 	if jugador ~= _jugador then return end
 	if not _activo then return end
+	if jugador:GetAttribute("MapaAbierto") then return end
 	
 	if _nodoSeleccionado == nil then
 		-- Primer clic: seleccionar nodo

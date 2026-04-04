@@ -469,6 +469,13 @@ function ModuloMapa.abrir()
 	end
 
 	mapaAbierto = true
+	jugador:SetAttribute("MapaAbierto", true)
+	-- Sincronizar el atributo con el servidor para silenciar ClickDetectors
+	local eventos = ReplicatedStorage:FindFirstChild("EventosGrafosV3")
+	if eventos then
+		local remot = eventos.Remotos:FindFirstChild("ToggleMapaAbierto")
+		if remot then remot:FireServer(true) end
+	end
 
 	-- Cambiar texto del boton
 	if btnMapa then
@@ -513,6 +520,13 @@ function ModuloMapa.cerrar()
 
 	mapaAbierto = false
 	nodoSeleccionadoMapa = nil
+	jugador:SetAttribute("MapaAbierto", nil)
+	-- Sincronizar el atributo con el servidor
+	local eventos = ReplicatedStorage:FindFirstChild("EventosGrafosV3")
+	if eventos then
+		local remot = eventos.Remotos:FindFirstChild("ToggleMapaAbierto")
+		if remot then remot:FireServer(false) end
+	end
 
 	-- Cambiar texto del boton
 	if btnMapa then
@@ -615,6 +629,13 @@ function ModuloMapa.limpiar()
 	end
 
 	estaActivo = false
+	jugador:SetAttribute("MapaAbierto", nil)
+	-- Sincronizar el atributo con el servidor
+	local eventos = ReplicatedStorage:FindFirstChild("EventosGrafosV3")
+	if eventos then
+		local remot = eventos.Remotos:FindFirstChild("ToggleMapaAbierto")
+		if remot then remot:FireServer(false) end
+	end
 
 	print("[ModuloMapa] Limpieza completada")
 end

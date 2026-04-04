@@ -42,14 +42,12 @@ local GestorEfectos = require(script.Parent:WaitForChild("GestorEfectos"))
 GestorEfectos.registrar("ConexionInvalida", function(_params)
 	if not controlador then return end
 	if controlador.estaActivo() then return end
-	if mapaEstaAbierto() then return end
 	controlador.iniciar(DIALOGO_POR_TIPO.ConexionInvalida)
 end)
 
 GestorEfectos.registrar("DireccionInvalida", function(_params)
 	if not controlador then return end
 	if controlador.estaActivo() then return end
-	if mapaEstaAbierto() then return end
 	controlador.iniciar(DIALOGO_POR_TIPO.DireccionInvalida)
 end)
 

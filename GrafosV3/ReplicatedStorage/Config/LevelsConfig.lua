@@ -274,6 +274,13 @@ LevelsConfig[1] = {
 	Algoritmo = "BFS",
 	Conceptos = { "Onda por Capas", "Mínimo de Saltos", "Nodos Aislados", "Grafo Conexo (100%)" },
 
+	ConfiguracionEntorno = {
+		Reloj = 0, -- 00:00:00 (Medianoche)
+		IluminacionAmbiental = Color3.fromRGB(15, 15, 35), -- Azul muy oscuro
+		IluminacionExteriores = Color3.fromRGB(10, 10, 25),
+		LinternaJugador = true -- Activa la luz cálida que sigue al jugador
+	},
+
 	Puntuacion = {
 		TresEstrellas  = 2500,
 		DosEstrellas   = 1500,
@@ -301,7 +308,7 @@ LevelsConfig[1] = {
 		["Poste_Parque_z4"] = {"Casa_Parque1_z4"},
 		["Casa_Parque1_z4"] = {"Poste_Parque_z4", "Casa_Parque2_z4"},
 		["Casa_Parque2_z4"] = {"Casa_Parque1_z4"}
-
+	},
 
 	Zonas = {
 		["Zona_Ferroviaria_1"] = { 
@@ -346,12 +353,15 @@ LevelsConfig[1] = {
 	Misiones = {
 		-- ── Zona 1: Estación ──────────────────────────────────────────────────
 		{ ID=101, Zona="Zona_Ferroviaria_1", Texto="Revisa el Generador Principal de la Estación", Tipo="NODO_SELECCIONADO", Puntos=100, Parametros={ Nodo="Gen_Estacion_z1" } },
+		{ ID=1011, Zona="Zona_Ferroviaria_1", Texto="Ilumina la Estación conectando sus nodos", Tipo="GRAFO_CONEXO", Puntos=150, Parametros={ Nodos={"Gen_Estacion_z1","Casa_Estacion1_z1","Casa_Estacion2_z1"} } },
 
 		-- ── Zona 2: Mercado ───────────────────────────────────────────────────
 		{ ID=102, Zona="Zona_Mercado_2", Texto="Conecta la Estación con el Poste del Mercado", Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Casa_Estacion1_z1", NodoB="Poste_Mercado_z2" } },
+		{ ID=1021, Zona="Zona_Mercado_2", Texto="Ilumina el Mercado", Tipo="GRAFO_CONEXO", Puntos=150, Parametros={ Nodos={"Gen_Estacion_z1","Casa_Estacion1_z1","Poste_Mercado_z2","Puesto_Mercado_z2"} } },
 
 		-- ── Zona 3: Canchas ──────────────────────────────────────────────
 		{ ID=103, Zona="Zona_Canchas_3", Texto="Revisa que la energía llegue a las Canchas", Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Puesto_Mercado_z2", NodoB="Poste_Canchas_z3" } },
+		{ ID=1031, Zona="Zona_Canchas_3", Texto="Ilumina las Canchas", Tipo="GRAFO_CONEXO", Puntos=150, Parametros={ Nodos={"Gen_Estacion_z1","Casa_Estacion1_z1","Poste_Mercado_z2","Puesto_Mercado_z2","Poste_Canchas_z3","Casa_Canchas_z3"} } },
 
 		-- ── Zona 4: Parque y Victoria ────────────────────────────────────
 		{ ID=104, Zona="Zona_Parque_4", Texto="Forma el puente desde las Canchas hacia el Parque", Tipo="ARISTA_CREADA", Puntos=300, Parametros={ NodoA="Casa_Canchas_z3", NodoB="Poste_Parque_z4" } },
