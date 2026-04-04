@@ -30,6 +30,7 @@ LevelsConfig[0] = {
 	Seccion   = "Introduccion",
 	Algoritmo = "Grafos No Dirigidos",
 	Conceptos = { "Nodos", "Aristas", "Adyacencia", "Grado" },
+	Generadores = { "NodoE_z4" },
 
 	Puntuacion = {
 		TresEstrellas  = 1250,
@@ -273,6 +274,7 @@ LevelsConfig[1] = {
 	Seccion   = "Busqueda y Conectividad",
 	Algoritmo = "BFS",
 	Conceptos = { "Onda por Capas", "Mínimo de Saltos", "Nodos Aislados", "Grafo Conexo (100%)" },
+	Generadores = { "Gen_Estacion_z1" },
 
 	ConfiguracionEntorno = {
 		Reloj = 0, -- 00:00:00 (Medianoche)
@@ -293,11 +295,12 @@ LevelsConfig[1] = {
 	Adyacencias = {
 		-- Zona 1: Estación Plana
 		["Gen_Estacion_z1"] = {"Casa_Estacion1_z1", "Casa_Estacion2_z1"},
-		["Casa_Estacion1_z1"] = {"Gen_Estacion_z1", "Poste_Mercado_z2"},
-		["Casa_Estacion2_z1"] = {"Gen_Estacion_z1"},
-
+		["Casa_Estacion1_z1"] = {"Gen_Estacion_z1","Parque_z1"},
+		["Casa_Estacion2_z1"] = {"Gen_Estacion_z1","Parque_z1"},
+		["Parque_z1"] = {"Casa_Estacion1_z1","Casa_Estacion2_z1", "Poste_Mercado_z2"},
+		
 		-- Zona 2: Mercado Central
-		["Poste_Mercado_z2"]  = {"Casa_Estacion1_z1", "Puesto_Mercado_z2"},
+		["Poste_Mercado_z2"]  = {"Parque_z1", "Puesto_Mercado_z2"},
 		["Puesto_Mercado_z2"] = {"Poste_Mercado_z2", "Poste_Canchas_z3"},
 
 		-- Zona 3: Las Canchas

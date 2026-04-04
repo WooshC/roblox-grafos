@@ -39,7 +39,7 @@ function GestorColisiones:capturar(nivelModelo)
 			castShadow    = parte.CastShadow,
 			canCollide    = parte.CanCollide,
 			canQuery      = parte.CanQuery,
-			cframe        = parte.CFrame,  -- para teleportar y restaurar posición
+			-- Ya no necesitamos CFrame, usamos LocalTransparencyModifier
 		}
 	end
 
@@ -115,12 +115,9 @@ function GestorColisiones:ocultarTecho()
 	local conteo = 0
 	for parte, original in pairs(self.estadosGuardados) do
 		if parte and parte.Parent then
-			parte.Transparency = self.config.transparenciaOculta
-			parte.CastShadow   = false
-			parte.CanQuery     = false
-			-- Mover muy alto: evita que bloquee ClickDetectors (legacy ray usa CanCollide)
-			-- sin necesidad de cambiar CanCollide (lo que causaría caídas al vacío)
-			parte.CFrame = parte.CFrame + Vector3.new(0, 10000, 0)
+			-- Usar LocalTransparencyModifier evita forzar la recálculo de sombras y luces de Roblox
+			-- que causaba que las luces parpadearan al abrir el mapa.
+			parte.LocalTransparencyModifier = self.config.transparenciaOculta
 			conteo = conteo + 1
 		end
 	end
@@ -146,11 +143,7 @@ function GestorColisiones:restaurar()
 	local conteo = 0
 	for parte, original in pairs(self.estadosGuardados) do
 		if parte and parte.Parent then
-			parte.Transparency = original.transparencia
-			parte.CastShadow   = original.castShadow
-			parte.CanCollide   = original.canCollide
-			parte.CanQuery     = original.canQuery
-			parte.CFrame       = original.cframe  -- restaurar posición original
+			parte.LocalTransparencyModifier = 0
 			conteo = conteo + 1
 		end
 	end

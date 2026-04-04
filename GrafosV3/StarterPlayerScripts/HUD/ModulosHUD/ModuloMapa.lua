@@ -39,10 +39,26 @@ local hudGui = nil
 local frameMapa = nil
 local btnMapa = nil
 local btnCerrarMapa = nil
+local frameMinimapa = nil
+
+-- Títulos y Tiras Informativas
+local lblMapaTitulo = nil
+local lblInfoNodos = nil
+local lblInfoAristas = nil
+local lblInfoTipo = nil
+
+-- Leyenda
+local frameLeyenda = nil
 
 -- El estado de cámara lo maneja ServicioCamara
 -- Los techos los gestiona GestorColisiones (ControladorColisiones.client.lua)
 -- Los billboards de zonas los gestiona EfectosZonas
+
+local function _gestionarReflector(abierto)
+	-- Removido a petición del usuario. La iluminación ahora depende
+	-- exclusivamente de mantener los techos en su posición original
+	-- con transparencia, para que no oculten ni trasladen sus luces.
+end
 
 -- Estado de selección en el mapa
 local nodoSeleccionadoMapa = nil
@@ -76,6 +92,32 @@ function ModuloMapa.inicializar(hudRef)
 
 	if frameMapa then
 		btnCerrarMapa = frameMapa:FindFirstChild("BtnCerrarMapa", true)
+		lblMapaTitulo = frameMapa:FindFirstChild("MapaTitulo", true)
+		
+		local infoStrip = frameMapa:FindFirstChild("MapaInfoStrip", true)
+		if infoStrip then
+			local bn = infoStrip:FindFirstChild("MapInfoNodos")
+			if bn then lblInfoNodos = bn:FindFirstChild("V") end
+			
+			local ba = infoStrip:FindFirstChild("MapInfoAristas")
+			if ba then lblInfoAristas = ba:FindFirstChild("V") end
+			
+			local bt = infoStrip:FindFirstChild("MapInfoTipo")
+			if bt then lblInfoTipo = bt:FindFirstChild("V") end
+		end
+		
+		frameLeyenda = frameMapa:FindFirstChild("Leyenda", true)
+	end
+	
+	frameMinimapa = hudGui:FindFirstChild("ContenedorMiniMapa", true) or hudGui:FindFirstChild("ContenedorMinimapa", true) or hudGui:FindFirstChild("PanelMinimapa", true) or hudGui:FindFirstChild("PanelNavegacion", true)
+	if not frameMinimapa then
+		-- Fallback buscar algun frame con la palabra Minimapa
+		for _, desc in pairs(hudGui:GetDescendants()) do
+			if desc:IsA("Frame") and string.find(desc.Name, "Minimapa") then
+				frameMinimapa = desc
+				break
+			end
+		end
 	end
 
 	-- Configurar botones
@@ -102,6 +144,7 @@ function ModuloMapa.inicializar(hudRef)
 						print("[ModuloMapa] Conexión cambiada, actualizando efectos...")
 						task.wait(0.1) -- Pequeño delay para que el servidor actualice primero
 						_actualizarHighlights()
+						_actualizarInfoHUD()
 					end
 				end
 			end)
@@ -166,9 +209,10 @@ function ModuloMapa.configurarNivel(nivelModel, id, config)
 		-- Actualizar zona en EfectosZonas
 		EfectosZonas.establecerZonaActual(nuevaZona)
 
-		-- Si el mapa está abierto, actualizar visibilidad de billboards
+		-- Si el mapa está abierto, actualizar visibilidad y la Tira de Información
 		if mapaAbierto then
 			EfectosZonas.actualizarVisibilidad()
+			_actualizarInfoHUD()
 		end
 	end)
 
@@ -443,6 +487,118 @@ function _onNodoClickeado(nodo, selectorPart)
 end
 
 -- ================================================================
+-- INFORMACION DE UI Y LEYENDA
+-- ================================================================
+
+-- Función auxiliar eliminada, ahora usamos GrafoHelpers.detectarDirigido
+
+function _actualizarInfoHUD()
+	local zonaActual = jugador:GetAttribute("ZonaActual")
+	
+	-- Elementos auxiliares
+	local GrafoHelpers = require(ReplicatedStorage.Compartido.GrafoHelpers)
+	local nodosZona = nil
+	if zonaActual and configNivel and configNivel.Zonas and configNivel.Zonas[zonaActual] then
+		nodosZona = GrafoHelpers.nodosDeZona(configNivel.Adyacencias, zonaActual, configNivel)
+	end
+	
+	-- 1. Titulo
+	if lblMapaTitulo and configNivel then
+		local numNivel = "Nivel " .. tostring(nivelID)
+		if zonaActual and configNivel.Zonas and configNivel.Zonas[zonaActual] then
+			lblMapaTitulo.Text = numNivel .. " - " .. configNivel.Zonas[zonaActual].Descripcion
+		else
+			lblMapaTitulo.Text = numNivel .. " - General"
+		end
+	end
+	
+	-- 2. Nodos
+	if lblInfoNodos and configNivel then
+		local count = 0
+		if nodosZona then
+			count = #nodosZona
+		else
+			for k, _ in pairs(configNivel.Adyacencias) do
+				count = count + 1
+			end
+		end
+		lblInfoNodos.Text = tostring(count)
+	end
+	
+	-- 3. Tipo (Dirigido / No Dirigido)
+	local esDirigido = false
+	if configNivel then
+		local NodosParaCheck = nodosZona
+		if not NodosParaCheck then
+			NodosParaCheck = {}
+			for n, _ in pairs(configNivel.Adyacencias) do
+				table.insert(NodosParaCheck, n)
+			end
+		end
+		esDirigido = GrafoHelpers.detectarDirigido(configNivel.Adyacencias, NodosParaCheck)
+		
+		if lblInfoTipo then
+			if esDirigido then
+				lblInfoTipo.Text = "Dirigido"
+			else
+				lblInfoTipo.Text = "No Dirigido"
+			end
+		end
+	end
+	
+	-- 4. Aristas (Conexiones Creadas por el Jugador)
+	if lblInfoAristas then
+		local cx = EstadoConexiones.obtenerTodasLasConexiones()
+		local count = 0
+		if cx then
+			if nodosZona then
+				-- Si estamos en una zona, contar solo con aristas asociadas a estos nodos
+				local setNodos = {}
+				for _, n in ipairs(nodosZona) do setNodos[n] = true end
+				
+				for _, arista in ipairs(cx) do
+					local nodoA, nodoB = string.match(arista, "^([^|]+)|([^|]+)$")
+					-- Si ambos están en la zona, es una arista interna de la zona
+					if setNodos[nodoA] and setNodos[nodoB] then
+						count = count + 1
+					end
+				end
+			else
+				-- Nivel completo
+				count = #cx
+			end
+			
+			-- Si NO es dirigido, debemos corregir conteo de conexiones dobles si se formaron
+			-- (En GrafosV3 la clave es A|B ordenada alfabéticamente si usamos generarClave, 
+			-- por lo que EstadoConexiones podría ya manejar unicidad. Si no, lo dividimos solo si no es dirigido pero la clave no era única)
+			-- Asumiremos que EstadoConexiones usa orden lexicografico, por lo que count es exacto.
+		end
+		lblInfoAristas.Text = tostring(math.floor(count))
+	end
+end
+
+function _actualizarLegend()
+	if not frameLeyenda then return end
+	
+	local function setDotColor(legName, color)
+		local leg = frameLeyenda:FindFirstChild(legName)
+		if leg then
+			local dot = leg:FindFirstChild("Dot")
+			if dot then
+				dot.BackgroundColor3 = color
+			end
+		end
+	end
+	
+	-- Colores asumiendo la paleta que se está usando
+	setDotColor("LegInicial", Color3.fromRGB(85, 170, 255)) -- Azul
+	setDotColor("LegEnergizado", Color3.fromRGB(244, 255, 114)) -- Amarillo eléctrico
+	setDotColor("LegMeta", Color3.fromRGB(255, 85, 85)) -- Rojo
+	setDotColor("LegAdyacente", Color3.fromRGB(0, 255, 127)) -- Verde
+	setDotColor("LegAislado", Color3.fromRGB(150, 150, 150)) -- Gris
+end
+
+-- ================================================================
 -- API PUBLICA - ABRIR / CERRAR
 -- ================================================================
 
@@ -485,11 +641,23 @@ function ModuloMapa.abrir()
 	-- Mostrar frame
 	frameMapa.Visible = true
 
+	-- Ocultar Minimapa
+	if frameMinimapa then
+		frameMinimapa.Visible = false
+	end
+
+	-- Actualizar UI Informativa
+	_actualizarInfoHUD()
+	_actualizarLegend()
+
 	-- Guardar estado de camara (usando ServicioCamara)
 	ServicioCamara.guardarEstado()
 
 	-- Ocultar techos usando GestorColisiones
 	GestorColisiones:ocultarTecho()
+
+	-- Crear reflector para iluminación
+	_gestionarReflector(true)
 
 	-- Calcular posicion cenital
 	local bounds = _calcularBoundsNivel()
@@ -545,6 +713,9 @@ function ModuloMapa.cerrar()
 		EfectosNodo.limpiarSeleccion()
 	end)
 
+	-- Eliminar reflector
+	_gestionarReflector(false)
+
 	-- Restaurar techos usando GestorColisiones
 	GestorColisiones:restaurar()
 
@@ -557,6 +728,11 @@ function ModuloMapa.cerrar()
 	-- Ocultar frame
 	if frameMapa then
 		frameMapa.Visible = false
+	end
+
+	-- Mostrar Minimapa
+	if frameMinimapa then
+		frameMinimapa.Visible = true
 	end
 
 	print("[ModuloMapa] Mapa cerrado")

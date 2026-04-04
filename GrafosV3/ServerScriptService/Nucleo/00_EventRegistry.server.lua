@@ -55,9 +55,8 @@ local EVENTOS_REMOTOS = {
 	{ nombre = "GetAdjacencyMatrix",     tipo = "RemoteFunction" },   -- Cliente <-> Server (solicitar matriz de adyacencia)
 	{ nombre = "GetGrafoCompleto",       tipo = "RemoteFunction" },   -- Cliente <-> Server (grafo completo de LevelsConfig para análisis)
 
-	-- Sistema de Energía
-	{ nombre = "ZonaEnergizada",         tipo = "RemoteEvent" },      -- Server -> Cliente (zona completada → encender luces)
-	{ nombre = "ZonaApagada",            tipo = "RemoteEvent" },      -- Server -> Cliente (grafo roto → apagar luces)
+	-- Sistema de Energía Progresiva
+	{ nombre = "ProgresoEnergia",        tipo = "RemoteEvent" },      -- Server -> Cliente (porcentaje de energía por zona)
 }
 
 -- ═══════════════════════════════════════════════════════════════════════════════

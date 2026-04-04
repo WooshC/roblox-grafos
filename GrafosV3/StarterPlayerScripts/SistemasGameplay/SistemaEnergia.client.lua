@@ -100,106 +100,63 @@ local function obtenerCarpeta(nombreCarpeta)
 end
 
 -- ════════════════════════════════════════════════════════════════════
--- APAGAR — estado inicial y al romper el grafo
+-- ESTABLECER PROGRESO DE ENERGÍA (PORCENTAJE)
 -- ════════════════════════════════════════════════════════════════════
 
-local function apagarObjeto(obj)
-	if esLuz(obj) then
-		TweenService:Create(obj,
-			TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-			{ Brightness = 0 }
-		):Play()
-		task.delay(0.65, function()
-			if obj and obj.Parent then obj.Enabled = false end
-		end)
-
-	elseif obj:IsA("Beam") then
-		obj.Enabled = false
-
-	elseif obj:IsA("ParticleEmitter") then
-		obj.Enabled = false
-
-	elseif obj:IsA("BasePart") then
-		TweenService:Create(obj,
-			TweenInfo.new(0.5, Enum.EasingStyle.Quad),
-			{ Transparency = obj.Transparency > 0 and obj.Transparency or 1 }
-		):Play()
-	end
-end
-
-local function apagarCarpeta(carpeta)
-	iterarComponentes(carpeta, apagarObjeto)
-end
-
--- ════════════════════════════════════════════════════════════════════
--- ENCENDER — al completar el grafo conexo
--- ════════════════════════════════════════════════════════════════════
-
-local function encenderObjeto(obj, delay)
-	task.delay(delay or 0, function()
-		if not obj or not obj.Parent then return end
-
-		if esLuz(obj) then
-			local cfg = _valoresOriginales[obj]
-				or FALLBACK_LUZ[obj.ClassName]
-				or { Brightness = 5, Range = 20 }
-			obj.Brightness = 0
-			obj.Enabled    = true
-			TweenService:Create(obj,
-				TweenInfo.new(1.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-				{ Brightness = cfg.Brightness, Range = cfg.Range }
-			):Play()
-
-		elseif obj:IsA("Beam") then
-			obj.Enabled = true
-
-		elseif obj:IsA("ParticleEmitter") then
-			obj.Enabled = true
-			obj:Emit(20)
-
-		elseif obj:IsA("BasePart") then
-			obj.Material = Enum.Material.Neon
-			TweenService:Create(obj,
-				TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-				{ Transparency = 0 }
-			):Play()
-		end
-	end)
-end
-
-local function encenderCarpeta(carpeta)
+local function ajustarNivelEnergia(carpeta, porcentaje)
 	local i = 0
-	iterarComponentes(carpeta, function(desc)
-		encenderObjeto(desc, i * 0.04)
+	iterarComponentes(carpeta, function(obj)
+		task.delay(i * 0.02, function()
+			if not obj or not obj.Parent then return end
+
+			if esLuz(obj) then
+				local cfg = _valoresOriginales[obj] or FALLBACK_LUZ[obj.ClassName] or { Brightness = 5, Range = 20 }
+				
+				if porcentaje <= 0 then
+					TweenService:Create(obj, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Brightness = 0 }):Play()
+					task.delay(0.65, function() if obj and obj.Parent then obj.Enabled = false end end)
+				else
+					obj.Enabled = true
+					local targetBrightness = cfg.Brightness * porcentaje
+					TweenService:Create(obj, TweenInfo.new(1.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { 
+						Brightness = targetBrightness, 
+						Range = cfg.Range 
+					}):Play()
+				end
+
+			elseif obj:IsA("Beam") or obj:IsA("ParticleEmitter") then
+				obj.Enabled = (porcentaje > 0)
+				if obj:IsA("ParticleEmitter") and porcentaje > 0 and porcentaje > (_zonasEncendidas[carpeta] or 0) then
+					obj:Emit(10)
+				end
+
+			elseif obj:IsA("BasePart") then
+				if porcentaje <= 0 then
+					TweenService:Create(obj, TweenInfo.new(0.5, Enum.EasingStyle.Quad), { Transparency = 1 }):Play()
+				else
+					obj.Material = Enum.Material.Neon
+					TweenService:Create(obj, TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { 
+						Transparency = 1 - porcentaje 
+					}):Play()
+				end
+			end
+		end)
 		i = i + 1
 	end)
 end
 
--- ════════════════════════════════════════════════════════════════════
--- API PÚBLICA
--- ════════════════════════════════════════════════════════════════════
-
-local function energizarZona(zonaID)
-	local nombreCarpeta = _mapaZonas[zonaID]
-	if not nombreCarpeta then return end
-	local carpeta = obtenerCarpeta(nombreCarpeta)
-	if not carpeta then
-		warn("[SistemaEnergia] Carpeta no encontrada:", nombreCarpeta)
-		return
-	end
-	_zonasEncendidas[zonaID] = true
-	print("[SistemaEnergia] ⚡ Encendiendo:", nombreCarpeta)
-	encenderCarpeta(carpeta)
-end
-
-local function apagarZona(zonaID)
+local function actualizarProgresoZona(zonaID, porcentaje)
 	local nombreCarpeta = _mapaZonas[zonaID]
 	if not nombreCarpeta then return end
 	local carpeta = obtenerCarpeta(nombreCarpeta)
 	if not carpeta then return end
-	_zonasEncendidas[zonaID] = nil
-	print("[SistemaEnergia] 🔌 Apagando:", nombreCarpeta)
-	apagarCarpeta(carpeta)
+	
+	local viejoPorcentaje = _zonasEncendidas[zonaID] or 0
+	if viejoPorcentaje == porcentaje then return end
+	
+	_zonasEncendidas[zonaID] = porcentaje
+	print(string.format("[SistemaEnergia] ⚡ Zona: %s → %d%%", nombreCarpeta, math.floor(porcentaje * 100)))
+	ajustarNivelEnergia(carpeta, porcentaje)
 end
 
 -- Espera NivelActual en workspace, guarda valores originales y apaga todo
@@ -216,11 +173,11 @@ local function inicializarApagado()
 		local carpeta = obtenerCarpeta(nombreCarpeta)
 		if carpeta then
 			guardarValoresOriginales(carpeta)   -- capturar antes de modificar
-			apagarCarpeta(carpeta)
+			ajustarNivelEnergia(carpeta, 0)
 		end
 	end
 	_zonasEncendidas = {}
-	print("[SistemaEnergia] Todas las zonas inicializadas como apagadas")
+	print("[SistemaEnergia] Todas las zonas inicializadas al 0% de energia")
 end
 
 -- ════════════════════════════════════════════════════════════════════
@@ -252,14 +209,7 @@ conectar("NivelDescargado", function()
 	_zonasEncendidas = {}
 end)
 
--- Zona completó grafo conexo → encender
-conectar("ZonaEnergizada", function(zonaID)
-	print("[SistemaEnergia] ZonaEnergizada →", zonaID)
-	energizarZona(zonaID)
-end)
-
--- Grafo dejó de ser conexo (cable desconectado) → apagar
-conectar("ZonaApagada", function(zonaID)
-	print("[SistemaEnergia] ZonaApagada →", zonaID)
-	apagarZona(zonaID)
+-- Progreso de Energía variable (0.0 a 1.0)
+conectar("ProgresoEnergia", function(zonaID, porcentaje)
+	actualizarProgresoZona(zonaID, porcentaje)
 end)

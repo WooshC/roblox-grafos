@@ -21,6 +21,7 @@ local ConectarCables = nil
 local ServicioMisiones = nil
 local GestorZonas = nil
 local ServicioProgreso = nil
+local ServicioEnergia = nil
 
 -- Cargar ServicioPuntaje directamente (workaround para problema de caché de Studio)
 local ServicioPuntaje = nil
@@ -71,6 +72,16 @@ local function obtenerServicioMisiones()
 		if modulo then ServicioMisiones = require(modulo) end
 	end
 	return ServicioMisiones
+end
+
+local function obtenerServicioEnergia()
+	if not ServicioEnergia then
+		local sistemasFolder = ServerScriptService:FindFirstChild("SistemasGameplay")
+		if not sistemasFolder then return nil end
+		local modulo = sistemasFolder:FindFirstChild("ServicioEnergia")
+		if modulo then ServicioEnergia = require(modulo) end
+	end
+	return ServicioEnergia
 end
 
 local function obtenerServicioPuntaje()
@@ -141,6 +152,12 @@ function CargadorNiveles.descargar()
 	if moduloMisiones and moduloMisiones.estaActivo() then
 		moduloMisiones.desactivar()
 		print("[CargadorNiveles] ServicioMisiones desactivado")
+	end
+	
+	local moduloEnergia = obtenerServicioEnergia()
+	if moduloEnergia then
+		moduloEnergia.desactivar()
+		print("[CargadorNiveles] ServicioEnergia desactivado")
 	end
 
 	local moduloPuntaje = obtenerServicioPuntaje()
@@ -274,6 +291,12 @@ function CargadorNiveles.cargar(nivelID, jugador)
 	local moduloZonas = obtenerGestorZonas()
 	if moduloZonas and config.Zonas and next(config.Zonas) then
 		moduloZonas.activar(nivelActual, config.Zonas, jugador, moduloMisiones)
+	end
+	
+	-- 3.5 Inicializar ServicioEnergia
+	local moduloEnergia = obtenerServicioEnergia()
+	if moduloEnergia then
+		moduloEnergia.activar(config, nivelID, Remotos)
 	end
 
 	-- 4. Configurar ValidadorConexiones (fuente de verdad — antes de ConectarCables)
