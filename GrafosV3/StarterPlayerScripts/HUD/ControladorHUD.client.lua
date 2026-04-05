@@ -133,7 +133,7 @@ EventosHUD.nivelListo.OnClientEvent:Connect(function(data)
 	activarHUD()
 
 	-- Configurar el mapa con el nivel actual
-	local nivelID = jugador:GetAttribute("CurrentLevelID") or 0
+	local nivelID = (data and data.nivelID) or jugador:GetAttribute("CurrentLevelID") or 0
 	local nivelActual = workspace:FindFirstChild("NivelActual")
 	local configNivel = LevelsConfig[nivelID]
 

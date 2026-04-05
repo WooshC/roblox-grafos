@@ -9,52 +9,56 @@ local DIALOGOS = {
 		Nivel = 1,
 		Lineas = {
 			{
-				Id        = "intro_panecillo",
+				Id        = "intro_parque",
 				Numero    = 1,
 				Actor     = "Carlos",
 				Expresion = "Sonriente",
-				Texto     = "Este es el Parque del Barrio. Aquí culmina nuestra misión. Revisa que no queden más casas desconectadas como las que el alcalde intentó ocultar.",
+				Texto     = "¡El Parque del Barrio! Un espacio con 4 postes de alumbrado, una Fuente Central y un Kiosco. Seis nodos en total. Una vez que los conectes a la red, BFS los cubre todos en solo 2 capas.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
-					ServicioCamara.moverHaciaObjetivo("Casa_Parque1_z4", { altura = 40, angulo = 70, duracion = 1.8 })
-					EfectosDialogo.resaltarNodo("Casa_Parque1_z4", "ERROR")
+					ServicioCamara.moverHaciaObjetivo("Fuente_z4", { altura = 42, angulo = 68, duracion = 1.8 })
+					EfectosDialogo.resaltarNodo("Fuente_z4", "ADYACENTE")
+					EfectosDialogo.resaltarNodo("Poste1_z4", "ERROR")
+					EfectosDialogo.resaltarNodo("Poste2_z4", "ERROR")
+					EfectosDialogo.resaltarNodo("Poste3_z4", "ERROR")
+					EfectosDialogo.resaltarNodo("Poste4_z4", "ERROR")
+					EfectosDialogo.resaltarNodo("Kiosco_z4", "ERROR")
 				end,
-				Siguiente = "pregunta_4",
+				Siguiente = "pregunta_capas",
 			},
 			{
-				Id        = "pregunta_4",
+				Id        = "pregunta_capas",
 				Numero    = 2,
 				Actor     = "Carlos",
 				Expresion = "Pensativo",
-				Texto     = "Para resolver el problema permanentemente y arreglar la red, ¿cuál debe ser el estado final de nuestro grafo al terminar de conectar los cables?",
+				Texto     = "Poste 1 conecta con Poste 2 y la Fuente. Fuente conecta con Poste 3 y el Kiosco. Poste 3 llega a Poste 4. ¿Cuántas capas de BFS necesita para visitar los 6 nodos desde el Poste 1?",
 				Opciones = {
-					{ Texto = "Que existan múltiples componentes aislados.", Siguiente = "resp_4_incorrecta" },
-					{ Texto = "Que la red abarque el 100% de los nodos, formando un Grafo Conexo.", Siguiente = "resp_4_correcta" },
-					{ Texto = "Que varios subgrafos permanezcan cerrados.", Siguiente = "resp_4_incorrecta" },
+					{ Texto = "1 capa.",  Siguiente = "resp_incorrecta" },
+					{ Texto = "2 capas.", Siguiente = "resp_correcta"   },
+					{ Texto = "6 capas.", Siguiente = "resp_incorrecta" },
 				},
 			},
 			{
-				Id        = "resp_4_correcta",
+				Id        = "resp_correcta",
 				Numero    = 3,
 				Actor     = "Carlos",
 				Expresion = "Extasiado",
-				Texto     = "¡SÍ! Nuestra misión es la conectividad total. Si ningún nodo se queda fuera tras crear los bordes, hemos logrado el 100% de cobertura. ¡Termina las conexiones y salva el barrio!",
-				-- [TODO] Aquí agregaremos el puntaje +100 luego
-				Opciones = { { Texto = "Continuar", Siguiente = "instruccion" } },
+				Texto     = "¡Exacto! Capa 1: Poste 2 y Fuente. Capa 2: Poste 3, Kiosco y Poste 4. Dos capas son suficientes porque el grafo del Parque está bien conectado. ¡Ahora tiende los cables y enciende todo el barrio!",
+				Opciones = { { Texto = "¡Vamos!", Siguiente = "instruccion" } },
 			},
 			{
-				Id        = "resp_4_incorrecta",
+				Id        = "resp_incorrecta",
 				Numero    = 3,
 				Actor     = "Carlos",
 				Expresion = "Triste",
-				Texto     = "Incorrecto. Cuando logramos crear cables (aristas) que integren absolutamente todos los subgrafos, forman un único bloque maestro llamado Grafo Conexo. Esa es nuestra meta.",
+				Texto     = "No exactamente. BFS agrupa los nodos por distancia en saltos. Poste 2 y Fuente están a 1 salto del Poste 1; Poste 3, Kiosco y Poste 4 están a 2 saltos. Dos capas cubren los 6 nodos.",
 				Opciones = { { Texto = "Entendido", Siguiente = "instruccion" } },
 			},
 			{
 				Id        = "instruccion",
 				Numero    = 4,
 				Actor     = "Sistema",
-				Texto     = "Crea el puente final desde la Casa de las Canchas al Poste del Parque e ilumina todo el barrio para ganar.",
+				Texto     = "Conecta el Poste 1 al Poste de las Canchas para unir el subgrafo aislado. Luego enlaza la Fuente y los demás postes para iluminar el Parque al 100%.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					ServicioCamara.restaurar(1.5)

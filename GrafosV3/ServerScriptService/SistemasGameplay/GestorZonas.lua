@@ -85,92 +85,66 @@ function GestorZonas.activar(nivel, zonasConfig, jugador, servicioMisiones)
 				nombre, zonaDef.trigger))
 
 			-- Touched: entrada a la zona
+			-- IMPORTANTE: Touched/TouchEnded se disparan por CADA parte del cuerpo
+			-- (piernas, torso, HRP...) y las partes "parpadean" al caminar.
+			-- Solucion: solo reaccionar a la HumanoidRootPart para un unico disparo.
 			local connEntrada = triggerPart.Touched:Connect(function(parteTocada)
 				if not _activo then return end
 				local personaje = _jugador and _jugador.Character
 				if not personaje then return end
 
-				-- Verificar que es parte del personaje
-				local esMiPersonaje = false
-				if parteTocada:IsDescendantOf(personaje) then
-					esMiPersonaje = true
-				else
-					local modelo = parteTocada:FindFirstAncestorOfClass("Model")
-					if modelo == personaje then
-						esMiPersonaje = true
-					end
+				-- Solo la HRP garantiza un unico disparo por zona
+				if parteTocada.Name ~= "HumanoidRootPart" then return end
+				if not parteTocada:IsDescendantOf(personaje) then return end
+
+				-- Ignorar si ya estamos dentro
+				if _enZona[nombre] then return end
+
+				_enZona[nombre] = true
+				_visitadas[nombre] = true
+
+				if _jugador then
+					_jugador:SetAttribute("ZonaActual", nombre)
+					print(string.format("[GestorZonas] >>> ENTRADA: '%s'", nombre))
 				end
 
-				if not esMiPersonaje then return end
+				if _servicioMisiones and _servicioMisiones.estaActivo() then
+					_servicioMisiones.alEntrarZona(nombre)
+				end
 
-				local tocando = _tocandoPorZona[nombre]
-				local estabaVacio = next(tocando) == nil
-				tocando[parteTocada] = true
-
-				-- Transicion: vacio → con partes = entrada
-				if estabaVacio and not _enZona[nombre] then
-					_enZona[nombre] = true
-					_visitadas[nombre] = true
-
-					-- Setear atributo en jugador
-					if _jugador then
-						_jugador:SetAttribute("ZonaActual", nombre)
-						print(string.format("[GestorZonas] >>> ENTRADA: '%s'", nombre))
-					end
-
-					-- Notificar a ServicioMisiones
-					if _servicioMisiones and _servicioMisiones.estaActivo() then
-						_servicioMisiones.alEntrarZona(nombre)
-					end
-
-					-- Callback
-					if _callbackEntrada then
-						_callbackEntrada(nombre)
-					end
+				if _callbackEntrada then
+					_callbackEntrada(nombre)
 				end
 			end)
 
 			-- TouchEnded: salida de la zona
+			-- Solo reaccionamos a la HumanoidRootPart (mismo filtro que Touched)
 			local connSalida = triggerPart.TouchEnded:Connect(function(parteTocada)
 				if not _activo then return end
 				local personaje = _jugador and _jugador.Character
 				if not personaje then return end
 
-				local esMiPersonaje = false
-				if parteTocada:IsDescendantOf(personaje) then
-					esMiPersonaje = true
-				else
-					local modelo = parteTocada:FindFirstAncestorOfClass("Model")
-					if modelo == personaje then
-						esMiPersonaje = true
+				if parteTocada.Name ~= "HumanoidRootPart" then return end
+				if not parteTocada:IsDescendantOf(personaje) then return end
+
+				-- Ignorar si ya no estabamos en la zona
+				if not _enZona[nombre] then return end
+
+				_enZona[nombre] = nil
+
+				if _jugador then
+					if _jugador:GetAttribute("ZonaActual") == nombre then
+						_jugador:SetAttribute("ZonaActual", nil)
+						print(string.format("[GestorZonas] <<< SALIDA: '%s'", nombre))
 					end
 				end
 
-				if not esMiPersonaje then return end
+				if _servicioMisiones and _servicioMisiones.estaActivo() then
+					_servicioMisiones.alSalirZona(nombre)
+				end
 
-				local tocando = _tocandoPorZona[nombre]
-				tocando[parteTocada] = nil
-
-				-- Transicion: con partes → vacio = salida
-				if next(tocando) == nil and _enZona[nombre] then
-					_enZona[nombre] = nil
-
-					if _jugador then
-						if _jugador:GetAttribute("ZonaActual") == nombre then
-							_jugador:SetAttribute("ZonaActual", nil)
-							print(string.format("[GestorZonas] <<< SALIDA: '%s'", nombre))
-						end
-					end
-
-					-- Notificar a ServicioMisiones
-					if _servicioMisiones and _servicioMisiones.estaActivo() then
-						_servicioMisiones.alSalirZona(nombre)
-					end
-
-					-- Callback
-					if _callbackSalida then
-						_callbackSalida(nombre)
-					end
+				if _callbackSalida then
+					_callbackSalida(nombre)
 				end
 			end)
 

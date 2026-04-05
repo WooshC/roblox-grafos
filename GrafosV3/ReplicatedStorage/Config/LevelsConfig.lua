@@ -296,21 +296,26 @@ LevelsConfig[1] = {
 		-- Zona 1: Estación Plana
 		["Gen_Estacion_z1"] = {"Casa_Estacion1_z1", "Casa_Estacion2_z1"},
 		["Casa_Estacion1_z1"] = {"Gen_Estacion_z1","Parque_z1"},
-		["Casa_Estacion2_z1"] = {"Gen_Estacion_z1","Parque_z1"},
+		["Casa_Estacion2_z1"] = {"Gen_Estacion_z1","Parque_z1","Parque_z2"},
 		["Parque_z1"] = {"Casa_Estacion1_z1","Casa_Estacion2_z1", "Poste_Mercado_z2"},
-		
+
 		-- Zona 2: Mercado Central
-		["Poste_Mercado_z2"]  = {"Parque_z1", "Puesto_Mercado_z2"},
+		["Poste_Mercado_z2"]  = {"Parque_z1", "Puesto_Mercado_z2","Parque_z2"},
 		["Puesto_Mercado_z2"] = {"Poste_Mercado_z2", "Poste_Canchas_z3"},
+		["Parque_z2"]={"Poste_Mercado_z2","Casa_Estacion1_z1"},
 
 		-- Zona 3: Las Canchas
-		["Poste_Canchas_z3"] = {"Puesto_Mercado_z2", "Casa_Canchas_z3"},
-		["Casa_Canchas_z3"]  = {"Poste_Canchas_z3"}, -- Falla aqui, falta puente al Parque
+		["Poste_Canchas_z3"] = {"Puesto_Mercado_z2", "Casa_Canchas_z3","Parque_z1","Poste2_Canchas_z3"},
+		["Casa_Canchas_z3"]  = {"Poste_Canchas_z3", "Poste1_z4"},
+		["Poste2_Canchas_z3"]={"Puesto_Mercado_z2","Poste_Canchas_z3"},
 
 		-- Zona 4: Parque Central (Componente inicialmente aislado)
-		["Poste_Parque_z4"] = {"Casa_Parque1_z4"},
-		["Casa_Parque1_z4"] = {"Poste_Parque_z4", "Casa_Parque2_z4"},
-		["Casa_Parque2_z4"] = {"Casa_Parque1_z4"}
+		["Poste1_z4"] = {"Poste2_z4", "Fuente_z4", "Casa_Canchas_z3"},
+		["Fuente_z4"] = {"Poste1_z4", "Poste3_z4", "Kiosco_z4"},
+		["Poste2_z4"] = {"Poste1_z4", "Poste3_z4"},
+		["Poste3_z4"] = {"Poste2_z4", "Fuente_z4", "Poste4_z4"},
+		["Poste4_z4"] = {"Poste3_z4", "Kiosco_z4"},
+		["Kiosco_z4"] = {"Fuente_z4", "Poste4_z4"},
 	},
 
 	Zonas = {
@@ -341,34 +346,45 @@ LevelsConfig[1] = {
 	},
 
 	NombresNodos = {
-		["Gen_Estacion_z1"]     = "Generador Principal",
-		["Casa_Estacion1_z1"]   = "Casa Estación 1",
-		["Casa_Estacion2_z1"]   = "Casa Estación 2",
-		["Poste_Mercado_z2"]    = "Poste del Mercado",
-		["Puesto_Mercado_z2"]   = "Puesto del Mercado",
-		["Poste_Canchas_z3"]    = "Poste de las Canchas",
-		["Casa_Canchas_z3"]     = "Casa de las Canchas",
-		["Poste_Parque_z4"]     = "Poste del Parque",
-		["Casa_Parque1_z4"]     = "Casa del Parque 1",
-		["Casa_Parque2_z4"]     = "Casa del Parque 2",
+		["Gen_Estacion_z1"]   = "Generador Principal",
+		["Casa_Estacion1_z1"] = "Casa Estación 1",
+		["Casa_Estacion2_z1"] = "Casa Estación 2",
+		["Parque_z1"]         = "Parque de la Estación",
+		["Poste_Mercado_z2"]  = "Poste del Mercado",
+		["Puesto_Mercado_z2"] = "Puesto del Mercado",
+		["Parque_z2"]         = "Parque del Mercado",
+		["Poste_Canchas_z3"]  = "Poste de las Canchas",
+		["Poste2_Canchas_z3"] = "Segundo Poste de las Canchas",
+		["Casa_Canchas_z3"]   = "Casa de las Canchas",
+		["Poste1_z4"] = "Poste 1 del Parque",
+		["Poste2_z4"] = "Poste 2 del Parque",
+		["Poste3_z4"] = "Poste 3 del Parque",
+		["Poste4_z4"] = "Poste 4 del Parque",
+		["Fuente_z4"] = "Fuente Central",
+		["Kiosco_z4"] = "Kiosco del Parque",
 	},
 
 	Misiones = {
 		-- ── Zona 1: Estación ──────────────────────────────────────────────────
-		{ ID=101, Zona="Zona_Ferroviaria_1", Texto="Revisa el Generador Principal de la Estación", Tipo="NODO_SELECCIONADO", Puntos=100, Parametros={ Nodo="Gen_Estacion_z1" } },
-		{ ID=1011, Zona="Zona_Ferroviaria_1", Texto="Ilumina la Estación conectando sus nodos", Tipo="GRAFO_CONEXO", Puntos=150, Parametros={ Nodos={"Gen_Estacion_z1","Casa_Estacion1_z1","Casa_Estacion2_z1"} } },
+		{ ID=101,  Zona="Zona_Ferroviaria_1", Texto="Selecciona el Generador Principal",             Tipo="NODO_SELECCIONADO", Puntos=100, Parametros={ Nodo="Gen_Estacion_z1" } },
+		{ ID=1011, Zona="Zona_Ferroviaria_1", Texto="Conecta las dos casas al Generador",            Tipo="GRAFO_CONEXO",     Puntos=150, Parametros={ Nodos={"Gen_Estacion_z1","Casa_Estacion1_z1","Casa_Estacion2_z1"} } },
+		{ ID=1012, Zona="Zona_Ferroviaria_1", Texto="Ilumina toda la Estación (incluye el Parque)",  Tipo="GRAFO_CONEXO",     Puntos=150, Parametros={ Nodos={"Gen_Estacion_z1","Casa_Estacion1_z1","Casa_Estacion2_z1","Parque_z1"} } },
 
 		-- ── Zona 2: Mercado ───────────────────────────────────────────────────
-		{ ID=102, Zona="Zona_Mercado_2", Texto="Conecta la Estación con el Poste del Mercado", Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Casa_Estacion1_z1", NodoB="Poste_Mercado_z2" } },
-		{ ID=1021, Zona="Zona_Mercado_2", Texto="Ilumina el Mercado", Tipo="GRAFO_CONEXO", Puntos=150, Parametros={ Nodos={"Gen_Estacion_z1","Casa_Estacion1_z1","Poste_Mercado_z2","Puesto_Mercado_z2"} } },
+		{ ID=102,  Zona="Zona_Mercado_2", Texto="Tiende el cable desde el Parque al Poste del Mercado",   Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Parque_z1",        NodoB="Poste_Mercado_z2" } },
+		{ ID=1021, Zona="Zona_Mercado_2", Texto="Conecta también el Parque del Mercado",                  Tipo="ARISTA_CREADA", Puntos=100, Parametros={ NodoA="Parque_z2",        NodoB="Poste_Mercado_z2" } },
+		{ ID=1022, Zona="Zona_Mercado_2", Texto="Ilumina todo el Mercado",                                Tipo="GRAFO_CONEXO",  Puntos=200, Parametros={ Nodos={"Gen_Estacion_z1","Casa_Estacion1_z1","Parque_z1","Poste_Mercado_z2","Puesto_Mercado_z2","Parque_z2"} } },
 
-		-- ── Zona 3: Canchas ──────────────────────────────────────────────
-		{ ID=103, Zona="Zona_Canchas_3", Texto="Revisa que la energía llegue a las Canchas", Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Puesto_Mercado_z2", NodoB="Poste_Canchas_z3" } },
-		{ ID=1031, Zona="Zona_Canchas_3", Texto="Ilumina las Canchas", Tipo="GRAFO_CONEXO", Puntos=150, Parametros={ Nodos={"Gen_Estacion_z1","Casa_Estacion1_z1","Poste_Mercado_z2","Puesto_Mercado_z2","Poste_Canchas_z3","Casa_Canchas_z3"} } },
+		-- ── Zona 3: Canchas ────────────────────────────────────────────────────
+		{ ID=103,  Zona="Zona_Canchas_3", Texto="Lleva energía al Poste de las Canchas",               Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Puesto_Mercado_z2", NodoB="Poste_Canchas_z3" } },
+		{ ID=1031, Zona="Zona_Canchas_3", Texto="Conecta el Segundo Poste de las Canchas",              Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Poste_Canchas_z3",  NodoB="Poste2_Canchas_z3" } },
+		{ ID=1032, Zona="Zona_Canchas_3", Texto="Ilumina todas las Canchas",                            Tipo="GRAFO_CONEXO",  Puntos=200, Parametros={ Nodos={"Gen_Estacion_z1","Parque_z1","Poste_Mercado_z2","Puesto_Mercado_z2","Poste_Canchas_z3","Poste2_Canchas_z3","Casa_Canchas_z3"} } },
 
-		-- ── Zona 4: Parque y Victoria ────────────────────────────────────
-		{ ID=104, Zona="Zona_Parque_4", Texto="Forma el puente desde las Canchas hacia el Parque", Tipo="ARISTA_CREADA", Puntos=300, Parametros={ NodoA="Casa_Canchas_z3", NodoB="Poste_Parque_z4" } },
-		{ ID=105, Zona="Zona_Parque_4", Texto="Logra un grafo 100% conexo iluminando a todo el barrio", Tipo="GRAFO_CONEXO", Puntos=500, Parametros={ Nodos={"Gen_Estacion_z1","Casa_Estacion1_z1","Casa_Estacion2_z1","Poste_Mercado_z2","Puesto_Mercado_z2","Poste_Canchas_z3","Casa_Canchas_z3","Poste_Parque_z4","Casa_Parque1_z4","Casa_Parque2_z4"} } },
+		-- ── Zona 4: Parque del Barrio ──────────────────────────────────────────
+		{ ID=104,  Zona="Zona_Parque_4", Texto="Tiende el puente desde las Canchas al Parque",  Tipo="ARISTA_CREADA", Puntos=300, Parametros={ NodoA="Casa_Canchas_z3", NodoB="Poste1_z4" } },
+		{ ID=1041, Zona="Zona_Parque_4", Texto="Conecta la Fuente Central al Poste 1",          Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Poste1_z4",       NodoB="Fuente_z4" } },
+		{ ID=1042, Zona="Zona_Parque_4", Texto="Ilumina el Parque (Postes, Fuente y Kiosco)",   Tipo="GRAFO_CONEXO",  Puntos=200, Parametros={ Nodos={"Poste1_z4","Poste2_z4","Poste3_z4","Poste4_z4","Fuente_z4","Kiosco_z4"} } },
+		{ ID=105,  Zona="Zona_Parque_4", Texto="¡Grafo 100% conexo! Ilumina todo el barrio",    Tipo="GRAFO_CONEXO",  Puntos=500, Parametros={ Nodos={"Gen_Estacion_z1","Casa_Estacion1_z1","Casa_Estacion2_z1","Parque_z1","Poste_Mercado_z2","Puesto_Mercado_z2","Parque_z2","Poste_Canchas_z3","Poste2_Canchas_z3","Casa_Canchas_z3","Poste1_z4","Poste2_z4","Poste3_z4","Poste4_z4","Fuente_z4","Kiosco_z4"} } },
 	},
 
 	AnalisisConfig = {
@@ -413,13 +429,14 @@ LevelsConfig[1] = {
 		},
 		["Zona_Parque_4"] = {
 			algoritmos = { "bfs" },
-			nodoInicio = "Poste_Parque_z4",
+			nodoInicio = "Poste1_z4",
 			conceptos = {
 				bfs = {
-					intro = "Una vez que tiendas los cables faltantes, el Analizador podrá recorrer el 100% de las casas sin dejar nodos pendientes en su lista.",
+					intro = "El Parque tiene 6 nodos: 4 postes de alumbrado, la Fuente Central y el Kiosco. BFS parte desde el Poste 1 y cubre todo el subgrafo en 2 capas. Conecta primero el cable desde las Canchas y observa cómo se expande.",
 					pasos = {
-						[2]  = "El algoritmo viaja a través de las nuevas conexiones que tú construiste.",
-						[13] = "¡100% de nodos visitados! Al analizar la red hemos comprobado que forma un poderoso Grafo Conexo.",
+						[2]  = "Capa 0: Poste 1. BFS encola a Poste 2 y Fuente como vecinos directos.",
+						[7]  = "Capa 1: procesamos Fuente y Poste 2. Sus vecinos (Poste 3, Kiosco) pasan a la cola.",
+						[13] = "¡100% de nodos visitados en 2 capas! El Parque forma un subgrafo completamente conexo.",
 					},
 				},
 			},
