@@ -193,8 +193,11 @@ local function resaltarEnMatriz(idx)
 		local esDato    = (cx > 0 and cy > 0)
 
 		local val = 0
+		local esDefectuoso = false
 		if esDato then
-			val = (_matrizData.Matrix[cy] and _matrizData.Matrix[cy][cx]) or 0
+			local rawVal = (_matrizData.Matrix[cy] and _matrizData.Matrix[cy][cx]) or 0
+			val = rawVal > 0 and 1 or 0
+			esDefectuoso = rawVal == 2
 		end
 
 		if esEsquina then
@@ -202,7 +205,12 @@ local function resaltarEnMatriz(idx)
 		elseif idx == nil then
 			if esHdrCol or esHdrFil then child.BackgroundColor3 = C.Header
 			elseif esDiag             then child.BackgroundColor3 = C.Diag
-			elseif esDato             then child.BackgroundColor3 = val > 0 and C.CeldaUno or C.CeldaCero
+			elseif esDato then
+				if esDefectuoso then
+					child.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+				else
+					child.BackgroundColor3 = val > 0 and C.CeldaUno or C.CeldaCero
+				end
 			end
 		else
 			local esHdrSelec  = (esHdrCol and cx == idx) or (esHdrFil and cy == idx)
@@ -214,11 +222,19 @@ local function resaltarEnMatriz(idx)
 			elseif esDiag then
 				child.BackgroundColor3 = C.Diag
 			elseif esFilaSelec or esColSelec then
-				child.BackgroundColor3 = val > 0 and C.Selec or C.SelecCero
+				if esDefectuoso then
+					child.BackgroundColor3 = Color3.fromRGB(255, 100, 100) -- Light red when highlighted
+				else
+					child.BackgroundColor3 = val > 0 and C.Selec or C.SelecCero
+				end
 			elseif esHdrCol or esHdrFil then
 				child.BackgroundColor3 = C.Header
 			elseif esDato then
-				child.BackgroundColor3 = val > 0 and C.CeldaUno or C.CeldaCero
+				if esDefectuoso then
+					child.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+				else
+					child.BackgroundColor3 = val > 0 and C.CeldaUno or C.CeldaCero
+				end
 			end
 		end
 	end
@@ -357,8 +373,18 @@ local function renderizarMatriz(data)
 		for colIdx = 1, n do
 			local rawVal = (matrix[rowIdx] and matrix[rowIdx][colIdx]) or 0
 			local val    = rawVal > 0 and 1 or 0
+			local esDefectuoso = rawVal == 2
 			local esDiag = (rowIdx == colIdx)
-			local color  = esDiag and C.Diag or (val > 0 and C.CeldaUno or C.CeldaCero)
+			
+			local color
+			if esDiag then
+				color = C.Diag
+			elseif esDefectuoso then
+				color = Color3.fromRGB(200, 50, 50)
+			else
+				color = val > 0 and C.CeldaUno or C.CeldaCero
+			end
+			
 			local texto  = esDiag and "—" or tostring(val)
 
 			local cell = Instance.new("TextLabel")

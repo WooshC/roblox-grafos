@@ -11,6 +11,7 @@ local GrafoHelpers = require(ReplicatedStorage:WaitForChild("Compartido"):WaitFo
 local conexiones = {} -- { ["NodoA|NodoB"] = { nodoA = Instance, nodoB = Instance, cable = Instance } }
 local configNivel = nil
 local adyacencias = nil
+local cablesDefectuososClaves = {}
 
 -- Eventos
 local conexionCreada = Instance.new("BindableEvent")
@@ -37,12 +38,21 @@ end
 function ValidadorConexiones.configurar(config)
 	configNivel = config
 	adyacencias = config and config.Adyacencias
+	
+	cablesDefectuososClaves = {}
+	if config and config.CablesDefectuosos then
+		for _, par in ipairs(config.CablesDefectuosos) do
+			local clave = generarClave(par[1], par[2])
+			cablesDefectuososClaves[clave] = true
+		end
+	end
 end
 
 function ValidadorConexiones.limpiar()
 	conexiones = {}
 	configNivel = nil
 	adyacencias = nil
+	cablesDefectuososClaves = {}
 end
 
 -- ================================================================
@@ -171,7 +181,7 @@ end
 ]]
 function ValidadorConexiones.estaConectado(nombreA, nombreB)
 	local clave = generarClave(nombreA, nombreB)
-	return conexiones[clave] ~= nil
+	return conexiones[clave] ~= nil and not cablesDefectuososClaves[clave]
 end
 
 --[[
@@ -184,10 +194,12 @@ function ValidadorConexiones.obtenerConexiones(nombreNodo)
 	local conectados = {}
 	
 	for clave, data in pairs(conexiones) do
-		if data.nodoA.Name == nombreNodo then
-			table.insert(conectados, data.nodoB.Name)
-		elseif data.nodoB.Name == nombreNodo then
-			table.insert(conectados, data.nodoA.Name)
+		if not cablesDefectuososClaves[clave] then
+			if data.nodoA.Name == nombreNodo then
+				table.insert(conectados, data.nodoB.Name)
+			elseif data.nodoB.Name == nombreNodo then
+				table.insert(conectados, data.nodoA.Name)
+			end
 		end
 	end
 	
@@ -202,8 +214,10 @@ end
 ]]
 function ValidadorConexiones.tieneConexiones(nombreNodo)
 	for clave, data in pairs(conexiones) do
-		if data.nodoA.Name == nombreNodo or data.nodoB.Name == nombreNodo then
-			return true
+		if not cablesDefectuososClaves[clave] then
+			if data.nodoA.Name == nombreNodo or data.nodoB.Name == nombreNodo then
+				return true
+			end
 		end
 	end
 	return false
@@ -218,8 +232,10 @@ end
 function ValidadorConexiones.obtenerGrado(nombreNodo)
 	local count = 0
 	for clave, data in pairs(conexiones) do
-		if data.nodoA.Name == nombreNodo or data.nodoB.Name == nombreNodo then
-			count = count + 1
+		if not cablesDefectuososClaves[clave] then
+			if data.nodoA.Name == nombreNodo or data.nodoB.Name == nombreNodo then
+				count = count + 1
+			end
 		end
 	end
 	return count

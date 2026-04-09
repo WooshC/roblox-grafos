@@ -96,6 +96,15 @@ getMatrixFunc.OnServerInvoke = function(player, zonaID)
 
 	-- 4. Leer conexiones activas del nivel (estado real del jugador)
 	local conexiones = recolectarConexiones(nivelActual)
+	
+	-- 4.5 Detectar defectuosos
+	local cablesDefectuosos = {}
+	if config.CablesDefectuosos then
+		for _, par in ipairs(config.CablesDefectuosos) do
+			cablesDefectuosos[par[1] .. "|" .. par[2]] = true
+			cablesDefectuosos[par[2] .. "|" .. par[1]] = true
+		end
+	end
 
 	-- 5. Llenar la matriz según adyacencias + Hitboxes activos.
 	--    Para cada arista A→B definida en LevelsConfig: si hay un Hitbox activo
@@ -116,10 +125,13 @@ getMatrixFunc.OnServerInvoke = function(player, zonaID)
 			local conectado = conexiones[claveAB] or conexiones[claveBA]
 
 			if conectado then
-				matrix[idxA][idxB] = 1
+				local esDefectuoso = cablesDefectuosos[claveAB] or cablesDefectuosos[claveBA]
+				local val = esDefectuoso and 2 or 1
+				
+				matrix[idxA][idxB] = val
 				if not esDirigido then
-					-- Grafo no dirigido: la celda simétrica también va a 1
-					matrix[idxB][idxA] = 1
+					-- Grafo no dirigido: la celda simétrica también va a 1 o 2
+					matrix[idxB][idxA] = val
 				end
 			end
 		end

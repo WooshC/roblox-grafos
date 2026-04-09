@@ -432,8 +432,13 @@ function PanelEstadoAnalisis.actualizarScrollEstado(step)
 				status  = "⌛ en cola"
 				bgColor = Color3.fromRGB(20, 35, 70)
 			else
-				status  = "○ sin visitar"
-				bgColor = Color3.fromRGB(22, 33, 50)
+				if E.modoValidacion and E.pasoActual and E.totalPasos > 0 and E.pasoActual >= E.totalPasos then
+					status  = "❌ Nodo Aislado (Defectuoso/Falta)"
+					bgColor = Color3.fromRGB(120, 20, 20)
+				else
+					status  = "○ sin visitar"
+					bgColor = Color3.fromRGB(22, 33, 50)
+				end
 			end
 
 			local distStr = "—"
@@ -479,8 +484,13 @@ function PanelEstadoAnalisis.aplicarPaso(step)
 			part.Color    = C.COL_PENDIENTE
 			part.Material = Enum.Material.Neon
 		else
-			part.Color    = C.COL_DEFAULT
-			part.Material = Enum.Material.SmoothPlastic
+			if (E.modoValidacion or E.validacionTerminada) and (E.totalPasos and E.totalPasos > 0) and (E.pasoActual and E.pasoActual >= E.totalPasos) then
+				part.Color    = Color3.fromRGB(200, 50, 50)
+				part.Material = Enum.Material.Neon
+			else
+				part.Color    = C.COL_DEFAULT
+				part.Material = Enum.Material.SmoothPlastic
+			end
 		end
 	end
 

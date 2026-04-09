@@ -258,10 +258,11 @@ function ViewportAnalisis.reconstruirAristas(step)
 	-- 4. ¿Es dirigido el grafo de esta zona?
 	local esDirigido = E.matrizData and E.matrizData.EsDirigido or false
 
-	-- 5. Dibujar TODAS las aristas del grafo completo
+	-- 5. Dibujar TODAS las aristas del grafo
 	local vistosND = {}   -- para grafos no dirigidos: evitar duplicar cilindros
 
-	for nomA, lista in pairs(E.adyacencias) do
+	local currentAdjacencies = E.adyacenciasVisuales or E.adyacencias
+	for nomA, lista in pairs(currentAdjacencies) do
 		for _, nomB in ipairs(lista) do
 
 			-- Key canónica (para clasificar estado)
@@ -282,9 +283,21 @@ function ViewportAnalisis.reconstruirAristas(step)
 
 			local esNueva     = (key == nuevaKey)
 			local esRecorrida = recorridasSet[key]
+			
+			local valMatrix = 0
+			local idxA = E.matrizData.Headers and table.find(E.matrizData.Headers, nomA)
+			local idxB = E.matrizData.Headers and table.find(E.matrizData.Headers, nomB)
+			if idxA and idxB and E.matrizData.Matrix[idxA] then
+				valMatrix = E.matrizData.Matrix[idxA][idxB] or 0
+			end
+			local esDefectuosa = (valMatrix == 2)
 
 			local color, alpha, mat
-			if esNueva then
+			if esDefectuosa then
+				color = Color3.fromRGB(200, 50, 50)
+				alpha = 0
+				mat   = Enum.Material.Neon
+			elseif esNueva then
 				color = C.COL_ARISTA_NUEVA
 				alpha = 0
 				mat   = Enum.Material.Neon
@@ -324,11 +337,13 @@ function ViewportAnalisis.reconstruirAristas(step)
 			table.insert(E.aristaParts, arista)
 
 			-- Registrar qué IDs necesitan partículas en este paso
-			if esNueva or esRecorrida then
-				local id = esDirigido
-					and (nomA .. "_>" .. nomB)
-					or  idConexion(nomA, nomB)
-				nuevoSetPart[id] = { nomA = nomA, nomB = nomB, posA = posA, posB = posB }
+			if not esDefectuosa then
+				if esNueva or esRecorrida then
+					local id = esDirigido
+						and (nomA .. "_>" .. nomB)
+						or  idConexion(nomA, nomB)
+					nuevoSetPart[id] = { nomA = nomA, nomB = nomB, posA = posA, posB = posB }
+				end
 			end
 		end
 	end

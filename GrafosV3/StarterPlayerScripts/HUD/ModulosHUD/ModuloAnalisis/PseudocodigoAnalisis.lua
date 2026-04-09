@@ -28,20 +28,51 @@ function PseudocodigoAnalisis.reconstruirPseudocodigo(algo)
 		layout.Parent    = scroll
 	end
 
-	local altLinea = 20
+	local altLinea = 22
 	for i, linea in ipairs(pseudo.lineas) do
 		local lbl                  = Instance.new("TextLabel")
 		lbl.Name                   = "Linea_" .. i
 		lbl.LayoutOrder            = i
 		lbl.Size                   = UDim2.new(1, -6, 0, altLinea)
 		lbl.BackgroundTransparency = 1
-		lbl.Text                   = (linea == "") and " " or linea
+		lbl.BackgroundColor3       = C.COL_LINEA_ACTIVA
+
+		local textToDisplay = (linea == "") and " " or linea
+		lbl.Text                   = "    " .. textToDisplay
 		lbl.TextColor3             = C.COL_LINEA_NORMAL
-		lbl.Font                   = Enum.Font.Code
-		lbl.TextSize               = 12
+		lbl.Font                   = Enum.Font.RobotoMono
+		lbl.TextSize               = 13
 		lbl.TextXAlignment         = Enum.TextXAlignment.Left
 		lbl.TextTruncate           = Enum.TextTruncate.AtEnd
 		lbl:SetAttribute("NumLinea", i)
+
+		-- Suavizar bordes de la línea activa
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 4)
+		corner.Parent = lbl
+
+		-- Borde izquierdo (Indicador visual de debugger)
+		local borde = Instance.new("Frame")
+		borde.Name = "BordeActivo"
+		borde.Size = UDim2.new(0, 3, 1, 0)
+		borde.BackgroundColor3 = C.COL_LINEA_ACTIVA
+		borde.BorderSizePixel = 0
+		borde.Visible = false
+		borde.Parent = lbl
+
+		-- Flecha de debugger
+		local flecha = Instance.new("TextLabel")
+		flecha.Name = "Flecha"
+		flecha.Size = UDim2.new(0, 20, 1, 0)
+		flecha.Position = UDim2.new(0, 3, 0, 0)
+		flecha.BackgroundTransparency = 1
+		flecha.Text = "▶"
+		flecha.TextColor3 = C.COL_LINEA_ACTIVA
+		flecha.Font = Enum.Font.Code
+		flecha.TextSize = 12
+		flecha.Visible = false
+		flecha.Parent = lbl
+
 		lbl.Parent                 = scroll
 	end
 
@@ -64,13 +95,24 @@ function PseudocodigoAnalisis.resaltarLinea(numLinea)
 	for _, child in ipairs(scroll:GetChildren()) do
 		if not child:IsA("TextLabel") then continue end
 		local n = child:GetAttribute("NumLinea")
+		
+		local flecha = child:FindFirstChild("Flecha")
+		local borde = child:FindFirstChild("BordeActivo")
+
 		if n == numLinea then
-			child.TextColor3             = C.COL_LINEA_ACTIVA
-			child.BackgroundTransparency = 0.6
-			child.BackgroundColor3       = Color3.fromRGB(120, 60, 10)
+			-- Estilo de línea activa (Debug mode)
+			child.TextColor3             = Color3.fromRGB(240, 240, 240) -- Texto más claro/blanco para contrastar
+			child.BackgroundTransparency = 0.8  -- Fondo naranja sutil
+			
+			if flecha then flecha.Visible = true end
+			if borde then borde.Visible = true end
 		else
+			-- Estilo de línea inactiva
 			child.TextColor3             = C.COL_LINEA_NORMAL
 			child.BackgroundTransparency = 1
+			
+			if flecha then flecha.Visible = false end
+			if borde then borde.Visible = false end
 		end
 	end
 end

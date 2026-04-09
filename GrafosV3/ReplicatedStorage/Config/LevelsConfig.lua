@@ -282,6 +282,16 @@ LevelsConfig[1] = {
 		IluminacionExteriores = Color3.fromRGB(10, 10, 25),
 		LinternaJugador = true -- Activa la luz cálida que sigue al jugador
 	},
+	
+	CablesIniciales = {
+		-- Conexiones que estarán pre-creadas y son válidas
+		{"Gen_Estacion_z1", "Casa_Estacion1_z1"},
+		{"Parque_z1", "Poste_Mercado_z2"}
+	},
+	CablesDefectuosos = {
+		-- Conexiones pre-creadas visualmente, pero que no enrutan energía y ocasionan nodos aislados
+		{"Poste_Canchas_z3", "Casa_Canchas_z3"}
+	},
 
 	Puntuacion = {
 		TresEstrellas  = 2500,

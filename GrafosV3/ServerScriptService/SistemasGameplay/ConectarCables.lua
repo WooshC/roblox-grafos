@@ -256,6 +256,7 @@ local function crearCable(selector1, selector2)
 	table.insert(_conexiones, conn)
 	
 	-- Registrar en validador centralizado PRIMERO (antes de notificar, para que el conteo esté actualizado)
+	-- Nota: ValidadorConexiones manejará los CablesDefectuosos internamente (los registra pero marca como omitidos en BFS).
 	ValidadorConexiones.registrarConexion(selector1.Parent, selector2.Parent, beam)
 	
 	-- Notificar pulso de energia
@@ -438,7 +439,10 @@ function ConectarCables.activar(nivel, adyacencias, jugador, nivelID, callbacks)
 	_activo = true
 	
 	-- Configurar validador centralizado
-	ValidadorConexiones.configurar({ Adyacencias = adyacencias })
+	ValidadorConexiones.configurar({ 
+		Adyacencias = adyacencias, 
+		CablesDefectuosos = LevelsConfig[nivelID] and LevelsConfig[nivelID].CablesDefectuosos
+	})
 	
 	local selectores = recolectarSelectores()
 	print("[ConectarCables] Activado - Nodos:", #selectores)
@@ -460,6 +464,25 @@ function ConectarCables.activar(nivel, adyacencias, jugador, nivelID, callbacks)
 			end)
 			table.insert(_conexiones, conn)
 		end
+	end
+	
+	-- Crear cables iniciales y defectuosos automáticamente al arrancar
+	local configNivel = LevelsConfig[nivelID]
+	if configNivel then
+		local function preCrearCables(lista)
+			if not lista then return end
+			for _, par in ipairs(lista) do
+				local sA = _selectoresPorNombre[par[1]]
+				local sB = _selectoresPorNombre[par[2]]
+				if sA and sB then
+					if not buscarCable(par[1], par[2]) then
+						crearCable(sA, sB)
+					end
+				end
+			end
+		end
+		preCrearCables(configNivel.CablesIniciales)
+		preCrearCables(configNivel.CablesDefectuosos)
 	end
 end
 
