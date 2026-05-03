@@ -36,7 +36,10 @@ local function construirMapa(nivelID_arg)
 			count = count + 1
 		end
 	end
-	print("[SistemaEnergia] Mapa construido — nivel", nivelID, "| zonas:", count)
+	print(string.format("[SistemaEnergia] Mapa construido — nivel %d | zonas: %d", nivelID, count))
+	for zid, carp in pairs(_mapaZonas) do
+		print(string.format("[SistemaEnergia]   → %s → %s", zid, carp))
+	end
 end
 
 -- ════════════════════════════════════════════════════════════════════
@@ -204,13 +207,27 @@ local function ajustarNivelEnergia(carpeta, porcentaje)
 end
 
 local function actualizarProgresoZona(zonaID, porcentaje)
+	print(string.format("[SistemaEnergia] 📡 Recibido ProgresoEnergia: zonaID=%s porcentaje=%.2f", tostring(zonaID), porcentaje))
+	
 	local nombreCarpeta = _mapaZonas[zonaID]
-	if not nombreCarpeta then return end
+	if not nombreCarpeta then
+		warn(string.format("[SistemaEnergia] ⚠ zonaID '%s' no está en _mapaZonas. Zonas conocidas:", tostring(zonaID)))
+		for zid, carp in pairs(_mapaZonas) do
+			warn(string.format("  → %s → %s", zid, carp))
+		end
+		return
+	end
 	local carpeta = obtenerCarpeta(nombreCarpeta)
-	if not carpeta then return end
+	if not carpeta then
+		warn(string.format("[SistemaEnergia] ⚠ Carpeta '%s' no encontrada en workspace para zona '%s'", nombreCarpeta, tostring(zonaID)))
+		return
+	end
 
 	local viejoPorcentaje = _zonasEncendidas[zonaID] or 0
-	if viejoPorcentaje == porcentaje then return end
+	if viejoPorcentaje == porcentaje then
+		print(string.format("[SistemaEnergia] ⚡ %s → %d%% (sin cambio, ignorado)", nombreCarpeta, math.floor(porcentaje * 100)))
+		return
+	end
 
 	_zonasEncendidas[zonaID] = porcentaje
 	print(string.format("[SistemaEnergia] ⚡ %s → %d%%", nombreCarpeta, math.floor(porcentaje * 100)))

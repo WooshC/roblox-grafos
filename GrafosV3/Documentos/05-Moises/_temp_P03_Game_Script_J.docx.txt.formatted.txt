@@ -1,0 +1,79 @@
+ESCUELA POLITÉCNICA NACIONALCARRERA DE INGENIERÍA DE SOFTWAREDESARROLLO JUEGOS INTERACTIVOS ISWD823Metodología iPlusFASE GAMESCRIPTDocumento Diseño Al
+umnos: JoffrePROFESORA: Dra. Mayra CARRIONFECHA DE ENTREGA: 27/12/2025P03_Formulario_Documento_Diseño_Juego📖 HISTORIA DEL JUEGOEn el mundo de Algoria,
+ el conocimiento no se guarda en libros, sino en Estructuras Vivientes: árboles cuyas hojas contienen datos, ríos que fluyen como listas enlazadas, y 
+montañas que almacenan información en sus capas. Durante siglos, los Guardianes Algorítmicos mantuvieron estas estructuras en equilibrio, permitiendo 
+que la sabiduría fluyera por toda la tierra.Pero algo ha salido mal. La Gran Fragmentación ha ocurrido: las estructuras se han corrompido, los datos s
+e han dispersado y el flujo natural del conocimiento se ha detenido. Los árboles crecen sin orden, los ríos se estancan en bucles infinitos, y los cam
+inos entre las montañas se han vuelto laberintos imposibles de navegar.Eres Lex, el último aprendiz de los Guardianes. Tu mentor, Maestro Aris, ha des
+aparecido tratando de contener la Fragmentación. Antes de irse, te dejó el Compendio Lógico, un artefacto que te permite interactuar con las Estructur
+as Vivientes. Tu misión es recorrer los cinco reinos de Algoria, diagnosticar las corrupciones en cada estructura fundamental y aplicar los principios
+ algorítmicos para restaurar el orden.Desde el Bosque de Secuencias hasta las Montañas Jerárquicas, deberás aprender que cada problema tiene una estru
+ctura subyacente, y que dominar esa estructura es la clave para devolver el conocimiento a Algoria.📚 CONTENIDO DEL APRENDIZAJE"Estructuras de Algoria"
+ utiliza la metáfora de un ecosistema fantástico para enseñar Estructuras de Datos y Algoritmos. El jugador interactúa con representaciones físicas y 
+orgánicas de Arrays, Listas, Pilas, Colas, Árboles, Grafos y Tablas Hash, comprendiendo su lógica interna a través de la exploración y solución de pro
+blemas ambientales.1. IDENTIFICACIÓN Y DIAGNÓSTICO DE ESTRUCTURASMecánica principal:Uso del Compendio Lógico para "escánear" estructuras naturales y r
+evelar su tipo subyacente (¿Este río fluye como una cola o como una pila?).Identificación de síntomas de corrupción: datos duplicados, accesos bloquea
+dos, flujos interrumpidos o conexiones rotas.Clasificación visual: diferenciar entre estructuras lineales, jerárquicas y de red basándose en su forma 
+física.Aprendizaje en la vida real:Desarrolla la habilidad de reconocer patrones y abstraer la estructura de datos adecuada para un problema dado.Entr
+ena el análisis de sistemas al diagnosticar fallos desde sus síntomas visibles.2. MANIPULACIÓN Y RESTAURACIÓN ECOLÓGICAMecánicas secundarias:Poda y si
+embra: Eliminar nodos corruptos (ramas secas) e insertar nuevos datos (semillas) en la posición correcta.Reencauzar flujos: Modificar punteros y conex
+iones para restablecer el flujo de información (como redirigir un río).Balanceo de ecosistemas: Aplicar rotaciones y reequilibrios en árboles para man
+tener su salud y eficiencia.Aprendizaje en la vida real:Internaliza las operaciones fundamentales (inserción, eliminación, búsqueda) y sus efectos col
+aterales.Comprende la importancia del mantenimiento y la optimización continua de las estructuras de datos.3. EFICIENCIA Y GESTIÓN DE RECURSOS NATURAL
+ESMecánicas clave:Cada acción consume "Energía Lógica", un recurso limitado que se recarga lentamente.El jugador debe elegir entre algoritmos de difer
+ente eficiencia para resolver un problema, donde los menos eficientes consumen mucha más energía.Un "Visor de Complejidad" muestra cómo crece el consu
+mo de energía en relación al tamaño del problema (O(1), O(n), O(n²)).Aprendizaje en la vida real:Introduce el concepto de complejidad algorítmica de f
+orma tangible y con consecuencias inmediatas.Enseña a planificar y priorizar soluciones basándose en sus costos computacionales.4. GAMIFICACIÓN Y TRAN
+SFERENCIA DEL CONOCIMIENTOElementos de gamificación:Progresión por Dominios: El jugador desbloquea nuevos reinos (y nuevas estructuras de datos) al de
+mostrar maestría en el anterior, reflejando una progresión curricular.Sistema de Logros por Elegancia: Se otorgan títulos honoríficos ("Arquitecto de 
+Grafos", "Guardían de O(log n)") por encontrar soluciones óptimas y creativas.Narrativa de Descubrimiento: La historia se revela a través de fragmento
+s de conocimiento recuperados, vinculando el avance narrativo con el aprendizaje.Mundo Reactivo y Vivo: A medida que el jugador repara una estructura,
+ el entorno florece: los colores se vuelven más vivos, la música se armoniza y aparecen nuevas criaturas (datos) que interactúan correctamente.Aprendi
+zaje en la vida real:Puente entre Abstracción y Concreto: El estudiante asocia cada estructura de datos con una imagen mental fuerte y memorable (un á
+rbol, un río, una red de caminos).Aprendizaje Basado en Proyectos: Cada reino es un "mini-proyecto" de restauración que integra múltiples conceptos.Fo
+mento de la Curiosidad: El mundo abierto e interactivo invita a la experimentación y al descubrimiento autónomo.🦸‍♂️ PERSONAJES DEL JUEGONombreRolDesc
+ripciónLexProtagonista / AprendizEres el personaje del jugador. Comienzas con conocimientos básicos y vas aprendiendo a través de la exploración y la 
+guía del Compendio. Representas al estudiante en su viaje de aprendizaje.Maestro Aris (Voz en el Compendio)Mentor / GuíaLa conciencia de tu mentor alm
+acenada en el Compendio. Ofrece explicaciones teóricas, pistas cuando te atascas y reflexiones sobre las consecuencias de la Fragmentación. Es el anda
+miaje pedagógico del juego.La FragmentaciónAntagonista / FenómenoNo es un villano tradicional, sino un estado de caos sistémico. Se manifiesta como co
+rrupciones visuales (colores apagados, estructuras retorcidas, sonidos disonantes). Personifica las malas prácticas de programación y la deuda técnica
+.Los Espíritus de DatoPoblación / RetroalimentaciónCriaturas luminosas que representan datos individuales. Su comportamiento indica la salud de la est
+ructura: si fluyen libremente y son coloridos, la estructura es sana; si están atrapados, apagados o en desorden, hay un problema que resolver.🌍 MUNDO
+S O ESCENARIOS DEL JUEGO (REINOS DE ALGORIA)NivelReinoProblema AmbientalEstructura de DatosMecánica Principal de Solución1El Arroyo LinealEl agua fluy
+e, pero no llega a todos los estanques. Algunos se desbordan y otros se secan.Arrays y Listas (secuenciales)Reordenar "rocas de datos" en el lecho del
+ río para crear índices accesibles. Insertar/eliminar estanques (elementos) sin romper el flujo.2El Bosque de Pilas y ColasLas semillas caen y se acum
+ulan bloqueando los senderos. Los animales no pueden pasar en el orden correcto.Pilas (LIFO) y Colas (FIFO)Usar "canastas recolectoras" con comportami
+ento LIFO para semillas, y "carriles" con comportamiento FIFO para guiar a los animales.3El Gran Árbol de DecisionesEl árbol sagrado ha crecido desbal
+anceado. Sus ramas se cruzan y es imposible encontrar el fruto del conocimiento.Árboles Binarios y BSTPodar ramas (eliminar nodos), insertar nuevas ye
+mas (inserción ordenada) y aplicar "hechizos de rotación" para balancear el árbol.4La Telaraña de ConexionesLos hilos de comunicación entre los picos 
+de las montañas se han roto o enredado. Los mensajes no llegan o dan vueltas infinitas.Grafos (no dirigidos, ponderados)Tejer nuevos hilos (aristas) e
+ntre cimas (nodos), asignar "longitudes" (pesos) y usar "algoritmos de enjambre" (BFS/DFS) o "rayos de eficiencia" (Dijkstra) para encontrar caminos ó
+ptimos.5El Jardín de Acceso InstantáneoUn jardín mágico donde cada flor debe ser encontrada al instante por su aroma único, pero los aromas se mezclan
+ y confunden.Tablas HashDiseñar "macetas hash" que agrupen flores por familia de aroma. Gestionar colisiones (flores con aroma similar) creando "sub-m
+acetas" (encadenamiento).🏆 CONDICIONES DE VICTORIA Y PROGRESIÓNEl juego se completa cuando el jugador restaura el equilibrio fundamental en los cinco 
+reinos, lo que permite que el Conocimiento vuelva a fluir por Algoria y se revela el destino del Maestro Aris.Filosofía de Evaluación:Aprobación: Comp
+letar el objetivo principal del reino con una solución funcional.Excelencia: Completar el reino usando menos del 75% de la Energía Lógica asignada y/o
+ encontrando la solución óptima en complejidad algorítmica.Aprendizaje Verificado: El jugador debe demostrar que comprende por qué su solución funcion
+a, a través de breves preguntas reflexivas integradas en el diario del Compendio.Progresión No Lineal: Después del primer reino, el jugador puede eleg
+ir el orden de los siguientes tres (Bosque, Árbol, Telaraña), fomentando la autonomía. El Jardín de Hash solo se desbloquea tras dominar al menos tres
+ de los cuatro anteriores.🎧 OBJETOS MULTIMEDIAObjetoUso en el JuegoFunción PedagógicaCompendio Lógico (UI Diégética)Un libro flotante que el personaje
+ lleva. Muestra visualizaciones esquemáticas de la estructura que se está manipulando, su estado de memoria y la complejidad en tiempo real.Integra la
+ teoría (esquemas) con la práctica (mundo 3D) en un solo punto de atención.Efectos Visuales de RestauraciónCuando se repara una operación, efectos de 
+partículas verdes/organicas fluyen por la estructura. Los colores saturados vuelven. Las animaciones muestran el "antes" y "después" de forma sutil.Re
+fuerzo positivo inmediato que vincula la corrección lógica con una recompensa estética placentera.Sonidos Ambientales ReactivosEl sonido del viento, e
+l agua y los animales cambia según la salud de la estructura. El caos suena disonante; el orden, melódico. Acciones específicas (insertar, eliminar) t
+ienen sonidos distintivos.Feedback auditivo constante que permite evaluar el estado del sistema sin necesidad de mirar la interfaz.Esculturas de Conoc
+imientoAl completar un reino con excelencia, se desbloquea una escultura 3D en el santuario central que representa la estructura de datos dominada de 
+forma artística.Crea un museo personal del aprendizaje que el jugador puede recorrer, reforzando el orgullo por los logros y sirviendo como repaso vis
+ual.Fragmentos de Diálogo del Maestro ArisGrabaciones de voz o texto que se activan al encontrar puntos de interés. Explican la teoría de fondo, histo
+rias de aplicaciones reales y anécdotas de debugging.Añade contexto y humanización al aprendizaje, rompiendo la sequedad de la teoría pura.🎮 TÉCNICAS 
+DE GAMIFICACIÓNPieza LEGOMecánicaFunciónEjemploObjetivoMisiones de Restauración con Múltiples CapasProporcionar un desafío claro pero con espacio para
+ la exploración y optimización."Restaura el flujo del Arroyo Lineal. Objetivo Opcional: Hazlo usando solo 3 inserciones y 2 eliminaciones."RetoCorrupc
+iones Adaptativas y Puzzles de Mecánica MixtaEvitar la memorización. Los mismos conceptos se presentan en contextos ligeramente distintos, exigiendo v
+erdadera comprensión."En este nivel, el Árbol está corrupto por inserciones desbalanceadas y valores duplicados. Debes diagnosticar y corregir ambos p
+roblemas."RecompensaPoderes de Manipulación y Áreas SecretasLas recompensas son herramientas que amplían las posibilidades de interacción con el mundo
+, no solo puntos."Al dominar los Grafos, desbloqueas el Visor de Conexiones Ocultas, que revela nodos aislados en todos los reinos."FeedbackMundo Vivo
+ y Diálogos Contextuales del CompendioEl feedback es integrado y narrativo. El mundo mismo te dice si vas por buen camino.Si intentas una inserción O(
+n²) en una lista grande, el Compendio susurra: "Este enfoque consumirá mucha energía. ¿Recuerdas la búsqueda binaria?"ProgresoMapa de Algoria y Árbol 
+de Habilidades VisualOfrece una representación clara y gratificante del dominio adquirido sobre el "plan de estudios" del juego.El mapa del mundo se i
+lumina y florece zona por zona. Un gran árbol en el santuario crece una nueva rama por cada estructura dominada.

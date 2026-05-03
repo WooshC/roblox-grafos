@@ -302,6 +302,10 @@ LevelsConfig[1] = {
 		PuntosPreguntaCorrecta = 100, -- Para otorgar 100 puntos en respuestas correctas
 	},
 
+	-- Requisito especial para 3 estrellas: responder todas las preguntas de diálogo correctamente
+	RequiereDialogosCorrectos = true,
+	TotalPreguntasDialogo = 5,  -- 1 (Estación) + 2 (Mercado) + 1 (Canchas) + 1 (Parque)
+
 	Adyacencias = {
 		-- Zona 1: Estación Plana
 		["Gen_Estacion_z1"] = {"Casa_Estacion1_z1", "Casa_Estacion2_z1"},

@@ -57,6 +57,9 @@ local EVENTOS_REMOTOS = {
 
 	-- Sistema de Energía Progresiva
 	{ nombre = "ProgresoEnergia",        tipo = "RemoteEvent" },      -- Server -> Cliente (porcentaje de energía por zona)
+
+	-- Sistema de Diálogos
+	{ nombre = "DialogoCorrecto",        tipo = "RemoteEvent" },      -- Cliente -> Server (respuesta correcta en diálogo)
 }
 
 -- ═══════════════════════════════════════════════════════════════════════════════

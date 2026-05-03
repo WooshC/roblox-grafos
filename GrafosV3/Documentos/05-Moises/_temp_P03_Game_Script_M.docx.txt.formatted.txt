@@ -1,0 +1,94 @@
+ESCUELA POLITÉCNICA NACIONALCARRERA DE INGENIERÍA DE SOFTWAREDESARROLLO JUEGOS INTERACTIVOS ISWD823Metodología iPlusFASE GAMESCRIPTDocumento Diseño Al
+umnos: Moisés ArequipaPROFESORA: Dra. Mayra CARRIONFECHA DE ENTREGA: 27/12/2025P03_Formulario_Documento_Diseño_JuegoROL EN EL EQUIPO: PROGRAMADOR_____
+_______________________📖 HISTORIA DEL JUEGOEn el corazón de la megacorporación Nexus-Tech yace The Core, un sistema de inteligencia artificial que una
+ vez optimizó ciudades enteras. Sin embargo, tras un misterioso incidente, The Core se corrompió. Su lógica se volvió recursiva y caótica, transforman
+do su propio código en un laberinto impenetrable de datos. Ahora, en lugar de orden, genera "Glitches": errores de realidad que se propagan como un vi
+rus, desdibujando las líneas entre lo digital y lo físico.La ciudad de Neo-Arcadia, dependiente por completo de The Core, comienza a colapsar. Los tre
+nes levitantes aparecen en bucles infinitos, los drones de reparto se teletransportan a callejones sin salida, y los archivos digitales de los ciudada
+nos se mezclan en una sopa de datos incomprensible. La corporación, en pánico, activa el Protocolo de Restauración.Tú eres Kairo, un Depurador de Nive
+l 1 recién reclutado. Tu misión es ingresar a las profundidades digitales de The Core, navegar por sus estructuras de datos corruptas y "depurar" el s
+istema desde adentro. Guiado por la voz de ALEA, la única subrutina auxiliar que permanece estable, deberás aprender a reconocer patrones, reconstruir
+ flujos de información y aplicar algoritmos de optimización para sanar cada módulo corrupto. Cada mundo dentro de The Core representa un tipo de estru
+ctura de datos clave que has logrado restaurar. Tu progreso no solo salvará la ciudad, sino que revelará la verdad detrás del "incidente" que desencad
+enó el caos.📚 CONTENIDO DEL APRENDIZAJEEl juego "Core Debugger" sumerge al jugador en la lógica interna de las Estructuras de Datos y Algoritmos funda
+mentales para la ingeniería de software. A través de una narrativa de ciberseguridad y depuración, el estudiante interactúa directamente con represent
+aciones visuales y dinámicas de Arrays, Listas Enlazadas, Pilas, Colas, Árboles, Grafos y Tablas Hash, comprendiendo su uso, manipulación y complejida
+d en tiempo real. 1. ABSTRACCIÓN Y MODELADO EN ENTORNOS DINÁMICOSMecánica principal:Visualización de "paquetes de datos" y "flujos de información" com
+o elementos concretos dentro de un espacio 3D.Identificación de "corrupciones" (errores lógicos) que rompen la estructura esperada (ej: un nodo huérfa
+no en un árbol, un ciclo infinito en un grafo).Uso de herramientas de "escaneo" para revelar punteros, índices y relaciones ocultas entre los datos.Ap
+rendizaje en la vida real:Desarrolla la capacidad de pensamiento abstracto para mapear problemas del mundo real a estructuras computacionales.Entrena 
+la depuración (debugging) al buscar inconsistencias dentro de una estructura definida.2. MANIPULACIÓN Y RESTAURACIÓN DE ESTRUCTURASMecánicas secundari
+as:Operaciones de inserción, eliminación y reorganización de nodos para restaurar la integridad de una estructura."Recompilación" en tiempo real donde
+ cada cambio del jugador afecta inmediatamente el comportamiento del sistema simulado (ej: reordenar una cola de procesos cambia la velocidad de ejecu
+ción).Misiones de "defragmentación" que requieren optimizar el uso del espacio en memoria (simulado).Aprendizaje en la vida real:Internaliza las opera
+ciones básicas de cada estructura de datos y sus consecuencias prácticas.Comprende conceptos de gestión de memoria y localidad de los datos.3. ANÁLISI
+S DE COMPLEJIDAD Y TOMA DE DECISIONES ESTRATÉGICASMecánicas clave:Cada acción consume "Ciclos de CPU" y "RAM Virtual", recursos limitados por nivel.El
+ jugador debe elegir entre múltiples algoritmos para un mismo problema (ej: para ordenar datos, puede elegir un Bubble Sort barato pero lento o un Qui
+ck Sort rápido pero costoso).Un "Profile HUD" muestra en tiempo real la complejidad Big-O de la solución implementada (O(n), O(n log n), O(n²), etc.).
+Aprendizaje en la vida real:Introduce de forma tangible el análisis asintótico (Big-O). El jugador siente la ineficiencia de un algoritmo O(n²) cuando
+ agota sus recursos.Entrena la evaluación de trade-offs (compromisos) entre tiempo, espacio y simplicidad.4. GAMIFICACIÓN Y TRANSFERENCIA DEL APRENDIZ
+AJEElementos de gamificación:Progresión Metroidvania: El jugador desbloquea "Herramientas de Depuración" (nuevas estructuras de datos) que le permiten
+ acceder a áreas previamente inaccesibles de The Core, reforzando la idea de que el conocimiento es una llave.Sistema de Logros por Eficiencia: Se oto
+rgan insignias como "Optimizador O(1)" o "Maestro de los Grafos" por completar niveles con soluciones óptimas, fomentando la repetición y la excelenci
+a.Narrativa de Misterio: La verdad sobre la corrupción de The Core se revela gradualmente, manteniendo la motivación intrínseca. Cada estructura de da
+tos restaurada desbloquea un fragmento de la historia.Entorno Reactivo: A medida que el jugador repara un módulo, el entorno visual cambia: de un caos
+ glitcheado y estático a un flujo de datos armonioso y dinámico.Aprendizaje en la vida real:Transferencia Directa a Programación: El jugador asocia di
+rectamente la teoría con su aplicación en código, reduciendo la brecha entre lo abstracto y lo práctico.Fomento de la Resiliencia: Al normalizar el "e
+rror" y el "bug" como el estado inicial del juego, se reduce la frustración ante los fallos en la programación real.Pensamiento Sistémico: El jugador 
+aprende que las estructuras de datos son los cimientos de los sistemas, y su correcto diseño impacta en todo lo demás. PERSONAJES DEL JUEGONombre del 
+PersonajeRol en la HistoriaDescripciónKairoProtagonista / DepuradorUn novato con talento bruto para ver patrones. Representa al estudiante. Aprende ha
+ciendo, cometiendo errores y observando sus consecuencias en el sistema.ALEA (Asistente Lógico de Ejecución Autónoma)Mentor / Guía de VozLa última sub
+rutina estable de The Core. Actúa como tutor, ofreciendo explicaciones teóricas, pistas contextuales y alertas sobre complejidad algorítmica. Es la vo
+z del conocimiento experto.The Core / La CorrupciónAntagonista / EntornoLa IA corrupta y el sistema mismo. Se manifiesta como "Glitches" y estructuras
+ de datos rotas. Personifica la deuda técnica, el código espagueti y las malas decisiones de diseño que el jugador debe corregir.Los Datos (NPCs Abstr
+actos)Población / RetroalimentaciónRepresentados como esferas de luz o entidades geométricas. Su comportamiento (fluir ordenadamente, estancarse, desa
+parecer) es la principal retroalimentación visual de la eficacia de las soluciones del jugador.🌍 MUNDOS O ESCENARIOS DEL JUEGONivelNombre del MóduloDe
+scripción NarrativaConcepto EntrenadoMecánicas Clave (Roblox/Lua)1Módulo de Memoria Secuencial (Array Sector)El flujo de datos está bloqueado porque l
+os registros se almacenan en orden aleatorio. Debes reindexarlos para permitir el acceso directo.Arrays (Vectores). Indexación, búsqueda secuencial vs
+. acceso directo.Reordenar objetos en una cuadrícula fija. Usar índices para "teletransportar" datos a su posición correcta.2Módulo de Colas de Proces
+os (Queue Hub)Las tareas críticas se están ahogando por procesos triviales. Debes reordenar la cola de ejecución aplicando políticas FIFO y de priorid
+ad.Colas (Queues), Colas de Prioridad. FIFO, gestión de procesos.Arrastrar tareas (objetos) a una cinta transportadora. Las que entran primero deben s
+alir primero. Implementar una cola de prioridad con interruptores.3Módulo de Pila de Llamadas (Stack Overflow)Una función recursiva corrupta ha desbor
+dado la pila, creando un bucle infinito. Debes desapilar marcos de ejecución para encontrar el error base.Pilas (Stacks). LIFO, recursividad, seguimie
+nto de llamadas.Apilar y desapilar bloques que representan "marcos de función". Resolver rompecabezas tipo Torre de Hanói para despejar el desbordamie
+nto.4Módulo de Árbol de Decisión (Binary Forest)El sistema de toma de decisiones está corrupto. Debes navegar por un bosque de nodos de "Sí/No" para e
+ncontrar la hoja (decisión) correcta y podar las ramas erróneas.Árboles Binarios, Árboles de Búsqueda (BST). Recorrido in-order, pre-order, post-order
+.Navegar por un laberinto de ramificaciones. Usar lógica de comparación (mayor/menor) para encontrar un nodo específico. "Podar" nodos arrastrándolos 
+fuera del árbol.5Módulo de Red de Conexiones (Graph Nexus)Los servidores están aislados. Debes tender conexiones (aristas) entre nodos para restaurar 
+la comunicación, minimizando la latencia total.Grafos (dirigidos/no dirigidos, ponderados). Algoritmos de Dijkstra, BFS/DFS para conectividad.Colocar 
+enlaces entre servidores (nodos). Asignar pesos (latencia) a cada conexión. Usar un algoritmo de "pulsos de sonido" (BFS) o "señal de costo mínimo" (D
+ijkstra) para encontrar rutas óptimas.6Módulo de Almacenamiento Rápido (Hash Vault)La bóveda de datos de acceso rápido está colapsando por colisiones.
+ Debes rediseñar la función de hash y gestionar las colisiones para recuperar los datos clave instantáneamente.Tablas Hash. Funciones de hash, colisio
+nes (manejo por encadenamiento o direccionamiento abierto).Introducir claves (códigos) en una máquina que las transforma (hash) en una posición de est
+ante. Gestionar colisiones creando cadenas de objetos o buscando un estan🏆 ¿CÓMO SE GANA EL JUEGO?El juego se completa cuando el jugador restaura la i
+ntegridad de todos los Módulos Principales de The Core, culminando con la recompilación del sistema central y la revelación de la verdad detrás de la 
+corrupción.Filosofía de Progreso: El énfasis está en la comprensión y aplicación, no en la perfección a la primera. Cada módulo se considera "restaura
+do" cuando el jugador logra que el sistema vuelva a un estado funcional estable, incluso si su solución no es la óptima.Condiciones por Nivel/Módulo:O
+bjetivo Primario: Implementar una estructura de datos que resuelva el problema central del módulo (ej: una cola que procese tareas sin bloquearse).Obj
+etivo Secundario (Optativo): Alcanzar un umbral de eficiencia (ej: completar el nivel usando menos del 80% de los Ciclos de CPU asignados), lo que des
+bloquea logros e insigAprendizaje Demostrado: Interactuar con la retroalimentación de ALEA y entender por qué ciertas soluciones fallan, antes de enco
+ntrar una exitosa.🎧 OBJETOS MULTIMEDIAObjeto MultimediaUso en el JuegoFunción PedagógicaVisualizador de Estructuras 3D DinámicoMuestra la estructura d
+e datos (árbol, grafo, etc.) como una entidad interactiva en el mundo. Los nodos son objetos físicos que se pueden arrastrar, los punteros son rayos d
+e luz.Convierte conceptos abstractos en objetos manipulables, facilitando la comprensión espacial y la memoria kinestésica.HUD de Profiler y Depuració
+nInterfaz en pantalla que muestra métricas en tiempo real: Complejidad Algorítmica (Big-O), Uso de Memoria, Ciclos de CPU consumidos. Se ilumina en ro
+jo cuando se elige una solución ineficiente.Hace tangibles y urgentes los conceptos de eficiencia. El jugante ve y siente el costo de un algoritmo O(n
+²).Sistema de Partículas y Efectos de "Glitch"Efectos visuales y sonoros que indican el estado del sistema: Corrupto (distorsión, estática, colores ro
+tos) vs. Restaurado (flujos de partículas fluidas, sonidos armónicos).Retroalimentación emocional inmediata. Vincula el éxito lógico con una recompens
+a estética placentera.Grabadora de Ejecución (Playback Tool)Permite al jugador grabar sus acciones y reproducirlas en cámara lenta, observando paso a 
+paso cómo se modifica la estructura de datos.Fomenta la metacognición y el análisis reflexivo. El jugador se convierte en observador de su propio proc
+eso de pensamiento.Terminal de Código ContextualAl completar un nivel, se muestra una ventana con el pseudocódigo o código Lua equivalente a la soluci
+ón que implementó el jugador en el mundo 3D.Cierra el círculo entre la abstracción lúdica y la implementación concreta, facilitando la transferencia a
+l lenguaje de programación real.🎮 TÉCNICAS DE GAMIFICACIÓNPieza LEGOMecánica / GamificaciónFunción en el JuegoEjemplo ConcretoObjetivoMisiones con Res
+tricciones de RecursosEnfocar al jugador en la optimización, no solo en la funcionalidad."Restaura la cola de procesos sin exceder 1000 Ciclos de CPU.
+"Reto"Glitches" Aleatorios y Puzzles de DepuraciónAumentar la dificultad y presentar problemas no rutinarios que requieran aplicar el conocimiento de 
+forma creativa."Un glitch ha invertido todos los punteros de esta lista enlazada. Encuentra la cabeza nuevamente."RecompensaLogros, Insignias y Desblo
+queo de HerramientasMotivar la maestría y la exploración. La recompensa es más conocimiento (nuevas herramientas/estructuras)."Desbloquea el Visor de 
+Grafos al restaurar el Módulo 4, permitiéndote ver todas las conexiones ocultas."FeedbackMundo Reactivo y Comentarios de ALEAAprendizaje constante a t
+ravés de las consecuencias. El feedback es diegético (parte de la narrativa).ALEA comenta: "Esta inserción en la cabeza de la lista fue O(1), eficient
+e. Pero la búsqueda secuencial que usaste después fue O(n), considera una tabla hash para próximas veces."ProgresoMapa de The Core y Árbol de Habilida
+desDar una sensación clara de avance y empoderamiento. Mostrar cómo el conocimiento adquirido abre nuevas posibilidades.El mapa 3D de The Core se ilum
+ina progresivamente. Un árbol de habilidades muestra las estructuras de datos dominadas📝 NOTAS ADICIONALES:El diseño está alineado con iPlus, prioriza
+ndo el aprendizaje autónomo, la motivación intrínseca a través de la narrativa y la retroalimentación formativa constante.Cada decisión del jugador es
+ registrada en un log que puede revisarse para autoevaluación.El juego está diseñado como complemento a las clases teóricas, ofreciendo un sandbox seg
+uro para experimentar y fallar sin consecuencias reales.Su desarrollo en Roblox aprovecha la física, la facilidad para crear mundos 3D y la accesibili
+dad multiplataforma, asegurando alta disponibilidad para los estudiantes.

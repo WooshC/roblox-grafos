@@ -148,16 +148,32 @@ function VictoriaHUD.mostrar(snapshotVictoria)
 		fijarValorStat("FilaTiempo", string.format("%d:%02d", math.floor(tiempoSegundos / 60), tiempoSegundos % 60))
 		
 		-- Cambiar label de "Aciertos" a "Conexiones"
-			local filaAciertos = victoriaStats:FindFirstChild("FilaAciertos")
-			if filaAciertos then
-				local labelKey = filaAciertos:FindFirstChild("K")
-				if labelKey and labelKey:IsA("TextLabel") then
-					labelKey.Text = "Conexiones"
-				end
+		local filaAciertos = victoriaStats:FindFirstChild("FilaAciertos")
+		if filaAciertos then
+			local labelKey = filaAciertos:FindFirstChild("K")
+			if labelKey and labelKey:IsA("TextLabel") then
+				labelKey.Text = "Conexiones"
 			end
-			fijarValorStat("FilaAciertos", tostring(snapshotVictoria.aciertos or snapshotVictoria.conexiones or 0))
+		end
+		fijarValorStat("FilaAciertos", tostring(snapshotVictoria.aciertos or snapshotVictoria.conexiones or 0))
 		fijarValorStat("FilaErrores", tostring(snapshotVictoria.fallos or 0))
 		fijarValorStat("FilaPuntaje", tostring(snapshotVictoria.puntajeBase or 0))
+
+		-- Mensaje si las estrellas fueron limitadas por diálogos incorrectos
+		local pantallaVictoria = victoriaFondo:FindFirstChild("PantallaVictoria", true)
+		local contenedor = pantallaVictoria and pantallaVictoria:FindFirstChild("ContenedorPrincipal", true)
+		local victoriaHead = contenedor and contenedor:FindFirstChild("VictoriaHead", true)
+		local subtitulo = victoriaHead and victoriaHead:FindFirstChild("SubtituloVictoria", true)
+		if subtitulo and subtitulo:IsA("TextLabel") then
+			if snapshotVictoria.estrellasLimitadasPorDialogos then
+				subtitulo.Text = "¡Respondiste algunas preguntas incorrectamente! Vuelve a intentarlo para obtener 3 estrellas."
+				subtitulo.TextColor3 = Color3.fromRGB(255, 200, 50)
+			else
+				-- Restaurar texto por defecto
+				subtitulo.Text = "¡Nivel completado!"
+				subtitulo.TextColor3 = Color3.fromRGB(221, 233, 245)
+			end
+		end
 	else
 		if not victoriaStats then
 			warn("[VictoriaHUD] ❌ victoriaStats no encontrado")

@@ -60,6 +60,7 @@ local ESTADO = { MENU = "MENU", CARGANDO = "CARGANDO", GAMEPLAY = "GAMEPLAY" }
 
 local _estado = {}  -- [userId] = ESTADO.*
 local _ctx    = {}  -- [userId] = { cables = Module, misiones = Module }
+local _dialogosCorrectos = {}  -- [userId] = número de respuestas correctas en diálogos del nivel actual
 
 local function setEstado(jugador, nuevoEstado)
 	_estado[jugador.UserId] = nuevoEstado
@@ -195,6 +196,7 @@ end
 Jugadores.PlayerRemoving:Connect(function(jugador)
 	_estado[jugador.UserId] = nil
 	_ctx[jugador.UserId]    = nil
+	_dialogosCorrectos[jugador.UserId] = nil
 	if ServicioProgreso and ServicioProgreso.alJugadorSalir then
 		ServicioProgreso.alJugadorSalir(jugador)
 	end
@@ -240,6 +242,7 @@ iniciarNivel.OnServerEvent:Connect(function(jugador, idNivel)
 
 	setEstado(jugador, ESTADO.CARGANDO)
 	_ctx[jugador.UserId] = nil
+	_dialogosCorrectos[jugador.UserId] = 0  -- Reiniciar contador de diálogos correctos
 
 	if CargadorNiveles then
 		local ok, err = pcall(CargadorNiveles.cargar, idNivel, jugador)
@@ -296,6 +299,7 @@ reiniciarNivel.OnServerEvent:Connect(function(jugador, nivelID)
 
 	setEstado(jugador, ESTADO.CARGANDO)
 	_ctx[jugador.UserId] = nil
+	_dialogosCorrectos[jugador.UserId] = 0  -- Reiniciar contador de diálogos correctos al reiniciar
 
 	if CargadorNiveles then
 		CargadorNiveles.descargar()
@@ -380,6 +384,27 @@ if toggleMapa then
 	end)
 else
 	warn("[Boot.server] Evento ToggleMapaAbierto no encontrado")
+end
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- 8. SISTEMA DE DIÁLOGOS — Conteo de respuestas correctas
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+local dialogoCorrectoEvento = esperarEvento("DialogoCorrecto", 5)
+if dialogoCorrectoEvento then
+	dialogoCorrectoEvento.OnServerEvent:Connect(function(jugador)
+		if not estaEnGameplay(jugador) then return end
+		local actual = _dialogosCorrectos[jugador.UserId] or 0
+		_dialogosCorrectos[jugador.UserId] = actual + 1
+		print(string.format("[Boot.server] DialogoCorrecto — Jugador: %s | Total correctas: %d", jugador.Name, actual + 1))
+	end)
+else
+	warn("[Boot.server] Evento DialogoCorrecto no encontrado")
+end
+
+-- API pública para consultar respuestas correctas (usado por ServicioMisiones)
+_G.ObtenerDialogosCorrectos = function(jugador)
+	return _dialogosCorrectos[jugador.UserId] or 0
 end
 
 print("[GrafosV3] === Boot Servidor Listo ===")

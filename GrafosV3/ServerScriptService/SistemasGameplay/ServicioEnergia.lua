@@ -38,12 +38,19 @@ local function indexarNivel()
 	if _config.Zonas then
 		for zonaID, _ in pairs(_config.Zonas) do
 			local nodos = GrafoHelpers.nodosDeZona(_adyacencias, zonaID, _config)
+			_zonas[zonaID] = nodos
 			if #nodos > 0 then
-				_zonas[zonaID] = nodos
 				print(string.format("[ServicioEnergia] Zona indexada: %s (Nodos: %d)", zonaID, #nodos))
+			else
+				print(string.format("[ServicioEnergia] Zona indexada VACÍA: %s (0 nodos encontrados)", zonaID))
 			end
 		end
+	else
+		warn("[ServicioEnergia] ⚠ _config.Zonas es nil o vacío!")
 	end
+	local countZonas = 0
+	for _ in pairs(_zonas) do countZonas = countZonas + 1 end
+	print(string.format("[ServicioEnergia] Total zonas indexadas: %d", countZonas))
 end
 
 -- Ejecuta un BFS multi-raíz desde todos los generadores para encontrar la red encendida
@@ -57,10 +64,6 @@ local function calcularRedEnergizada()
 		table.insert(cola, gen)
 	end
 	
-	-- Si un nodo de la zona NO está conectado a ningún lado, talvez no debería iluminar?
-	-- En el modelo de "energía real", el BFS fluye por los CABLES físicamente conectados.
-	-- ValidadorConexiones tiene "obtenerConexiones(nombreNodo)".
-
 	local cabeza = 1
 	while cabeza <= #cola do
 		local actual = cola[cabeza]
@@ -75,23 +78,33 @@ local function calcularRedEnergizada()
 		end
 	end
 
+	local count = 0
+	for _ in pairs(energizados) do count = count + 1 end
+	print(string.format("[ServicioEnergia] BFS energía: %d nodos energizados", count))
 	return energizados
 end
 
 -- Evalúa cada zona y envía los progresos
 local function evaluarPropagacion()
-	if not _activo or not _eventoProgresoEnergia then return end
+	if not _activo then
+		warn("[ServicioEnergia] evaluarPropagacion() llamado pero _activo = false")
+		return
+	end
+	if not _eventoProgresoEnergia then
+		warn("[ServicioEnergia] evaluarPropagacion() llamado pero _eventoProgresoEnergia es nil")
+		return
+	end
 
 	local redEnergizada = calcularRedEnergizada()
 
+	local countZonas = 0
+	for _ in pairs(_zonas) do countZonas = countZonas + 1 end
+	print(string.format("[ServicioEnergia] Evaluando %d zonas...", countZonas))
 	for zonaID, nodosEnZona in pairs(_zonas) do
 		local energizadosCount = 0
 		local totalCount = 0
 
 		for _, nodo in ipairs(nodosEnZona) do
-			-- Excluimos los generadores del cálculo de progreso
-			-- Un generador produce energía, no necesita ser 'alimentado',
-			-- así evitamos que la zona empiece pre-iluminada al 33%.
 			if not _generadores[nodo] then
 				totalCount = totalCount + 1
 				if redEnergizada[nodo] then
@@ -105,7 +118,7 @@ local function evaluarPropagacion()
 			porcentaje = math.clamp(energizadosCount / totalCount, 0, 1)
 		end
 
-		-- Notificamos el porcentaje exacto al HUD/SistemaEnergia en el cliente
+		print(string.format("[ServicioEnergia] → Zona %s: %d/%d nodos energizados (%.0f%%)", zonaID, energizadosCount, totalCount, porcentaje * 100))
 		_eventoProgresoEnergia:FireAllClients(zonaID, porcentaje)
 	end
 end

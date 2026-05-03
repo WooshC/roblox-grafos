@@ -26,6 +26,7 @@ local _servicioDatos = nil
 local _puntosAcum = 0
 local _eventoActualizarMisiones = nil
 local _eventoNivelCompletado    = nil
+local _estrellasLimitadasPorDialogos = false  -- true si se limitaron estrellas por diálogos incorrectos
 -- EVENTOS DE ENERGÍA DELEGADOS
 
 -- ── Helpers ───────────────────────────────────────────────────────────────────
@@ -65,6 +66,24 @@ local function calcularEstrellasHelper(puntos)
 	elseif puntos >= (puntuacion.DosEstrellas or 999999) then estrellas = 2
 	elseif puntos > 0 then estrellas = 1
 	end
+
+	-- Verificar si el nivel requiere responder todos los diálogos correctamente para 3 estrellas
+	if _config and _config.RequiereDialogosCorrectos and estrellas >= 3 then
+		local obtenerDialogosCorrectos = _G.ObtenerDialogosCorrectos
+		if obtenerDialogosCorrectos and _jugador then
+			local correctas = obtenerDialogosCorrectos(_jugador)
+			local requeridas = _config.TotalPreguntasDialogo or 0
+			if correctas < requeridas then
+				-- Limitar a 2 estrellas si no respondió todas las preguntas correctamente
+				estrellas = 2
+				_estrellasLimitadasPorDialogos = true
+				print(string.format(
+					"[ServicioMisiones] Estrellas limitadas a 2 — Diálogos correctos: %d/%d",
+					correctas, requeridas))
+			end
+		end
+	end
+
 	return estrellas
 end
 
@@ -245,6 +264,7 @@ local function verificarYNotificar()
 				fallos = snap.fallos,
 				tiempo = snap.tiempo,
 				puntajeBase = snap.puntajeBase,
+				estrellasLimitadasPorDialogos = _estrellasLimitadasPorDialogos,
 			}
 			_eventoNivelCompletado:FireClient(_jugador, snapCliente)
 		end
@@ -271,6 +291,7 @@ function ServicioMisiones.activar(config, nivelID, jugador, eventos, servicioPun
 	_servicioPuntaje = servicioPuntaje
 	_servicioDatos = servicioDatos
 	_puntosAcum = 0
+	_estrellasLimitadasPorDialogos = false
 
 	if eventos then
 		_eventoActualizarMisiones = eventos:FindFirstChild("ActualizarMisiones")

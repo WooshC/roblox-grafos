@@ -1,0 +1,582 @@
+﻿ESCUELA POLITÉCNICA NACIONAL
+FACULTAD DE INGENIERÍA DE SISTEMAS
+[INCLUSIÓN DIGITAL A TRAVÉS DEL JUEGO Y LA TECNOLOGÍA]
+CREACIÓN DE JUEGOS PARA ESTIMULAR EL APRENDIZAJE DE GRAFOS
+TRABAJO DE INTEGRACIÓN CURRICULAR PRESENTADO COMO REQUISITO PARA LA OBTENCIÓN DEL TITULO DE INGENIERO EN SOFTWARE
+MOISÉS ISRAEL AREQUIPA MUÑOZ
+moises.arequipa@epn.edu.ec
+DIRECTORA: MAYRA DEL CISNE CARRIÓN TORO
+mayra.carrion@epn.edu.ec
+DMQ, OCTUBRE 2025
+CERTIFICACIONES
+Yo, Moisés Israel Arequipa Muñoz declaro que el trabajo de integración curricular aquí descrito es de mi autoría; que no ha sido previamente presentado para ningún grado o calificación profesional; y, que he consultado las referencias bibliográficas que se incluyen en este documento.
+MOISÉS ISRAEL AREQUIPA MUÑOZ
+Certifico que el presente trabajo de integración curricular fue desarrollado por MOISÉS ISRAEL AREQUIPA MUÑOZ, bajo mi supervisión.
+MAYRA DEL CISNE CARRIÓN TORO
+DIRECTORA
+DECLARACIÓN DE AUTORÍA
+A través de la presente declaración, afirmamos que el trabajo de integración curricular aquí descrito, así como el (los) producto(s) resultante(s) del mismo, son públicos y estarán a disposición de la comunidad a través del repositorio institucional de la Escuela Politécnica Nacional; sin embargo, la titularidad de los derechos patrimoniales nos corresponde a los autores que hemos contribuido en el desarrollo del presente trabajo; observando para el efecto las disposiciones establecidas por el órgano competente en propiedad intelectual, la normativa interna y demás normas.
+MOISÉS ISRAEL AREQUIPA MUÑOZ
+Dra. MAYRA DEL CISNE CARRION TORO
+Dr. MARCO OSWALDO SANTORUM GAIBOR
+DEDICATORIA
+A mis padres Segundo Arequipa e Isabel Muñoz gracias por apoyarme incondicionalmente, ayudarme a crecer y sobre todo por nunca permitirme rendir en los momentos más difíciles y ser una inspiración, es por ello por lo que estoy hoy aquí.
+A mis hermanos, Raquel, Daniel y Eddison Arequipa, por sus consejos, su compañía y por mostrarme, cada uno a su manera, el valor de seguir adelante con determinación y fe.
+A mi gata Rubí por ser un sereno y fiel acompañante durante las largas horas de estudio, aliviando con su presencia la presión y la soledad que a menudo trae consigo un trabajo de esta magnitud.
+A mi novia Elizabeth Toapanta, quien me ayudo a no rendirme y me dio las palabras adecuadas en el momento adecuado.
+MOISÉS ISRAEL AREQUIPA MUÑOZ
+AGRADECIMIENTO
+Expreso mi más sincero agradecimiento a mi directora, Dra. Mayra Carrión Toro, y a mi codirector, Dr. Marco Santorum, por su valiosa orientación, apoyo constante y por compartir generosamente sus conocimientos durante el desarrollo de este trabajo. Su guía y dedicación han sido fundamentales para alcanzar los objetivos planteados en esta investigación.
+De igual manera, agradezco a todas las personas que, de una u otra forma, contribuyeron al desarrollo de este proyecto y brindaron su apoyo durante el proceso académico.
+Moisés israel Arequipa Muñoz
+ÍNDICE DE CONTENIDO
+CERTIFICACIONES1
+DECLARACIÓN DE AUTORÍA2
+DEDICATORIA3
+AGRADECIMIENTO4
+ÍNDICE DE CONTENIDO5
+RESUMEN8
+ABSTRACT9
+1INTRODUCCIÓN10
+1.1.Objetivo general12
+1.2.Objetivos específicos12
+1.3.Alcance13
+1.4.Marco Teórico14
+1.4.1.Juego Serio14
+1.4.2.Desafíos en la Enseñanza de Grafos y Algoritmos14
+1.4.3.Definiciones Fundamentales de Grafos15
+1.4.4.Algoritmos de Búsqueda (BFS/DFS)16
+1.4.5.Algoritmos de Camino Mínimo (Dijkstra)17
+1.4.6.Algoritmos de Árbol de Expansión Mínima (Prim)18
+1.4.7.Herramientas de Desarrollo: Roblox Studio19
+2.METODOLOGÍA Y DESARROLLO20
+2.1Metodología iPLUS20
+2.1.1.Fase 1: Identificación21
+2.2Implementación de iPlus23
+2.1.7.Fase 2: Objetivos Pedagógicos25
+3CONCLUSIONES Y RECOMENDACIONES31
+3.1Conclusiones31
+3.2Recomendaciones31
+4REFERENCIAS BIBLIOGRÁFICAS32
+5ANEXOS33
+Índice de figuras
+Figura 2.1 Metodología iPlus21
+Figura 2.2 Diagrama de afinidad26
+Índice de Tablas
+Tabla 2.1 Lista de Participantes24
+Tabla 2.2 Objetivo Pedagógico General26
+Tabla 2.3 Objetivos Pedagógicos Específicos27
+Tabla 2.4 Historia Consensuada28
+Tabla 2.5 Ejemplo de Tarjeta Gameplay30
+Tabla 2.6 Resultados votación del género del juego serio30
+Tabla 2.7 Términos clave del juego serio30
+RESUMEN
+El presente trabajo de titulación tiene como objetivo el diseño y desarrollo de un juego serio orientado a facilitar el aprendizaje de Estructuras de Datos y Algoritmos, con énfasis en el estudio de grafos. Para la gestión y ejecución del proyecto se empleó la metodología IPlus, apoyada en el marco de trabajo ágil Scrum.
+Este trabajo de titulación está centrado en el desarrollo de un juego serio para facilitar el aprendizaje de EDA, específicamente los grafos. El proyecto fue encaminado con la metodología IPlus y el marco de trabajo Scrum
+PALABRAS CLAVE – memoria táctil, desarrollo ágil, marco de trabajo Scrum, metodología IPlus, grafos, seudocódigo.
+ABSTRACT
+The objective of this degree project is the design and development of a serious game aimed at facilitating the learning of Data Structures and Algorithms, with a specific focus on graph theory. The project seeks to provide an interactive and practical learning environment that supports students in understanding theoretical concepts through gameplay mechanics and problem-solving scenarios.
+For project management and execution, the IPlus methodology was applied, supported by the agile Scrum framework, which allowed iterative development, continuous feedback, and incremental improvements throughout the project lifecycle.
+Capítulo 1
+INTRODUCCIÓN
+En la actualidad, la integración de la tecnología en el ámbito educativo ha dejado de ser una opción para convertirse en una necesidad creciente.  Los sistemas de enseñanza enfrentan el reto constante de adaptarse a una generación de nativos digitales, cuya forma de interactuar, comunicarse y aprender está profundamente mediada por dispositivos y entornos virtuales[1]. En este contexto, metodologías pedagógicas innovadoras han surgido para cerrar la brecha entre la educación tradicional y las demandas del siglo XXI. Entre ellas, destacan los "serious games" o juegos serios, herramientas digitales diseñadas con el propósito explícito de educar, formar o generar cambios de comportamiento, utilizando la motivación intrínseca y la mecánica del juego como vehículo principal para el aprendizaje [1], [2].
+La potencia pedagógica de los juegos serios radica en su capacidad para generar entornos inmersivos y simulados. En ellos, el estudiante abandona su rol pasivo para involucrarse activamente en la construcción de su conocimiento, enfrentando retos que replican, de manera segura y controlada, situaciones del mundo real o abstractas [1], [2]. Así, se promueve de manera integral el desarrollo de habilidades cognitivas, sociales y emocionales, priorizando siempre un objetivo de aprendizaje definido [2].
+Evidencias empíricas respaldan la efectividad de esta herramienta. Un estudio aplicado en Ecuador con estudiantes de educación básica demostró que, pese al reconocimiento general del potencial educativo de los videojuegos, la falta de una guía metodológica clara era la principal barrera para su implementación [1]. La solución propuesta fue el diseño de una guía docente que incorporaba juegos como Duolingo (para idiomas) y DragonBox Algebra (para matemáticas), facilitando una integración planificada que logró revitalizar la dinámica en el aula [1].
+Su aplicación también resulta valiosa en contextos que requieren abordar temáticas sociales complejas. En Colombia, la Cátedra de la Paz —una asignatura creada para fomentar competencias ciudadanas tras el conflicto armado— ha encontrado en los juegos serios un aliado pedagógico fundamental [2]. Mediante títulos como PeaceMaker (simulación de resolución de conflictos) o ¡Alto a los desastres! (gestión de riesgos), los estudiantes pueden reflexionar de manera interactiva sobre la paz, la memoria histórica y la sostenibilidad, potenciando habilidades como el pensamiento crítico y la toma de decisiones éticas [2].
+Los beneficios de esta metodología se extienden también a la formación en enfermería. Una revisión sistemática que analizó seis estudios experimentales concluyó que el uso de juegos serios demostró ser más efectivo para el aprendizaje en esta área, en comparación con estrategias tradicionales como la clase expositiva, la lectura de textos o la simulación en laboratorio [3].Los juegos evaluados, como e-Baby para cuidados neonatales o el LISSA para enseñar reanimación cardiopulmonar, se enfocaron en desarrollar habilidades cognitivas (conocimiento) y psicomotoras (procedimientos) en los estudiantes de enfermería, ofreciendo un entorno seguro para la práctica repetitiva sin riesgo para los pacientes [3]. Esta efectividad no es exclusiva del área de la salud. En el campo de la educación en ingeniería y estadística, la gamificación basada en desafíos ha demostrado resultados contundentes. Un experimento controlado realizado con estudiantes de ingeniería informática evidenció que el uso de aplicaciones gamificadas mejoró el rendimiento académico en un 34.75% en comparación con los métodos tradicionales de lectura, destacándose un impacto aún mayor en estudiantes de perfil técnico al reducir la percepción de dificultad en temas áridos [4].
+En este marco, surge la necesidad de trasladar el potencial pedagógico de los juegos serios hacia áreas tradicionalmente percibidas como complejas dentro de la educación en informática. Una de ellas es el estudio de los grafos, un contenido central en la asignatura de Estructuras de Datos y Algoritmos (DSA). Según Mtaho (2023), las estructuras de datos avanzadas como los grafos presentan una dificultad pedagógica significativa debido a su naturaleza abstracta, alta carga cognitiva, complejidad dinámica de sus algoritmos y al hecho de que los estudiantes suelen no visualizar cómo se ejecutan internamente en la máquina, lo que genera conceptos erróneos y altas tasas de fracaso [5].
+Los grafos constituyen una de las estructuras de datos más complejas y fundamentales en la informática, utilizadas para representar redes, relaciones y sistemas interconectados [6]. Su comprensión es esencial en múltiples áreas, como redes sociales, rutas de transporte, telecomunicaciones, optimización y análisis de datos. Sin embargo, el nivel de abstracción de estructuras compuestas por vértices y aristas, y la complejidad de los algoritmos que operan sobre ellas, plantean un desafío pedagógico significativo [6].De hecho, la formación docente en estas áreas, como señala Czakóová & Stoffová, es clave para abordar adecuadamente la enseñanza de la algorítmica y la programación [6]
+Este componente propone el diseño y desarrollo de un juego serio interactivo que permita a los estudiantes explorar, manipular y comprender los grafos mediante experiencias visuales, dinámicas y contextualizadas. El entorno de juego permitirá ejecutar y observar el funcionamiento de diversos algoritmos clásicos, como los de recorrido (BFS, DFS), búsqueda de caminos mínimos (Dijkstra, Floyd-Warshall) y generación de árboles de expansión mínima (Kruskal, Prim).
+Así, el juego busca vincular el aprendizaje conceptual con la práctica aplicada, apoyándose en enfoques visuales e interactivos. Investigaciones recientes sostienen que la capacidad de los juegos serios para representar correctamente ideas abstractas y principios críticos en un entorno de juego no solo aumenta la motivación del estudiante, sino que facilita significativamente la adquisición de conocimientos complejos y habilidades de resolución de problemas en comparación con la enseñanza estática [7]. Esto permitirá reducir la carga cognitiva y fortalecer el pensamiento algorítmico tal como sugieren los modelos educativos actuales [6].
+El jugador asumirá roles dentro de narrativas inspiradas en contextos reales —como la navegación en mapas, la gestión de redes de comunicación o la optimización de rutas—, de modo que cada misión o desafío se convierta en una oportunidad de aplicar los conceptos teóricos a problemas concretos. Así, el juego busca vincular el aprendizaje conceptual con la práctica aplicada, favoreciendo la comprensión profunda de los grafos, el pensamiento algorítmico y la resolución de problemas computacionales, apoyándose en enfoques visuales e interactivos que han demostrado reducir la carga cognitiva y aumentar la motivación en el aprendizaje de estructuras de datos complejas [6].
+El desarrollo de este componente contempla diversas fases: planificación, diseño, desarrollo, evaluación y lanzamiento, en las que se definirán objetivos pedagógicos, mecánicas de juego, tecnologías de visualización de grafos y estrategias de validación educativa. El producto final será un juego serio educativo, acompañado de su documentación técnica, guía de usuario y difusión en una plataforma en línea de acceso público, que permitirá su uso libre por parte de docentes y estudiantes
+Objetivo general
+Desarrollar un juego serio educativo que apoye el aprendizaje de los grafos dirigidos y no dirigidos, permitiendo a los estudiantes visualizar y aplicar de forma interactiva los algoritmos fundamentales, fortaleciendo su comprensión conceptual y práctica dentro de la asignatura Estructuras de Datos y Algoritmos.
+Objetivos específicos
+Para lograr el objetivo general, se han establecido los siguientes objetivos específicos:
+Analizar la literatura científica y técnica sobre la enseñanza de grafos y el diseño de juegos serios educativos para fundamentar el desarrollo del proyecto. 
+Emplear un enfoque centrado en el usuario y flexible como lo es la metodología iPlus para las fases de análisis y diseño del proyecto. 
+Impulsar el desarrollo del proyecto utilizando el marco de trabajo SCRUM para lograr una implementación adaptativa. 
+Implementar un conjunto representativo de algoritmos fundamentales de grafos (como BFS, DFS y Dijkstra) integrando un sistema de visualización paso a paso. 
+Integrar elementos de gamificación (como niveles, misiones y sistemas de retroalimentación) para incrementar la motivación y el compromiso de los estudiantes. 
+Evaluar la usabilidad, la funcionalidad y la efectividad en la comprensión conceptual del prototipo mediante pruebas piloto con un grupo reducido de estudiantes. 
+Elaborar la documentación técnica y pedagógica del proyecto, detallando las decisiones de diseño, los resultados de las pruebas y las recomendaciones para futuras mejoras. 
+Describir de manera integral el proyecto, su desarrollo y todos sus componentes en el documento de tesis correspondiente. 
+Alcance
+El alcance del presente Trabajo de Integración Curricular comprende el diseño, desarrollo, implementación y evaluación de un juego serio educativo orientado al aprendizaje de las Estructuras de Datos y Algoritmos, con énfasis específico en el estudio de grafos dirigidos y no dirigidos. El proyecto se desarrolla de manera incremental, siguiendo las actividades definidas en la Estructura de Desglose de Trabajo (EDT), desde las fases de análisis y diseño hasta la validación del prototipo y la entrega final del producto.
+El desarrollo del componente se centra en la construcción de un juego serio, priorizando la claridad pedagógica, la interactividad, la usabilidad y la estabilidad del sistema. La incorporación de algoritmos adicionales, modos de juego avanzados o funcionalidades extendidas queda definida como trabajo futuro, fuera del alcance del presente proyecto.
+El alcance de este componente abarca el diseño, desarrollo e implementación de un juego educativo interactivo que permita a los estudiantes explorar los principios fundamentales de los grafos dirigidos y no dirigidos a través de un entorno visual y gamificado.
+Alcance funcional
+Creación y manipulación visual de grafos: los estudiantes podrán agregar, eliminar y conectar nodos y aristas, asignar pesos y observar el comportamiento de los grafos dirigidos y no dirigidos.
+Ejecución y visualización de algoritmos: se incluirán los algoritmos DFS, BFS y Dijkstra, con una visualización paso a paso del recorrido y las distancias calculadas.
+Gamificación básica: niveles progresivos o misiones que representen distintos desafíos algorítmicos; retroalimentación inmediata mediante mensajes visuales o indicadores de éxito/error.
+Interfaz amigable e intuitiva: diseñada para favorecer el aprendizaje autónomo mediante interacción directa y visual.
+Retroalimentación formativa: mensajes o paneles que expliquen las operaciones realizadas y los resultados obtenidos, reforzando la comprensión conceptual.
+Alcance pedagógico
+El juego actuará como herramienta de apoyo al aprendizaje, complementando las clases teóricas de Estructuras de Datos y Algoritmos.
+Permitirá que los estudiantes visualicen el comportamiento interno de los algoritmos, facilitando la comprensión de procesos abstractos como los recorridos y búsquedas en grafos.
+Fomentará el pensamiento lógico y la resolución de problemas, fortaleciendo competencias en programación y análisis algorítmico.
+Marco Teórico
+Juego Serio
+El concepto de "Juego Serio" (Serious Game) ha evolucionado para abordar necesidades que trascienden el ámbito del mero entretenimiento. Según Ullah et al. [7], se define como el uso de juegos o tecnologías lúdicas para satisfacer propósitos específicos en sectores como la educación, la ingeniería y la salud, diferenciándose de los videojuegos comerciales por tener una agenda educativa primaria. Estas herramientas digitales son diseñadas con la intención explícita de educar, entrenar o generar cambios de comportamiento, aprovechando la motivación intrínseca del usuario y las mecánicas de juego como vehículo principal para facilitar el aprendizaje significativo [2].
+Desafíos en la Enseñanza de Grafos y Algoritmos
+La asignatura de Estructuras de Datos y Algoritmos (EDA) es angular en la formación de un ingeniero de software, pero presenta barreras pedagógicas importantes. Específicamente, las estructuras avanzadas como los grafos poseen un alto nivel de abstracción que dificulta su comprensión inicial. Según Mtaho [5], los estudiantes novatos suelen desarrollar conceptos erróneos (misconceptions) debido a la dificultad para visualizar cómo se comportan los datos en la memoria del computador y cómo operan los algoritmos paso a paso, lo que frecuentemente deriva en desmotivación y altas tasas de fracaso.
+La literatura sugiere que la visualización interactiva es una estrategia clave para mitigar estas dificultades. Végh [6] señala que, para que el aprendizaje de algoritmos sea efectivo, no basta con explicaciones estáticas; los estudiantes requieren "modelos mentales" dinámicos. Las herramientas de visualización educativa permiten al alumno observar la ejecución interna del algoritmo, manipular los datos (nodos y aristas) y recibir retroalimentación visual inmediata, lo cual reduce la carga cognitiva y facilita la transición del pensamiento abstracto a la implementación práctica del código [6].
+Definiciones Fundamentales de Grafos              
+Para comprender a profundidad el funcionamiento de los algoritmos que se abordarán más adelante, es fundamental establecer primero qué entendemos por gráficas o grafos dentro de las estructuras de datos. En este sentido, y tomando como referencia lo establecido por el libro de Cairó [8], podemos definir a las gráficas como estructuras de datos no lineales, las cuales se utilizan principalmente para representar relaciones arbitrarias entre objetos de datos. Dicho de otra manera, una gráfica g se define formalmente como un par de conjuntos  donde  representa al conjunto de vértices o nodos, mientras que a corresponder al conjunto de aristas o arcos que sirven de conexión entre dichos vértices [8].
+Por otro lado, es importante mencionar que a los grafos se pueden clasificar dependiendo de cómo sean estas relaciones entre sus nodos. Al respecto, tenemos primeramente a las gráficas dirigidas (o digráficas). En este tipo de estructuras, las aristas tienen un sentido definido; es decir, si existe una conexión que va de un nodo  a un nodo , se entiende que hay una dirección específica (marcada usualmente por una flecha), donde  es el origen y  el destino [8]. Por su parte, y en contraposición a lo anterior, existen las gráficas no dirigidas, en las cuales la relación no tiene un sentido único. O sea, si el nodo  está conectado con , se asume recíprocamente que  está conectado con , sin distinción de dirección. Asimismo, cabe destacar la existencia de las gráficas ponderadas, que son aquellas donde las aristas poseen un valor o "peso", lo cual resulta crucial para calcular costos o distancias en problemas de optimización [8].
+En lo que respecta a la forma en que estas estructuras abstractas se llevan a la práctica en una computadora, cairó y guardati (2006) [8] señalan que existen formas específicas de representarlas en la memoria. En primer lugar, tenemos la matriz de adyacencia. Esta consiste básicamente en una matriz cuadrada (arreglo bidimensional) donde las filas y columnas representan a los nodos, y el valor en la intersección indica si hay o no una arista. Sin embargo, aunque es muy rápida para consultas, tiene el inconveniente de que ocupa mucho espacio (), lo que puede ser ineficiente si la gráfica tiene pocas conexiones. De igual manera, tenemos como alternativa las listas de adyacencia, que, a diferencia de la matriz, utilizan una lista lineal para cada nodo donde se guardan solo sus vecinos, ahorrando así memoria de manera considerable [8].
+Finalmente es necesario hablar sobre la conectividad. Este concepto se refiere a la capacidad de alcanzar cualquier nodo desde cualquier otro dentro de la estructura. En otras palabras, y siguiendo la definición de los autores [8], una gráfica se dice que es "conexa" si existe un camino (una secuencia de aristas) que permita unir a cualquier par de vértices. Este punto es de suma importancia, ya que es la base para algoritmos más complejos que buscan recorrer toda la estructura de manera eficiente.
+Algoritmos de Búsqueda (BFS/DFS)
+Una vez que ya tenemos claras las estructuras y cómo se conectan sus puntos, surge la necesidad operativa de "navegar" o movernos a través de toda esa información que tenemos guardada en el grafo. En términos muy sencillos, los recorridos o búsquedas son procesos organizados y sistemáticos que nos permiten visitar cada uno de los nodos (o vértices) de una gráfica exactamente una vez, empezando siempre desde un punto inicial dado. De acuerdo con lo que plantean Cairó y Guardati, estos procedimientos son la verdadera piedra angular para resolver problemas de rutas y conexiones, y se dividen principalmente en dos estrategias clásicas que se diferencian en el orden en que deciden explorar a los vecinos: la Búsqueda en Amplitud y la Búsqueda en Profundidad [8].
+Búsqueda en Amplitud (Breadth-First Search - BFS)
+Este método, que también conocemos como búsqueda "a lo ancho", se caracteriza por ser muy metódico y avanzar por niveles completos. Lo que hace el algoritmo es visitar primero a todos los vecinos que están a un paso de distancia, luego a los que están a dos pasos, y así se va alejando del inicio. En otras palabras, no pasa al siguiente "escalón" de distancia hasta que no haya terminado de revisar por completo todo lo que hay en el nivel donde se encuentra actualmente [8].
+Búsqueda en Amplitud (Breadth-First Search - BFS)
+Por el contrario, la búsqueda en profundidad prefiere irse "hasta el fondo" de una sola ruta antes de mirar qué hay a los lados. El algoritmo elige un vecino, se mueve hacia él y vuelve a aplicar el mismo proceso para llegar lo más lejos posible desde el punto de inicio. Si llega a un punto donde ya no hay más salida o alcanza un límite de profundidad que le hayamos puesto, entonces "regresa" sobre sus propios pasos para intentar por un camino diferente. A este acto de volver atrás para buscar una nueva opción se le conoce técnicamente como backtracking [8].
+Es muy importante mencionar que ambos métodos se conocen como "búsquedas ciegas" o exhaustivas. Esto significa que el algoritmo realmente no sabe dónde está la meta, por lo que simplemente se dedica a revisar todo de forma muy paciente y ordenada hasta que la encuentra o se queda sin opciones. Para no perderse y no caminar en círculos infinitos, los algoritmos usan dos listas de control: una llamada ABIERTO, donde anotan los nodos que todavía les falta visitar, y otra llamada CERRADO, donde guardan los nodos que ya revisaron para no volver a pasar por el mismo lugar.
+Algoritmos de Camino Mínimo (Dijkstra)
+A veces no solo queremos saber si podemos llegar de un punto a otro, sino que queremos saber cuál es la forma más barata, más rápida o corta de hacerlo. El algoritmo de Dijkstra es, básicamente, el que nos ayuda a resolver este problema. Su función es encontrar el camino más corto desde un único punto de partida hacia todos los demás nodos de la gráfica [8].
+El algoritmo de Dijkstra funciona como un viajero muy cuidadoso. Primero, anota los precios de las ciudades que están pegaditas a él. Luego, elige la que tiene el precio más bajo y, desde ahí, vuelve a revisar los precios de las siguientes ciudades. Si encuentra que dando un "rodeo" por una ciudad nueva el precio total es más bajo que el que ya tenía anotado, borra el precio viejo y escribe el nuevo precio más barato. Al final, el viajero termina con una lista que le dice exactamente cuánto es lo mínimo que debe gastar para llegar a cualquier lugar.
+Desde el lado más técnico, este algoritmo funciona sumando los "pesos" o costos que tienen las líneas (aristas) que conectan a los puntos. Estos pesos pueden representar cosas de la vida real, como los kilómetros de una carretera o el tiempo que tarda un vuelo entre dos ciudades. Una regla muy importante es que estos números no pueden ser negativos. Esto tiene mucho sentido si lo pensamos bien: en el mundo real, no existe una calle que tenga "distancia negativa"; siempre que caminas, sumas distancia, nunca la restas [8].
+La velocidad con la que la computadora hace este trabajo depende de cómo guardemos la información de la gráfica:
+Si usamos una matriz de adyacencia (que es como una tabla grande), el tiempo que tarda la computadora crece al cuadrado según el número de nodos.
+Si la gráfica es "sencilla" y tiene pocas conexiones, es mucho más rápido y mejor usar una lista de adyacencia para ahorrar memoria [8].
+En resumen, encontrar el "mejor camino" es algo que hacemos todo el tiempo sin darnos cuenta. El algoritmo de Dijkstra es simplemente la receta que siguen las computadoras para ayudarnos a ahorrar tiempo o dinero, ya sea buscando una dirección en el GPS o mandando un mensaje por internet.
+Algoritmos de Árbol de Expansión Mínima (Prim)
+En ocasiones, el objetivo en una gráfica no es encontrar la ruta más rápida entre dos puntos, sino conectar todos los nodos de la estructura utilizando la menor cantidad de recursos posible. Para resolver esto, recurrimos al concepto de Árbol de Expansión Mínima (MST, por sus siglas en inglés), que es un subconjunto de aristas que conecta a todos los vértices sin formar ciclos y con el peso total más bajo posible. El algoritmo de Prim es una de las herramientas fundamentales para obtener este resultado. 
+El algoritmo de Prim funciona bajo una lógica "voraz" (greedy), similar a la de un planificador de infraestructura que desea conectar varios barrios con cables de fibra óptica gastando lo mínimo en material. El proceso se puede resumir de la siguiente manera:
+Se comienza eligiendo un nodo cualquiera de la gráfica para iniciar el árbol.
+El algoritmo revisa todas las aristas que conectan los nodos que ya están en el árbol con aquellos que aún están fuera.
+Se selecciona la arista con el menor peso y se añade el nuevo nodo al árbol.
+Este paso se repite de forma sistemática hasta que todos los vértices del grafo han sido integrados, asegurando que no se cierren circuitos innecesarios.
+Es importante diferenciar este método del algoritmo de Dijkstra. Mientras que Dijkstra se enfoca en la distancia desde un origen específico hacia los demás, Prim se enfoca en la economía global de la red; es decir, busca la forma más barata de que todos los puntos estén comunicados entre sí, sin importar el camino específico entre ellos.
+Al igual que otros algoritmos de optimización, la eficiencia de Prim depende de la representación del grafo en la memoria:
+En gráficas densas (con muchas conexiones), su desempeño es muy robusto.
+Resulta ideal para aplicarse en gráficas no dirigidas y ponderadas, donde los pesos representan costos de construcción, tendido de redes o distancias físicas.
+Herramientas de Desarrollo: Roblox Studio
+La elección de Roblox Studio como motor de desarrollo responde a la necesidad de contar con una plataforma que combine capacidades avanzadas de creación con una alta accesibilidad y familiaridad para el estudiante. Académicamente, se define como un entorno de creación tridimensional que permite el despliegue de experiencias persistentes, facilitando que conceptos complejos de ingeniería se transformen en mecánicas de juego comprensibles [9].
+Interactividad y Aprendizaje Activo
+A diferencia de los métodos de enseñanza tradicionales o simuladores estáticos, Roblox Studio permite crear un entorno donde el aprendizaje es activo. Siguiendo los principios del construccionismo, la plataforma facilita que el estudiante, al jugar, manipule directamente los elementos del grafo (nodos y aristas). Esta interacción directa permite que el usuario "construya" su propio modelo mental de la estructura de datos a medida que resuelve desafíos dentro del mundo virtual, fomentando un aprendizaje significativo a través de la experimentación lúdica [9]
+Visualización 3D y Reducción de la Carga Cognitiva
+Dado que uno de los mayores obstáculos en la enseñanza de grafos es su alto nivel de abstracción y la dificultad para visualizar procesos internos [5].Roblox Studio ofrece una ventaja mediante su motor de renderizado 3D en tiempo real. Al convertir un grafo en un entorno físico explorable, el estudiante puede observar de forma tangible el comportamiento de los algoritmos (por ejemplo, ver cómo el algoritmo "camina" o "ilumina" los nodos). Esta capacidad ayuda a mitigar las ideas erróneas (misconceptions) al proporcionar retroalimentación visual inmediata sobre la lógica de las estructuras de datos [6].
+ Rigurosidad Algorítmica mediante Scripting (Luau)
+Para asegurar que el juego cumpla con su propósito educativo, la lógica de los recorridos (BFS, DFS) y la optimización de rutas (Dijkstra) se implementa mediante el lenguaje Luau. El uso de este lenguaje de programación permite que el juego no sea solo una representación visual, sino una simulación técnica precisa de las estructuras de datos [9]. Esto garantiza que la "agenda educativa" sea el eje central del juego, donde las reglas del mundo virtual coinciden exactamente con la lógica matemática y algorítmica de la teoría de grafos.
+Capítulo 2
+METODOLOGÍA Y DESARROLLO
+Para el desarrollo del juego serio orientado a la enseñanza de algoritmos de teoría de grafos, se ha definido una estructura metodológica dividida en dos etapas complementarias que aseguran tanto el rigor pedagógico como la eficiencia en la construcción del software.
+La primera fase consiste en la aplicación de la metodología iPlus, un marco de trabajo centrado en el usuario que facilita la transición de los objetivos pedagógicos hacia mecánicas de juego concretas. Esta metodología es fundamental para identificar los requerimientos específicos de los estudiantes y estructurar los niveles de análisis y diseño necesarios para que la enseñanza de estructuras de datos sea efectiva y motivadora [10].
+Una vez establecidos estos cimientos, la segunda fase se centra en la ejecución técnica mediante el framework ágil Scrum. Este marco de trabajo permite gestionar la complejidad del desarrollo en Roblox Studio de manera iterativa e incremental. A través de ciclos de trabajo denominados Sprints, se facilita la integración continua de la lógica algorítmica y el entorno tridimensional, permitiendo realizar ajustes constantes basados en pruebas funcionales hasta alcanzar el producto final [11].
+Metodología iPLUS 
+Para el diseño pedagógico y lúdico de la herramienta, se adopta la metodología iPlus [10]. Esta propuesta metodológica facilita el desarrollo de juegos serios al permitir la convergencia de diversas perspectivas, involucrando de manera creativa tanto a especialistas en el área de conocimiento como a los estudiantes. De este modo, se garantiza que el producto final sea funcional y educativo. El proceso se estructura en cinco etapas fundamentales, representadas en la Figura 2.1.
+Figura 2.1 Metodología iPlus 
+Fase 1: Identificación
+Es la parte inicial donde se entiende la problemática y se busca el enfoque correcto para obtener la solución indicada mediante el uso de un Juego Serio. El equipo identificado para el proyecto es multidisciplinario e incluye roles clave definidos en la metodología iPlus, tales como experto en la temática, facilitador, usuario final, experto en diseño de juegos y programadores [10]. 
+Actividad: Identificación del Problema. Consiste en reuniones con el cliente o interesado para comprender las necesidades, recopilar información adicional y delimitar el campo específico del problema que se busca solventar.
+Actividad: Identificación de Participantes. En esta actividad se seleccionan los actores involucrados en el desarrollo. Estos incluyen al Propietario del Producto (quien brinda los requisitos), el experto pedagógico (quien establece los objetivos educativos), el experto en diseño de videojuegos (responsable de validar las mecánicas y el diseño lúdico) y los desarrolladores (encargados de la implementación técnica).
+Fase 2: Objetivos Pedagógicos 
+En esta fase, con la colaboración del experto pedagógico, se definen los objetivos generales y específicos de aprendizaje. La fase es dirigida por un facilitador de iPlus, quien domina la metodología y guía las actividades [15]. Se divide en cuatro actividades específicas:
+Actividad: Entrevista al Propietario del Producto. Se realiza una entrevista inicial con el propósito de obtener un primer punto de vista detallado sobre el problema educativo a resolver.
+Actividad: Elaboración de Brainstorming. Se ejecuta una lluvia de ideas basada en la información recabada en la entrevista anterior, fomentando la creatividad del equipo para proponer soluciones.
+Actividad: Elaboración de Diagrama de Afinidad. Basándose en las ideas del brainstorming, se agrupan aquellas que sean similares o engloben un mismo tema. El fin es organizar la información y generar objetivos más amplios y precisos sobre la problemática.
+Actividad: Definición de Objetivos Pedagógicos. Se plantean los objetivos generales que abarcan la problemática global, así como los objetivos específicos que se deberán cumplir a través de la interacción con el juego.
+Fase 3: Game Script o Guion Lúdico 
+El objetivo de esta fase es crear el "Documento de Diseño del Juego" (GDD) basándose en las necesidades y requisitos del propietario del producto [15]. Para ello, se integran diferentes propuestas generadas por los participantes, considerando componentes como: narrativa, contenido de aprendizaje, personajes, reglas, mundos, elementos multimedia y técnicas de gamificación. Esta fase se divide en dos actividades:
+Actividad: Descripción de Posibles Historias. Se elaboran bocetos de historia o guion, detallando los componentes narrativos y visuales que podrían formar parte del videojuego.
+Actividad: Historia Consensuada. Se analizan las propuestas y se seleccionan las mejores ideas (puntos positivos y negativos) para generar un guion lúdico unificado y definitivo para el Juego Serio.
+Fase 4: Gameplay 
+Esta fase tiene como objetivo identificar las acciones y funcionalidades que se desarrollarán conforme al guion previamente establecido [15], definiendo la interacción del jugador con el sistema. Se divide en tres actividades:
+Actividad: Definición de Gameplay. Se especifican las mecánicas de juego dedicadas a la jugabilidad que serán la base del diseño.
+Actividad: Identificación de Género. El equipo analiza las mecánicas y la naturaleza del juego serio para definir el género de videojuego al que pertenece.
+Actividad: Términos Clave. Los integrantes identifican y definen los términos clave (glosario o conceptos mecánicos) que se relacionan con el proyecto.
+Fase 5: Refinamiento 
+En esta fase se valida si cada uno de los requisitos satisface los criterios de calidad y viabilidad. Los documentos generados previamente se filtran para eliminar características repetitivas o imposibles de implementar. Se utiliza una matriz de refinamiento basada en propiedades de especificación requeridas por normas de calidad (como ISO/IEC 25010) [15]. Esta fase se divide en tres sub-fases:
+Actividad: Refinamiento de Ideas. Se filtran y validan las ideas y objetivos educativos creados durante la Fase 2.
+Actividad: Refinamiento de Gameplay. Se depuran las mecánicas de juego, excluyendo aquellas que sean redundantes o técnicamente inviables para la implementación.
+Actividad: Definición de Historias Épicas. Tras filtrar y validar toda la información, se redactan las Historias de Usuario Épicas. Estos documentos sirven como entrada para la metodología de desarrollo de software ágil que se utilice en la etapa de construcción.
+Implementación de iPlus 
+Fase 1: Identificación 
+Actividad 1. Identificación del problema:
+La problemática identificada radica en la necesidad de facilitar a los estudiantes universitarios, que cursan la materia de Estructuras de Datos y Algoritmos, la comprensión de conceptos abstractos. A menudo, la enseñanza tradicional carece de mecanismos visuales interactivos que permitan observar la lógica interna de estos algoritmos. Por tal motivo, es fundamental proporcionar una herramienta gráfica y gamificada que permita visualizar dicha lógica, conectar la teoría con problemas reales y desarrollar el pensamiento computacional de manera interactiva en los estudiantes de la Facultad de Ingeniería de Sistemas de la Escuela Politécnica Nacional.
+Actividad 2. Identificación de participantes:
+ Dentro de la Tabla 2.1 Lista de Participantes , extraída del Anexo P00: Formulario de Identificación de Participantes, se registran los actores clave identificados para el desarrollo del proyecto, quienes conforman el equipo multidisciplinario requerido por la metodología.
+Tabla 2.1 Lista de Participantes
+Rol del Participante
+Nombres completos
+Correo electrónico
+Teléfono de contacto
+Color Identificante de Rol
+Experto en la temática
+Mayra del Cisne Carrión Toro
+mayra.carrion@epn.edu.ec
+099 676 0102
+Facilitadora 
+Mayra del Cisne Carrión Toro
+mayra.carrion@epn.edu.ec
+099 676 0102
+Usuario Final
+Kerlly Alexandra Vizuete Luna
+kerlly.vizuete@epn.edu.ec
+096 009 8986
+Experto en diseño de juegos
+Gabriel Alexander Jaya Singo
+gabriel.jaya@epn.edu.ec
+099 883 9479
+Programador
+Cristian Alejandro Díaz Rodríguez
+cristian.diaz01@epn.edu.ec
+098 532 5149
+Programador
+Joffre Leví Salvador Córdova
+joffre.salvador@epn.edu.ec
+097 937 0567
+Programador
+Moisés Israel Arequipa Muñoz
+moises.arequipa@epn.edu.ec
+097 923 8583
+Experto en Diseño de juegos
+Marco Oswaldo Santorum Gaibor
+marco.santorum@epn.edu.ec
+098 300 4005
+Fase 2: Objetivos Pedagógicos
+Actividad 1. Entrevista al product owner: Dentro del Anexo P01. Entrevista Toma de Requerimientos, se presentan las preguntas realizadas en la entrevista hacia el product owner (experto temático). Las preguntas abordan temas como el alcance educativo sobre Estructuras de Datos, las necesidades de visualización gráfica de algoritmos, las expectativas de gamificación y los detalles técnicos sobre la plataforma web y los roles de usuario.
+Actividad 2. Elaboración de Brainstorming: Dentro del Anexo P02. Formulario de Objetivos Pedagógicos, se presenta el brainstorming realizado con el equipo de trabajo.
+Actividad 3. Elaboración de diagrama de afinidad: Dentro del Anexo P02. Formulario de Objetivos Pedagógicos, se presenta el diagrama de afinidad obtenido, donde se agruparon las ideas en categorías funcionales y educativas. Ver Figura 2.2 Diagrama de afinidad
+Figura 2.2 Diagrama de afinidad
+Actividad 4. Definición de objetivos pedagógicos: Dentro de la Tabla 2.2 Objetivo Pedagógico General, extraída del Anexo P02. Formulario de Objetivos Pedagógicos, se presenta el objetivo pedagógico general definido para el proyecto. Así mismo la Tabla 2.3 Objetivos Pedagógicos Específicos, presenta los objetivos pedagógicos específicos derivados de los requerimientos.
+Tabla 2.2 Objetivo Pedagógico General
+Objetivo general:
+Desarrollar un juego serio educativo que facilite el aprendizaje de las Estructuras de Datos y Algoritmos en estudiantes de entre 17 y 25 años, pertenecientes a carreras de computación, ingeniería de software y afines, mediante una experiencia gráfica y progresiva desplegada en la web. El componente permitirá visualizar y comprender conceptos abstractos de EDA, promover el pensamiento lógico-computacional, el aprendizaje autónomo y la identificación de soluciones algorítmicas, integrando contenidos alineados al sílabo, mecanismos de seguimiento del progreso y una estrategia pedagógica basada en la exploración, la toma de decisiones y el análisis de errores.
+Identificación del Proyecto de Referencia (P.R): 
+______1_____2______3______4______5______
+Tabla 2.3 Objetivos Pedagógicos Específicos
+N°
+Título del Objetivo
+Descripción
+1
+Definición y caracterización del público objetivo
+El juego estará dirigido a estudiantes de entre 17 y 22 años, principalmente de carreras de computación e ingeniería de software, con un enfoque educativo en quienes cursan los primeros semestres universitarios (segundo y tercero) o los últimos niveles de colegio, y que tengan interés en aprender Estructuras de Datos y Algoritmos. Se asume que los usuarios poseen conocimientos iniciales o intermedios en programación, variando de básico a avanzado. No está orientado a personas con discapacidad para adaptar la experiencia a las necesidades académicas específicas. 
+2
+Definición de las herramientas y el despliegue del componente educativo
+Desarrollar una experiencia educativa inmersiva en 3D, desplegada como un juego web, que garantice el acceso multiplataforma desde PC, laptops y tablets. El entorno, inspirado en plataformas como Roblox, permitirá a los estudiantes revisar y observar algoritmos de manera autónoma y lúdica. El componente estará pensado para el uso individual del estudiante, contando con el acompañamiento del docente únicamente cuando se requiera apoyo. 
+3
+Diseño de la interfaz y elementos de gamificación del componente educativo
+Diseñar una interfaz de usuario clara y configurable que permita a los estudiantes interactuar con el juego de forma individual, adaptándose a distintos niveles de conocimiento mediante módulos progresivos. La interfaz permitirá avanzar o retroceder, modificar configuraciones y visualizar el progreso (puntajes, misiones, tiempo). Se incorporarán elementos de gamificación como logros, premios, feedback inmediato y puntaje por nivel para reforzar la motivación. 
+4
+Definición de los contenidos de aprendizaje del componente educativo
+Definir y estructurar los contenidos de aprendizaje abordando claramente los conceptos básicos y fundamentales de las Estructuras de Datos y Algoritmos (EDA). Se busca desarrollar la capacidad de abstracción apoyándose en representaciones gráficas y analogías. Se promoverá el pensamiento lógico, viso-espacial y la identificación de soluciones, fomentando el aprendizaje autónomo y competencias transversales. 
+5
+Definición de la estrategia pedagógica para el proceso de enseñanza–aprendizaje
+Establecer una estrategia pedagógica que favorezca el aprendizaje de EDA mediante situaciones estimulantes, respetando el ritmo del estudiante y sus conocimientos previos. Permitirá la visualización del funcionamiento interno de algoritmos (variables, punteros, movimientos) para facilitar la toma de decisiones. Incluirá tutoriales y un tutor virtual para guiar el proceso, promover el análisis de errores y fortalecer la motivación. 
+Fase 3: Game Script o Guion Lúdico 
+Actividad 1. Descripción Posibles Historias: 
+Durante esta actividad, los miembros del equipo generaron diversas propuestas narrativas individuales enfocadas en la enseñanza de Estructuras de Datos. Estas ideas preliminares, que exploran distintos contextos y metáforas lúdicas para representar algoritmos, se encuentran recopiladas en el Anexo IV: Propuestas de Guion Lúdico.
+Actividad 2. Historia Consensuada:  
+Tras evaluar las propuestas individuales, se seleccionaron los elementos más efectivos para construir un guion unificado. La narrativa definitiva se detalla en el Anexo V: Guion Lúdico Consensuado.
+A continuación, la Tabla 2.4 Historia Consensuada resume la sinopsis de la historia seleccionada para el desarrollo del juego:
+Tabla 2.4 Historia Consensuada
+Componente
+Descripción
+Rol
+Ingeniero de Planificación / Aliado de Carlos. El jugador actúa como el experto técnico encargado de resolver los problemas de infraestructura.
+Historia
+La trama se desarrolla en Villa Conexa, un pueblo sumido en el caos por la negligencia de su alcalde, donde fallan los semáforos y las conexiones eléctricas. Carlos, un joven emprendedor, funda una consultora para arreglar el desastre mediante una planificación técnica eficiente. El jugador se une a él para reorganizar las rutas, reparar nodos y devolver el orden al pueblo, enfrentando las consecuencias de años de mala gestión.
+Personajes
+Carlos: Mentor y guía que asigna las misiones.
+El Alcalde: Antagonista implícito, causante del desorden.
+Jugador: El usuario que ejecuta las soluciones algorítmicas.
+Mundos de Juego
+Villa Conexa: Un entorno urbano representado mediante grafos (nodos y aristas), donde cada nivel es una zona del pueblo con problemas específicos de conexión.
+¿Cómo se gana?
+El jugador supera el nivel al proponer una solución funcional que conecte los puntos requeridos sin exceder el presupuesto (peso de las aristas), logrando estabilizar la barra de progreso del pueblo.
+Objetos Multimedia
+Mapas interactivos: Para visualizar la estructura de grafos.
+Animaciones: Para mostrar el flujo de las rutas elegidas.
+Efectos sonoros: Retroalimentación de éxito o error.
+Narrativa/Diálogos: Instrucciones y contexto proporcionado por Carlos.
+Técnicas de Gamificación
+Misiones: Objetivos específicos por nivel (ej. optimizar ruta).
+Retos: Restricciones de presupuesto o recursos limitados.
+Puntos y Logros: Recompensas por eficiencia (ej. "Planificador eficiente").
+Feedback Visual: El entorno reacciona (caos vs. orden) según el desempeño.
+Fase 4: Gameplay 
+Dentro del Anexo VI: Mecánicas de Jugabilidad, se describen cada una de las mecánicas identificadas para la interacción entre el jugador y el juego serio. Estas reglas definen cómo el usuario manipulará el entorno para resolver los problemas de Villa Conexa.
+En la Tabla 2.5 Ejemplo de Tarjeta Gameplay , se detalla una de las mecánicas principales definidas para la construcción de grafos.
+Tabla 2.5 Ejemplo de Tarjeta Gameplay
+Descripción: El jugador podrá hacer clic sobre un Nodo (poste/servidor) para iniciar una conexión y luego hacer clic en otro Nodo para finalizarla, definiendo el origen y destino del cable.  
+Bloques seleccionados: 
+Actividad 2. Identificación de Género El equipo multidisciplinario realizó una votación para definir el género del videojuego que mejor se adapte a los objetivos de aprendizaje. Dentro de la Tabla 2.6 Resultados votación del género del juego serio, se muestran los resultados obtenidos, donde el género de Razonamiento fue el predominante, seguido por Aventura y Simulación
+Tabla 2.6 Resultados votación del género del juego serio
+Género de Videojuego
+Votos Obtenidos
+Decisión
+Razonamiento (Puzzle/Lógica)
+7
+Seleccionado
+Aventura
+5
+Género secundario / Contexto narrativo
+Simulación
+4
+Elemento de soporte (construcción)
+Estrategia
+3
+Descartado como género principal
+Acción
+1
+Descartado
+Total de Votos
+20
+Fuente: P05_Mecanicas_de_Jugabilidad
+Actividad 3. Términos Clave Para garantizar la coherencia entre el diseño del juego y el contenido educativo, se definieron términos fundamentales que relacionan los elementos del juego con los conceptos de Estructuras de Datos. En la Tabla 2.7 Términos clave del juego serio, se presentan las definiciones operativas extraídas de las mecánicas de jugabilidad.
+Tabla 2.7 Términos clave del juego serio
+N
+Término Clave
+1
+Nodo (Vértice)
+2
+Conexión (Arista)
+3
+Grafo
+4
+Presupuesto (Peso)
+5
+Dirección (Flujo)
+6
+Recorrido
+7
+Adyacencia
+8
+Ejecución (Validación)
+9
+Mapa Interactivo
+10
+Villa Conexa
+Fase 5: Refinamiento 
+Actividad 1. Refinamiento de Ideas Para la actividad de refinamiento se aplicó la matriz de filtrado sobre los propósitos e ideas iniciales, validando su viabilidad técnica y pedagógica. El detalle completo de este análisis se encuentra en el Anexo correspondiente (Matriz de Refinamiento), donde se descartaron aquellas funcionalidades que no aportaban valor directo al aprendizaje de Estructuras de Datos o que excedían el alcance del desarrollo.
+Actividad 2. Refinamiento de Gameplay: Dentro de la Tabla 2.8 Resultados de la matriz de refinamiento de gameplay, se presenta el resultado obtenido tras evaluar las mecánicas propuestas. Esta tabla expone las funcionalidades que han sido analizadas, refinadas y aprobadas por el equipo, garantizando que sean verificables y realizables en la plataforma tecnológica seleccionada.
+Tabla 2.8 Resultados de la matriz de refinamiento de gameplay
+Código
+Descripción de la Mecánica Aprobada
+TG 01
+El jugador podrá hacer clic sobre un Nodo (poste/servidor) para iniciar una conexión y luego en otro para finalizarla, definiendo origen y destino.
+TG 02
+El jugador podrá moverse libremente por el escenario 3D utilizando las teclas de dirección (WASD) para explorar el terreno y visualizar rutas.
+TG 03
+El jugador podrá eliminar una conexión mal hecha (cable incorrecto) haciendo clic sobre ella para corregir su solución.
+TG 04
+El jugador gestionará un presupuesto limitado (recurso "Dinero") que disminuye automáticamente cada vez que crea una conexión (Arista).
+TG 05
+El jugador deberá evitar conectar nodos en dirección contraria a las flechas indicadas (en grafos dirigidos) o crear conexiones redundantes.
+TG 06
+El jugador tendrá un tiempo límite o cronómetro de bonificación en ciertos niveles críticos para completar la red antes del colapso del sistema.
+Actividad 3. Definición de Historias Épicas Dentro del Anexo VII. Historias de Usuario Épicas se documentan los requisitos finales obtenidos tras la actividad de refinamiento. Estas historias proporcionan una visión general alineada a los objetivos pedagógicos del proyecto, sirviendo como punto de partida para el desarrollo ágil. A continuación, en la Tabla 2.9 Ejemplo de historia de usuario épica, se presenta la historia fundamental para la interacción con grafos.
+Tabla 2.9 Ejemplo de historia de usuario épica
+Historias de Usuario
+Identificador:  CL 001
+Rol:  Jugador
+Título Historia: Representación y modelado de grafos en la Villa Conexa.
+Prioridad: A
+Yo como jugador requiero interactuar con una representación gráfica de nodos y aristas para transformar los conceptos abstractos del sílabo en un modelo visual comprensible dentro del juego.
+Conversación:
+• El juego debe permitir la creación de conexiones entre postes (nodos) para representar un grafo.
+Se debe diferenciar visualmente mediante señalética si la gráfica es dirigida o no dirigida.
+ El entorno 3D (Roblox) servirá para aplicar el pensamiento viso-espacial en la resolución de problemas.
+Post-its
+Enseñar grafos, listas y árboles.
+• Representar barrios como nodos.
+• Grafos dirigidos y no dirigidos.
+• Uso de metáforas y analogías (Postes/Cables).
+• Conectar la teoría con problemas reales.
+Game-Play
+Se ambientará en diversas partes de villa convexa para mostrar los diferentes tipos de algoritmos.
+Marco de Trabajo de Scrum 
+Scrum es un marco de trabajo ligero que ayuda a las personas, equipos y organizaciones a generar valor a través de soluciones adaptativas para problemas complejos. Se basa en un enfoque iterativo e incremental para optimizar la previsibilidad y controlar el riesgo. La teoría de Scrum se fundamenta en el empirismo y el pensamiento lean, apoyándose en tres pilares fundamentales: transparencia, inspección y adaptación [11].  
+Scrum Team La unidad fundamental de Scrum es un equipo pequeño de personas denominado Scrum Team. Este equipo consta de un Scrum Master, un Product Owner y Developers. Dentro del equipo no existen subequipos ni jerarquías; es una unidad cohesionada de profesionales enfocada en un objetivo a la vez: el Objetivo del Producto.
+Product Owner: Es responsable de maximizar el valor del producto resultante del trabajo del Scrum Team. Su función principal incluye la gestión efectiva del Product Backlog, ordenando sus elementos para alcanzar los objetivos y misiones de la mejor manera posible.
+Scrum Master: Es responsable de establecer Scrum como se define en la Guía de Scrum. Actúa como un líder al servicio del equipo, ayudando a todos a comprender la teoría y la práctica de Scrum, y eliminando impedimentos que obstaculicen el progreso.
+Developers: Son las personas del Scrum Team comprometidas a crear cualquier aspecto de un Increment utilizable en cada Sprint. Son responsables de crear un plan para el Sprint (Sprint Backlog) y de adaptar su plan diariamente para asegurar el cumplimiento del Objetivo del Sprint.
+Eventos de Scrum Los eventos de Scrum son oportunidades formales para la inspección y adaptación de los artefactos. Están diseñados para habilitar la transparencia y se utilizan para crear regularidad.
+Sprint: Es el corazón de Scrum, donde las ideas se convierten en valor. Son eventos de duración fija (generalmente un mes o menos) para crear consistencia. Un nuevo Sprint comienza inmediatamente después de la conclusión del anterior.
+Sprint Planning: Inicia el Sprint estableciendo el trabajo a realizar. Es un evento colaborativo donde se abordan tres temas clave: ¿Por qué es valioso este Sprint?, ¿Qué se puede hacer en este Sprint? y ¿Cómo se realizará el trabajo elegido?.
+Daily Scrum: Es una reunión diaria de 15 minutos para los Developers. Su propósito es inspeccionar el progreso hacia el Objetivo del Sprint y adaptar el Sprint Backlog según sea necesario, ajustando el trabajo planificado para el siguiente día.
+Sprint Review: Se lleva a cabo al final del Sprint para inspeccionar el resultado (Increment) y determinar futuras adaptaciones. El equipo presenta los resultados a los interesados clave.
+Sprint Retrospective: Tiene como finalidad planificar formas de aumentar la calidad y la efectividad. El equipo inspecciona cómo fue el último Sprint con respecto a las personas, interacciones, procesos y herramientas.
+Artefactos de Scrum Representan el trabajo o el valor. Están diseñados para maximizar la transparencia de la información clave.
+Product Backlog: Es una lista emergente y ordenada de lo que se necesita para mejorar el producto. Es la única fuente de trabajo realizado por el Scrum Team.
+Sprint Backlog: Se compone del Objetivo del Sprint, el conjunto de elementos del Product Backlog seleccionados para el Sprint, y un plan de acción para entregar el Increment.
+Increment: Es un peldaño concreto hacia el Objetivo del Producto. Cada Increment se suma a todos los anteriores y debe ser minuciosamente verificado según la Definición de Terminado para asegurar que funciona.
+Implementación de Scrum 
+Roles 
+Dentro de la Tabla 2.10 Roles identificados en Scrum se muestran los roles que se definieron para la implementación de la metodología ágil en el proyecto Villa Conexa.
+Tabla 2.10 Roles identificados en Scrum
+Rol
+Encargado
+Product Owner
+Dra. Mayra Carrión
+Scrum Master
+Moisés Arequipa (Rotativo)
+Equipo de Desarrollo
+Cristian Díaz, Joffre Salvador, Moisés Arequipa
+Artefactos
+Product Backlog La Tabla 2.11: Definición del product backlog nos presenta una lista priorizada de las funcionalidades y requisitos para el desarrollo del producto, basada en las Historias de Usuario (CL) y Mecánicas de Juego (TG) refinadas.
+Tabla 2.11 Definicion del product backlog
+ID
+TIPO
+DESCRIPCIÓN (Historia de Usuario / Mecánica)
+PRIORIDAD
+ESTIMACIÓN (H)*
+CL 001
+Historia
+Representación de Grafos: Como jugador, requiero interactuar con una representación gráfica de nodos y aristas para transformar conceptos abstractos en un modelo visual.
+Alta (A)
+16
+TG 01
+Gameplay
+Crear Conexiones: El jugador podrá hacer clic sobre un Nodo para iniciar y finalizar una conexión (Arista).
+Alta (A)
+12
+TG 02
+Gameplay
+Movimiento 3D: El jugador podrá moverse libremente por el escenario utilizando las teclas WASD para explorar el terreno.
+Alta (A)
+8
+CL 004
+Historia
+Resolución de Problemas: Como jugador, requiero aplicar lógica de grafos para resolver los desafíos del nivel.
+Alta (A)
+12
+TG 04
+Gameplay
+Gestión de Presupuesto: El jugador gestionará un recurso "Dinero" que disminuye al crear conexiones (peso de arista).
+Alta (A)
+10
+TG 03
+Gameplay
+Eliminar Conexiones: El jugador podrá eliminar una conexión mal hecha haciendo clic sobre ella.
+Media (M)
+6
+TG 05
+Gameplay
+Validación de Dirección: El sistema impedirá conectar nodos en dirección contraria a las flechas (grafos dirigidos).
+Media (M)
+10
+CL 008
+Historia
+Despliegue Web: Como jugador, requiero que el juego sea accesible vía web y guarde mi progreso.
+Media (M)
+14
+TG 08
+Gameplay
+Etiquetas Flotantes: Visualizar información de peso/costo sobre las rutas al mirar la arista.
+Baja (B)
+6
+Release Planning
+La Tabla 2.12 Release Planning muestra cómo estas Historias (CL) y Mecánicas (TG) se agrupan lógicamente en Sprints para construir el juego paso a paso.
+Tabla 2.12 Release Planning
+Sprint 1: Fundamentos y Entorno
+Sprint 2: Lógica y Gestión
+Sprint 3: Validación y UI
+CL 001: Representación visual (Nodos/Postes)
+TG 01: Mecánica de crear conexiones (clic-clic)
+TG 05: Validación de reglas (Dirigidos/Redundancia)
+TG 02: Movimiento del personaje (WASD)
+TG 03: Mecánica de eliminar conexiones
+CL 008: Despliegue Web y Guardado de Datos
+CL 002: Navegación por Villa Conexa
+TG 04: Sistema de Presupuesto (Pesos)
+CL 005: Sistema de Feedback (Sonido/Visual)
+CL 007: Interfaz base (HUD)
+CL 004: Lógica de resolución de nivel
+TG 08: Etiquetas flotantes de información
+Ejecución de sprint en Scrum 
+Sprint 1
+Objetivo del sprint
+Desarrollar el entorno tridimensional de "Villa Conexa", implementar la movilidad del personaje y asegurar la correcta representación visual de los nodos (postes) para sentar las bases de la interacción.
+Planificación del sprint
+Para lograr el objetivo del Sprint 1 se implementaron las funciones de movimiento con teclado y ratón, y se diseñó el escenario base con los activos gráficos de los nodos. La presenta las historias de usuario realizadas en el Sprint 1, el cual tuvo una duración de 40 horas.
+Tabla 2.13 Sprint Backlog - Sprint 1
+ID
+HISTORIA DE USUARIO
+ESTIMACIÓN (HORAS)
+CL 001
+Como jugador, requiero interactuar con una representación gráfica de nodos y aristas para transformar conceptos abstractos en un modelo visual.
+16
+TG 02
+Como jugador, quiero moverme libremente por el escenario 3D (WASD) para explorar el terreno y visualizar rutas.
+8
+CL 002
+Como jugador, requiero navegar y explorar el entorno de "Villa Conexa" para identificar los puntos clave del mapa.
+8
+CL 007
+Como jugador, requiero visualizar una interfaz base (HUD) en pantalla para conocer mi estado actual dentro del juego.
+8
+Tarea Técnica
+Integración de activos 3D (Postes, cables y entorno urbano de Villa Conexa).
+16
+TOTAL
+56
+Revisión del sprint
+La Tabla 2.14 Revisión de criterios de aceptación - Sprint 1 presenta la retrospectiva del sprint 1, donde se presentan las historias de usuario y los criterios de aceptación verificados.
+Tabla 2.14 Revisión de criterios de aceptación - Sprint 1
+ID
+HISTORIA DE USUARIO
+CRITERIOS DE ACEPTACIÓN
+CUMPLIMIENTO
+CL 001
+Representación gráfica de nodos y aristas.
+Los nodos deben visualizarse como postes o servidores en el mapa.
+Se debe diferenciar visualmente el estado del nodo (activo/inactivo).
+Si
+Si
+TG 02
+Movimiento libre por el escenario 3D.
+El personaje responde a las teclas WASD sin retraso (lag).
+La cámara permite rotar la vista.
+El sistema de colisiones evita atravesar edificios.
+Si
+Si
+Si
+CL 002
+Navegación por Villa Conexa.
+El mapa de Villa Conexa está delimitado y no permite al jugador caer al vacío.
+Los puntos de interés (barrios/nodos) son accesibles mediante los caminos.
+Si
+Si
+CL 007
+Interfaz base (HUD).
+La interfaz se muestra superpuesta en la pantalla.
+La interfaz es visible pero no obstruye la visión del juego.
+Si
+Si
+Resultado del Sprint 
+A continuación, se puede visualizar el resultado del Sprint 1, donde se observa al personaje principal en el entorno de Villa Conexa con los nodos desplegados listos para la interacción. Ver 
+Capítulo 4
+CONCLUSIONES Y RECOMENDACIONES
+Conclusiones
+Recomendaciones
+Capítulo 5
+REFERENCIAS BIBLIOGRÁFICAS
+[1]A. M. Tambo Minga, “Juegos Serios y su Incidencia en el Proceso de Enseñanza – Aprendizaje”, Ciencia Latina Revista Científica Multidisciplinar, vol. 9, núm. 3, 2025, doi: 10.37811/cl_rcm.v9i3.18618.
+[2]F. Á. Bravo Sánchez y L. J. Ruiz Gómez, “Uso de los juegos serios como una herramienta interactiva para el aprendizaje significativo de la cátedra de la paz”, Ciudad paz-ando, vol. 10, núm. 2, 2017, doi: 10.14483/2422278x.11640.
+[3]K. G. Do Nascimento, M. B. G. Ferreira, M. M. Dos Santos Felix, J. da S. G. Nascimento, S. R. R. Chavaglia, y M. H. Barbosa, “Effectiveness of the serious game for learning in nursing: systematic review”, 2021. doi: 10.1590/1983-1447.2021.20200274.
+[4]N. Z. Legaki, N. Xi, J. Hamari, K. Karpouzis, y V. Assimakopoulos, “The effect of challenge-based gamification on learning: An experiment in the context of statistics education”, International Journal of Human Computer Studies, vol. 144, 2020, doi: 10.1016/j.ijhcs.2020.102496.
+[5]A. B. Mtaho, “Effects of using problem-solving guide and explanatory support in program visualization tool on reducing students’ misconceptions in learning data structure concepts”, Bulletin of Social Informatics Theory and Application, vol. 7, núm. 2, 2023, doi: 10.31763/businta.v7i2.649.
+[6]L. Végh, “Models of Data Structures in Educational Visualizations for Supporting Teaching and Learning Algorithms and Computer Programming”, International Journal of Advanced Natural Sciences and Engineering Researches, vol. 7, núm. 5, 2023, doi: 10.59287/ijanser.916.
+[7]M. Ullah et al., “Serious Games in Science Education. A Systematic Literature Review”, Virtual Reality and Intelligent Hardware, vol. 4, núm. 3, pp. 189–209, jun. 2022, doi: 10.1016/j.vrih.2022.02.001.
+[8]Cairó Guardati, “Cairó, Guardati - 2006 - Estructura de Datos-annotated”, pp. 1–456, 2006.
+[9]T. Aldemir, J. Moon, A. Bicer, G. Byun, C. M. Perez, y V. Sabanwar, “How Non-CS preservice teachers conceptualize and engage with computational thinking through 3D game design: Insights from an XR-enhanced maker experience”, Computers and Education: X Reality, vol. 6, 2025, doi: 10.1016/j.cexr.2025.100099.
+[10]M. Carrión, “iPlus una Metodología Centrada en el Usuario para el Diseño de Juego Serios”, 2022.
+[11]K. Schwaber y J. Sutherland, “La Guía de Scrum TM La Guía Definitiva de Scrum: Las Reglas del Juego Español / Spanish South American”, Scrum.Org, 2017.
+Capítulo 6
+ANEXOS
+Anexo I. Formulario de Identificación de Participantes
+Anexo II. Entrevista Toma de Requerimientos
+Anexo III. Formulario de Objetivos Pedagógicos
+Anexo IV. Propuestas de Guion Lúdico
+Anexo V. Guion Lúdico Consensuado
+Anexo VI. Mecánicas de Jugabilidad
+Anexo VII. Historias de Usuario Épicas
+Anexo VIII. Planificación Scrum
+Anexo IX. Evaluación de Funcionalidad
+Anexo X. Evaluación de Usabilidad
+Anexo XI. Actividades Evaluación de Usabilidad

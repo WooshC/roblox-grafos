@@ -1,0 +1,17 @@
+Aspectos Positivos (Ideas integradas)Enfoque Narrativo Centrado en el "Caos Real" : Del guion de Kerly , se rescató la potente metáfora de una ciudad 
+(Villa Conexa) sumida en el desorden administrativo y técnico. Esto humaniza el aprendizaje de grafos al conectarlo con problemas tangibles como semáf
+oros locos y fallas eléctricas.Personajes con Roles Pedagógicos Claros : Se mantuvo la dinámica de Carlos (Mentor) y Tocino (Aprendiz). Carlos no solo
+ da órdenes, sino que actúa como el "andamiaje cognitivo" del modelo iPlus , mientras que Tocino representa el camino del estudiante que aprende a tra
+vés del error.Algoritmos como Herramientas de Justicia : Se integró la idea de que los algoritmos (BFS, Dijkstra, Prim) no son solo matemáticas, sino 
+herramientas para exponer la corrupción y la ineficiencia del Alcalde. Por ejemplo, el algoritmo de Prim se usa específicamente para demostrar que el 
+presupuesto del alcalde estaba inflado.Visualización Dinámica de Complejidad : Del documento de Moisés , se tomó la importancia de que el jugador vea 
+el costo de sus decisiones en tiempo real a través de un visualizador que muestra precios acumulados o flujos de energía.Mecánica de "Pulso de Energía
+" para BFS : Se adoptó una representación visual muy clara para la búsqueda a lo ancho (BFS): una onda de luz que se expande por capas desde un genera
+dor, permitiendo identificar fácilmente nodos aislados.Aspectos Negativos (Ideas descartadas o refinadas)Dispersión Temática: En los borradores indivi
+duales se intentaban cubrir demasiadas estructuras de datos a la vez (Pilas, Colas, Árboles). Para el consensuado, se decidió especializar el juego en
+ Grafos para dar profundidad y coherencia a la narrativa de "Redes y Caminos".Fantasía Excesiva vs. Realismo Técnico: Se descartó el tono de "batalla 
+anime" o "guerreros míticos" de algunas propuestas (como Lupi Ball) en favor de una estética Cyberpunk/Urbana que encaja mejor con la ingeniería de re
+des y el perfil del estudiante de software.Penalización Pura del Error: Se eliminó la idea de "Game Over" punitivo inmediato. En su lugar, el consensu
+ado sigue la filosofía iPlus de normalizar el error , permitiendo que las malas decisiones dejen marcas visibles en el pueblo (caos visual) que el jug
+ador debe reflexionar y corregir.Complejidad Inecesaria en la UI: Se evitó el uso de "terminales de código" complejas dentro del juego de los primeros
+ niveles para no abrumar al estudiante, priorizando primero la manipulación física de nodos y aristas en un entorno 3D de Roblox.

@@ -1,0 +1,17 @@
+Mecánicas de Jugabilidad_para Diseño_JuegoDescripción: El jugador podrá hacer clic sobre un Nodo (poste/servidor) para iniciar una conexión y luego ha
+cer clic en otro Nodo para finalizarla, definiendo el origen y destino del cable. Bloques seleccionados:Descripción: El jugador podrá moverse libremen
+te por el escenario 3D utilizando las teclas de dirección (WASD) para explorar el terreno, encontrar nodos alejados y visualizar mejor las rutas posib
+lesBloques seleccionados:Descripción: El jugador podrá eliminar una conexión mal hecha (cable incorrecto) haciendo clic sobre ella.Bloques seleccionad
+os:Descripción: El jugador gestionará un presupuesto limitado (recurso "Dinero") que disminuye automáticamente cada vez que crea una conexión (Arista)
+Bloques seleccionados:Descripción: El jugador deberá evitar conectar nodos en dirección contraria a las flechas indicadas en el suelo (en niveles de G
+rafos Dirigidos) o conectar nodos que ya tienen una conexión redundante. Bloques seleccionados:Descripción: El jugador tendrá un tiempo límite o un "c
+ronómetro de bonificación" en ciertos niveles críticos (como la emergencia del hospital) para completar la red antes de que el sistema colapse. Bloque
+s seleccionados:Descripción: El jugador podrá activar interruptores o palancas en el escenario para "encender" nodos que inicialmente están apagados o
+ bloqueados, habilitando nuevas partes del grafo.Bloques seleccionados:Descripción: El jugador podrá visualizar información flotante (etiquetas de pes
+o/costo) sobre las rutas potenciales al usar el mapa y mirar hacia la aristaBloques seleccionados:Descripción: El jugador podrá visualizar la matriz d
+e adyacencia al seleccionar en la interfaz “Matriz de Adyacencia”Bloques seleccionados:Descripción: Al finalizar las conexiones, el jugador presionará
+ un botón de "Ejecutar/Probar Red" para validar si el flujo de energía/datos llega correctamente del punto A al B según el algoritmo requerido.Bloques
+ seleccionados:Géneros de Juegos de video ESTRATEGIAROLRAZONAMIENTOACCIONAVENTURASIMULACIONExperto en Diseño de Juegos****Experto en Diseño de Juegos*
+**Experto en Diseño de Juegos***Experto Investigador****Facilitadora****Experto en diseño de juegos****Resultados – VotaciónGéneroVotosEstrategia3Razo
+namiento7Acción1Aventura7Simulación5Rol1TERMINOS CLAVES Interacción del jugador Grafos y red Movimiento y exploraciónRecursos y gestión️ Tiempo y rest
+ricciones Reglas y penalizacionesInformación visual

@@ -1,0 +1,42 @@
+P01_Formulario_Entrevista_Toma_de_ RequerimientosP01_FORMULARIO ENTREVISTAEntrevista RequerimientosEstimado profesor, nos encontramos reunidos un grup
+o de expertos que quiere ayudarle en la concepción del juego serio educativo. ¿Quisiéramos que de manera general nos explique qué es lo que usted quie
+re enseñar con el juego serio o aplicativo educativo?Se quiere enseñar los diferentes temas de estructuras de datos como arreglos, listas, pilas, cola
+s, recursividad, árboles, ordenamiento y grafos. El objetivo es facilitar la comprensión de la lógica interna de estas estructuras y algoritmos de man
+era didáctica y gráfica, complementando la teoría con representaciones visuales.Cuál es el objetivo pedagógico que quiere que cumpla el aplicativo inf
+ormáticoEl aplicativo debe explicar de manera gráfica y visual los conceptos y contenidos, ser un complemento a la explicación del profesor, facilitar
+ el aprendizaje efectivo de los conceptos, y permitir que los estudiantes comprendan tanto la teoría como la práctica de las estructuras de datos.¿Qué
+ habilidades quisiera que sean estimuladas y/o desarrolladas en los estudiantes con el uso de la aplicación informática?Se busca desarrollar el pensam
+iento lógico computacional, la capacidad de análisis y resolución de problemas, la comprensión profunda de estructuras de datos, la creatividad para e
+nfrentar desafíos, la autonomía en el aprendizaje, y la capacidad espacial para visualizar estructuras y algoritmos¿Cómo solventaba la necesidad de ap
+rendizaje, sin el uso de una aplicación informática?Se realizaban explicaciones magistrales, resolución de ejercicios en clase, uso de tabletas para d
+ibujar estructuras, pseudocódigo para explicar la lógica, y programación en Java para implementar los conceptos. También se consultaban libros y se ut
+ilizaba inteligencia artificial para facilitar la programación.¿Por qué utilizaría una aplicación o juego serio educativo? Para motivar a los estudian
+tes con retos y misiones, facilitar la comprensión mediante representaciones gráficas y feedback inmediato, promover habilidades transversales como el
+ pensamiento computacional y la toma de decisiones, y hacer el aprendizaje más divertido y efectivo a través de elementos lúdicos y competitivos.¿Cuál
+ es el público objetivo al cuál va a estar dirigido este juego serio educativo? Especifique las características del público.Estudiantes universitarios
+ de carreras de ingeniería de sistemas, computación o afines, principalmente en segundo o tercer semestre, con conocimientos iniciales en programación
+ y algoritmos, que necesitan reforzar el análisis y diseño de estructuras de datos y que buscan apoyo visual e interactivo para comprender conceptos c
+omplejos.¿Cuál son las características de la población objetivo para quién va a estar dirigido este aplicativo? Jóvenes entre 17 y 22 años, con perfil
+ tecnológico, que saben usar herramientas digitales, con necesidades educativas específicas para visualizar estructuras abstractas, que requieren retr
+oalimentación inmediata, actividades prácticas guiadas, y que tienen estilos de aprendizaje visual o kinestésico.¿Le gustaría que este aplicativo sea 
+trabajado de forma colaborativa o individual?Se prefiere que pueda trabajarse de ambas formas: individualmente para que cada estudiante avance a su pr
+opio ritmo y cometa errores con feedback, y colaborativamente para facilitar el intercambio de ideas, discusión, resolución conjunta de retos y desarr
+ollo de competencias transversales como comunicación y liderazgo.¿El público al que va dirigido requiere de ayuda, soporte o supervisión por parte de 
+alguien?No se considera que necesiten ayuda constante, ya que son personas sin discapacidad y con autonomía para usar la aplicación. La supervisión se
+ría principalmente del profesor para orientar el proceso de aprendizaje, y soporte técnico externo en caso de problemas con la instalación o funcionam
+iento.¿Ha visto algo parecido, que ya existe, que pueda ayudarnos a visualizar de mejor manera su idea? ¿Puede explicarnos? ¿Cómo hacía uso de esa apl
+icación o de ese juego?Se mencionó un juego serio basado en Mario Bros para enseñar árboles AVL, donde el jugador debe armar árboles para rescatar a l
+a princesa, con rotaciones y balanceos visualizados. También se han visto videos ilustrativos y juegos como Angry Birds que ayudan a entender concepto
+s mediante simulaciones, pero no hay muchos juegos serios específicos para estructuras de datos.¿En qué dispositivo (móvil, Tablet, PC) le gustaría qu
+e se despliegue el juego serio o aplicación informática?Preferentemente en PC para laboratorios, pero también en tabletas para actividades rápidas y m
+óviles para consultas. Se sugiere que sea una aplicación web multiplataforma para facilitar el acceso desde cualquier dispositivo.¿Qué información es 
+importante que se almacene en la aplicación de software?Información sobre el progreso del estudiante, puntajes por niveles y conceptos, misiones compl
+etadas, tiempo invertido, porcentaje de avance, logros, número de intentos, y datos de usuario para seguimiento personalizado.¿Qué roles deberían exis
+tir en el juego serio?Al menos dos roles: administrador (para gestionar cuentas y configuraciones) y jugador (estudiante que interactúa con el juego).
+ Se sugiere que el juego sea parametrizable para configurar elementos como el tamaño de las estructuras.¿De los roles definidos anteriormente qué acci
+ones deben realizar cada uno dentro del juego serio o aplicación informática?El administrador debe poder configurar parámetros del juego, como el núme
+ro de elementos en una estructura, mientras que el jugador debe interactuar con el juego, resolver retos, avanzar por niveles y recibir retroalimentac
+ión.Como contribuyen al objetivo del juego serio todas las ideas obtenidas a través de esta entrevista  Las ideas permiten definir claramente las nece
+sidades del usuario, los contenidos prioritarios, las habilidades a desarrollar, las características del público objetivo y las funcionalidades esenci
+ales del juego. Esto asegura que el diseño sea pertinente, motivador y alineado con los resultados de aprendizaje esperados, basándose en un libro bas
+e y con una narrativa creativa y realista. 

@@ -128,10 +128,21 @@ function ValidadorConexiones.registrarConexion(nodoA, nodoB, cable)
 	
 	local clave = generarClave(nodoA.Name, nodoB.Name)
 	
-	-- Si ya existe, eliminarla (toggle)
+	-- Si ya existe, manejar según el tipo
 	if conexiones[clave] then
-		ValidadorConexiones.eliminarConexion(nodoA.Name, nodoB.Name)
-		return true
+		-- Si es un cable defectuoso precargado, el jugador lo está REEMPLAZANDO (no toggle)
+		-- Eliminamos el registro defectuoso y permitimos crear el nuevo abajo
+		if cablesDefectuososClaves[clave] then
+			print(string.format("[ValidadorConexiones] 🔧 Reemplazando cable defectuoso: %s", clave))
+			conexiones[clave] = nil
+			cablesDefectuososClaves[clave] = nil
+			-- Continuar para crear la nueva conexión válida
+		else
+			-- Toggle normal: eliminar conexión existente
+			print(string.format("[ValidadorConexiones] 🔄 Toggle eliminando: %s", clave))
+			ValidadorConexiones.eliminarConexion(nodoA.Name, nodoB.Name)
+			return true
+		end
 	end
 	
 	conexiones[clave] = {
@@ -140,6 +151,8 @@ function ValidadorConexiones.registrarConexion(nodoA, nodoB, cable)
 		cable = cable,
 		tiempo = tick()
 	}
+	
+	print(string.format("[ValidadorConexiones] ✅ Registrada: %s | Total conexiones: %d", clave, ValidadorConexiones.contarConexiones()))
 	
 	conexionCreada:Fire(nodoA, nodoB, cable)
 	estadoCambiado:Fire("conectado", nodoA, nodoB)
@@ -158,9 +171,18 @@ function ValidadorConexiones.eliminarConexion(nombreA, nombreB)
 	local clave = generarClave(nombreA, nombreB)
 	local data = conexiones[clave]
 	
-	if not data then return false end
+	if not data then
+		print(string.format("[ValidadorConexiones] ⚠ Intento de eliminar conexión inexistente: %s", clave))
+		return false
+	end
 	
 	conexiones[clave] = nil
+	-- Limpiar marca de defectuoso si existía (el jugador eliminó un cable reemplazado)
+	if cablesDefectuososClaves[clave] then
+		cablesDefectuososClaves[clave] = nil
+	end
+	
+	print(string.format("[ValidadorConexiones] ❌ Eliminada: %s | Total conexiones: %d", clave, ValidadorConexiones.contarConexiones()))
 	
 	conexionEliminada:Fire(data.nodoA, data.nodoB, data.cable)
 	estadoCambiado:Fire("desconectado", data.nodoA, data.nodoB)

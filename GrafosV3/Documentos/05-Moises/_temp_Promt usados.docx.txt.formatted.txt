@@ -1,0 +1,45 @@
+Rol: Actúa como un experto en redacción académica y tecnología educativa. Tarea: Redactar la sección de "Planteamiento del Problema" y "Justificación"
+ para mi proyecto de titulación sobre un Juego Serio para Grafos.Instrucciones: A continuación, te voy a dar una lista de "Mis Notas/Ideas" desordenad
+as para 7 párrafos distintos. Quiero que tomes esas ideas, las formalices con un vocabulario técnico y académico, y unas los párrafos para que quede u
+n texto fluido.Referencias Bibliográficas a usar:[1] Tambo Minga (2025)[2] Bravo Sánchez & Ruiz Gómez (2017)[3] Do Nascimento et al. (2021)[4] Legaki 
+et al. (2020)[5] Mtaho (2023)[6] Végh (2023)[7] Ullah et al. (2022)MIS NOTAS / IDEAS PARA CADA PÁRRAFO:Nota para el Párrafo 1 (Intro): Escribe que hoy
+ en día ya no es opcional usar tecnología, es una necesidad porque los alumnos son "nativos digitales" y aprenden diferente. Menciona que han salido c
+osas nuevas pedagógicas para conectar con ellos [1].Nota para el Párrafo 2 (Definición): Explica qué son los "Serious Games". Di que su fin principal 
+es educar, no solo divertir. Pon que sirven para crear entornos inmersivos y simulados donde el alumno deja de ser pasivo y participa activamente [1],
+ [2].Nota para el Párrafo 3 (Contexto Local): Menciona que hay evidencia aquí cerca. En Ecuador vieron que sí sirven juegos como Duolingo o DragonBox,
+ pero que faltaba guía del profesor [1]. También di que en Colombia usan juegos serios para cosas sociales difíciles como la "Cátedra de la Paz" y que
+ ayudan al pensamiento crítico [2].Nota para el Párrafo 4 (Evidencia dura): Quiero probar que esto sirve en ciencias difíciles. Di que en Enfermería u
+na revisión mostró que es mejor usar juegos que la clase tradicional para aprender procedimientos seguros [3]. Y que en Ingeniería/Estadística, un exp
+erimento mostró que la gamificación basada en retos subió el rendimiento casi un 35% y bajó la percepción de dificultad [4].Nota para el Párrafo 5 (El
+ Problema Real): Aquí aterriza en mi tema: Informática. Di que hay un problema grande para aprender Estructuras de Datos, específicamente Grafos. Segú
+n [5], es porque es muy abstracto y los alumnos no visualizan cómo funciona la máquina por dentro. Menciona también a [6] diciendo que los grafos son 
+súper importantes en la vida real (redes, transporte) pero difíciles de enseñar.Nota para el Párrafo 6 (Mi Solución): Por todo lo anterior, propongo d
+esarrollar un juego serio interactivo. La idea es que los alumnos puedan "tocar" y ver los grafos. Que vean cómo funcionan algoritmos como Dijkstra, P
+rim o recorridos (BFS/DFS) de forma visual y dinámica, no estática.Nota para el Párrafo 7 (Cierre): Concluye diciendo que esto va a servir para vincul
+ar teoría y práctica. Argumenta que la herramienta visual va a reducir la carga cognitiva y motivar más, porque está probado que los juegos ayudan a a
+dquirir conocimientos complejos [7] y modelos visuales [6]. Menciona rápido que el proyecto tendrá fases de diseño, desarrollo y lanzamiento.Promt 2;R
+edactar la memoria final presentado sus resultados finales redactando cómo el juego ayuda en el aprendizaje, explicando las decisiones clave en su dis
+eño, los resultados obtenidos durante las pruebas con estudiantes y las sugerencias para su evolución futura. Desplegar el jugo serio para el acceso p
+úblico de los usuarios fianles que esten relacionado al campo de la informática (relacionado al tema pedagocico)Requiero que hagas una mejora esos dos
+ objetivos específicos, no uses muchas palabras técnicas.Promt 3:Actúa como un experto en redacción académica para ingeniería. Te paso mis ideas parci
+ales basadas en mi investigación: 1) Los grafos son difíciles porque son abstractos y los alumnos no visualizan la memoria [5][6]. 2) Los juegos serio
+s permiten que el alumno sea activo y no pasivo [1][2]. 3) Hay evidencia de que esto funciona en enfermería y estadística (mejora un 34%) [3][4]. 4) M
+i solución es un juego en Roblox para ver la 'caja blanca' de los algoritmos [7]. Une estas ideas en párrafos formales, en tercera persona, manteniend
+o los corchetes de las citas en su lugar."Promt 4:Ayúdame a completar mi tabla de Objetos Multimedia para el diseño de mi juego serio de Estructuras d
+e Datos. Las ideas de objetos que tengo son: Visualizadores 3D, Animaciones de flujo, Efectos sonoros reactivos y Diálogos con el mentor. Por favor, r
+edacta para cada uno su 'Uso en el juego' y su 'Función pedagógica' (basándote en conceptos como reducción de carga cognitiva y feedback inmediato)."P
+romt 5:Tengo este ejemplo de alcance de un proyecto de finanzas. Necesito que redactes el alcance de MI componente (Grafos en Roblox) siguiendo exacta
+mente esa misma estructura. Mis ideas clave son: investigación de factores de aprendizaje de grafos, uso de metodología ágil para implementar en Roblo
+x, actividades para crear/manipular nodos, visualización paso a paso de algoritmos (Dijkstra, BFS, Prim) y evaluación de usabilidad en PC y Android.Pr
+omt 6:En mi marco teórico ya hablé de BFS, DFS y Dijkstra usando como base el libro de Cairó. Ahora necesito agregar el Algoritmo de Prim. Redáctalo c
+on el mismo estilo: una explicación sencilla (metáfora de planificación de cables), el procedimiento técnico (selección de arista de menor peso sin ci
+clos) y su importancia pedagógica para entender la economía global de una red (MST).Promt 7:Actúa como un analista de UX y diseñador de videojuegos ed
+ucativos. Tengo una lista de ideas extraídas de una sesión de lluvia de ideas (post-its) sobre un software para aprender Estructuras de Datos y Algori
+tmos (EDA). También tengo un documento de Historias de Usuario (User Stories) con campos vacíos.Instrucciones de Tarea: "Te proporcionaré fragmentos d
+e historias de usuario identificadas como CL Para cada fragmento, debes completar dos secciones específicas basándote estrictamente en la lista de pos
+t-its que te proporcioné anteriormente:Sección Post-its: Selecciona los códigos (ej. 3.1, 5.8) y los textos de las ideas que tengan relación directa c
+on el objetivo de esa Historia de Usuario.Sección Game-Play: Redacta un párrafo descriptivo que explique cómo se traduce esa Historia de Usuario en me
+cánicas de juego. Debes integrar los siguientes conceptos si son relevantes: entorno 3D, feedback inmediato, controles de PC (WASD/clic), y visualizac
+ión de la lógica interna.Restricciones de estilo:Usa un lenguaje técnico pero orientado a videojuegos (mecánicas, interacción, interfaz).Asegúrate de 
+que el Game-Play explique la 'experiencia' del usuario al realizar la acción descrita.Mantén la coherencia con el perfil de usuario (estudiantes de 17
+ a 22 años)."

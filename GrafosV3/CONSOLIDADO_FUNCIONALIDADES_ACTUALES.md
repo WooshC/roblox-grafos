@@ -54,3 +54,62 @@ La carga del juego es determinista y controlada en fases estrictas:
     - **Cables con Pulso Eléctrico (`EfectosCable.lua`):** Un cable magnético (`Beam`) se tiñe de un color según `PresetTween` y un módulo `RunService` aplica el desplazamiento `UV` infinito de una textura de destellos para simular flujo de corriente eléctrica.
     - **Billboards Variables (`BillboardNombres.lua`):** Módulo matemático que ancla carteles GUI flotantes a objetos 3D ignorando sombras dinámicas u obstrucciones de luz, cambiando esquemas de color entre `Zona` (`Cyan`), `NodoInteraccion` (`Blanco`) y estado de selección en el Mapa mediante Interpolación Linear Suave (`PresetTween`).
 - **Control Fino de Cámara (`ServicioCamara.lua`):** Incluye anidación anti-Deadlock. Rota sin problemas entre enfoques Isométricos o de Persona cancelando transiciones cruzadas, impidiendo estancarse al hablar con un Personaje Guía.
+
+---
+
+## 8. Sistema de Diálogos Narrativos y Educativos (Nuevo — Completo)
+- **`DialogoGUISystem.lua`:** Sistema principal de diálogos. Carga diálogos desde `ReplicatedStorage/DialogoData`, gestiona reproducción línea por línea, opciones múltiples, navegación Next/Previous/Skip, y saltos condicionales (`GoToLine`). Soporta singleton pattern.
+- **`ControladorDialogo.client.lua`:** Orquestador que integra diálogos con el HUD y el gameplay. Bloquea/desbloquea movimiento del jugador, oculta/restaura HUD, controla cámara, gestiona click aéreo durante diálogos cenitales, y conecta `ProximityPrompts` del nivel.
+- **`DialogoController.lua`:** Controlador de lógica de líneas. Renderiza speaker, expresión, texto typewriter, opciones con layout adaptativo (2 botones = grid horizontal, 3+ = lista vertical), y ejecuta eventos personalizados por línea.
+- **`DialogoRenderer.lua`:** Efectos visuales del diálogo. Typewriter con velocidad configurable, fade in/out, animación de retrato, pulso, temblor, flash de pantalla.
+- **`DialogoEvents.lua`:** Input del sistema de diálogos. Botones Continuar/Saltar/Ojo, teclado (ESPACIO/ENTER=Continuar, ESC=Saltar, H=Ojo, Flechas=Navegación).
+- **`DialogoExpressions.lua`:** Catálogo centralizado de imágenes de personajes por expresión. Soporta: `Carlos` (Sonriente, Serio, Feliz, Sorprendido, Enojado, Presentacion, Normal, Triste, Pensativo, Curioso, Extasiado), `Sistema` (iconos de nodo/arista/generador), `Maria`, y fallback `Default`.
+- **`DialogoNarrator.lua`:** Sistema de audio para diálogos. Reproduce audio personalizado o usa TTS (Texto a Voz). Integra con `ControladorAudio` centralizado cuando está disponible.
+- **`DialogoTTS.lua`:** Implementación de Texto a Voz usando la API oficial `AudioTextToSpeech` de Roblox. Soporta múltiples idiomas (es, en, it, de, fr) y voces configurables por personaje. Incluye pipeline de audio completo (AudioTextToSpeech → Wire → AudioDeviceOutput).
+- **`DialogoButtonHighlighter.lua`:** Resalta botones del HUD durante tutoriales (modo pulse, flecha animada, oscurecimiento de fondo).
+
+### Funcionalidades avanzadas de diálogos:
+- **`EsperarAccion`:** Diálogos interactivos que pausan hasta que el jugador realiza una acción de gameplay:
+  - `seleccionarNodo`: El jugador debe hacer clic en un nodo específico.
+  - `conectarNodos`: El jugador debe conectar dos nodos específicos.
+- **`DestacarBoton`:** Resalta botones del HUD (`BtnMapa`, etc.) con animaciones y flechas guía.
+- **`EventoSaltar` / `EventoSalida`:** Callbacks de limpieza al saltar o cerrar diálogo.
+- **Click Aéreo:** Durante diálogos con cámara cenital (`ocultarTechos=true` + `permitirConexiones=true`), usa raycast desde la cámara para seleccionar nodos sin depender de `ClickDetector`.
+- **Forwarding de Acciones:** Escucha `NotificarSeleccionNodo` del servidor y traduce eventos de gameplay para avanzar diálogos con `EsperarAccion`.
+
+---
+
+## 9. Efectos Visuales Específicos para Diálogos (Nuevo)
+- **`EfectosDialogo.lua`:** Sistema exclusivo de efectos visuales para el sistema de diálogos:
+  - `resaltarNodo(nombre, tipo)` — Highlight sobre nodo (tipos: SELECCIONADO, ADYACENTE, CONECTADO, AISLADO, EXITO, ERROR).
+  - `mostrarLabel(nombre, texto, tipo)` — Etiqueta flotante 3D sobre nodo con color del tipo.
+  - `mostrarArista(A, B, tipo, opciones)` — Beam visual falso entre nodos con billboard "ARISTA", partículas direccionales (cyan A→B, rosa B→A), y pulso de grosor.
+  - `blink(nombre, tipo, ciclos)` — Parpadeo de highlight N veces.
+  - `limpiarTodo()` — Limpia highlights, labels, aristas falsas, blinks y parts temporales.
+- **`Feedback_Conexiones.lua`:** Diálogos automáticos de retroalimentación ante errores:
+  - `Feedback_ConexionInvalida`: Cuando el jugador intenta conectar nodos no adyacentes.
+  - `Feedback_DireccionInvalida`: Cuando el jugador intenta conectar en dirección incorrecta en un dígrafo.
+
+---
+
+## 10. Sistemas de Gameplay del Lado del Cliente (Nuevo)
+- **`GestorEfectos.lua` / `ControladorEfectos.client.lua`:** Patrón pub/sub centralizado que evita múltiples conexiones al mismo RemoteEvent. Aplica highlights (cyan selección, dorado adyacente, rojo error) y billboards con nombres amigables de nodos.
+- **`ParticulasConexion.client.lua`:** Bolas de luz con `PointLight` y `Trail` que viajan por las aristas. Dirección A→B (cyan) y B→A (rosa) para grafos no dirigidos.
+- **`SistemaEnergia.client.lua`:** Apaga **todos** los componentes luminosos (`PointLight`, `SpotLight`, `SurfaceLight`, `Beam`, `ParticleEmitter`, `Neon`) al cargar nivel. Los enciende progresivamente con `Tween` según eventos `ProgresoEnergia` del servidor.
+- **`GuiaService.lua`:** Sistema de guía visual con `Beam` texturizado con flechas animadas desde la cabeza del jugador hasta el objetivo. Auto-avance por completitud de zona. Se conecta a `NivelListo`/`NivelDescargado`.
+- **`RetroalimentacionConexion.client.lua`:** Feedback visual inmediato al intentar conexiones inválidas. Lanza diálogos de `Feedback_Conexiones` vía `_G.ControladorDialogo.iniciar()`.
+
+---
+
+## 11. Configuración de Audio (Nuevo)
+- **`ConfigAudio.lua`:** Configuración centralizada de categorías de audio: Master, Ambiente, BGM, SFX, Victoria. Define IDs de sonidos por nivel y por evento UI.
+
+---
+
+## 12. Sistema de Requisito de Diálogos para 3 Estrellas (Nuevo)
+- **`DialogoCorrecto` (RemoteEvent):** Cliente → Servidor. Se dispara cada vez que el jugador responde correctamente una pregunta de diálogo.
+- **`Boot.server.lua`:** Mantiene un contador `_dialogosCorrectos[userId]` por jugador. Se reinicia al iniciar/reiniciar nivel. Expone `_G.ObtenerDialogosCorrectos(jugador)` para que otros sistemas lo consulten.
+- **`LevelsConfig[nivel].RequiereDialogosCorrectos`:** Campo booleano opcional. Si es `true`, el nivel exige responder todas las preguntas de diálogo correctamente para obtener 3 estrellas.
+- **`LevelsConfig[nivel].TotalPreguntasDialogo`:** Número total de preguntas de diálogo en el nivel.
+- **`ServicioMisiones.calcularEstrellasHelper()`:** Si `RequiereDialogosCorrectos` es true y el jugador no alcanzó `TotalPreguntasDialogo`, limita las estrellas a 2 máximo (aunque el puntaje supere el umbral de 3 estrellas).
+- **`VictoriaHUD.lua`:** Detecta el campo `estrellasLimitadasPorDialogos` en el snapshot de victoria y muestra un mensaje informativo en el subtítulo: *"¡Respondiste algunas preguntas incorrectamente! Vuelve a intentarlo para obtener 3 estrellas."* (color amarillo). Si no aplica, restaura el subtítulo a *"¡Nivel completado!"*.
