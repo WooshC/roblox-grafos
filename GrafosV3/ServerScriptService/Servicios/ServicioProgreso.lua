@@ -179,4 +179,13 @@ function ServicioProgreso.alJugadorSalir(jugador)
 	cache[jugador.UserId] = nil
 end
 
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- API PÚBLICA GLOBAL (usada por ServicioLogros)
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+_G.ObtenerProgresoParaLogros = function(jugador)
+	local datos = ServicioProgreso.cargar(jugador)
+	return datos
+end
+
 return ServicioProgreso

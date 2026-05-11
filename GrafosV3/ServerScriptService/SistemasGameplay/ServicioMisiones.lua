@@ -265,8 +265,15 @@ local function verificarYNotificar()
 				tiempo = snap.tiempo,
 				puntajeBase = snap.puntajeBase,
 				estrellasLimitadasPorDialogos = _estrellasLimitadasPorDialogos,
+				totalPreguntasDialogo = (_config and _config.TotalPreguntasDialogo) or 0,
 			}
 			_eventoNivelCompletado:FireClient(_jugador, snapCliente)
+
+			-- Notificar a ServicioLogros
+			local notificarLogros = _G.NotificarNivelCompletadoLogros
+			if notificarLogros and _jugador then
+				notificarLogros(_jugador, _nivelID, snapCliente)
+			end
 		end
 
 		_activo = false

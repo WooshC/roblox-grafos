@@ -112,6 +112,12 @@ function GestorZonas.activar(nivel, zonasConfig, jugador, servicioMisiones)
 					_servicioMisiones.alEntrarZona(nombre)
 				end
 
+				-- Notificar a ServicioLogros
+				local registrarZonaLogros = _G.RegistrarZonaVisitadaLogros
+				if registrarZonaLogros and _jugador then
+					registrarZonaLogros(_jugador, nombre)
+				end
+
 				if _callbackEntrada then
 					_callbackEntrada(nombre)
 				end

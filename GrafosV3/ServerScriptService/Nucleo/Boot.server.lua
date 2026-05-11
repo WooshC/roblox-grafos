@@ -97,6 +97,7 @@ end
 -- ═══════════════════════════════════════════════════════════════════════════════
 local ServicioProgreso = nil
 local CargadorNiveles  = nil
+local ServicioLogros   = nil
 
 local function cargarServicios()
 	local carpetaServicios = script.Parent.Parent:WaitForChild("Servicios")
@@ -120,6 +121,22 @@ local function cargarServicios()
 			print("[GrafosV3] CargadorNiveles cargado")
 		else
 			warn("[GrafosV3] Error en CargadorNiveles:", resultado)
+		end
+	end
+
+	-- Cargar ServicioLogros
+	local carpetaSistemas = script.Parent.Parent:WaitForChild("SistemasGameplay")
+	local moduloLogros = carpetaSistemas:FindFirstChild("ServicioLogros")
+	if moduloLogros then
+		local ok, resultado = pcall(require, moduloLogros)
+		if ok then
+			ServicioLogros = resultado
+			if ServicioLogros.init then
+				ServicioLogros.init(Remotos)
+			end
+			print("[GrafosV3] ServicioLogros cargado e inicializado")
+		else
+			warn("[GrafosV3] Error en ServicioLogros:", resultado)
 		end
 	end
 end
@@ -170,6 +187,9 @@ local function alJugadorConectado(jugador)
 		if ServicioProgreso and ServicioProgreso.cargar then
 			ServicioProgreso.cargar(jugador)
 		end
+		if ServicioLogros and ServicioLogros.cargar then
+			ServicioLogros.cargar(jugador)
+		end
 	end)
 
 	-- Notificar al cliente (menu listo)
@@ -199,6 +219,9 @@ Jugadores.PlayerRemoving:Connect(function(jugador)
 	_dialogosCorrectos[jugador.UserId] = nil
 	if ServicioProgreso and ServicioProgreso.alJugadorSalir then
 		ServicioProgreso.alJugadorSalir(jugador)
+	end
+	if ServicioLogros and ServicioLogros.alJugadorSalir then
+		ServicioLogros.alJugadorSalir(jugador)
 	end
 end)
 
@@ -243,6 +266,11 @@ iniciarNivel.OnServerEvent:Connect(function(jugador, idNivel)
 	setEstado(jugador, ESTADO.CARGANDO)
 	_ctx[jugador.UserId] = nil
 	_dialogosCorrectos[jugador.UserId] = 0  -- Reiniciar contador de diálogos correctos
+
+	-- Inicializar sesión de logros para el nivel
+	if ServicioLogros and ServicioLogros.iniciarNivel then
+		ServicioLogros.iniciarNivel(jugador, idNivel)
+	end
 
 	if CargadorNiveles then
 		local ok, err = pcall(CargadorNiveles.cargar, idNivel, jugador)
@@ -300,6 +328,11 @@ reiniciarNivel.OnServerEvent:Connect(function(jugador, nivelID)
 	setEstado(jugador, ESTADO.CARGANDO)
 	_ctx[jugador.UserId] = nil
 	_dialogosCorrectos[jugador.UserId] = 0  -- Reiniciar contador de diálogos correctos al reiniciar
+
+	-- Reiniciar sesión de logros
+	if ServicioLogros and ServicioLogros.iniciarNivel then
+		ServicioLogros.iniciarNivel(jugador, nivelID)
+	end
 
 	if CargadorNiveles then
 		CargadorNiveles.descargar()
@@ -405,6 +438,20 @@ end
 -- API pública para consultar respuestas correctas (usado por ServicioMisiones)
 _G.ObtenerDialogosCorrectos = function(jugador)
 	return _dialogosCorrectos[jugador.UserId] or 0
+end
+
+-- API pública para notificar nivel completado a ServicioLogros (usado por ServicioMisiones)
+_G.NotificarNivelCompletadoLogros = function(jugador, nivelID, snapshotVictoria)
+	if ServicioLogros and ServicioLogros.alNivelCompletado then
+		ServicioLogros.alNivelCompletado(jugador, nivelID, snapshotVictoria)
+	end
+end
+
+-- API pública para registrar zona visitada en ServicioLogros (usado por GestorZonas)
+_G.RegistrarZonaVisitadaLogros = function(jugador, nombreZona)
+	if ServicioLogros and ServicioLogros.registrarZonaVisitada then
+		ServicioLogros.registrarZonaVisitada(jugador, nombreZona)
+	end
 end
 
 print("[GrafosV3] === Boot Servidor Listo ===")

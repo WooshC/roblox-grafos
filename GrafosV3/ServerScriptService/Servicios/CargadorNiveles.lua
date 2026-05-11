@@ -22,6 +22,7 @@ local ServicioMisiones = nil
 local GestorZonas = nil
 local ServicioProgreso = nil
 local ServicioEnergia = nil
+local ServicioLogros = nil
 
 -- Cargar ServicioPuntaje directamente (workaround para problema de caché de Studio)
 local ServicioPuntaje = nil
@@ -82,6 +83,21 @@ local function obtenerServicioEnergia()
 		if modulo then ServicioEnergia = require(modulo) end
 	end
 	return ServicioEnergia
+end
+
+local function obtenerServicioLogros()
+	if not ServicioLogros then
+		local sistemasFolder = ServerScriptService:FindFirstChild("SistemasGameplay")
+		if not sistemasFolder then return nil end
+		local modulo = sistemasFolder:FindFirstChild("ServicioLogros")
+		if modulo then
+			local ok, resultado = pcall(require, modulo)
+			if ok then
+				ServicioLogros = resultado
+			end
+		end
+	end
+	return ServicioLogros
 end
 
 local function obtenerServicioPuntaje()
@@ -318,11 +334,17 @@ function CargadorNiveles.cargar(nivelID, jugador)
 			local puntajeRef = moduloPuntaje
 			local jugadorRef = jugador
 
+			local logrosRef = obtenerServicioLogros()
+
 			local callbacks = {
 				onCableCreado = function(nomA, nomB)
 					-- PRIMERO registrar en puntaje (para que el conteo esté actualizado)
 					if puntajeRef then
 						puntajeRef:registrarConexion(jugadorRef)
+					end
+					-- Registrar en logros
+					if logrosRef and logrosRef.registrarCableConectado then
+						logrosRef.registrarCableConectado(jugadorRef)
 					end
 					-- LUEGO verificar misiones (puede disparar victoria)
 					if misionesRef and misionesRef.estaActivo() then
@@ -347,6 +369,10 @@ function CargadorNiveles.cargar(nivelID, jugador)
 				onFalloConexion = function()
 					if puntajeRef then
 						puntajeRef:registrarFallo(jugadorRef)
+					end
+					-- Registrar fallo en logros
+					if logrosRef and logrosRef.registrarFallo then
+						logrosRef.registrarFallo(jugadorRef)
 					end
 				end
 			}

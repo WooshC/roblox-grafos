@@ -31,6 +31,7 @@ local ModuloMapa   = require(ModulosHUD.ModuloMapa)
 local Minimap      = require(ModulosHUD.Minimap)
 local ModuloMatriz   = require(ModulosHUD.ModuloMatriz)
 local ModuloAnalisis = require(ModulosHUD.ModuloAnalisis)
+local PanelLogrosHUD = require(ModulosHUD.PanelLogrosHUD)
 
 -- Inicializar módulos con referencia al hud
 TransicionHUD.reset()
@@ -41,6 +42,7 @@ ModuloMapa.inicializar(hudGui)
 Minimap.inicializar(hudGui)
 ModuloMatriz.inicializar(hudGui)
 ModuloAnalisis.inicializar(hudGui)
+PanelLogrosHUD.init(hudGui)
 
 -- Helper: cuando el mapa intenta conectar/desconectar nodos,
 -- la matriz (si está abierta) se refresca automáticamente.
@@ -113,6 +115,13 @@ local function desactivarHUD()
 	end)
 	if not exitoAna then
 		warn("[ControladorHUD] Error al limpiar analisis:", errAna)
+	end
+
+	local exitoLogros, errLogros = pcall(function()
+		PanelLogrosHUD.limpiar()
+	end)
+	if not exitoLogros then
+		warn("[ControladorHUD] Error al limpiar logros:", errLogros)
 	end
 
 	print("[ControladorHUD] HUD desactivado")
@@ -222,6 +231,14 @@ EventosHUD.nivelCompletado.OnClientEvent:Connect(function(snap)
 
 	if snap then
 		VictoriaHUD.mostrar(snap)
+	end
+end)
+
+-- LogroDesbloqueado: El servidor notifica que se desbloqueó un logro
+EventosHUD.logroDesbloqueado.OnClientEvent:Connect(function(datos)
+	print("[ControladorHUD] LogroDesbloqueado recibido:", datos and datos.nombre or "SIN DATOS")
+	if datos then
+		PanelLogrosHUD.alLogroDesbloqueado(datos)
 	end
 end)
 

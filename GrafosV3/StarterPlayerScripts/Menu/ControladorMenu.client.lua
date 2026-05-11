@@ -85,6 +85,117 @@ local FUENTES = {
 	title = Enum.Font.GothamBlack,
 }
 
+-- Cargar LogrosConfig
+local LogrosConfig = require(RS:WaitForChild("Config"):WaitForChild("LogrosConfig"))
+
+-- Crear FrameLogros dinámicamente si no existe
+local frameLogros = menuGui:FindFirstChild("FrameLogros")
+if not frameLogros then
+	frameLogros = Instance.new("Frame")
+	frameLogros.Name = "FrameLogros"
+	frameLogros.Size = UDim2.new(1, 0, 1, 0)
+	frameLogros.BackgroundTransparency = 0.4
+	frameLogros.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	frameLogros.Visible = false
+	frameLogros.ZIndex = 20
+	frameLogros.Parent = menuGui
+
+	local contenedor = Instance.new("Frame")
+	contenedor.Name = "Contenedor"
+	contenedor.Size = UDim2.new(0, 520, 0, 420)
+	contenedor.Position = UDim2.new(0.5, -260, 0.5, -210)
+	contenedor.BackgroundColor3 = COLORES.panel
+	contenedor.BorderSizePixel = 0
+	contenedor.ZIndex = 21
+	contenedor.Parent = frameLogros
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 12)
+	corner.Parent = contenedor
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = COLORES.borde
+	stroke.Thickness = 1
+	stroke.Parent = contenedor
+
+	local header = Instance.new("Frame")
+	header.Name = "Header"
+	header.Size = UDim2.new(1, 0, 0, 50)
+	header.BackgroundTransparency = 1
+	header.ZIndex = 22
+	header.Parent = contenedor
+
+	local titulo = Instance.new("TextLabel")
+	titulo.Name = "Titulo"
+	titulo.Size = UDim2.new(0, 300, 1, 0)
+	titulo.Position = UDim2.new(0, 20, 0, 0)
+	titulo.BackgroundTransparency = 1
+	titulo.Text = "🏆  LOGROS"
+	titulo.TextColor3 = COLORES.texto
+	titulo.Font = FUENTES.bold
+	titulo.TextSize = 18
+	titulo.TextXAlignment = Enum.TextXAlignment.Left
+	titulo.ZIndex = 23
+	titulo.Parent = header
+
+	local lblContador = Instance.new("TextLabel")
+	lblContador.Name = "Contador"
+	lblContador.Size = UDim2.new(0, 120, 1, 0)
+	lblContador.Position = UDim2.new(1, -200, 0, 0)
+	lblContador.BackgroundTransparency = 1
+	lblContador.Text = "0 / 0"
+	lblContador.TextColor3 = COLORES.muted
+	lblContador.Font = FUENTES.mono
+	lblContador.TextSize = 12
+	lblContador.TextXAlignment = Enum.TextXAlignment.Right
+	lblContador.ZIndex = 23
+	lblContador.Parent = header
+
+	local btnCerrar = Instance.new("TextButton")
+	btnCerrar.Name = "CloseBtn"
+	btnCerrar.Size = UDim2.new(0, 32, 0, 32)
+	btnCerrar.Position = UDim2.new(1, -42, 0, 9)
+	btnCerrar.BackgroundColor3 = COLORES.fondo
+	btnCerrar.Text = "✕"
+	btnCerrar.TextColor3 = COLORES.muted
+	btnCerrar.Font = FUENTES.bold
+	btnCerrar.TextSize = 14
+	btnCerrar.BorderSizePixel = 0
+	btnCerrar.ZIndex = 23
+	btnCerrar.Parent = header
+	Instance.new("UICorner", btnCerrar).CornerRadius = UDim.new(0, 6)
+	Instance.new("UIStroke", btnCerrar).Color = COLORES.borde
+
+	local scroll = Instance.new("ScrollingFrame")
+	scroll.Name = "Scroll"
+	scroll.Size = UDim2.new(1, -20, 1, -60)
+	scroll.Position = UDim2.new(0, 10, 0, 50)
+	scroll.BackgroundTransparency = 1
+	scroll.BorderSizePixel = 0
+	scroll.ScrollBarThickness = 4
+	scroll.ScrollBarImageColor3 = COLORES.dim
+	scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+	scroll.ZIndex = 22
+	scroll.Parent = contenedor
+
+	Instance.new("UIPadding", scroll).PaddingLeft = UDim.new(0, 5)
+	Instance.new("UIPadding", scroll).PaddingRight = UDim.new(0, 5)
+	Instance.new("UIPadding", scroll).PaddingTop = UDim.new(0, 5)
+	Instance.new("UIPadding", scroll).PaddingBottom = UDim.new(0, 5)
+
+	local gridLayout = Instance.new("UIGridLayout")
+	gridLayout.CellSize = UDim2.new(0, 235, 0, 80)
+	gridLayout.CellPadding = UDim2.new(0, 10, 0, 10)
+	gridLayout.FillDirection = Enum.FillDirection.Horizontal
+	gridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	gridLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	gridLayout.Parent = scroll
+
+	-- Guardar referencia para uso posterior
+	frameLogros:SetAttribute("ScrollRef", scroll.Name)
+	frameLogros:SetAttribute("ContadorRef", lblContador.Name)
+end
+
 -- ============================================
 -- FUNCIONES UTILES
 -- ============================================
@@ -774,6 +885,155 @@ function iniciarNivel(idNivel)
 end
 
 -- ============================================
+-- PANEL DE LOGROS EN MENÚ
+-- ============================================
+
+local function crearTarjetaLogroMenu(logroConfig, estado, parent)
+	local desbloqueado = estado and estado.desbloqueado
+	local esSecreto = logroConfig.secreto and not desbloqueado
+
+	local bgColor = desbloqueado and Color3.fromRGB(26, 35, 55) or COLORES.panel
+	local bordeColor = desbloqueado and COLORES.accentExito or COLORES.borde
+	local iconoTexto = esSecreto and "❓" or (logroConfig.icono or "🏆")
+	local nombreTexto = esSecreto and "Logro Secreto" or logroConfig.nombre
+	local descTexto = esSecreto and "Descubre cómo desbloquear este logro..." or logroConfig.descripcion
+
+	local tarjeta = crearInstancia("Frame", {
+		Name = "Logro_" .. logroConfig.id,
+		Size = UDim2.new(0, 235, 0, 80),
+		BackgroundColor3 = bgColor,
+		BorderSizePixel = 0,
+		ZIndex = 25,
+	}, parent)
+	crearEsquina(8, tarjeta)
+	crearBorde(bordeColor, 1, tarjeta)
+
+	crearInstancia("TextLabel", {
+		Name = "Icono",
+		Size = UDim2.new(0, 36, 0, 36),
+		Position = UDim2.new(0, 10, 0.5, -18),
+		BackgroundTransparency = 1,
+		Text = iconoTexto,
+		Font = FUENTES.body,
+		TextSize = 24,
+		ZIndex = 26,
+	}, tarjeta)
+
+	crearInstancia("TextLabel", {
+		Name = "Nombre",
+		Size = UDim2.new(1, -60, 0, 18),
+		Position = UDim2.new(0, 52, 0, 10),
+		BackgroundTransparency = 1,
+		Text = nombreTexto,
+		TextColor3 = desbloqueado and COLORES.texto or COLORES.muted,
+		Font = FUENTES.bold,
+		TextSize = 12,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+		ZIndex = 26,
+	}, tarjeta)
+
+	crearInstancia("TextLabel", {
+		Name = "Desc",
+		Size = UDim2.new(1, -60, 0, 28),
+		Position = UDim2.new(0, 52, 0, 30),
+		BackgroundTransparency = 1,
+		Text = descTexto,
+		TextColor3 = desbloqueado and COLORES.muted or COLORES.dim,
+		Font = FUENTES.body,
+		TextSize = 10,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextWrapped = true,
+		ZIndex = 26,
+	}, tarjeta)
+
+	local badgeTexto = desbloqueado and "✓ Desbloqueado" or "🔒 Bloqueado"
+	local badgeColor = desbloqueado and COLORES.accentExito or COLORES.dim
+
+	crearInstancia("TextLabel", {
+		Name = "Badge",
+		Size = UDim2.new(0, 90, 0, 14),
+		Position = UDim2.new(0, 52, 1, -20),
+		BackgroundTransparency = 1,
+		Text = badgeTexto,
+		TextColor3 = badgeColor,
+		Font = FUENTES.mono,
+		TextSize = 9,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 26,
+	}, tarjeta)
+
+	return tarjeta
+end
+
+local function cargarLogrosEnMenu()
+	if not frameLogros then return end
+
+	local scroll = frameLogros:FindFirstChild("Scroll", true)
+	local lblContador = frameLogros:FindFirstChild("Contador", true)
+
+	if not scroll then return end
+
+	-- Limpiar contenido anterior
+	for _, hijo in ipairs(scroll:GetChildren()) do
+		if hijo:IsA("Frame") then
+			hijo:Destroy()
+		end
+	end
+
+	-- Obtener datos del servidor
+	local obtenerLogros = remotos:WaitForChild("ObtenerLogros")
+	local exito, datos = pcall(function()
+		return obtenerLogros:InvokeServer()
+	end)
+
+	if not exito or not datos then
+		warn("[ControladorMenu] Error al cargar logros:", tostring(datos))
+		return
+	end
+
+	-- Ordenar logros
+	local logrosOrdenados = {}
+	for _, logro in ipairs(LogrosConfig.LOGROS) do
+		table.insert(logrosOrdenados, logro)
+	end
+
+	table.sort(logrosOrdenados, function(a, b)
+		local da = datos[a.id] and datos[a.id].desbloqueado
+		local db = datos[b.id] and datos[b.id].desbloqueado
+		if da ~= db then
+			return da and not db
+		end
+		return (a.categoria or "") < (b.categoria or "")
+	end)
+
+	-- Crear tarjetas
+	for _, logro in ipairs(logrosOrdenados) do
+		local estado = datos[logro.id]
+		crearTarjetaLogroMenu(logro, estado, scroll)
+	end
+
+	-- Actualizar contador
+	if lblContador then
+		local total = #LogrosConfig.LOGROS
+		local desbloqueados = 0
+		for _, e in pairs(datos) do
+			if e.desbloqueado then desbloqueados = desbloqueados + 1 end
+		end
+		lblContador.Text = desbloqueados .. " / " .. total .. " logros"
+	end
+
+	-- Ajustar canvas size
+	task.defer(function()
+		local layout = scroll:FindFirstChildOfClass("UIGridLayout")
+		if layout then
+			local abs = layout.AbsoluteContentSize
+			scroll.CanvasSize = UDim2.new(0, 0, 0, abs.Y + 20)
+		end
+	end)
+end
+
+-- ============================================
 -- CONECTAR BOTONES DE NAVEGACION
 -- ============================================
 
@@ -801,6 +1061,38 @@ local function conectarBotonesNavegacion()
 		end)
 	end
 
+	-- Boton LOGROS
+	local btnLogros = frameMenu:FindFirstChild("BtnLogros", true)
+	if not btnLogros then
+		-- Crear botón dinámicamente si no existe
+		btnLogros = Instance.new("TextButton")
+		btnLogros.Name = "BtnLogros"
+		btnLogros.Size = UDim2.new(0, 200, 0, 40)
+		btnLogros.BackgroundColor3 = COLORES.panel
+		btnLogros.Text = "🏆  LOGROS"
+		btnLogros.TextColor3 = COLORES.texto
+		btnLogros.Font = FUENTES.mono
+		btnLogros.TextSize = 12
+		btnLogros.BorderSizePixel = 0
+		btnLogros.ZIndex = 5
+		-- Intentar insertar antes de BtnExit
+		local btnExit = frameMenu:FindFirstChild("BtnExit", true)
+		if btnExit then
+			btnLogros.Parent = btnExit.Parent
+			btnLogros.LayoutOrder = (btnExit.LayoutOrder or 0) - 1
+		else
+			btnLogros.Parent = frameMenu
+		end
+		Instance.new("UICorner", btnLogros).CornerRadius = UDim.new(0, 6)
+		Instance.new("UIStroke", btnLogros).Color = COLORES.borde
+	end
+	if btnLogros then
+		btnLogros.MouseButton1Click:Connect(function()
+			abrirModal(frameLogros)
+			cargarLogrosEnMenu()
+		end)
+	end
+
 	-- Boton CREDITOS
 	local btnCredits = frameMenu:FindFirstChild("BtnCredits", true)
 	if btnCredits then
@@ -818,7 +1110,7 @@ local function conectarBotonesNavegacion()
 	end
 
 	-- Botones de cerrar en modales
-	for _, modal in ipairs({frameSettings, frameCredits, frameExit}) do
+	for _, modal in ipairs({frameSettings, frameCredits, frameExit, frameLogros}) do
 		if modal then
 			local closeBtn = modal:FindFirstChild("CloseBtn", true)
 			if closeBtn then

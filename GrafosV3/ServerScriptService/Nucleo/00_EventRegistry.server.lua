@@ -60,6 +60,10 @@ local EVENTOS_REMOTOS = {
 
 	-- Sistema de Diálogos
 	{ nombre = "DialogoCorrecto",        tipo = "RemoteEvent" },      -- Cliente -> Server (respuesta correcta en diálogo)
+
+	-- Sistema de Logros
+	{ nombre = "ObtenerLogros",          tipo = "RemoteFunction" },  -- Cliente <-> Server (estado de logros)
+	{ nombre = "LogroDesbloqueado",      tipo = "RemoteEvent" },      -- Server -> Cliente (notificación de logro)
 }
 
 -- ═══════════════════════════════════════════════════════════════════════════════
