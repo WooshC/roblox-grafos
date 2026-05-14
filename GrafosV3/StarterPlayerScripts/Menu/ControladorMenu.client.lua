@@ -88,113 +88,8 @@ local FUENTES = {
 -- Cargar LogrosConfig
 local LogrosConfig = require(RS:WaitForChild("Config"):WaitForChild("LogrosConfig"))
 
--- Crear FrameLogros dinámicamente si no existe
-local frameLogros = menuGui:FindFirstChild("FrameLogros")
-if not frameLogros then
-	frameLogros = Instance.new("Frame")
-	frameLogros.Name = "FrameLogros"
-	frameLogros.Size = UDim2.new(1, 0, 1, 0)
-	frameLogros.BackgroundTransparency = 0.4
-	frameLogros.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	frameLogros.Visible = false
-	frameLogros.ZIndex = 20
-	frameLogros.Parent = menuGui
-
-	local contenedor = Instance.new("Frame")
-	contenedor.Name = "Contenedor"
-	contenedor.Size = UDim2.new(0, 520, 0, 420)
-	contenedor.Position = UDim2.new(0.5, -260, 0.5, -210)
-	contenedor.BackgroundColor3 = COLORES.panel
-	contenedor.BorderSizePixel = 0
-	contenedor.ZIndex = 21
-	contenedor.Parent = frameLogros
-
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 12)
-	corner.Parent = contenedor
-
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = COLORES.borde
-	stroke.Thickness = 1
-	stroke.Parent = contenedor
-
-	local header = Instance.new("Frame")
-	header.Name = "Header"
-	header.Size = UDim2.new(1, 0, 0, 50)
-	header.BackgroundTransparency = 1
-	header.ZIndex = 22
-	header.Parent = contenedor
-
-	local titulo = Instance.new("TextLabel")
-	titulo.Name = "Titulo"
-	titulo.Size = UDim2.new(0, 300, 1, 0)
-	titulo.Position = UDim2.new(0, 20, 0, 0)
-	titulo.BackgroundTransparency = 1
-	titulo.Text = "🏆  LOGROS"
-	titulo.TextColor3 = COLORES.texto
-	titulo.Font = FUENTES.bold
-	titulo.TextSize = 18
-	titulo.TextXAlignment = Enum.TextXAlignment.Left
-	titulo.ZIndex = 23
-	titulo.Parent = header
-
-	local lblContador = Instance.new("TextLabel")
-	lblContador.Name = "Contador"
-	lblContador.Size = UDim2.new(0, 120, 1, 0)
-	lblContador.Position = UDim2.new(1, -200, 0, 0)
-	lblContador.BackgroundTransparency = 1
-	lblContador.Text = "0 / 0"
-	lblContador.TextColor3 = COLORES.muted
-	lblContador.Font = FUENTES.mono
-	lblContador.TextSize = 12
-	lblContador.TextXAlignment = Enum.TextXAlignment.Right
-	lblContador.ZIndex = 23
-	lblContador.Parent = header
-
-	local btnCerrar = Instance.new("TextButton")
-	btnCerrar.Name = "CloseBtn"
-	btnCerrar.Size = UDim2.new(0, 32, 0, 32)
-	btnCerrar.Position = UDim2.new(1, -42, 0, 9)
-	btnCerrar.BackgroundColor3 = COLORES.fondo
-	btnCerrar.Text = "✕"
-	btnCerrar.TextColor3 = COLORES.muted
-	btnCerrar.Font = FUENTES.bold
-	btnCerrar.TextSize = 14
-	btnCerrar.BorderSizePixel = 0
-	btnCerrar.ZIndex = 23
-	btnCerrar.Parent = header
-	Instance.new("UICorner", btnCerrar).CornerRadius = UDim.new(0, 6)
-	Instance.new("UIStroke", btnCerrar).Color = COLORES.borde
-
-	local scroll = Instance.new("ScrollingFrame")
-	scroll.Name = "Scroll"
-	scroll.Size = UDim2.new(1, -20, 1, -60)
-	scroll.Position = UDim2.new(0, 10, 0, 50)
-	scroll.BackgroundTransparency = 1
-	scroll.BorderSizePixel = 0
-	scroll.ScrollBarThickness = 4
-	scroll.ScrollBarImageColor3 = COLORES.dim
-	scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-	scroll.ZIndex = 22
-	scroll.Parent = contenedor
-
-	Instance.new("UIPadding", scroll).PaddingLeft = UDim.new(0, 5)
-	Instance.new("UIPadding", scroll).PaddingRight = UDim.new(0, 5)
-	Instance.new("UIPadding", scroll).PaddingTop = UDim.new(0, 5)
-	Instance.new("UIPadding", scroll).PaddingBottom = UDim.new(0, 5)
-
-	local gridLayout = Instance.new("UIGridLayout")
-	gridLayout.CellSize = UDim2.new(0, 235, 0, 80)
-	gridLayout.CellPadding = UDim2.new(0, 10, 0, 10)
-	gridLayout.FillDirection = Enum.FillDirection.Horizontal
-	gridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	gridLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	gridLayout.Parent = scroll
-
-	-- Guardar referencia para uso posterior
-	frameLogros:SetAttribute("ScrollRef", scroll.Name)
-	frameLogros:SetAttribute("ContadorRef", lblContador.Name)
-end
+-- Referencia al FrameLogros (creado estáticamente por crearGUIMenu.lua)
+local frameLogros = menuGui:WaitForChild("FrameLogros")
 
 -- ============================================
 -- FUNCIONES UTILES
@@ -1061,31 +956,8 @@ local function conectarBotonesNavegacion()
 		end)
 	end
 
-	-- Boton LOGROS
+	-- Boton LOGROS (creado estáticamente por crearGUIMenu.lua)
 	local btnLogros = frameMenu:FindFirstChild("BtnLogros", true)
-	if not btnLogros then
-		-- Crear botón dinámicamente si no existe
-		btnLogros = Instance.new("TextButton")
-		btnLogros.Name = "BtnLogros"
-		btnLogros.Size = UDim2.new(0, 200, 0, 40)
-		btnLogros.BackgroundColor3 = COLORES.panel
-		btnLogros.Text = "🏆  LOGROS"
-		btnLogros.TextColor3 = COLORES.texto
-		btnLogros.Font = FUENTES.mono
-		btnLogros.TextSize = 12
-		btnLogros.BorderSizePixel = 0
-		btnLogros.ZIndex = 5
-		-- Intentar insertar antes de BtnExit
-		local btnExit = frameMenu:FindFirstChild("BtnExit", true)
-		if btnExit then
-			btnLogros.Parent = btnExit.Parent
-			btnLogros.LayoutOrder = (btnExit.LayoutOrder or 0) - 1
-		else
-			btnLogros.Parent = frameMenu
-		end
-		Instance.new("UICorner", btnLogros).CornerRadius = UDim.new(0, 6)
-		Instance.new("UIStroke", btnLogros).Color = COLORES.borde
-	end
 	if btnLogros then
 		btnLogros.MouseButton1Click:Connect(function()
 			abrirModal(frameLogros)

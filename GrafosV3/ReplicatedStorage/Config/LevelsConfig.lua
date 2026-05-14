@@ -481,23 +481,208 @@ LevelsConfig[2] = {
 }
 
 -- ============================================
--- NIVEL 3: EL PUENTE ROTO
+-- NIVEL 3: EL CAMINO MAS EFICIENTE
+-- ============================================
+-- Concepto: Algoritmo de Dijkstra + Presupuesto limitado.
+-- Cada arista tiene un peso (costo). El jugador debe conectar la red
+-- respetando un presupuesto inicial. Dijkstra ayuda a encontrar las
+-- rutas de menor costo acumulado desde el generador.
 -- ============================================
 LevelsConfig[3] = {
-	Nombre           = "El Puente Roto",
-	DescripcionCorta = "Los puentes tienen direccion. Aprende grafos dirigidos.",
+	Nombre           = "El Camino Mas Eficiente",
+	DescripcionCorta = "El alcalde exige reducir costos. Usa Dijkstra para encontrar las rutas de menor costo y administra el presupuesto del pueblo.",
 	ImageId          = "rbxassetid://1234567893",
 	Modelo           = "Nivel3",
-	Tag       = "NIVEL 3 · GRAFOS DIRIGIDOS",
-	Seccion   = "Grafos Dirigidos",
-	Algoritmo = "Grafos Dirigidos",
-	Conceptos = { "Dirigido", "In-degree", "Out-degree", "Ciclos" },
-	Puntuacion    = { TresEstrellas=4000, DosEstrellas=2500, RecompensaXP=300, PuntosConexion=50, PenaFallo=10 },
-	Adyacencias   = {},
-	Zonas         = {},
-	NombresNodos  = {},
-	AnalisisConfig = {},
-	Misiones      = {},
+
+	Tag       = "NIVEL 3 · DIJKSTRA + PRESUPUESTO",
+	Seccion   = "Algoritmos de Ruta",
+	Algoritmo = "Dijkstra",
+	Conceptos = { "Camino Minimo", "Peso de Arista", "Relajacion", "Presupuesto" },
+	Generadores = { "Gen_Bodega_z1" },
+
+	-- Presupuesto del nivel: cada arista consume su peso al conectarse
+	Presupuesto = {
+		Inicial = 50,
+		AdvertenciaBajo = 15,  -- Umbral donde el HUD muestra advertencia
+	},
+
+	Puntuacion = {
+		TresEstrellas  = 3500,
+		DosEstrellas   = 2000,
+		RecompensaXP   = 1000,
+		PuntosConexion = 50,
+		PenaFallo      = 15,
+		PuntosPreguntaCorrecta = 100,
+	},
+
+	-- Requisito especial para 3 estrellas: responder todas las preguntas correctamente
+	RequiereDialogosCorrectos = true,
+	TotalPreguntasDialogo = 3,  -- 1 (Presupuesto) + 1 (Rutas) + 1 (Control)
+
+	Adyacencias = {
+		-- Zona 1: Oficina de Presupuesto
+		["Gen_Bodega_z1"]   = {"Poste_Norte_z1", "Poste_Sur_z1"},
+		["Poste_Norte_z1"]  = {"Gen_Bodega_z1", "Cruce_Norte_z2"},
+		["Poste_Sur_z1"]    = {"Gen_Bodega_z1", "Cruce_Sur_z2"},
+
+		-- Zona 2: Rutas de Suministro
+		["Cruce_Norte_z2"]  = {"Poste_Norte_z1", "Mercado_z2", "Taller_z2"},
+		["Cruce_Sur_z2"]    = {"Poste_Sur_z1", "Taller_z2", "Plaza_z2"},
+		["Mercado_z2"]      = {"Cruce_Norte_z2", "Plaza_z2"},
+		["Taller_z2"]       = {"Cruce_Norte_z2", "Cruce_Sur_z2", "Plaza_z2", "Antena_z3"},
+		["Plaza_z2"]        = {"Mercado_z2", "Cruce_Sur_z2", "Taller_z2", "Centro_Control_z3"},
+
+		-- Zona 3: Centro de Control
+		["Centro_Control_z3"] = {"Plaza_z2", "Antena_z3", "Subestacion_z3"},
+		["Antena_z3"]         = {"Taller_z2", "Centro_Control_z3", "Terminal_z3"},
+		["Subestacion_z3"]    = {"Centro_Control_z3", "Terminal_z3"},
+		["Terminal_z3"]       = {"Antena_z3", "Subestacion_z3"},
+	},
+
+	-- Pesos de cada arista (costo en presupuesto).
+	-- Clave: "NodoA|NodoB" (pipe como separador canonico).
+	-- Solo es necesario definir una direccion; el sistema asume simetria.
+	PesosAristas = {
+		["Gen_Bodega_z1|Poste_Norte_z1"]   = 4,
+		["Gen_Bodega_z1|Poste_Sur_z1"]     = 7,
+		["Poste_Norte_z1|Cruce_Norte_z2"]  = 3,
+		["Poste_Sur_z1|Cruce_Sur_z2"]      = 5,
+		["Cruce_Norte_z2|Mercado_z2"]      = 3,
+		["Cruce_Norte_z2|Taller_z2"]       = 8,
+		["Cruce_Sur_z2|Taller_z2"]         = 4,
+		["Cruce_Sur_z2|Plaza_z2"]          = 6,
+		["Mercado_z2|Plaza_z2"]            = 2,
+		["Taller_z2|Plaza_z2"]             = 1,
+		["Taller_z2|Antena_z3"]            = 7,
+		["Plaza_z2|Centro_Control_z3"]     = 5,
+		["Centro_Control_z3|Antena_z3"]    = 3,
+		["Centro_Control_z3|Subestacion_z3"] = 4,
+		["Antena_z3|Terminal_z3"]          = 2,
+		["Subestacion_z3|Terminal_z3"]     = 6,
+	},
+
+	Zonas = {
+		["Zona_Presupuesto_1"] = {
+			Trigger = "ZonaTrigger_Presupuesto",
+			Descripcion = "Oficina de Presupuesto",
+			Dialogo = "Nivel3_Presupuesto",
+			CarpetaLuz = "Zona_luz_1"
+		},
+		["Zona_Rutas_2"] = {
+			Trigger = "ZonaTrigger_Rutas",
+			Descripcion = "Rutas de Suministro",
+			Dialogo = "Nivel3_Rutas",
+			CarpetaLuz = "Zona_luz_2"
+		},
+		["Zona_Control_3"] = {
+			Trigger = "ZonaTrigger_Control",
+			Descripcion = "Centro de Control",
+			Dialogo = "Nivel3_Control",
+			CarpetaLuz = "Zona_luz_3"
+		},
+	},
+
+	NombresNodos = {
+		["Gen_Bodega_z1"]      = "Generador Bodega",
+		["Poste_Norte_z1"]     = "Poste Norte",
+		["Poste_Sur_z1"]       = "Poste Sur",
+		["Cruce_Norte_z2"]     = "Cruce Norte",
+		["Cruce_Sur_z2"]       = "Cruce Sur",
+		["Mercado_z2"]         = "Mercado Central",
+		["Taller_z2"]          = "Taller Municipal",
+		["Plaza_z2"]           = "Plaza Central",
+		["Centro_Control_z3"]  = "Centro de Control",
+		["Antena_z3"]          = "Antena Principal",
+		["Subestacion_z3"]     = "Subestacion Electrica",
+		["Terminal_z3"]        = "Terminal de Red",
+	},
+
+	AnalisisConfig = {
+		["Zona_Presupuesto_1"] = {
+			algoritmos = { "dijkstra" },
+			nodoInicio = "Gen_Bodega_z1",
+			nodoFin    = "Poste_Sur_z1",
+			conceptos  = {
+				dijkstra = {
+					intro = "Dijkstra garantiza la ruta de MENOR COSTO desde el Generador Bodega hasta cualquier nodo. Abre el Panel de Analisis y ejecuta paso a paso para ver la relajacion en accion.",
+					pasos = {
+						[2]  = "Inicializamos: dist[Bodega]=0, todos los demas nodos=∞.",
+						[7]  = "Extraemos el nodo no visitado con menor distancia acumulada.",
+						[9]  = "Relajacion: si llegar por aqui es mas barato, actualizamos la distancia del vecino.",
+						[13] = "Cola vacia — Dijkstra garantiza las rutas minimas a todos los nodos alcanzables.",
+					},
+				},
+			},
+		},
+		["Zona_Rutas_2"] = {
+			algoritmos = { "dijkstra" },
+			nodoInicio = "Gen_Bodega_z1",
+			nodoFin    = "Plaza_z2",
+			conceptos  = {
+				dijkstra = {
+					intro = "Ejecuta Dijkstra desde la Bodega hacia la Plaza Central. Observa como el algoritmo descubre que el camino mas barato no siempre es el mas corto en saltos.",
+					pasos = {
+						[2]  = "Bodega inicia con distancia 0. Sus vecinos reciben sus primeros costos.",
+						[7]  = "Procesamos el nodo con menor distancia provisional.",
+						[9]  = "¡Relajacion! Encontramos un camino mas barato hacia la Plaza pasando por otro nodo.",
+						[13] = "Ruta minima confirmada. El costo acumulado no puede mejorarse.",
+					},
+				},
+			},
+		},
+		["Zona_Control_3"] = {
+			algoritmos = { "dijkstra", "prim" },
+			nodoInicio = "Gen_Bodega_z1",
+			nodoFin    = "Terminal_z3",
+			conceptos  = {
+				dijkstra = {
+					intro = "Dijkstra busca el camino minimo desde un origen hacia un destino. Prim, en cambio, busca conectar TODOS los nodos con el menor costo total (MST).",
+					pasos = {
+						[2]  = "Dijkstra: raiz con distancia 0, el resto en infinito.",
+						[7]  = "Extraemos el nodo de menor distancia acumulada desde el origen.",
+						[9]  = "Relajamos aristas: actualizamos si encontramos un camino mas barato.",
+						[13] = "Destino alcanzado con costo minimo garantizado.",
+					},
+				},
+				prim = {
+					intro = "Prim construye el Arbol de Expansion Minima (MST): conecta todos los nodos gastando lo menos posible en cables. Ideal cuando el presupuesto es limitado.",
+					pasos = {
+						[2]  = "Raiz: Generador Bodega con key=0. El resto empieza en ∞.",
+						[8]  = "El nodo con key minima se integra al MST. Se actualizan sus vecinos.",
+						[9]  = "Si este cable es mas barato para llegar a un nodo, actualizamos su key.",
+						[13] = "MST completo — toda la red conectada con el tendido minimo de cables.",
+					},
+				},
+			},
+		},
+	},
+
+	Misiones = {
+		-- ── Zona 1: Oficina de Presupuesto ────────────────────────────────────
+		{ ID=301, Zona="Zona_Presupuesto_1", Texto="Selecciona el Generador Bodega",                 Tipo="NODO_SELECCIONADO", Puntos=100, Parametros={ Nodo="Gen_Bodega_z1" } },
+		{ ID=302, Zona="Zona_Presupuesto_1", Texto="Conecta el Poste Norte al Generador (costo 4)",  Tipo="ARISTA_CREADA",     Puntos=150, Parametros={ NodoA="Gen_Bodega_z1", NodoB="Poste_Norte_z1" } },
+		{ ID=303, Zona="Zona_Presupuesto_1", Texto="Conecta el Poste Sur al Generador (costo 7)",    Tipo="ARISTA_CREADA",     Puntos=150, Parametros={ NodoA="Gen_Bodega_z1", NodoB="Poste_Sur_z1" } },
+
+		-- ── Zona 2: Rutas de Suministro ───────────────────────────────────────
+		{ ID=304, Zona="Zona_Rutas_2", Texto="Tiende cable hacia el Cruce Norte (costo 3)",          Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Poste_Norte_z1", NodoB="Cruce_Norte_z2" } },
+		{ ID=305, Zona="Zona_Rutas_2", Texto="Conecta el Mercado al Cruce Norte (costo 3)",          Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Cruce_Norte_z2", NodoB="Mercado_z2" } },
+		{ ID=306, Zona="Zona_Rutas_2", Texto="Conecta la Plaza al Mercado (costo 2)",                Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Mercado_z2",     NodoB="Plaza_z2" } },
+		{ ID=307, Zona="Zona_Rutas_2", Texto="Ilumina toda la zona de Rutas (5 nodos)",               Tipo="GRAFO_CONEXO",  Puntos=300, Parametros={ Nodos={"Cruce_Norte_z2","Cruce_Sur_z2","Mercado_z2","Taller_z2","Plaza_z2"} } },
+
+		-- ── Zona 3: Centro de Control ─────────────────────────────────────────
+		{ ID=308, Zona="Zona_Control_3", Texto="Conecta Centro de Control desde Plaza (costo 5)",    Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Plaza_z2",         NodoB="Centro_Control_z3" } },
+		{ ID=309, Zona="Zona_Control_3", Texto="Conecta la Antena al Centro de Control (costo 3)",   Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Centro_Control_z3", NodoB="Antena_z3" } },
+		{ ID=310, Zona="Zona_Control_3", Texto="Conecta la Terminal desde la Antena (costo 2)",      Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Antena_z3",         NodoB="Terminal_z3" } },
+		{ ID=311, Zona="Zona_Control_3", Texto="Conecta la Subestacion al Centro de Control (costo 4)", Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Centro_Control_z3", NodoB="Subestacion_z3" } },
+		{ ID=312, Zona="Zona_Control_3", Texto="Ilumina todo el pueblo (12 nodos, sin exceder presupuesto)", Tipo="GRAFO_CONEXO",  Puntos=500, Parametros={ Nodos={"Gen_Bodega_z1","Poste_Norte_z1","Poste_Sur_z1","Cruce_Norte_z2","Cruce_Sur_z2","Mercado_z2","Taller_z2","Plaza_z2","Centro_Control_z3","Antena_z3","Subestacion_z3","Terminal_z3"} } },
+	},
+
+	Guia = {
+		{ ID="carlos",         Label="Hablar con Carlos",        WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="Objetivo_Carlos"           }, DestruirAlCompletar=false },
+		{ ID="presupuesto_1",  Zona="Zona_Presupuesto_1", Label="Ve a la Oficina",      WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Presupuesto" }, DestruirAlCompletar=false },
+		{ ID="rutas_2",        Zona="Zona_Rutas_2",       Label="Ve a las Rutas",       WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Rutas"       }, DestruirAlCompletar=false },
+		{ ID="control_3",      Zona="Zona_Control_3",     Label="Ve al Centro Control", WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Control"     }, DestruirAlCompletar=false },
+	},
 }
 
 -- ============================================
