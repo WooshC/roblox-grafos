@@ -456,6 +456,13 @@ LevelsConfig[1] = {
 			},
 		},
 	},
+
+	Guia = {
+		{ ID="estacion_1",    Zona="Zona_Ferroviaria_1", Label="Ve a la Estacion Plana",    WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Inicio"   }, DestruirAlCompletar=false },
+		{ ID="mercado_2",     Zona="Zona_Mercado_2",     Label="Ve al Mercado Central",     WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Mercado"  }, DestruirAlCompletar=false },
+		{ ID="canchas_3",     Zona="Zona_Canchas_3",     Label="Ve a las Canchas",          WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Canchas"  }, DestruirAlCompletar=false },
+		{ ID="parque_4",      Zona="Zona_Parque_4",      Label="Ve al Parque del Barrio",   WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Parque"   }, DestruirAlCompletar=false },
+	},
 }
 
 
@@ -463,21 +470,240 @@ LevelsConfig[1] = {
 -- ============================================
 -- NIVEL 2: LA FABRICA DE SENALES
 -- ============================================
+-- Concepto: DFS (Búsqueda en Profundidad) + BFS comparativo.
+-- El jugador explora una fábrica con túneles ramificados,
+-- aprendiendo el uso de la Pila (Stack, LIFO) y el backtracking.
+-- ============================================
 LevelsConfig[2] = {
 	Nombre           = "La Fabrica de Senales",
-	DescripcionCorta = "Recorre la fabrica aplicando BFS y DFS para procesar senales.",
+	DescripcionCorta = "Explora los túneles de la fábrica usando DFS. Aprende el backtracking y la diferencia entre BFS y DFS.",
 	ImageId          = "rbxassetid://1234567892",
 	Modelo           = "Nivel2",
+
 	Tag       = "NIVEL 2 · RECORRIDOS",
 	Seccion   = "Busqueda y Conectividad",
 	Algoritmo = "BFS · DFS",
-	Conceptos = { "BFS", "DFS", "Recorrido", "Cola", "Pila" },
-	Puntuacion    = { TresEstrellas=2500, DosEstrellas=1500, RecompensaXP=200, PuntosConexion=50, PenaFallo=10 },
-	Adyacencias   = {},
-	Zonas         = {},
-	NombresNodos  = {},
-	AnalisisConfig = {},
-	Misiones      = {},
+	Conceptos = { "DFS", "Pila", "Backtracking", "BFS vs DFS" },
+	Generadores = { "Gen_Fabrica_z1" },
+
+	Puntuacion = {
+		TresEstrellas  = 2800,
+		DosEstrellas   = 1600,
+		RecompensaXP   = 600,
+		PuntosConexion = 50,
+		PenaFallo      = 15,
+		PuntosPreguntaCorrecta = 100,
+	},
+
+	-- Requisito especial para 3 estrellas: responder todas las preguntas correctamente
+	RequiereDialogosCorrectos = true,
+	TotalPreguntasDialogo = 4,  -- 1 (Laberinto) + 1 (Barrio Oeste) + 1 (Oficina) + 1 (Comparativa)
+
+	Adyacencias = {
+		-- Zona 1: El Barrio Laberinto
+		["Gen_Fabrica_z1"]    = {"Entrada_z1", "Cruce_z1"},
+		["Entrada_z1"]        = {"Gen_Fabrica_z1", "Sala_Maquinas_z1"},
+		["Cruce_z1"]          = {"Gen_Fabrica_z1", "Tunel_Norte_z2", "Tunel_Sur_z2"},
+		["Sala_Maquinas_z1"]  = {"Entrada_z1"},
+
+		-- Zona 2: El Barrio Oeste (EXPANDIDO para demo BFS vs DFS)
+		["Tunel_Norte_z2"]    = {"Cruce_z1", "Cisterna_z2", "Almacen_z2", "Patio_z2"},
+		["Tunel_Sur_z2"]      = {"Cruce_z1", "Puente_z2", "Vestibulo_z2"},
+		["Cisterna_z2"]       = {"Tunel_Norte_z2", "Puente_z2", "Taller_z2"},
+		["Almacen_z2"]        = {"Tunel_Norte_z2", "Oficina_z3", "Patio_z2"},
+		["Puente_z2"]         = {"Tunel_Sur_z2", "Cisterna_z2", "Oficina_z3", "Vestibulo_z2"},
+		["Patio_z2"]          = {"Tunel_Norte_z2", "Almacen_z2", "Taller_z2"},
+		["Taller_z2"]         = {"Cisterna_z2", "Patio_z2", "Deposito_z2"},
+		["Vestibulo_z2"]      = {"Tunel_Sur_z2", "Puente_z2", "Sotano_z2"},
+		["Deposito_z2"]       = {"Taller_z2"},
+		["Sotano_z2"]         = {"Vestibulo_z2"},
+
+		-- Zona 3: La Oficina de Análisis
+		["Oficina_z3"]        = {"Almacen_z2", "Puente_z2", "Servidor_z3", "Antena_z3"},
+		["Servidor_z3"]       = {"Oficina_z3"},
+		["Antena_z3"]         = {"Oficina_z3"},
+	},
+
+	Zonas = {
+		["Zona_Laberinto_1"] = {
+			Trigger = "ZonaTrigger_Laberinto",
+			Descripcion = "El Barrio Laberinto",
+			Dialogo = "Nivel2_Laberinto",
+			CarpetaLuz = "Zona_luz_1",
+			-- Nodos dañados en esta zona: efecto constante hasta completar la emergencia
+			NodosDaniados = { "Gen_Fabrica_z1" },
+		},
+		["Zona_BarrioOeste_2"] = {
+			Trigger = "ZonaTrigger_BarrioOeste",
+			Descripcion = "El Barrio Oeste",
+			Dialogo = "Nivel2_BarrioOeste",
+			CarpetaLuz = "Zona_luz_2"
+		},
+		["Zona_Oficina_3"] = {
+			Trigger = "ZonaTrigger_Oficina",
+			Descripcion = "Oficina de Analisis",
+			Dialogo = "Nivel2_Oficina",
+			CarpetaLuz = "Zona_luz_3"
+		},
+	},
+
+	-- Mapeo explícito de nodos por zona (permite Cruce_z1 en Zona 2 para análisis)
+	NodosZona = {
+		["Zona_Laberinto_1"]   = {"Gen_Fabrica_z1", "Entrada_z1", "Cruce_z1", "Sala_Maquinas_z1"},
+		["Zona_BarrioOeste_2"] = {"Cruce_z1", "Tunel_Norte_z2", "Tunel_Sur_z2", "Cisterna_z2", "Almacen_z2", "Puente_z2", "Patio_z2", "Taller_z2", "Vestibulo_z2", "Sotano_z2", "Deposito_z2"},
+		["Zona_Oficina_3"]     = {"Oficina_z3", "Servidor_z3", "Antena_z3"},
+	},
+
+	NombresNodos = {
+		["Gen_Fabrica_z1"]    = "Generador Fabrica",
+		["Entrada_z1"]        = "Entrada del Laberinto",
+		["Cruce_z1"]          = "Cruce Principal",
+		["Sala_Maquinas_z1"]  = "Sala de Maquinas",
+		["Tunel_Norte_z2"]    = "Tunnel Norte",
+		["Tunel_Sur_z2"]      = "Tunnel Sur",
+		["Cisterna_z2"]       = "Cisterna",
+		["Almacen_z2"]        = "Almacen",
+		["Puente_z2"]         = "Puente Metalico",
+		["Patio_z2"]          = "Patio Industrial",
+		["Taller_z2"]         = "Taller de Reparacion",
+		["Vestibulo_z2"]      = "Vestibulo Oeste",
+		["Sotano_z2"]         = "Sotano Abandonado",
+		["Deposito_z2"]       = "Deposito de Herramientas",
+		["Oficina_z3"]        = "Oficina de Analisis",
+		["Servidor_z3"]       = "Servidor Central",
+		["Antena_z3"]         = "Antena de Comunicaciones",
+	},
+
+	AnalisisConfig = {
+		["Zona_Laberinto_1"] = {
+			algoritmos = { "bfs", "dfs" },
+			nodoInicio = "Gen_Fabrica_z1",
+			nodoFin    = nil,
+			conceptos  = {
+				bfs = {
+					intro = "BFS explora la fábrica nivel por nivel usando una cola FIFO. Observa cómo visita todos los vecinos directos antes de profundizar.",
+					pasos = {
+						[2]  = "El Generador se encola como nodo inicial.",
+						[7]  = "Procesamos el nodo frontal y encolamos sus vecinos.",
+						[9]  = "Cada vecino nuevo se añade al final de la cola.",
+						[13] = "BFS completó la exploración por niveles de la zona.",
+					},
+				},
+				dfs = {
+					intro = "DFS explora la fábrica en profundidad usando una pila LIFO. Observa cómo se adentra por un túnel hasta el fondo antes de retroceder.",
+					pasos = {
+						[2]  = "El Generador se apila como nodo inicial.",
+						[7]  = "Desapilamos el tope y apilamos sus vecinos.",
+						[8]  = "DFS sigue el último vecino apilado: profundiza primero.",
+						[12] = "Pila vacía: DFS recorrió toda la zona en profundidad.",
+					},
+				},
+			},
+		},
+		["Zona_BarrioOeste_2"] = {
+			algoritmos = { "bfs", "dfs" },
+			nodoInicio = "Cruce_z1",
+			nodoFin    = "Deposito_z2",
+			conceptos  = {
+				bfs = {
+					intro = "BFS explora el Barrio Oeste nivel por nivel desde el Cruce Principal. Observa cómo ilumina primero todos los túneles, luego la Cisterna, Almacén y Puente, y finalmente el Patio, Taller, Vestíbulo y Sótano antes de llegar al Depósito.",
+					pasos = {
+						[2]  = "Nivel 0: el Cruce inicia la cola.",
+						[7]  = "Nivel 1: Túneles Norte y Sur descubiertos.",
+						[9]  = "Nivel 2: Cisterna, Almacén, Puente, Patio y Vestíbulo en cola.",
+						[13] = "Nivel 3: Taller y Sótano. ¡Depósito alcanzado en el nivel más cercano!",
+					},
+				},
+				dfs = {
+					intro = "DFS se adentra por una sola rama desde el Cruce hasta el fondo. Observa cómo llega al Depósito siguiendo Túnel Norte → Patio → Taller → Depósito, mientras ignora completamente las otras ramas hasta que retrocede.",
+					pasos = {
+						[2]  = "Apilamos el Cruce. DFS elige la rama más profunda.",
+						[7]  = "Desapilamos y apilamos vecinos. El último en entrar es el primero en salir.",
+						[8]  = "DFS bucea por el Túnel Norte → Patio → Taller → Depósito.",
+						[12] = "Backtracking: del Depósito retrocede al Cruce para explorar la rama Sur.",
+					},
+				},
+			},
+		},
+		["Zona_Oficina_3"] = {
+			algoritmos = { "bfs", "dfs", "dijkstra", "prim" },
+			nodoInicio = "Gen_Fabrica_z1",
+			nodoFin    = "Antena_z3",
+			conceptos  = {
+				bfs = {
+					intro = "BFS: camino más corto en saltos. Ideal para encontrar la ruta más rápida a la Antena.",
+					pasos = {
+						[2]  = "Generador como raíz. Cola inicializada.",
+						[7]  = "Exploración por niveles hacia la Oficina de Análisis.",
+						[9]  = "Nueva estación descubierta en cada nivel.",
+						[13] = "Antena alcanzada con el mínimo de saltos.",
+					},
+				},
+				dfs = {
+					intro = "DFS: exploración completa en profundidad. Ideal para verificar que no hay ciclos ocultos en la red.",
+					pasos = {
+						[2]  = "Apilamos el Generador. La pila guía la exploración.",
+						[7]  = "DFS adentra por cada túnel hasta el fondo.",
+						[8]  = "Si encuentra un ciclo (nodo ya en la pila), lo detecta.",
+						[12] = "DFS completó la verificación de toda la red.",
+					},
+				},
+				dijkstra = {
+					intro = "Dijkstra: aunque este grafo no tiene pesos, el algoritmo funciona igual. Cada arista tiene costo 1, así que equivale a BFS.",
+					pasos = {
+						[2]  = "Inicialización: dist[Generador]=0, resto=∞.",
+						[7]  = "Extraemos el nodo con menor distancia.",
+						[9]  = "Relajamos vecinos: actualizamos distancias.",
+						[13] = "Distancia mínima confirmada a todos los nodos.",
+					},
+				},
+				prim = {
+					intro = "Prim: construye el Árbol de Expansión Mínima. Conecta toda la fábrica con el mínimo de cableado posible.",
+					pasos = {
+						[2]  = "Raíz: Generador con key=0. Resto en ∞.",
+						[8]  = "El nodo con key mínima se integra al MST.",
+						[9]  = "Actualizamos keys de los vecinos no conectados.",
+						[13] = "MST completo: toda la fábrica conectada con 11 aristas.",
+					},
+				},
+			},
+		},
+	},
+
+	Misiones = {
+		-- ── Zona 1: Laberinto ─────────────────────────────────────────────────
+		{ ID=201, Zona="Zona_Laberinto_1", Texto="Selecciona el Generador Fabrica",                  Tipo="NODO_SELECCIONADO", Puntos=100, Parametros={ Nodo="Gen_Fabrica_z1" } },
+		{ ID=202, Zona="Zona_Laberinto_1", Texto="Conecta la Entrada al Generador",                    Tipo="ARISTA_CREADA",     Puntos=150, Parametros={ NodoA="Gen_Fabrica_z1", NodoB="Entrada_z1" } },
+		{ ID=203, Zona="Zona_Laberinto_1", Texto="Conecta el Cruce Principal al Generador",              Tipo="ARISTA_CREADA",     Puntos=150, Parametros={ NodoA="Gen_Fabrica_z1", NodoB="Cruce_z1" } },
+		{ ID=204, Zona="Zona_Laberinto_1", Texto="Conecta la Sala de Maquinas desde la Entrada",        Tipo="ARISTA_CREADA",     Puntos=150, Parametros={ NodoA="Entrada_z1",     NodoB="Sala_Maquinas_z1" } },
+		{ ID=205, Zona="Zona_Laberinto_1", Texto="Ilumina toda la zona del Laberinto (4 nodos)",        Tipo="GRAFO_CONEXO",      Puntos=200, Parametros={ Nodos={"Gen_Fabrica_z1","Entrada_z1","Cruce_z1","Sala_Maquinas_z1"} } },
+		{ ID=299, Zona="Zona_Laberinto_1", Texto="¡EMERGENCIA! Restaura la red en 60 segundos",         Tipo="EMERGENCIA",        Puntos=500, Parametros={ Nodos={"Gen_Fabrica_z1","Entrada_z1","Cruce_z1","Sala_Maquinas_z1"}, TiempoLimite=60 } },
+
+		-- ── Zona 2: Barrio Oeste (EXPANDIDO: 10 nodos) ───────────────────────
+		{ ID=206, Zona="Zona_BarrioOeste_2", Texto="Tiende cable al Tunnel Norte desde el Cruce",       Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Cruce_z1",       NodoB="Tunel_Norte_z2" } },
+		{ ID=207, Zona="Zona_BarrioOeste_2", Texto="Conecta el Tunnel Sur desde el Cruce",              Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Cruce_z1",       NodoB="Tunel_Sur_z2" } },
+		{ ID=208, Zona="Zona_BarrioOeste_2", Texto="Conecta la Cisterna al Tunnel Norte",               Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Tunel_Norte_z2", NodoB="Cisterna_z2" } },
+		{ ID=209, Zona="Zona_BarrioOeste_2", Texto="Conecta el Almacen al Tunnel Norte",                Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Tunel_Norte_z2", NodoB="Almacen_z2" } },
+		{ ID=210, Zona="Zona_BarrioOeste_2", Texto="Conecta el Puente al Tunnel Sur",                   Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Tunel_Sur_z2",   NodoB="Puente_z2" } },
+		{ ID=2101, Zona="Zona_BarrioOeste_2", Texto="Conecta el Patio al Tunnel Norte",                 Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Tunel_Norte_z2", NodoB="Patio_z2" } },
+		{ ID=2102, Zona="Zona_BarrioOeste_2", Texto="Conecta el Taller a la Cisterna",                  Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Cisterna_z2",    NodoB="Taller_z2" } },
+		{ ID=2103, Zona="Zona_BarrioOeste_2", Texto="Conecta el Vestibulo al Tunnel Sur",               Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Tunel_Sur_z2",   NodoB="Vestibulo_z2" } },
+		{ ID=2104, Zona="Zona_BarrioOeste_2", Texto="Conecta el Sotano al Vestibulo",                   Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Vestibulo_z2",   NodoB="Sotano_z2" } },
+		{ ID=2105, Zona="Zona_BarrioOeste_2", Texto="Conecta el Deposito al Taller",                    Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Taller_z2",      NodoB="Deposito_z2" } },
+		{ ID=211, Zona="Zona_BarrioOeste_2", Texto="Ilumina todo el Barrio Oeste (11 nodos)",           Tipo="GRAFO_CONEXO",  Puntos=400, Parametros={ Nodos={"Cruce_z1","Tunel_Norte_z2","Tunel_Sur_z2","Cisterna_z2","Almacen_z2","Puente_z2","Patio_z2","Taller_z2","Vestibulo_z2","Sotano_z2","Deposito_z2"} } },
+
+		-- ── Zona 3: Oficina de Analisis ───────────────────────────────────────
+		{ ID=212, Zona="Zona_Oficina_3", Texto="Conecta la Oficina desde el Almacen",                   Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Almacen_z2", NodoB="Oficina_z3" } },
+		{ ID=213, Zona="Zona_Oficina_3", Texto="Conecta el Servidor Central a la Oficina",              Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Oficina_z3", NodoB="Servidor_z3" } },
+		{ ID=214, Zona="Zona_Oficina_3", Texto="Conecta la Antena a la Oficina",                        Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Oficina_z3", NodoB="Antena_z3" } },
+		{ ID=215, Zona="Zona_Oficina_3", Texto="Ilumina toda la fabrica (17 nodos)",                    Tipo="GRAFO_CONEXO",  Puntos=600, Parametros={ Nodos={"Gen_Fabrica_z1","Entrada_z1","Cruce_z1","Sala_Maquinas_z1","Tunel_Norte_z2","Tunel_Sur_z2","Cisterna_z2","Almacen_z2","Puente_z2","Patio_z2","Taller_z2","Vestibulo_z2","Sotano_z2","Deposito_z2","Oficina_z3","Servidor_z3","Antena_z3"} } },
+	},
+
+	Guia = {
+		{ ID="laberinto_1",    Zona="Zona_Laberinto_1",    Label="Ve al Laberinto",      WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Laberinto"    }, DestruirAlCompletar=false },
+		{ ID="barrio_2",       Zona="Zona_BarrioOeste_2",  Label="Ve al Barrio Oeste",   WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_BarrioOeste"  }, DestruirAlCompletar=false },
+		{ ID="oficina_3",      Zona="Zona_Oficina_3",      Label="Ve a la Oficina",      WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Oficina"    }, DestruirAlCompletar=false },
+	},
 }
 
 -- ============================================

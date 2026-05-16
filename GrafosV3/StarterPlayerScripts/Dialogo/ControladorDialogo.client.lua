@@ -587,6 +587,12 @@ function iniciarDialogo(dialogoID, metadata)
 
 	dialogoActivo = true
 
+	-- Notificar al servidor que el diálogo inició (pausar timer de emergencia)
+	local dialogoIniciadoEvento = remotos:FindFirstChild("DialogoIniciado")
+	if dialogoIniciadoEvento then
+		pcall(function() dialogoIniciadoEvento:FireServer() end)
+	end
+
 	-- Combinar restricciones: Defaults → Config del archivo → Config del prompt/atributos
 	local restricciones = {}
 
@@ -674,6 +680,12 @@ function iniciarDialogo(dialogoID, metadata)
 			metadata.config.alCerrar(metadata)
 		end
 
+		-- Notificar al servidor que el diálogo terminó (reanudar timer de emergencia)
+		local dialogoTerminadoEvento = remotos:FindFirstChild("DialogoTerminado")
+		if dialogoTerminadoEvento then
+			pcall(function() dialogoTerminadoEvento:FireServer() end)
+		end
+
 		dialogoActivo = false
 	end)
 
@@ -684,6 +696,11 @@ function iniciarDialogo(dialogoID, metadata)
 		desactivarClickAereo()
 		desbloquearMovimiento()
 		mostrarHUD()
+		-- Notificar al servidor que el diálogo terminó (aunque falló)
+		local dialogoTerminadoEvento = remotos:FindFirstChild("DialogoTerminado")
+		if dialogoTerminadoEvento then
+			pcall(function() dialogoTerminadoEvento:FireServer() end)
+		end
 		dialogoActivo = false
 	end
 

@@ -32,6 +32,7 @@ local Minimap      = require(ModulosHUD.Minimap)
 local ModuloMatriz   = require(ModulosHUD.ModuloMatriz)
 local ModuloAnalisis = require(ModulosHUD.ModuloAnalisis)
 local PanelLogrosHUD = require(ModulosHUD.PanelLogrosHUD)
+local TimerEmergenciaHUD = require(ModulosHUD.TimerEmergenciaHUD)
 
 -- Inicializar módulos con referencia al hud
 TransicionHUD.reset()
@@ -43,6 +44,7 @@ Minimap.inicializar(hudGui)
 ModuloMatriz.inicializar(hudGui)
 ModuloAnalisis.inicializar(hudGui)
 PanelLogrosHUD.init(hudGui)
+TimerEmergenciaHUD.init(hudGui)
 
 -- Helper: cuando el mapa intenta conectar/desconectar nodos,
 -- la matriz (si está abierta) se refresca automáticamente.
@@ -122,6 +124,13 @@ local function desactivarHUD()
 	end)
 	if not exitoLogros then
 		warn("[ControladorHUD] Error al limpiar logros:", errLogros)
+	end
+
+	local exitoTimer, errTimer = pcall(function()
+		TimerEmergenciaHUD.ocultar()
+	end)
+	if not exitoTimer then
+		warn("[ControladorHUD] Error al ocultar timer:", errTimer)
 	end
 
 	print("[ControladorHUD] HUD desactivado")
@@ -240,6 +249,11 @@ EventosHUD.logroDesbloqueado.OnClientEvent:Connect(function(datos)
 	if datos then
 		PanelLogrosHUD.alLogroDesbloqueado(datos)
 	end
+end)
+
+-- TimerEmergencia: El servidor envía actualización del timer de emergencia
+EventosHUD.timerEmergencia.OnClientEvent:Connect(function(restante, texto, expirado, completada)
+	TimerEmergenciaHUD.actualizar(restante, texto, expirado, completada)
 end)
 
 -- Inicialmente, el HUD debe estar desactivado (el menú está activo)

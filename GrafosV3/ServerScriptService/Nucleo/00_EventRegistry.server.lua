@@ -57,13 +57,17 @@ local EVENTOS_REMOTOS = {
 
 	-- Sistema de Energía Progresiva
 	{ nombre = "ProgresoEnergia",        tipo = "RemoteEvent" },      -- Server -> Cliente (porcentaje de energía por zona)
+	{ nombre = "TimerEmergencia",        tipo = "RemoteEvent" },      -- Server -> Cliente (tiempo restante misión emergencia)
 
 	-- Sistema de Diálogos
 	{ nombre = "DialogoCorrecto",        tipo = "RemoteEvent" },      -- Cliente -> Server (respuesta correcta en diálogo)
+	{ nombre = "DialogoIniciado",        tipo = "RemoteEvent" },      -- Cliente -> Server (diálogo empezó → pausar timer)
+	{ nombre = "DialogoTerminado",       tipo = "RemoteEvent" },      -- Cliente -> Server (diálogo terminó → reanudar timer)
 
 	-- Sistema de Logros
 	{ nombre = "ObtenerLogros",          tipo = "RemoteFunction" },  -- Cliente <-> Server (estado de logros)
 	{ nombre = "LogroDesbloqueado",      tipo = "RemoteEvent" },      -- Server -> Cliente (notificación de logro)
+	{ nombre = "ResetLogrosTesis",       tipo = "RemoteEvent" },      -- Cliente -> Server (reset de logros para presentación)
 }
 
 -- ═══════════════════════════════════════════════════════════════════════════════

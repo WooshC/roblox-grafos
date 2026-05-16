@@ -430,6 +430,11 @@ if dialogoCorrectoEvento then
 		local actual = _dialogosCorrectos[jugador.UserId] or 0
 		_dialogosCorrectos[jugador.UserId] = actual + 1
 		print(string.format("[Boot.server] DialogoCorrecto — Jugador: %s | Total correctas: %d", jugador.Name, actual + 1))
+		
+		-- Notificar a ServicioLogros para el logro "sabio_grafos"
+		if ServicioLogros and ServicioLogros.registrarDialogoCorrecto then
+			ServicioLogros.registrarDialogoCorrecto(jugador)
+		end
 	end)
 else
 	warn("[Boot.server] Evento DialogoCorrecto no encontrado")
@@ -453,6 +458,82 @@ _G.RegistrarZonaVisitadaLogros = function(jugador, nombreZona)
 		ServicioLogros.registrarZonaVisitada(jugador, nombreZona)
 	end
 end
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- 9. COMANDO RESET LOGROS — Solo para presentación de tesis (Studio)
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+local RunService = game:GetService("RunService")
+local resetEvento = esperarEvento("ResetLogrosTesis", 5)
+if resetEvento then
+	resetEvento.OnServerEvent:Connect(function(jugador)
+		if not RunService:IsStudio() then
+			warn("[Boot.server] ResetLogrosTesis bloqueado: solo disponible en Roblox Studio")
+			return
+		end
+		if ServicioLogros and ServicioLogros.reset then
+			ServicioLogros.reset(jugador)
+			print(string.format("[Boot.server] ResetLogrosTesis ejecutado para %s", jugador.Name))
+		else
+			warn("[Boot.server] ServicioLogros no disponible para reset")
+		end
+	end)
+end
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- 9b. COMANDO POR CHAT — /reset logros <nombreJugador>
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+local Players = game:GetService("Players")
+
+local function procesarResetPorChat(jugadorEmisor, mensaje)
+	if not RunService:IsStudio() then
+		return
+	end
+
+	local comando, subcomando = mensaje:match("^/reset%s+(%S+)%s*(%S*)")
+	if not comando then return end
+
+	-- Soporta: "/reset logros M_Moises7651" o "/reset logros"
+	if comando ~= "logros" then return end
+
+	local nombreTarget = subcomando
+	if not nombreTarget or nombreTarget == "" then
+		-- El emisor quiere resetear sus propios logros
+		nombreTarget = jugadorEmisor.Name
+	end
+
+	-- Buscar jugador por nombre
+	local jugadorTarget = nil
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p.Name == nombreTarget then
+			jugadorTarget = p
+			break
+		end
+	end
+
+	if not jugadorTarget then
+		warn(string.format("[Boot.server] No se encontró jugador '%s' para resetear logros", nombreTarget))
+		return
+	end
+
+	if ServicioLogros and ServicioLogros.reset then
+		ServicioLogros.reset(jugadorTarget)
+		print(string.format("[Boot.server] Chat: /reset logros %s — ejecutado por %s", nombreTarget, jugadorEmisor.Name))
+	else
+		warn("[Boot.server] ServicioLogros no disponible para reset")
+	end
+end
+
+-- Conectar a jugadores existentes (por si el script se recarga)
+for _, p in ipairs(Players:GetPlayers()) do
+	p.Chatted:Connect(function(msg) procesarResetPorChat(p, msg) end)
+end
+
+-- Conectar a jugadores futuros
+Players.PlayerAdded:Connect(function(p)
+	p.Chatted:Connect(function(msg) procesarResetPorChat(p, msg) end)
+end)
 
 print("[GrafosV3] === Boot Servidor Listo ===")
 print("[GrafosV3] Estado inicial: todos los jugadores en MENU")

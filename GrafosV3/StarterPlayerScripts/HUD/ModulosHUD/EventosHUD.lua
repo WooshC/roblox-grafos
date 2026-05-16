@@ -13,6 +13,7 @@ EventosHUD.actualizarMisiones = remotosFolder:WaitForChild("ActualizarMisiones")
 EventosHUD.actualizarPuntuacion = remotosFolder:WaitForChild("ActualizarPuntuacion")
 EventosHUD.nivelCompletado = remotosFolder:WaitForChild("NivelCompletado")
 EventosHUD.logroDesbloqueado = remotosFolder:WaitForChild("LogroDesbloqueado")
+EventosHUD.timerEmergencia = remotosFolder:WaitForChild("TimerEmergencia")
 
 -- RemoteEvents que el HUD puede enviar al servidor
 EventosHUD.volverAlMenu = remotosFolder:WaitForChild("VolverAlMenu")

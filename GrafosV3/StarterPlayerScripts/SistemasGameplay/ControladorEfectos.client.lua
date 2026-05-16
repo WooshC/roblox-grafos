@@ -10,6 +10,8 @@ local player = Players.LocalPlayer
 local EfectosHighlight = require(Replicado.Efectos.EfectosHighlight)
 local EfectosVideo     = require(Replicado.Efectos.EfectosVideo)
 local EfectosNodo      = require(Replicado.Efectos.EfectosNodo)
+local EfectosExplosion = require(Replicado.Efectos.EfectosExplosion)
+local EfectosDano      = require(Replicado.Efectos.EfectosDano)
 local BillboardNombres = require(Replicado.Efectos.BillboardNombres)
 
 -- ═══════════════════════════════════════════════════════════════════════════════
@@ -24,6 +26,8 @@ local COLOR_ERROR = Color3.fromRGB(239, 68, 68)           -- Rojo
 local _highlights = {}      -- Instancias Highlight creadas (referencia local, limpiar vía EfectosHighlight)
 local _savedStates = {}     -- Estados originales de las partes
 local _nombresNodos = {}    -- Nombres amigables desde LevelsConfig
+local _nivelActualID = nil
+local _nodosDaniados = {}   -- { nombreNodo → config } desde LevelsConfig
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- LEVELS CONFIG (para nombres de nodos)
@@ -38,11 +42,58 @@ local nivelListoEv = Remotos:WaitForChild("NivelListo")
 
 nivelListoEv.OnClientEvent:Connect(function(data)
 	if data and data.nivelID ~= nil then
+		_nivelActualID = data.nivelID
 		local cfg = LevelsConfig[data.nivelID]
 		_nombresNodos = (cfg and cfg.NombresNodos) or {}
 		print("[ControladorEfectos] Nombres cargados para nivel", data.nivelID)
 	end
 end)
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- EFECTOS DE DAÑO POR ZONA
+-- Se activan al entrar a una zona con NodosDaniados en su config.
+-- Se desactivan cuando la emergencia de esa zona se completa.
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+local jugador = Players.LocalPlayer
+
+local function obtenerNodosDaniadosDeZona(nombreZona)
+	if not _nivelActualID then return nil end
+	local cfg = LevelsConfig[_nivelActualID]
+	if not cfg or not cfg.Zonas then return nil end
+	local zonaCfg = cfg.Zonas[nombreZona]
+	return zonaCfg and zonaCfg.NodosDaniados or nil
+end
+
+local function manejarCambioZona()
+	local zonaActual = jugador:GetAttribute("ZonaActual") or ""
+	
+	-- Limpiar efectos de zonas anteriores
+	EfectosDano.limpiarTodo()
+	
+	if zonaActual == "" then return end
+	
+	local nodosDaniados = obtenerNodosDaniadosDeZona(zonaActual)
+	if nodosDaniados then
+		print(string.format("[ControladorEfectos] 🚨 Zona '%s' tiene nodos dañados:", zonaActual), table.concat(nodosDaniados, ", "))
+		for _, nombreNodo in ipairs(nodosDaniados) do
+			EfectosDano.activar(nombreNodo)
+		end
+	end
+end
+
+jugador:GetAttributeChangedSignal("ZonaActual"):Connect(manejarCambioZona)
+
+-- Escuchar emergencia completada para limpiar daño
+local timerEmergenciaEv = Remotos:WaitForChild("TimerEmergencia", 10)
+if timerEmergenciaEv then
+	timerEmergenciaEv.OnClientEvent:Connect(function(restante, texto, expirado, completada)
+		if completada then
+			print("[ControladorEfectos] ✅ Emergencia superada — limpiando efectos de daño")
+			EfectosDano.limpiarTodo()
+		end
+	end)
+end
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- HELPERS
@@ -207,6 +258,14 @@ GestorEfectos.registrar("ConexionCompletada", function(params)
 	clearAll()
 	if arg1 then EfectosVideo.reproducirConexion(arg1, "EfectoConexion", 5, 2) end
 	if arg2 then EfectosVideo.reproducirConexion(arg2, "EfectoConexion", 5, 2) end
+	
+	-- Si un nodo dañado recibió su primera conexión, repararlo
+	if arg1 and _nodosDaniados[arg1] and EfectosDano.estaActivo(arg1) then
+		EfectosDano.desactivar(arg1)
+	end
+	if arg2 and _nodosDaniados[arg2] and EfectosDano.estaActivo(arg2) then
+		EfectosDano.desactivar(arg2)
+	end
 end)
 
 -- Cable desconectado: solo limpiar highlights
@@ -229,5 +288,54 @@ GestorEfectos.registrar("DireccionInvalida", function(params)
 	clearAll()
 	flashModel(params.arg1, COLOR_ERROR, 0.35)
 end)
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- LIMPIEZA AL DESCARGAR NIVEL
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+local nivelDescargadoEv = Remotos:WaitForChild("NivelDescargado", 10)
+if nivelDescargadoEv then
+	nivelDescargadoEv.OnClientEvent:Connect(function()
+		print("[ControladorEfectos] Nivel descargado — limpiando efectos de daño")
+		EfectosDano.limpiarTodo()
+		_nodosDaniados = {}
+		_nivelActualID = nil
+	end)
+end
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- EVENTOS REMOTOS DIRECTOS (ReproducirEfecto)
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+local function conectarReproducirEfecto()
+	local reproducirEfectoEv = Remotos:FindFirstChild("ReproducirEfecto")
+	if not reproducirEfectoEv then
+		-- Esperar a que exista (EventRegistry puede tardar en crearlo)
+		local eventosRS = game:GetService("ReplicatedStorage"):WaitForChild("EventosGrafosV3", 10)
+		local remotosRS = eventosRS and eventosRS:WaitForChild("Remotos", 10)
+		if remotosRS then
+			reproducirEfectoEv = remotosRS:WaitForChild("ReproducirEfecto", 10)
+		end
+	end
+	
+	if reproducirEfectoEv then
+		reproducirEfectoEv.OnClientEvent:Connect(function(tipoEfecto, arg1, arg2)
+			print(string.format("[ControladorEfectos] 📥 Recibido efecto: %s | arg1=%s", tostring(tipoEfecto), tostring(arg1)))
+			if tipoEfecto == "EXPLOSION_GENERADOR" then
+				local nombreNodo = arg1 or "Gen_Fabrica_z1"
+				print("[ControladorEfectos] 💥 Ejecutando explosión en generador:", nombreNodo)
+				EfectosExplosion.explosionGenerador(nombreNodo)
+			elseif tipoEfecto == "LIMPIAR_DANO" then
+				print("[ControladorEfectos] 🧹 Limpiando efectos de daño por evento remoto")
+				EfectosDano.limpiarTodo()
+			end
+		end)
+		print("[ControladorEfectos] Conectado a ReproducirEfecto")
+	else
+		warn("[ControladorEfectos] ReproducirEfecto no encontrado — efectos de emergencia desactivados")
+	end
+end
+
+conectarReproducirEfecto()
 
 print("[ControladorEfectos] Sistema de efectos inicializado")

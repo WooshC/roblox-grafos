@@ -188,4 +188,3 @@ function LogrosConfig.obtenerPorCategoria(categoria)
 end
 
 return LogrosConfig
-o_grafos	❌ BUG	Boot.server.lua recibe DialogoCorrecto pero nunca llama ServicioLogros.registrarDialogoCorrecto(). El contador siempre queda en 0.

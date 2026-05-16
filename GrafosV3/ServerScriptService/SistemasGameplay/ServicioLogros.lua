@@ -370,6 +370,34 @@ end
 -- API PÚBLICA
 -- ═══════════════════════════════════════════════════════════════════════════════
 
+function ServicioLogros.reset(jugador)
+	local userId = jugador.UserId
+	
+	-- Limpiar cache en memoria
+	cacheLogros[userId] = {}
+	sesionStats[userId] = {
+		cablesConectados = 0,
+		fallos = 0,
+		dialogosCorrectos = 0,
+		zonasVisitadas = {},
+		totalZonasNivel = 0,
+		tiempoInicioNivel = 0,
+		nivelActual = nil,
+	}
+	
+	-- Limpiar DataStore persistente
+	local key = "player_" .. userId
+	local ok, err = pcall(function()
+		storeLogros:RemoveAsync(key)
+	end)
+	
+	if ok then
+		print(string.format("[ServicioLogros] ✅ Logros RESETEADOS para %s (%d)", jugador.Name, userId))
+	else
+		warn("[ServicioLogros] Error al resetear logros:", err)
+	end
+end
+
 function ServicioLogros.contarDesbloqueados(jugador)
 	local datos = cacheLogros[jugador.UserId]
 	if not datos then return 0 end
