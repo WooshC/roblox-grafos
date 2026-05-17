@@ -10,7 +10,6 @@ local player = Players.LocalPlayer
 local EfectosHighlight = require(Replicado.Efectos.EfectosHighlight)
 local EfectosVideo     = require(Replicado.Efectos.EfectosVideo)
 local EfectosNodo      = require(Replicado.Efectos.EfectosNodo)
-local EfectosExplosion = require(Replicado.Efectos.EfectosExplosion)
 local EfectosDano      = require(Replicado.Efectos.EfectosDano)
 local BillboardNombres = require(Replicado.Efectos.BillboardNombres)
 
@@ -321,11 +320,7 @@ local function conectarReproducirEfecto()
 	if reproducirEfectoEv then
 		reproducirEfectoEv.OnClientEvent:Connect(function(tipoEfecto, arg1, arg2)
 			print(string.format("[ControladorEfectos] 📥 Recibido efecto: %s | arg1=%s", tostring(tipoEfecto), tostring(arg1)))
-			if tipoEfecto == "EXPLOSION_GENERADOR" then
-				local nombreNodo = arg1 or "Gen_Fabrica_z1"
-				print("[ControladorEfectos] 💥 Ejecutando explosión en generador:", nombreNodo)
-				EfectosExplosion.explosionGenerador(nombreNodo)
-			elseif tipoEfecto == "LIMPIAR_DANO" then
+			if tipoEfecto == "LIMPIAR_DANO" then
 				print("[ControladorEfectos] 🧹 Limpiando efectos de daño por evento remoto")
 				EfectosDano.limpiarTodo()
 			end

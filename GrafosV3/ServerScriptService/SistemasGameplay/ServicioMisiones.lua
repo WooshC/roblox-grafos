@@ -267,30 +267,6 @@ local function iniciarTimerEmergencia(mision)
 			if _servicioPuntaje then _servicioPuntaje:fijarPuntajeMision(_jugador, _puntosAcum, calcularEstrellasHelper(_puntosAcum)) end
 			print(string.format("[ServicioMisiones] 💥 Penalización -500 pts | Puntaje actual: %d", _puntosAcum))
 			
-			-- Efecto visual: explosión pequeña en el generador
-			if _jugador then
-				local nodoGenerador = mision.Parametros and mision.Parametros.Nodos and mision.Parametros.Nodos[1] or "Gen_Fabrica_z1"
-				if _eventoReproducirEfecto then
-					print(string.format("[ServicioMisiones] 🔥 Enviando efecto EXPLOSION_GENERADOR a cliente | Nodo: %s", nodoGenerador))
-					_eventoReproducirEfecto:FireClient(_jugador, "EXPLOSION_GENERADOR", nodoGenerador)
-				else
-					-- Fallback: crear evento si no existe y reintentar
-					local eventosRS = game:GetService("ReplicatedStorage"):FindFirstChild("EventosGrafosV3")
-					local remotos = eventosRS and eventosRS:FindFirstChild("Remotos")
-					if remotos then
-						local ev = remotos:FindFirstChild("ReproducirEfecto")
-						if not ev then
-							ev = Instance.new("RemoteEvent")
-							ev.Name = "ReproducirEfecto"
-							ev.Parent = remotos
-							print("[ServicioMisiones] 🔧 Creado ReproducirEfecto dinámicamente")
-						end
-						_eventoReproducirEfecto = ev
-						_eventoReproducirEfecto:FireClient(_jugador, "EXPLOSION_GENERADOR", nodoGenerador)
-					end
-				end
-			end
-			
 			verificarYNotificar()
 			detenerTimerEmergencia()
 		end
