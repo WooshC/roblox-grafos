@@ -43,17 +43,22 @@ local _inicializado  = false
 local _refreshPending = false
 local _esDirigido    = false
 
+-- TG 07: nodos reparados localmente (persiste durante la sesion)
+local _nodosReparadosLocal = {}  -- { [nombreNodo] = true }
+
 -- ════════════════════════════════════════════════════════════════
 -- COLORES
 -- ════════════════════════════════════════════════════════════════
 local C = {
-	Header    = Color3.fromRGB(52,  152, 219),
-	CeldaUno  = Color3.fromRGB(46,  204, 113),
-	CeldaCero = Color3.fromRGB(50,   50,  50),
-	Diag      = Color3.fromRGB(30,   30,  30),
-	Esquina   = Color3.fromRGB(60,   60,  60),
-	Selec     = Color3.fromRGB(255, 220,   0),
-	SelecCero = Color3.fromRGB(140, 110,   0),
+	Header       = Color3.fromRGB(52,  152, 219),
+	CeldaUno     = Color3.fromRGB(46,  204, 113),
+	CeldaCero    = Color3.fromRGB(50,   50,  50),
+	Diag         = Color3.fromRGB(30,   30,  30),
+	Esquina      = Color3.fromRGB(60,   60,  60),
+	Selec        = Color3.fromRGB(255, 220,   0),
+	SelecCero    = Color3.fromRGB(140, 110,   0),
+	Daniado      = Color3.fromRGB(200,  50,  50),
+	DaniadoSelec = Color3.fromRGB(255, 100, 100),
 }
 
 -- ════════════════════════════════════════════════════════════════
@@ -124,6 +129,16 @@ local function getHeaderIdx(nodeName)
 		if h == nodeName then return i end
 	end
 	return nil
+end
+
+-- TG 07: determina si un nodo debe mostrarse como danado (rojo) en la matriz
+local function esNodoDaniadoVisible(nodeName)
+	if _nodosReparadosLocal[nodeName] then return false end
+	if not _matrizData or not _matrizData.NodosDaniados then return false end
+	for _, n in ipairs(_matrizData.NodosDaniados) do
+		if n == nodeName then return true end
+	end
+	return false
 end
 
 -- ════════════════════════════════════════════════════════════════
@@ -200,11 +215,20 @@ local function resaltarEnMatriz(idx)
 			esDefectuoso = rawVal == 2
 		end
 
+		-- TG 07: color base de header segun si el nodo esta danado
+		local function colorHeaderBase(nombre)
+			return esNodoDaniadoVisible(nombre) and C.Daniado or C.Header
+		end
+
 		if esEsquina then
 			-- sin cambios
 		elseif idx == nil then
-			if esHdrCol or esHdrFil then child.BackgroundColor3 = C.Header
-			elseif esDiag             then child.BackgroundColor3 = C.Diag
+			if esHdrCol then
+				child.BackgroundColor3 = colorHeaderBase(_matrizData.Headers[cx])
+			elseif esHdrFil then
+				child.BackgroundColor3 = colorHeaderBase(_matrizData.Headers[cy])
+			elseif esDiag then
+				child.BackgroundColor3 = C.Diag
 			elseif esDato then
 				if esDefectuoso then
 					child.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
@@ -218,7 +242,9 @@ local function resaltarEnMatriz(idx)
 			local esColSelec  = esDato and cx == idx and not esDiag
 
 			if esHdrSelec then
-				child.BackgroundColor3 = C.Selec
+				-- Si el nodo seleccionado esta danado, mantener rojo; si no, amarillo
+				local nombreSelec = esHdrCol and _matrizData.Headers[cx] or _matrizData.Headers[cy]
+				child.BackgroundColor3 = esNodoDaniadoVisible(nombreSelec) and C.DaniadoSelec or C.Selec
 			elseif esDiag then
 				child.BackgroundColor3 = C.Diag
 			elseif esFilaSelec or esColSelec then
@@ -227,8 +253,10 @@ local function resaltarEnMatriz(idx)
 				else
 					child.BackgroundColor3 = val > 0 and C.Selec or C.SelecCero
 				end
-			elseif esHdrCol or esHdrFil then
-				child.BackgroundColor3 = C.Header
+			elseif esHdrCol then
+				child.BackgroundColor3 = colorHeaderBase(_matrizData.Headers[cx])
+			elseif esHdrFil then
+				child.BackgroundColor3 = colorHeaderBase(_matrizData.Headers[cy])
 			elseif esDato then
 				if esDefectuoso then
 					child.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
@@ -331,7 +359,7 @@ local function renderizarMatriz(data)
 		btn.Name    = string.format("Cell_%d_0", i)
 		btn.Size    = UDim2.new(0, cellSize, 0, cellSize)
 		btn.Position = UDim2.new(0, i * paso, 0, 0)
-		btn.BackgroundColor3 = C.Header
+		btn.BackgroundColor3 = esNodoDaniadoVisible(hNombre) and C.Daniado or C.Header
 		btn.BackgroundTransparency = 0
 		btn.BorderSizePixel = 0
 		btn.Text    = alias
@@ -355,7 +383,7 @@ local function renderizarMatriz(data)
 		btnFila.Name  = string.format("Cell_0_%d", rowIdx)
 		btnFila.Size  = UDim2.new(0, cellSize, 0, cellSize)
 		btnFila.Position = UDim2.new(0, 0, 0, rowIdx * paso)
-		btnFila.BackgroundColor3 = C.Header
+		btnFila.BackgroundColor3 = esNodoDaniadoVisible(rowNombre) and C.Daniado or C.Header
 		btnFila.BackgroundTransparency = 0
 		btnFila.BorderSizePixel = 0
 		btnFila.Text  = alias
@@ -602,10 +630,9 @@ function ModuloMatriz.inicializar(hudGui)
 		-- NotificarSeleccionNodo: sincronizar selección 3D ↔ matriz
 		local notifyEvent = remotos:FindFirstChild("NotificarSeleccionNodo")
 		if notifyEvent then
-			notifyEvent.OnClientEvent:Connect(function(tipo, arg1)
-				if not isVisible() then return end
-
+			notifyEvent.OnClientEvent:Connect(function(tipo, arg1, arg2)
 				if tipo == "NodoSeleccionado" then
+					if not isVisible() then return end
 					-- arg1 puede ser string (nombre) o Instance (Model del nodo)
 					local nombre = type(arg1) == "string" and arg1
 					           or (typeof(arg1) == "Instance" and arg1.Name)
@@ -613,13 +640,30 @@ function ModuloMatriz.inicializar(hudGui)
 					if nombre then seleccionarNodo(nombre) end
 
 				elseif tipo == "CableDesconectado" or tipo == "ConexionCompletada" then
+					if not isVisible() then return end
 					-- Un cable fue creado o eliminado → refrescar matriz
 					scheduleRefresh()
 
 				elseif tipo == "SeleccionCancelada" then
+					if not isVisible() then return end
 					_nodoSelecIdx = nil
 					actualizarInfoNodo(nil, 0, 0, 0)
 					resaltarEnMatriz(nil)
+
+				elseif tipo == "ClicReparacion" then
+					-- arg1 = nombreNodo, arg2 = clics restantes
+					print(string.format("[ModuloMatriz] Reparando %s: faltan %d clics", tostring(arg1), tonumber(arg2) or 0))
+
+				elseif tipo == "NodoReparado" then
+					-- arg1 = nombreNodo
+					local nombre = type(arg1) == "string" and arg1 or nil
+					if nombre then
+						_nodosReparadosLocal[nombre] = true
+						print("[ModuloMatriz] Nodo reparado:", nombre)
+						if isVisible() then
+							renderizarMatriz(_matrizData)
+						end
+					end
 				end
 			end)
 			print("[ModuloMatriz] Escucha NotificarSeleccionNodo")

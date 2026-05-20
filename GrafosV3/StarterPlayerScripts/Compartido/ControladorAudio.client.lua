@@ -470,6 +470,10 @@ function ControladorAudio.playNodoSeleccionado()
 	return ControladorAudio.playSFX("NodoSeleccionado")
 end
 
+function ControladorAudio.playNodoReparar()
+	return ControladorAudio.playSFX("NodoReparar")
+end
+
 -- Variable local para rastrear la fanfarria de victoria
 local _victoriaFanfare = nil
 

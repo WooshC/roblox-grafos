@@ -43,4 +43,8 @@ E.partActivas = {}
 E.autoPlaying = false
 E.btnEjecRef  = nil
 
+-- ── TG 07: Nodos dañados / reparados ─────────────────────────────────
+E.nodosDaniados  = {}  -- { nombreNodo, ... }  (de la respuesta del servidor)
+E.nodosReparados = {}  -- { [nombreNodo] = true }  (local al cliente)
+
 return E

@@ -12,6 +12,9 @@ local EfectosVideo     = require(Replicado.Efectos.EfectosVideo)
 local EfectosNodo      = require(Replicado.Efectos.EfectosNodo)
 local EfectosDano      = require(Replicado.Efectos.EfectosDano)
 local BillboardNombres = require(Replicado.Efectos.BillboardNombres)
+local ControladorAudio = require(script.Parent.Parent
+	:WaitForChild("Compartido")
+	:WaitForChild("ControladorAudio"))
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- CONFIGURACION Y ESTADO
@@ -27,6 +30,7 @@ local _savedStates = {}     -- Estados originales de las partes
 local _nombresNodos = {}    -- Nombres amigables desde LevelsConfig
 local _nivelActualID = nil
 local _nodosDaniados = {}   -- { nombreNodo → config } desde LevelsConfig
+local _nodosReparadosLocal = {}  -- TG 07: { [nombreNodo] = true } nodos reparados manualmente
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- LEVELS CONFIG (para nombres de nodos)
@@ -76,7 +80,10 @@ local function manejarCambioZona()
 	if nodosDaniados then
 		print(string.format("[ControladorEfectos] 🚨 Zona '%s' tiene nodos dañados:", zonaActual), table.concat(nodosDaniados, ", "))
 		for _, nombreNodo in ipairs(nodosDaniados) do
-			EfectosDano.activar(nombreNodo)
+			-- TG 07: no reactivar efectos en nodos ya reparados manualmente
+			if not _nodosReparadosLocal[nombreNodo] then
+				EfectosDano.activar(nombreNodo)
+			end
 		end
 	end
 end
@@ -257,14 +264,7 @@ GestorEfectos.registrar("ConexionCompletada", function(params)
 	clearAll()
 	if arg1 then EfectosVideo.reproducirConexion(arg1, "EfectoConexion", 5, 2) end
 	if arg2 then EfectosVideo.reproducirConexion(arg2, "EfectoConexion", 5, 2) end
-	
-	-- Si un nodo dañado recibió su primera conexión, repararlo
-	if arg1 and _nodosDaniados[arg1] and EfectosDano.estaActivo(arg1) then
-		EfectosDano.desactivar(arg1)
-	end
-	if arg2 and _nodosDaniados[arg2] and EfectosDano.estaActivo(arg2) then
-		EfectosDano.desactivar(arg2)
-	end
+	-- NOTA: la reparación de nodos dañados ahora requiere 3 clics (TG 07)
 end)
 
 -- Cable desconectado: solo limpiar highlights
@@ -298,6 +298,7 @@ if nivelDescargadoEv then
 		print("[ControladorEfectos] Nivel descargado — limpiando efectos de daño")
 		EfectosDano.limpiarTodo()
 		_nodosDaniados = {}
+		_nodosReparadosLocal = {}
 		_nivelActualID = nil
 	end)
 end
@@ -332,5 +333,48 @@ local function conectarReproducirEfecto()
 end
 
 conectarReproducirEfecto()
+
+-- TG 07: Escuchar eventos de reparacion de nodos
+local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
+if notificarEvento then
+	notificarEvento.OnClientEvent:Connect(function(tipo, arg1, arg2)
+		if tipo == "ClicReparacion" then
+			-- Feedback visual sutil en cada clic de reparacion
+			local nombreNodo = type(arg1) == "string" and arg1 or nil
+			local restantes = tonumber(arg2) or 0
+			if nombreNodo then
+				print(string.format("[ControladorEfectos] Reparando %s: faltan %d clics", nombreNodo, restantes))
+				-- Pequeno flash dorado en el nodo
+				local nivel = Workspace:FindFirstChild("NivelActual")
+				if nivel then
+					local nodo = nivel:FindFirstChild(nombreNodo, true)
+					if nodo then
+						flashModel(nodo, Color3.fromRGB(255, 220, 50), 0.15)
+					end
+				end
+			end
+
+		elseif tipo == "NodoReparado" then
+			local nombreNodo = type(arg1) == "string" and arg1 or nil
+			if nombreNodo then
+				print("[ControladorEfectos] Nodo reparado:", nombreNodo)
+				-- Marcar como reparado para no reactivar al volver a la zona
+				_nodosReparadosLocal[nombreNodo] = true
+				-- Sonido de reparacion
+				ControladorAudio.playNodoReparar()
+				-- Limpiar efectos de daño de este nodo
+				EfectosDano.desactivar(nombreNodo)
+				-- Flash verde de exito
+				local nivel = Workspace:FindFirstChild("NivelActual")
+				if nivel then
+					local nodo = nivel:FindFirstChild(nombreNodo, true)
+					if nodo then
+						flashModel(nodo, Color3.fromRGB(46, 204, 113), 0.4)
+					end
+				end
+			end
+		end
+	end)
+end
 
 print("[ControladorEfectos] Sistema de efectos inicializado")

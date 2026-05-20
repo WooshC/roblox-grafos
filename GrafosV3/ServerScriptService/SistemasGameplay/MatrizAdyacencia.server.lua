@@ -140,11 +140,22 @@ getMatrixFunc.OnServerInvoke = function(player, zonaID)
 	print(string.format("[MatrizAdyacencia] %dx%d %s – %s (zona=%s)",
 		n, n, esDirigido and "DÍGRAFO" or "NO DIRIGIDO", player.Name, zonaID))
 
+	-- Nodos danados de esta zona
+	local nodosDaniados = {}
+	if config and config.Zonas and config.Zonas[zonaID] and config.Zonas[zonaID].NodosDaniados then
+		for _, nom in ipairs(config.Zonas[zonaID].NodosDaniados) do
+			if table.find(nodos, nom) then
+				table.insert(nodosDaniados, nom)
+			end
+		end
+	end
+
 	return {
-		Headers      = headers,
-		Matrix       = matrix,
-		NombresNodos = nombresNodos,
-		EsDirigido   = esDirigido,
+		Headers       = headers,
+		Matrix        = matrix,
+		NombresNodos  = nombresNodos,
+		EsDirigido    = esDirigido,
+		NodosDaniados = nodosDaniados,
 	}
 end
 

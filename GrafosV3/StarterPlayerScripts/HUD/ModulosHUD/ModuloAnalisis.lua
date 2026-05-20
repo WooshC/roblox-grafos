@@ -231,6 +231,7 @@ local function cargarGrafoCompleto(zona, onExito, onFallo)
 			E.idealMatrizData = datos
 			E.adyacencias     = buildAdyacencias(datos, false)
 			E.adyacenciasVisuales = nil
+			E.nodosDaniados   = datos.NodosDaniados or {}
 			if onExito then onExito() end
 		else
 			if onFallo then onFallo("Sin datos para zona: " .. zona) end
@@ -255,6 +256,8 @@ local function limpiarEstadoVisual()
 	E.pasoActual      = 0
 	E.totalPasos      = 0
 	E.modoValidacion  = false
+	E.nodosDaniados   = {}
+	E.nodosReparados  = {}
 end
 
 -- ════════════════════════════════════════════════════════════════
@@ -384,6 +387,7 @@ function ModuloAnalisis.inicializar(hudGui)
 					E.modoValidacion      = true
 					E.validacionTerminada = false
 					E.matrizData          = realData
+					E.nodosDaniados       = realData.NodosDaniados or {}
 					
 					-- Ignora cables defectuosos para el backend
 					E.adyacencias         = buildAdyacencias(realData, true) 
@@ -469,6 +473,32 @@ function ModuloAnalisis.inicializar(hudGui)
 
 	PanelEstadoAnalisis.actualizarPills(E.algoActual)
 	PseudocodigoAnalisis.reconstruirPseudocodigo(E.algoActual)
+
+	-- Escuchar reparacion de nodos (TG 07)
+	local ok2, remotos = pcall(function()
+		return RS:WaitForChild("EventosGrafosV3", 10):WaitForChild("Remotos", 5)
+	end)
+	if ok2 and remotos then
+		local notifyEvent = remotos:FindFirstChild("NotificarSeleccionNodo")
+		if notifyEvent then
+			notifyEvent.OnClientEvent:Connect(function(tipo, arg1)
+				if tipo == "NodoReparado" then
+					local nombre = type(arg1) == "string" and arg1 or nil
+					if nombre then
+						E.nodosReparados[nombre] = true
+						print("[ModuloAnalisis] Nodo reparado:", nombre)
+						-- Refrescar viewport si esta abierto
+						if E.abierto and E.worldModel then
+							ViewportAnalisis.construirViewport()
+							if E.totalPasos > 0 and E.pasos[E.pasoActual] then
+								ViewportAnalisis.reconstruirAristas(E.pasos[E.pasoActual])
+							end
+						end
+					end
+				end
+			end)
+		end
+	end
 
 	print("[ModuloAnalisis] Inicializado ✅")
 end

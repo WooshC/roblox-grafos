@@ -32,6 +32,10 @@ local _lookupAdyacencias = nil
 local _nivelID = nil
 local _callbacks = nil  -- Callbacks para notificar a otros sistemas
 
+-- Estado de reparacion de nodos danados (TG 07)
+local _clicsReparacion = {}  -- { [nombreNodo] = numeroDeClics }
+local _nodosReparados  = {}  -- { [nombreNodo] = true }
+
 -- Constantes
 local COLOR_CABLE = Color3.fromRGB(0, 200, 255)
 local ANCHO_CABLE = 0.13
@@ -157,6 +161,63 @@ local function obtenerModelosAdyacentes(nomA)
 		end
 	end
 	return modelos
+end
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- REPARACION DE NODOS DANADOS (TG 07)
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+local function obtenerNodosDaniadosDeZona(zona)
+	if not _nivelID or not zona or zona == "" then return nil end
+	local config = LevelsConfig[_nivelID]
+	if not config or not config.Zonas then return nil end
+	local zonaCfg = config.Zonas[zona]
+	return zonaCfg and zonaCfg.NodosDaniados or nil
+end
+
+local function esNodoDaniado(nombreNodo)
+	if _nodosReparados[nombreNodo] then return false end
+	local zona = _jugador and _jugador:GetAttribute("ZonaActual") or ""
+	local danados = obtenerNodosDaniadosDeZona(zona)
+	if not danados then return false end
+	for _, n in ipairs(danados) do
+		if n == nombreNodo then return true end
+	end
+	return false
+end
+
+local function manejarClicReparacion(jugador, selector)
+	local nombreNodo = obtenerNombreNodo(selector)
+	if not esNodoDaniado(nombreNodo) then return false end
+
+	local clics = (_clicsReparacion[nombreNodo] or 0) + 1
+	_clicsReparacion[nombreNodo] = clics
+
+	local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
+
+	if clics < 3 then
+		-- Notificar progreso de reparacion
+		if notificarEvento then
+			notificarEvento:FireClient(jugador, "ClicReparacion", nombreNodo, 3 - clics)
+		end
+		print(string.format("[ConectarCables] Reparando %s: %d/3 clics", nombreNodo, clics))
+	else
+		-- Reparacion completada
+		_nodosReparados[nombreNodo] = true
+		_clicsReparacion[nombreNodo] = nil
+
+		if notificarEvento then
+			notificarEvento:FireClient(jugador, "NodoReparado", nombreNodo)
+		end
+
+		-- Callback para otros sistemas
+		if _callbacks and _callbacks.onNodoReparado then
+			_callbacks.onNodoReparado(nombreNodo)
+		end
+
+		print(string.format("[ConectarCables] Nodo reparado: %s", nombreNodo))
+	end
+	return true  -- Consumir el clic: la reparacion es independiente de la seleccion de cable
 end
 
 -- ═══════════════════════════════════════════════════════════════════════════════
@@ -289,6 +350,20 @@ end
 local function intentarConectar(jugador, selector1, selector2)
 	local nomA = obtenerNombreNodo(selector1)
 	local nomB = obtenerNombreNodo(selector2)
+
+	-- TG 07: No permitir conexiones con nodos danados no reparados
+	if esNodoDaniado(nomA) or esNodoDaniado(nomB) then
+		local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
+		if notificarEvento then
+			notificarEvento:FireClient(jugador, "ConexionInvalida", selector2.Parent)
+		end
+		local dragEvento = Remotos:FindFirstChild("CableDragEvent")
+		if dragEvento then
+			dragEvento:FireClient(jugador, "Detener")
+		end
+		_nodoSeleccionado = nil
+		return
+	end
 	
 	local function finalizar()
 		_nodoSeleccionado = nil
@@ -365,6 +440,10 @@ local function alClickearSelector(jugador, selector)
 	if jugador ~= _jugador then return end
 	if not _activo then return end
 	if jugador:GetAttribute("MapaAbierto") then return end
+
+	-- TG 07: Manejar reparacion de nodos danados (3 clics)
+	local reparacionConsumida = manejarClicReparacion(jugador, selector)
+	if reparacionConsumida then return end
 	
 	if _nodoSeleccionado == nil then
 		-- Primer clic: seleccionar nodo
@@ -489,6 +568,8 @@ end
 function ConectarCables.desactivar()
 	_activo = false
 	_nodoSeleccionado = nil
+	_clicsReparacion = {}
+	_nodosReparados = {}
 	
 	-- Desconectar listeners
 	for _, conn in ipairs(_conexiones) do
@@ -546,6 +627,15 @@ function ConectarCables.obtenerInfoNodo(nombreNodo)
 	return selector.Parent, obtenerModelosAdyacentes(nombreNodo)
 end
 
+-- Devuelve una copia del set de nodos reparados en esta sesion
+function ConectarCables.obtenerNodosReparados()
+	local copia = {}
+	for n, _ in pairs(_nodosReparados) do
+		copia[n] = true
+	end
+	return copia
+end
+
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- CONEXIÓN DESDE EL MAPA (API pública para el mapa cenital)
 -- ═══════════════════════════════════════════════════════════════════════════════
@@ -567,6 +657,16 @@ function ConectarCables.conectarNodos(nombreNodoA, nombreNodoB, jugador)
 	
 	if not selectorA or not selectorB then
 		warn("[ConectarCables] Selector no encontrado:", nombreNodoA, "o", nombreNodoB)
+		return false
+	end
+
+	-- TG 07: No permitir operaciones con nodos danados no reparados
+	if esNodoDaniado(nombreNodoA) then
+		warn("[ConectarCables] Nodo danado no reparado:", nombreNodoA)
+		return false
+	end
+	if esNodoDaniado(nombreNodoB) then
+		warn("[ConectarCables] Nodo danado no reparado:", nombreNodoB)
 		return false
 	end
 	

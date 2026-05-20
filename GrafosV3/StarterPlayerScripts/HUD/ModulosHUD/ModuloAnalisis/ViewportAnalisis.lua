@@ -181,6 +181,17 @@ function ViewportAnalisis.construirViewport()
 		local pos = buscarPosNodo(nome)
 		E.posicionesNodos[nome] = pos
 
+		-- TG 07: determinar si el nodo esta danado (no reparado)
+		local esDaniado = false
+		if E.nodosDaniados then
+			for _, n in ipairs(E.nodosDaniados) do
+				if n == nome and not E.nodosReparados[nome] then
+					esDaniado = true
+					break
+				end
+			end
+		end
+
 		local part        = Instance.new("Part")
 		part.Name         = nome .. "_ANA"
 		part.Shape        = Enum.PartType.Ball
@@ -189,7 +200,7 @@ function ViewportAnalisis.construirViewport()
 		part.CastShadow   = false
 		part.Material     = Enum.Material.SmoothPlastic
 		part.Size         = Vector3.new(C.TAM_NODO, C.TAM_NODO, C.TAM_NODO)
-		part.Color        = C.COL_DEFAULT
+		part.Color        = esDaniado and Color3.fromRGB(200, 50, 50) or C.COL_DEFAULT
 		part.CFrame       = CFrame.new(pos)
 		part.Parent       = E.worldModel
 
