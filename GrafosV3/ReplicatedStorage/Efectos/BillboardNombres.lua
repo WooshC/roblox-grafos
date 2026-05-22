@@ -38,6 +38,25 @@ local PRESETS = {
 		conPadding          = true,
 		textoEscalado       = true,
 	},
+	-- Tag flotante sobre cables mostrando el costo en dólares
+	CABLE_COSTO = {
+		tamano              = UDim2.new(0, 90, 0, 22),
+		offsetY             = 0.8,
+		maxDistance         = 80,
+		alwaysOnTop         = true,
+		conFondo            = true,
+		colorFondo          = Color3.fromRGB(20, 20, 20),
+		transparenciaFondo  = 0.35,
+		colorTexto          = Color3.fromRGB(46, 204, 113), -- verde dinero
+		fuente              = Enum.Font.GothamBold,
+		colorBorde          = Color3.fromRGB(46, 204, 113),
+		transparenciaBorde  = 0.2,
+		grosorBorde         = 1,
+		radioBorde          = UDim.new(0, 4),
+		conPadding          = true,
+		textoEscalado       = true,
+	},
+
 	-- Etiqueta sobre nodo durante gameplay/diálogo: fondo negro, borde+texto del color del nodo.
 	-- Sobreescribir colorBorde y colorTexto via el parámetro opcs de BillboardNombres.crear().
 	NODO_INTERACCION = {

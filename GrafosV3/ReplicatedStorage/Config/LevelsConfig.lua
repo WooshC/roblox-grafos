@@ -267,7 +267,7 @@ LevelsConfig[0] = {
 LevelsConfig[1] = {
 	Nombre           = "El Barrio Antiguo",
 	DescripcionCorta = "El Barrio Antiguo esta a oscuras. Usa el Panel de Analisis para estudiar el cableado desordenado y reconecta los nodos aislados.",
-	ImageId          = "rbxassetid://87116895331866",
+	ImageId          = "rbxassetid://134869694289632",
 	Modelo           = "Nivel1",
 
 	Tag       = "NIVEL 1 · CONECTIVIDAD",
@@ -282,7 +282,7 @@ LevelsConfig[1] = {
 		IluminacionExteriores = Color3.fromRGB(10, 10, 25),
 		LinternaJugador = true -- Activa la luz cálida que sigue al jugador
 	},
-	
+
 	CablesIniciales = {
 		-- Conexiones que estarán pre-creadas y son válidas
 		{"Gen_Estacion_z1", "Casa_Estacion1_z1"},
@@ -477,7 +477,7 @@ LevelsConfig[1] = {
 LevelsConfig[2] = {
 	Nombre           = "La Fabrica de Senales",
 	DescripcionCorta = "Explora los túneles de la fábrica usando DFS. Aprende el backtracking y la diferencia entre BFS y DFS.",
-	ImageId          = "rbxassetid://1234567892",
+	ImageId          = "rbxassetid://76889299321141",
 	Modelo           = "Nivel2",
 
 	Tag       = "NIVEL 2 · RECORRIDOS",
@@ -494,6 +494,23 @@ LevelsConfig[2] = {
 		PenaFallo      = 15,
 		PuntosPreguntaCorrecta = 100,
 	},
+
+	-- Presupuesto para reparar nodos dañados (en este nivel los cables son gratuitos)
+	Presupuesto = {
+		Inicial = 5000,
+		AdvertenciaBajo = 1000,
+	},
+
+	-- Costo de reparación por nodo (en dólares). El generador cuesta más.
+	CostosReparacion = {
+		["Gen_Fabrica_z1"]   = 2500, -- Generador (más caro)
+		["Entrada_z1"]       = 1000, -- Nodo común
+		["Sala_Maquinas_z1"] = 1000, -- Nodo común
+		["Oficina_z3"]       = 500,  -- Nodo común
+	},
+
+	-- En nivel 2 los cables no tienen costo por metro
+	CostoPorMetro = 0,
 
 	-- Requisito especial para 3 estrellas: responder todas las preguntas correctamente
 	RequiereDialogosCorrectos = true,
@@ -531,19 +548,20 @@ LevelsConfig[2] = {
 			Dialogo = "Nivel2_Laberinto",
 			CarpetaLuz = "Zona_luz_1",
 			-- Nodos dañados en esta zona: efecto constante hasta completar la emergencia
-			NodosDaniados = { "Gen_Fabrica_z1" },
+			NodosDaniados = { "Gen_Fabrica_z1", "Entrada_z1", "Sala_Maquinas_z1" },
 		},
 		["Zona_BarrioOeste_2"] = {
 			Trigger = "ZonaTrigger_BarrioOeste",
 			Descripcion = "El Barrio Oeste",
 			Dialogo = "Nivel2_BarrioOeste",
-			CarpetaLuz = "Zona_luz_2"
+			CarpetaLuz = "Zona_luz_2",
 		},
 		["Zona_Oficina_3"] = {
 			Trigger = "ZonaTrigger_Oficina",
 			Descripcion = "Oficina de Analisis",
 			Dialogo = "Nivel2_Oficina",
-			CarpetaLuz = "Zona_luz_3"
+			CarpetaLuz = "Zona_luz_3",
+			NodosDaniados = { "Oficina_z3" },
 		},
 	},
 
@@ -726,11 +744,14 @@ LevelsConfig[3] = {
 	Conceptos = { "Camino Minimo", "Peso de Arista", "Relajacion", "Presupuesto" },
 	Generadores = { "Gen_Bodega_z1" },
 
-	-- Presupuesto del nivel: cada arista consume su peso al conectarse
+	-- Presupuesto del nivel (en dólares): cada arista consume su peso × CostoPorMetro
 	Presupuesto = {
-		Inicial = 50,
-		AdvertenciaBajo = 15,  -- Umbral donde el HUD muestra advertencia
+		Inicial = 10000,
+		AdvertenciaBajo = 3000,  -- Umbral donde el HUD muestra advertencia
 	},
+
+	-- Costo por metro de cable (en dólares). El peso de la arista = metros.
+	CostoPorMetro = 500,
 
 	Puntuacion = {
 		TresEstrellas  = 3500,

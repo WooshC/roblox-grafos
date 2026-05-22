@@ -15,6 +15,7 @@ local LevelsConfig = require(Replicado:WaitForChild("Config"):WaitForChild("Leve
 
 -- ValidadorConexiones se carga inmediatamente (CargadorNiveles es dueño de su ciclo de vida)
 local ValidadorConexiones = require(ServerScriptService.SistemasGameplay.ValidadorConexiones)
+local GrafoHelpers = require(Replicado:WaitForChild("Compartido"):WaitForChild("GrafoHelpers"))
 
 -- Sistemas de gameplay (se cargan bajo demanda)
 local ConectarCables = nil
@@ -291,6 +292,12 @@ function CargadorNiveles.cargar(nivelID, jugador)
 			puntuacion.PuntosConexion or 50, 
 			puntuacion.PenaFallo or 10
 		)
+
+		-- Inicializar presupuesto si el nivel lo define
+		if config.Presupuesto and config.Presupuesto.Inicial then
+			moduloPuntaje:iniciarPresupuesto(jugador, config.Presupuesto.Inicial)
+			print("[CargadorNiveles] Presupuesto inicial cargado:", config.Presupuesto.Inicial)
+		end
 	else
 		warn("[CargadorNiveles] ServicioPuntaje no se pudo cargar!")
 	end
@@ -356,6 +363,23 @@ function CargadorNiveles.cargar(nivelID, jugador)
 					if puntajeRef then
 						puntajeRef:registrarDesconexion(jugadorRef)
 					end
+					-- Reembolsar costo de la arista si el nivel usa presupuesto
+					local configNivel = LevelsConfig[nivelID]
+					if configNivel and configNivel.PesosAristas then
+						local clave = GrafoHelpers.clavePar(nomA, nomB)
+						local peso = configNivel.PesosAristas[clave]
+						if not peso then
+							local claveInv = nomB .. "|" .. nomA
+							peso = configNivel.PesosAristas[claveInv]
+						end
+						if peso and peso > 0 and puntajeRef then
+							local costoPorMetro = configNivel.CostoPorMetro or 0
+							local costoTotal = math.floor(peso * costoPorMetro)
+							if costoTotal > 0 then
+								puntajeRef:reembolsar(jugadorRef, costoTotal)
+							end
+						end
+					end
 					-- LUEGO verificar misiones
 					if misionesRef and misionesRef.estaActivo() then
 						misionesRef.alEliminarCable(nomA, nomB)
@@ -374,7 +398,34 @@ function CargadorNiveles.cargar(nivelID, jugador)
 					if logrosRef and logrosRef.registrarFallo then
 						logrosRef.registrarFallo(jugadorRef)
 					end
-				end
+				end,
+				onNodoReparado = function(nombreNodo, costo)
+					if costo and costo > 0 and puntajeRef then
+						local ok = puntajeRef:gastar(jugadorRef, costo)
+						if not ok then
+							return false -- Bloquear reparacion: no hay dinero suficiente
+						end
+					end
+					-- Notificar a misiones si implementan reparaciones en el futuro
+					if misionesRef and misionesRef.alRepararNodo then
+						misionesRef.alRepararNodo(nombreNodo)
+					end
+					return true
+				end,
+				onAntesCrearCable = function(nomA, nomB, peso)
+					if peso and peso > 0 and puntajeRef then
+						local configNivel = LevelsConfig[nivelID]
+						local costoPorMetro = (configNivel and configNivel.CostoPorMetro) or 0
+						local costoTotal = math.floor(peso * costoPorMetro)
+						if costoTotal > 0 then
+							local ok = puntajeRef:gastar(jugadorRef, costoTotal)
+							if not ok then
+								return false -- Bloquear conexion: no hay dinero suficiente
+							end
+						end
+					end
+					return true
+				end,
 			}
 
 			moduloCables.activar(nivelActual, adyacencias, jugador, nivelID, callbacks)

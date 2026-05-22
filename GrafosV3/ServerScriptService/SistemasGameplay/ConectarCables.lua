@@ -100,6 +100,16 @@ local function esBidireccional(nomA, nomB)
 	return esAdyacente(nomA, nomB) and esAdyacente(nomB, nomA)
 end
 
+-- Obtener el peso de una arista segun LevelsConfig (para presupuesto Nivel 3+)
+local function obtenerPesoArista(nomA, nomB)
+	if not _nivelID then return 0 end
+	local configNivel = LevelsConfig[_nivelID]
+	if not configNivel or not configNivel.PesosAristas then return 0 end
+	local clave1 = nomA .. "|" .. nomB
+	local clave2 = nomB .. "|" .. nomA
+	return configNivel.PesosAristas[clave1] or configNivel.PesosAristas[clave2] or 0
+end
+
 local function buscarCable(nomA, nomB)
 	local clave = clavePar(nomA, nomB)
 	for i, cable in ipairs(_cables) do
@@ -202,6 +212,28 @@ local function manejarClicReparacion(jugador, selector)
 		end
 		print(string.format("[ConectarCables] Reparando %s: %d/3 clics", nombreNodo, clics))
 	else
+		-- Verificar costo de reparacion antes de completar
+		local costo = 0
+		local configNivel = _nivelID and LevelsConfig[_nivelID]
+		if configNivel and configNivel.CostosReparacion then
+			costo = configNivel.CostosReparacion[nombreNodo] or 0
+		end
+
+		local permitido = true
+		if costo > 0 and _callbacks and _callbacks.onNodoReparado then
+			permitido = _callbacks.onNodoReparado(nombreNodo, costo) ~= false
+		end
+
+		if not permitido then
+			-- Mantener clics en 2 para que pueda reintentar cuando tenga dinero
+			_clicsReparacion[nombreNodo] = 2
+			if notificarEvento then
+				notificarEvento:FireClient(jugador, "FaltaDineroReparacion", nombreNodo, costo)
+			end
+			print(string.format("[ConectarCables] Reparacion bloqueada por falta de dinero: %s (costo: %d)", nombreNodo, costo))
+			return true
+		end
+
 		-- Reparacion completada
 		_nodosReparados[nombreNodo] = true
 		_clicsReparacion[nombreNodo] = nil
@@ -210,9 +242,9 @@ local function manejarClicReparacion(jugador, selector)
 			notificarEvento:FireClient(jugador, "NodoReparado", nombreNodo)
 		end
 
-		-- Callback para otros sistemas
+		-- Callback para otros sistemas (sin costo, ya fue gestionado arriba)
 		if _callbacks and _callbacks.onNodoReparado then
-			_callbacks.onNodoReparado(nombreNodo)
+			_callbacks.onNodoReparado(nombreNodo, 0)
 		end
 
 		print(string.format("[ConectarCables] Nodo reparado: %s", nombreNodo))
@@ -320,6 +352,13 @@ local function crearCable(selector1, selector2)
 	-- Nota: ValidadorConexiones manejará los CablesDefectuosos internamente (los registra pero marca como omitidos en BFS).
 	ValidadorConexiones.registrarConexion(selector1.Parent, selector2.Parent, beam)
 	
+	-- Notificar peso al cliente para tags de costo
+	local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
+	if notificarEvento then
+		local peso = obtenerPesoArista(nomA, nomB)
+		notificarEvento:FireClient(_jugador, "CableCreadoConPeso", nomA, nomB, peso)
+	end
+	
 	-- Notificar pulso de energia
 	local pulseEvento = Remotos:FindFirstChild("PulsoEvent")
 	if pulseEvento then
@@ -409,11 +448,25 @@ local function intentarConectar(jugador, selector1, selector2)
 	
 	-- Verificar adyacencia segun LevelsConfig
 	if esAdyacente(nomA, nomB) then
+		-- Verificar presupuesto antes de crear el cable
+		local peso = obtenerPesoArista(nomA, nomB)
+		if peso > 0 and _callbacks and _callbacks.onAntesCrearCable then
+			local permitido = _callbacks.onAntesCrearCable(nomA, nomB, peso)
+			if permitido == false then
+				local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
+				if notificarEvento then
+					notificarEvento:FireClient(jugador, "FaltaDineroCable", nomA, nomB, peso)
+				end
+				finalizar()
+				return
+			end
+		end
+		
 		crearCable(selector1, selector2)
 		
 		local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
 		if notificarEvento then
-			notificarEvento:FireClient(jugador, "ConexionCompletada", nomA, nomB)
+			notificarEvento:FireClient(jugador, "ConexionCompletada", nomA, nomB, peso)
 		end
 	else
 		-- Error: no son adyacentes
@@ -717,12 +770,25 @@ function ConectarCables.conectarNodos(nombreNodoA, nombreNodoB, jugador)
 		return false
 	end
 	
+	-- Verificar presupuesto antes de crear el cable
+	local peso = obtenerPesoArista(nombreNodoA, nombreNodoB)
+	if peso > 0 and _callbacks and _callbacks.onAntesCrearCable then
+		local permitido = _callbacks.onAntesCrearCable(nombreNodoA, nombreNodoB, peso)
+		if permitido == false then
+			local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
+			if notificarEvento then
+				notificarEvento:FireClient(jugador, "FaltaDineroCable", nombreNodoA, nombreNodoB, peso)
+			end
+			return false
+		end
+	end
+	
 	-- Crear la conexión
 	crearCable(selectorA, selectorB)
 	
 	local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
 	if notificarEvento then
-		notificarEvento:FireClient(jugador, "ConexionCompletada", nombreNodoA, nombreNodoB)
+		notificarEvento:FireClient(jugador, "ConexionCompletada", nombreNodoA, nombreNodoB, peso)
 	end
 	
 	-- Llamar callback onCableCreado para registrar el acierto

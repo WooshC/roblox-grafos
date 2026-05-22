@@ -63,8 +63,8 @@ local remotos  = eventos:WaitForChild("Remotos")
 local notificar = remotos:WaitForChild("NotificarSeleccionNodo", 10)
 
 if notificar then
-	notificar.OnClientEvent:Connect(function(tipoEvento, arg1, arg2)
-		GestorEfectos.emitir(tipoEvento, { arg1 = arg1, arg2 = arg2 })
+	notificar.OnClientEvent:Connect(function(tipoEvento, arg1, arg2, arg3)
+		GestorEfectos.emitir(tipoEvento, { arg1 = arg1, arg2 = arg2, arg3 = arg3 })
 	end)
 	print("[GestorEfectos] Conectado a NotificarSeleccionNodo")
 else

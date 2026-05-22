@@ -25,9 +25,48 @@ function ServicioPuntaje:iniciarNivel(jugador, nivelID, puntosConexion, penaFall
 		penaFallo = penaFallo or 10,
 		puntajeMision = 0,
 		estrellasMision = 0,
+		dinero = nil,         -- se inicializa aparte con iniciarPresupuesto
 	}
 	self:_notificar(jugador)
 	print("[ServicioPuntaje] iniciarNivel — Nivel:", nivelID, "/ Jugador:", jugador.Name)
+end
+
+-- Inicializa el presupuesto de dinero para niveles que lo requieren.
+function ServicioPuntaje:iniciarPresupuesto(jugador, cantidad)
+	local d = _datos[jugador.UserId]
+	if not d then return end
+	d.dinero = cantidad or 0
+	self:_notificar(jugador)
+	print("[ServicioPuntaje] Presupuesto inicial:", d.dinero, "/ Jugador:", jugador.Name)
+end
+
+-- Intenta gastar una cantidad de dinero. Devuelve true si se pudo.
+function ServicioPuntaje:gastar(jugador, cantidad)
+	local d = _datos[jugador.UserId]
+	if not d then return false end
+	if d.dinero == nil then return false end
+	if (d.dinero or 0) < cantidad then return false end
+	d.dinero = d.dinero - cantidad
+	self:_notificar(jugador)
+	print(string.format("[ServicioPuntaje] Gasto: %d | Restante: %d | Jugador: %s", cantidad, d.dinero, jugador.Name))
+	return true
+end
+
+-- Devuelve el dinero actual del jugador (0 si no tiene presupuesto activo).
+function ServicioPuntaje:obtenerDinero(jugador)
+	local d = _datos[jugador.UserId]
+	if not d or d.dinero == nil then return 0 end
+	return d.dinero
+end
+
+-- Reembolsa dinero al jugador (por ejemplo, al desconectar un cable).
+function ServicioPuntaje:reembolsar(jugador, cantidad)
+	local d = _datos[jugador.UserId]
+	if not d then return end
+	if d.dinero == nil then return end
+	d.dinero = d.dinero + (cantidad or 0)
+	self:_notificar(jugador)
+	print(string.format("[ServicioPuntaje] Reembolso: +%d | Nuevo saldo: %d | Jugador: %s", cantidad or 0, d.dinero, jugador.Name))
 end
 
 -- Registra una conexión correcta.
@@ -109,6 +148,7 @@ function ServicioPuntaje:_notificar(jugador)
 		conexiones = d.conexiones,
 		puntajeBase = d.puntajeMision,
 		estrellas = d.estrellasMision,
+		dinero = d.dinero,
 	})
 end
 

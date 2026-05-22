@@ -220,7 +220,7 @@ EventosHUD.actualizarPuntuacion.OnClientEvent:Connect(function(data)
 		if data.estrellas then
 			PuntajeHUD.fijarEstrellas(data.estrellas)
 		end
-		if data.dinero then
+		if data.dinero ~= nil then
 			PuntajeHUD.fijarDinero(data.dinero)
 		end
 	end

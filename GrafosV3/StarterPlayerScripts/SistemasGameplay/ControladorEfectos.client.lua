@@ -31,6 +31,7 @@ local _nombresNodos = {}    -- Nombres amigables desde LevelsConfig
 local _nivelActualID = nil
 local _nodosDaniados = {}   -- { nombreNodo → config } desde LevelsConfig
 local _nodosReparadosLocal = {}  -- TG 07: { [nombreNodo] = true } nodos reparados manualmente
+local _tagsCable = {}       -- { clave → BillboardGui } tags de costo en cables
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- LEVELS CONFIG (para nombres de nodos)
@@ -257,19 +258,84 @@ GestorEfectos.registrar("NodoSeleccionado", function(params)
 	end
 end)
 
--- Conexión completada: efecto VFX en cada Selector
--- (partículas son responsabilidad de ParticulasConexion)
+-- Helper: formatear dinero como ",XXX"
+local function formatearDinero(cantidad)
+	local num = math.floor(cantidad or 0)
+	local str = tostring(num)
+	local resultado = ""
+	local contador = 0
+	for i = #str, 1, -1 do
+		if contador > 0 and contador % 3 == 0 then
+			resultado = "," .. resultado
+		end
+		resultado = str:sub(i, i) .. resultado
+		contador = contador + 1
+	end
+	return "$" .. resultado
+end
+
+-- Helper: buscar hitbox de un cable en el workspace
+local function buscarHitboxCable(nomA, nomB)
+	local nivel = Workspace:FindFirstChild("NivelActual")
+	if not nivel then return nil end
+	local clave1 = "Hitbox_" .. nomA .. "|" .. nomB
+	local clave2 = "Hitbox_" .. nomB .. "|" .. nomA
+	local hitbox = nivel:FindFirstChild(clave1, true)
+	if not hitbox then
+		hitbox = nivel:FindFirstChild(clave2, true)
+	end
+	return hitbox
+end
+
+-- Helper: crear tag de costo sobre un cable
+local function crearTagCosto(nomA, nomB, peso)
+	if not peso or peso <= 0 then return end
+	if not _nivelActualID then return end
+	local cfg = LevelsConfig[_nivelActualID]
+	local costoPorMetro = (cfg and cfg.CostoPorMetro) or 0
+	if costoPorMetro <= 0 then return end
+
+	local costoTotal = math.floor(peso * costoPorMetro)
+	local hitbox = buscarHitboxCable(nomA, nomB)
+	if not hitbox then return end
+
+	local claveTag = "COSTO_" .. nomA .. "|" .. nomB
+	BillboardNombres.crear(hitbox, formatearDinero(costoTotal), "CABLE_COSTO", claveTag)
+	_tagsCable[claveTag] = true
+end
+
+-- Helper: destruir tag de costo de un cable
+local function destruirTagCosto(nomA, nomB)
+	local claveTag = "COSTO_" .. nomA .. "|" .. nomB
+	BillboardNombres.destruir(claveTag)
+	_tagsCable[claveTag] = nil
+	local claveTagInv = "COSTO_" .. nomB .. "|" .. nomA
+	BillboardNombres.destruir(claveTagInv)
+	_tagsCable[claveTagInv] = nil
+end
+
+-- Conexión completada: efecto VFX en cada Selector + tag de costo
 GestorEfectos.registrar("ConexionCompletada", function(params)
-	local arg1, arg2 = params.arg1, params.arg2
+	local nomA, nomB, peso = params.arg1, params.arg2, params.arg3
 	clearAll()
-	if arg1 then EfectosVideo.reproducirConexion(arg1, "EfectoConexion", 5, 2) end
-	if arg2 then EfectosVideo.reproducirConexion(arg2, "EfectoConexion", 5, 2) end
-	-- NOTA: la reparación de nodos dañados ahora requiere 3 clics (TG 07)
+	if nomA then EfectosVideo.reproducirConexion(nomA, "EfectoConexion", 5, 2) end
+	if nomB then EfectosVideo.reproducirConexion(nomB, "EfectoConexion", 5, 2) end
+	crearTagCosto(nomA, nomB, peso)
 end)
 
--- Cable desconectado: solo limpiar highlights
-GestorEfectos.registrar("CableDesconectado", function(_params)
+-- Cable creado por el servidor (precargados al inicio del nivel)
+GestorEfectos.registrar("CableCreadoConPeso", function(params)
+	local nomA, nomB, peso = params.arg1, params.arg2, params.arg3
+	crearTagCosto(nomA, nomB, peso)
+end)
+
+-- Cable desconectado: limpiar highlights y destruir tag de costo
+GestorEfectos.registrar("CableDesconectado", function(params)
 	clearAll()
+	local nomA, nomB = params.arg1, params.arg2
+	if nomA and nomB then
+		destruirTagCosto(nomA, nomB)
+	end
 end)
 
 -- Selección cancelada
@@ -373,8 +439,50 @@ if notificarEvento then
 					end
 				end
 			end
+
+		elseif tipo == "FaltaDineroReparacion" then
+			local nombreNodo = type(arg1) == "string" and arg1 or nil
+			local costo = tonumber(arg2) or 0
+			print(string.format("[ControladorEfectos] Falta dinero para reparar %s (costo: %d)", tostring(nombreNodo), costo))
+			-- Flash rojo intenso indicando falta de fondos
+			local nivel = Workspace:FindFirstChild("NivelActual")
+			if nivel and nombreNodo then
+				local nodo = nivel:FindFirstChild(nombreNodo, true)
+				if nodo then
+					flashModel(nodo, Color3.fromRGB(255, 0, 0), 0.5)
+				end
+			end
+			-- Sonido de error
+			ControladorAudio.playSFX("Error")
+
+		elseif tipo == "FaltaDineroCable" then
+			local nomA = type(arg1) == "string" and arg1 or nil
+			local nomB = type(arg2) == "string" and arg2 or nil
+			local peso = tonumber(arg3) or 0
+			print(string.format("[ControladorEfectos] Falta dinero para cable %s-%s (peso: %d)", tostring(nomA), tostring(nomB), peso))
+			-- Flash rojo en ambos nodos
+			local nivel = Workspace:FindFirstChild("NivelActual")
+			if nivel then
+				local nodoA = nomA and nivel:FindFirstChild(nomA, true)
+				local nodoB = nomB and nivel:FindFirstChild(nomB, true)
+				if nodoA then flashModel(nodoA, Color3.fromRGB(255, 0, 0), 0.35) end
+				if nodoB then flashModel(nodoB, Color3.fromRGB(255, 0, 0), 0.35) end
+			end
+			-- Sonido de error
+			ControladorAudio.playSFX("ConnectionFailed")
 		end
 	end)
 end
 
 print("[ControladorEfectos] Sistema de efectos inicializado")
+
+-- Limpieza de tags de cable al descargar nivel
+local nivelDescargadoEv = Remotos:WaitForChild("NivelDescargado", 10)
+if nivelDescargadoEv then
+	nivelDescargadoEv.OnClientEvent:Connect(function()
+		for claveTag, _ in pairs(_tagsCable) do
+			BillboardNombres.destruir(claveTag)
+		end
+		_tagsCable = {}
+	end)
+end
