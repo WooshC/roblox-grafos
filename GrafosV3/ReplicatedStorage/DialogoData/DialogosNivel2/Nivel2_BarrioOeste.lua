@@ -1,5 +1,5 @@
 -- ReplicatedStorage/DialogoData/DialogosNivel2/Nivel2_BarrioOeste.lua
--- Diálogo de la Zona 2 (Barrio Oeste) — Nivel 2: La Fábrica de Señales
+-- Diálogo de la Zona 2 (Barrio Oeste) — Nivel 2: La Gran Ciudad
 -- Concepto: DFS paso a paso y Backtracking.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -30,7 +30,7 @@ local DIALOGOS = {
 				Numero    = 1,
 				Actor     = "Carlos",
 				Expresion = "Pensativo",
-				Texto     = "Llegamos al Barrio Oeste de la fábrica. Mira estos túneles: desde el Cruce Principal, la red se divide en dos ramas principales. DFS va a elegir una y seguirla hasta el fondo.",
+				Texto     = "Llegamos al Barrio Oeste de la ciudad. Mira estas calles: desde el Cruce Principal, la red se divide en dos ramas principales. DFS va a elegir una y seguirla hasta el fondo.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					ServicioCamara.moverHaciaObjetivo("Cruce_z1", { altura = 28, angulo = 60, duracion = 1.5 })
@@ -148,7 +148,7 @@ local DIALOGOS = {
 				Id        = "instruccion_final",
 				Numero    = 8,
 				Actor     = "Sistema",
-				Texto     = "Conecta los túneles del Barrio Oeste respetando el orden de ramificación del grafo. Abre el Panel de Análisis con DFS para visualizar el backtracking en acción. Avanza hacia la Oficina de Análisis cuando estés listo.",
+				Texto     = "Conecta las calles del Barrio Oeste respetando el orden de ramificación del grafo. Abre el Panel de Análisis con DFS para visualizar el backtracking en acción. Avanza hacia la Oficina de Análisis cuando estés listo.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					ServicioCamara.restaurar(1.2)
@@ -186,7 +186,7 @@ local DIALOGOS = {
 				Numero    = 10,
 				Actor     = "Carlos",
 				Expresion = "Pensativo",
-				Texto     = "BFS desde el Cruce Principal iluminaría nivel por nivel: primero los Túneles Norte y Sur, luego Cisterna, Almacén, Patio, Puente y Vestíbulo, y finalmente Taller, Sótano y Depósito. BFS expande como una onda: uniforme, sin preferir ninguna rama.",
+				Texto     = "BFS desde el Cruce Principal iluminaría nivel por nivel: primero las Avenidas Norte y Sur, luego Cisterna, Almacén, Patio, Puente y Vestíbulo, y finalmente Taller, Sótano y Depósito. BFS expande como una onda: uniforme, sin preferir ninguna rama.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					EfectosDialogo.resaltarNodo("Cruce_z1", "SELECCIONADO")
@@ -202,7 +202,7 @@ local DIALOGOS = {
 				Numero    = 11,
 				Actor     = "Carlos",
 				Expresion = "Extasiado",
-				Texto     = "DFS, en cambio, se adentra por una sola rama hasta el fondo. Desde el Cruce, apila Túneles Norte y Sur. Como el Sur se apiló después, DFS va primero al Sur, luego al Vestíbulo, luego al Sótano. Sin vecinos nuevos, retrocede. Luego prueba el Puente, retrocede, y finalmente explora la rama Norte: Túnel Norte → Patio → Taller → Depósito. ¡Una rama completa antes de tocar la otra!",
+				Texto     = "DFS, en cambio, se adentra por una sola rama hasta el fondo. Desde el Cruce, apila Avenidas Norte y Sur. Como el Sur se apiló después, DFS va primero al Sur, luego al Vestíbulo, luego al Sótano. Sin vecinos nuevos, retrocede. Luego prueba el Puente, retrocede, y finalmente explora la rama Norte: Túnel Norte → Patio → Taller → Depósito. ¡Una rama completa antes de tocar la otra!",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					EfectosDialogo.resaltarNodo("Cruce_z1", "SELECCIONADO")
@@ -231,7 +231,7 @@ local DIALOGOS = {
 				Numero    = 13,
 				Actor     = "Carlos",
 				Expresion = "Feliz",
-				Texto     = "¡Exacto! Esa es la diferencia fundamental. BFS: Cruce → Túneles → Cisterna/Almacén/Patio/Puente/Vestíbulo → Taller/Sótano → Depósito. DFS: rama Sur completa (Sótano) → backtracking → rama Norte completa (Depósito). Abre el Panel de Análisis (Tab) y ejecútalos tú mismo para ver la animación paso a paso.",
+				Texto     = "¡Exacto! Esa es la diferencia fundamental. BFS: Cruce → Avenidas → Cisterna/Almacén/Patio/Puente/Vestíbulo → Taller/Sótano → Depósito. DFS: rama Sur completa (Sótano) → backtracking → rama Norte completa (Depósito). Abre el Panel de Análisis (Tab) y ejecútalos tú mismo para ver la animación paso a paso.",
 				Evento = function()
 					local jugador = game:GetService("Players").LocalPlayer
 					if jugador then

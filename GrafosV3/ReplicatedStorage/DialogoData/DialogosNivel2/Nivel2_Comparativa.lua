@@ -30,7 +30,7 @@ local DIALOGOS = {
 				Numero    = 1,
 				Actor     = "Carlos",
 				Expresion = "Presentacion",
-				Texto     = "Este es el punto de observación del Barrio Oeste. Desde aquí puedes ver toda la red expandida de la fábrica. Mira: once nodos conectados en múltiples direcciones. Este es el escenario perfecto para comparar BFS y DFS lado a lado.",
+				Texto     = "Este es el punto de observación del Barrio Oeste. Desde aquí puedes ver toda la red expandida de la ciudad. Mira: once nodos conectados en múltiples direcciones. Este es el escenario perfecto para comparar BFS y DFS lado a lado.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					ServicioCamara.moverHaciaObjetivo("Cruce_z1", { altura = 45, angulo = 80, duracion = 2 })
@@ -53,7 +53,7 @@ local DIALOGOS = {
 				Numero    = 2,
 				Actor     = "Carlos",
 				Expresion = "Pensativo",
-				Texto     = "Observa el recorrido de BFS desde el Cruce Principal. BFS usa una cola FIFO: primero procesa el Cruce, luego encola los Túneles Norte y Sur. Después procesa el Túnel Norte y encola Cisterna, Almacén y Patio. Luego el Túnel Sur y encola Puente y Vestíbulo. ¡BFS ilumina por niveles!",
+				Texto     = "Observa el recorrido de BFS desde el Cruce Principal. BFS usa una cola FIFO: primero procesa el Cruce, luego encola las Avenidas Norte y Sur. Después procesa el Túnel Norte y encola Cisterna, Almacén y Patio. Luego el Túnel Sur y encola Puente y Vestíbulo. ¡BFS ilumina por niveles!",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					EfectosDialogo.resaltarNodo("Cruce_z1", "SELECCIONADO")
@@ -89,7 +89,7 @@ local DIALOGOS = {
 				Numero    = 4,
 				Actor     = "Carlos",
 				Expresion = "Serio",
-				Texto     = "Ahora DFS. Misma red, misma reglas, pero DFS usa una pila LIFO. Desde el Cruce, apila los Túneles Norte y Sur. Como el Sur se apiló después, DFS lo procesa primero. Luego desde el Sur apila Puente y Vestíbulo. El Vestíbulo se apiló después, así que DFS va directo al Vestíbulo... luego al Sótano.",
+				Texto     = "Ahora DFS. Misma red, misma reglas, pero DFS usa una pila LIFO. Desde el Cruce, apila las Avenidas Norte y Sur. Como el Sur se apiló después, DFS lo procesa primero. Luego desde el Sur apila Puente y Vestíbulo. El Vestíbulo se apiló después, así que DFS va directo al Vestíbulo... luego al Sótano.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					EfectosDialogo.resaltarNodo("Cruce_z1", "SELECCIONADO")
@@ -136,7 +136,7 @@ local DIALOGOS = {
 				Numero    = 7,
 				Actor     = "Carlos",
 				Expresion = "Feliz",
-				Texto     = "¡Exacto! Esa es la diferencia fundamental. BFS expande en ondas: Cruce → Túneles → Cisterna/Almacén/Patio/Puente/Vestíbulo → Taller/Sótano → Depósito. DFS se va por la rama Sur hasta el Sótano, retrocede, y luego va por la Norte hasta el Depósito. Abre el Panel de Análisis (Tab) y ejecútalos tú mismo para ver la animación paso a paso.",
+				Texto     = "¡Exacto! Esa es la diferencia fundamental. BFS expande en ondas: Cruce → Avenidas → Cisterna/Almacén/Patio/Puente/Vestíbulo → Taller/Sótano → Depósito. DFS se va por la rama Sur hasta el Sótano, retrocede, y luego va por la Norte hasta el Depósito. Abre el Panel de Análisis (Tab) y ejecútalos tú mismo para ver la animación paso a paso.",
 				Evento = function()
 					local jugador = game:GetService("Players").LocalPlayer
 					if jugador then

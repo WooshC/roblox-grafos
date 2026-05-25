@@ -1,5 +1,5 @@
--- ReplicatedStorage/DialogoData/DialogosNivel2/Nivel2_Laberinto.lua
--- Diálogo de la Zona 1 (Barrio Laberinto) — Nivel 2: La Fábrica de Señales
+-- ReplicatedStorage/DialogoData/DialogosNivel2/Nivel2_CiudadGrande.lua
+-- Diálogo de la Zona 1 (Ciudad Grande) — Nivel 2: La Gran Ciudad
 -- Flujo conciso: emergencia → explicación DFS rápida → pregunta → a jugar
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -21,7 +21,7 @@ local function notificarRespuestaCorrecta()
 end
 
 local DIALOGOS = {
-	["Nivel2_Laberinto"] = {
+	["Nivel2_CiudadGrande"] = {
 		Zona  = "Zona_Laberinto_1",
 		Nivel = 2,
 		Lineas = {
@@ -29,7 +29,7 @@ local DIALOGOS = {
 				Id        = "explosion",
 				Numero    = 1,
 				Actor     = "Sistema",
-				Texto     = "⚠️ ALERTA CRÍTICA: El transformador del Laberinto explotó. Tienes 60 segundos para reconectar la red desde el Generador.",
+				Texto     = "⚠️ ALERTA CRÍTICA: El transformador de la Ciudad explotó. Tienes 60 segundos para reconectar la red desde el Generador.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					ServicioCamara.moverHaciaObjetivo("Gen_Fabrica_z1", { altura = 35, angulo = 75, duracion = 1.5 })
@@ -45,7 +45,7 @@ local DIALOGOS = {
 				Numero    = 2,
 				Actor     = "Carlos",
 				Expresion = "Extasiado",
-				Texto     = "¡Tocino, esto es grave! El transformador principal del Laberinto sobrecargó. Si no reconectamos la red en 60 segundos, los sistemas de respaldo fallarán y perderemos toda la energía del sector.",
+				Texto     = "¡Tocino, esto es grave! El transformador principal de la Ciudad sobrecargó. Si no reconectamos la red en 60 segundos, los sistemas de respaldo fallarán y perderemos toda la energía del sector.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					EfectosDialogo.resaltarNodo("Gen_Fabrica_z1", "SELECCIONADO")
@@ -58,12 +58,12 @@ local DIALOGOS = {
 				Numero    = 2,
 				Actor     = "Carlos",
 				Expresion = "Pensativo",
-				Texto     = "Usa DFS: Búsqueda en Profundidad. DFS usa una Pila (LIFO) — el último nodo descubierto es el primero en explorar. Eso hace que bucees hasta el fondo de una rama antes de probar otra. Es perfecto para laberintos como este.",
+				Texto     = "Usa DFS: Búsqueda en Profundidad. DFS usa una Pila (LIFO) — el último nodo descubierto es el primero en explorar. Eso hace que bucees hasta el fondo de una rama antes de probar otra. Es perfecto para una ciudad extensa como esta, donde es fácil perderse entre tantas calles.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					ServicioCamara.moverHaciaObjetivo("Gen_Fabrica_z1", { altura = 25, angulo = 65, duracion = 1.5 })
 					EfectosDialogo.resaltarNodo("Gen_Fabrica_z1", "SELECCIONADO")
-					EfectosDialogo.mostrarLabel("Gen_Fabrica_z1", "Generador Fábrica", "SELECCIONADO")
+					EfectosDialogo.mostrarLabel("Gen_Fabrica_z1", "Generador Ciudad", "SELECCIONADO")
 					EfectosDialogo.resaltarNodo("Entrada_z1", "ADYACENTE")
 					EfectosDialogo.resaltarNodo("Cruce_z1", "ADYACENTE")
 				end,
@@ -102,7 +102,7 @@ local DIALOGOS = {
 				Numero    = 2,
 				Actor     = "Carlos",
 				Expresion = "Serio",
-				Texto     = "No exactamente. La velocidad no es la razón. La clave es el orden: pila LIFO = profundidad primero; cola FIFO = amplitud primero. DFS necesita profundidad para laberintos.",
+				Texto     = "No exactamente. La velocidad no es la razón. La clave es el orden: pila LIFO = profundidad primero; cola FIFO = amplitud primero. DFS necesita profundidad para ciudades extensas como esta.",
 				Opciones = { { Texto = "Entendido", Siguiente = "instruccion_final" } },
 			},
 			{

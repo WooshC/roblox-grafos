@@ -1,5 +1,5 @@
 -- ReplicatedStorage/DialogoData/DialogosNivel2/Nivel2_Oficina.lua
--- Diálogo de la Zona 3 (Oficina de Análisis) — Nivel 2: La Fábrica de Señales
+-- Diálogo de la Zona 3 (Oficina de Análisis) — Nivel 2: La Gran Ciudad
 -- Concepto: Usos de DFS, comparación con BFS y cierre del nivel.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -30,7 +30,7 @@ local DIALOGOS = {
 				Numero    = 1,
 				Actor     = "Carlos",
 				Expresion = "Sonriente",
-				Texto     = "Llegamos a la Oficina de Análisis. Desde aquí podemos ver todo el mapa de la fábrica en las pantallas. Ahora que conoces BFS y DFS, hablemos de cuándo usar cada uno.",
+				Texto     = "Llegamos a la Oficina de Análisis. Desde aquí podemos ver todo el mapa de la ciudad en las pantallas. Ahora que conoces BFS y DFS, hablemos de cuándo usar cada uno.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					ServicioCamara.moverHaciaObjetivo("Oficina_z3", { altura = 25, angulo = 60, duracion = 1.5 })
@@ -126,7 +126,7 @@ local DIALOGOS = {
 				Numero    = 7,
 				Actor     = "Carlos",
 				Expresion = "Extasiado",
-				Texto     = "¡Excelente trabajo, Tocino! Has explorado toda la fábrica usando DFS. Dominaste la pila LIFO, el backtracking y la diferencia fundamental con BFS. La red de la fábrica está completamente verificada. ¡Nos vemos en el siguiente nivel!",
+				Texto     = "¡Excelente trabajo, Tocino! Has explorado toda la ciudad usando DFS. Dominaste la pila LIFO, el backtracking y la diferencia fundamental con BFS. La red de la ciudad está completamente verificada. ¡Nos vemos en el siguiente nivel!",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					ServicioCamara.restaurar(1.2)

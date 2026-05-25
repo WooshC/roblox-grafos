@@ -40,6 +40,9 @@ local _timerPausado = false
 local _tiempoRestanteAlPausar = nil
 local _zonasVisitadas = {}
 local _eventoReproducirEfecto = nil
+local _dialogoIniciadoConn = nil
+local _dialogoTerminadoConn = nil
+local _timerDebePausarseAlIniciar = false
 -- EVENTOS DE ENERGÍA DELEGADOS
 
 -- ── Helpers ───────────────────────────────────────────────────────────────────
@@ -217,56 +220,67 @@ local function iniciarTimerEmergencia(mision)
 			mision.ID, tostring(_emergenciaFallida), tostring(_emergenciaCompletada)))
 		return
 	end
-	
+
 	if _timerEmergenciaConn then detenerTimerEmergencia() end
-	
+
 	local tiempoLimite = mision.Parametros and mision.Parametros.TiempoLimite or 60
 	_deadlineEmergencia = tick() + tiempoLimite
 	_misionEmergenciaActiva = mision.ID
 	_emergenciaFallida = false
 	_timerPausado = false
 	_tiempoRestanteAlPausar = nil
-	
+
 	print(string.format("[ServicioMisiones] 🚨 EMERGENCIA iniciada — Misión %d | Tiempo: %ds", mision.ID, tiempoLimite))
-	
-	-- Enviar tiempo inicial al cliente
-	if _eventoTimerEmergencia and _jugador then
-		_eventoTimerEmergencia:FireClient(_jugador, tiempoLimite, mision.Texto)
+
+	-- Si se pidió pausa antes de que el timer existiera, pausar inmediatamente
+	if _timerDebePausarseAlIniciar then
+		_timerDebePausarseAlIniciar = false
+		_timerPausado = true
+		_tiempoRestanteAlPausar = tiempoLimite
+		print(string.format("[ServicioMisiones] 🚨 EMERGENCIA iniciada Y PAUSADA (diálogo activo) — restante: %ds", tiempoLimite))
+		if _eventoTimerEmergencia and _jugador then
+			_eventoTimerEmergencia:FireClient(_jugador, tiempoLimite, "PAUSADO")
+		end
+	else
+		-- Enviar tiempo inicial al cliente
+		if _eventoTimerEmergencia and _jugador then
+			_eventoTimerEmergencia:FireClient(_jugador, tiempoLimite, mision.Texto)
+		end
 	end
-	
+
 	-- Loop de actualización cada segundo
 	_ultimoSegundoNotificado = nil
 	_timerEmergenciaConn = game:GetService("RunService").Heartbeat:Connect(function()
 		if not _activo or not _deadlineEmergencia or not _jugador then return end
 		if _timerPausado then return end
-		
+
 		local restante = math.max(0, math.floor(_deadlineEmergencia - tick()))
 		local segundoActual = math.floor(tick())
-		
+
 		-- Solo notificar una vez por segundo
 		if segundoActual == _ultimoSegundoNotificado then return end
 		_ultimoSegundoNotificado = segundoActual
-		
+
 		-- Notificar al cliente
 		if _eventoTimerEmergencia and _jugador then
 			_eventoTimerEmergencia:FireClient(_jugador, restante, mision.Texto)
 		end
-		
+
 		-- Verificar si expiró
 		if restante <= 0 then
 			_emergenciaFallida = true
 			print(string.format("[ServicioMisiones] ⏰ EMERGENCIA FALLIDA — Misión %d | Tiempo agotado", mision.ID))
-			
+
 			-- Notificar al cliente que expiró
 			if _eventoTimerEmergencia and _jugador then
 				_eventoTimerEmergencia:FireClient(_jugador, 0, mision.Texto, true)
 			end
-			
+
 			-- Penalización: -500 puntos por fallar la emergencia
 			_puntosAcum = math.max(0, _puntosAcum - 500)
 			if _servicioPuntaje then _servicioPuntaje:fijarPuntajeMision(_jugador, _puntosAcum, calcularEstrellasHelper(_puntosAcum)) end
 			print(string.format("[ServicioMisiones] 💥 Penalización -500 pts | Puntaje actual: %d", _puntosAcum))
-			
+
 			verificarYNotificar()
 			detenerTimerEmergencia()
 		end
@@ -274,7 +288,13 @@ local function iniciarTimerEmergencia(mision)
 end
 
 local function pausarTimerEmergencia()
-	if not _timerEmergenciaConn or not _deadlineEmergencia or _timerPausado then return end
+	if _timerPausado then return end
+	if not _timerEmergenciaConn or not _deadlineEmergencia then
+		-- El timer aún no existe; marcar para pausar tan pronto inicie
+		_timerDebePausarseAlIniciar = true
+		print("[ServicioMisiones] ⏸️ Timer marcado para pausar al iniciar (diálogo activo)")
+		return
+	end
 	_tiempoRestanteAlPausar = math.max(0, _deadlineEmergencia - tick())
 	_timerPausado = true
 	print(string.format("[ServicioMisiones] ⏸️ Timer de emergencia pausado — restante: %.0fs", _tiempoRestanteAlPausar))
@@ -284,12 +304,29 @@ local function pausarTimerEmergencia()
 end
 
 local function reanudarTimerEmergencia()
+	-- Si había una pausa pendiente pero el timer aún no existía, limpiar la marca
+	if _timerDebePausarseAlIniciar then
+		_timerDebePausarseAlIniciar = false
+		print("[ServicioMisiones] ▶️ Marca de pausa pendiente limpiada (timer aún no existía)")
+	end
 	if not _timerPausado or _tiempoRestanteAlPausar == nil then return end
 	_deadlineEmergencia = tick() + _tiempoRestanteAlPausar
 	_timerPausado = false
 	_tiempoRestanteAlPausar = nil
 	_ultimoSegundoNotificado = nil
 	print(string.format("[ServicioMisiones] ▶️ Timer de emergencia reanudado — deadline: %.0fs", _deadlineEmergencia - tick()))
+	-- Notificar reanudación inmediata al cliente para evitar demora de 1s
+	if _eventoTimerEmergencia and _jugador then
+		local restante = math.max(0, math.floor(_deadlineEmergencia - tick()))
+		local textoMision = "EMERGENCIA"
+		for _, m in ipairs(_misiones) do
+			if m.ID == _misionEmergenciaActiva then
+				textoMision = m.Texto
+				break
+			end
+		end
+		_eventoTimerEmergencia:FireClient(_jugador, restante, textoMision)
+	end
 end
 
 ---Inicia el timer de emergencia de una zona si está pendiente y no iniciado.
@@ -337,7 +374,7 @@ local function verificarYNotificar()
 			cambiado = true
 			print(string.format("[ServicioMisiones] ✅ Misión %d completada — +%d pts (total: %d)",
 				m.ID, m.Puntos or 0, _puntosAcum))
-			
+
 			-- Si es emergencia, detener timer, limpiar efectos de daño y notificar éxito
 			if m.Tipo == "EMERGENCIA" then
 				print(string.format("[ServicioMisiones] 🎉 EMERGENCIA SUPERADA — Misión %d", m.ID))
@@ -349,7 +386,7 @@ local function verificarYNotificar()
 				end
 				detenerTimerEmergencia()
 			end
-			
+
 			-- EVENTO DE ENERGIA TRATADO POR SERVICIO INDEPENDIENTE AHORA
 		elseif not ok and _completadas[m.ID] and not _permanentes[m.ID] then
 			_completadas[m.ID] = nil
@@ -391,7 +428,7 @@ local function verificarYNotificar()
 			print(string.format(
 				"[ServicioMisiones] Snapshot → puntaje=%d / aciertosTotal=%d / conexiones=%d / fallos=%d / tiempo=%d",
 				snap.puntajeBase, snap.aciertosTotal or 0, snap.conexiones, snap.fallos, snap.tiempo
-			))
+				))
 
 			-- Guardar en DataStore antes de mostrar victoria
 			if _servicioDatos and _nivelID ~= nil then
@@ -418,7 +455,7 @@ local function verificarYNotificar()
 			if ValidadorConexiones.contarConexiones then
 				conexionesFinales = ValidadorConexiones.contarConexiones()
 			end
-			
+
 			-- Enviar snap al cliente con campo "aciertos" = conexiones actuales
 			local snapCliente = {
 				nivelID = snap.nivelID,
@@ -474,7 +511,7 @@ function ServicioMisiones.activar(config, nivelID, jugador, eventos, servicioPun
 		_eventoActualizarMisiones = eventos:FindFirstChild("ActualizarMisiones")
 		_eventoNivelCompletado    = eventos:FindFirstChild("NivelCompletado")
 		_eventoTimerEmergencia    = eventos:FindFirstChild("TimerEmergencia")
-		
+
 		_eventoReproducirEfecto = eventos:FindFirstChild("ReproducirEfecto")
 		if not _eventoReproducirEfecto then
 			-- Fallback: crear evento si EventRegistry aún no lo creó
@@ -488,22 +525,46 @@ function ServicioMisiones.activar(config, nivelID, jugador, eventos, servicioPun
 			_eventoReproducirEfecto.Parent = remotosCarpeta
 			print("[ServicioMisiones] 🔧 Creado ReproducirEfecto dinámicamente en activar()")
 		end
-		
-		-- Escuchar pausa/reanudación desde diálogos
-		local dialogoIniciado = eventos:FindFirstChild("DialogoIniciado")
-		local dialogoTerminado = eventos:FindFirstChild("DialogoTerminado")
-		if dialogoIniciado then
-			dialogoIniciado.OnServerEvent:Connect(function(player)
+
+		-- Escuchar pausa/reanudación desde diálogos (conexión sincrónica para evitar race conditions)
+		local dialogoIniciado = eventos:FindFirstChild("DialogoIniciado") or eventos:WaitForChild("DialogoIniciado", 2)
+		if dialogoIniciado and not _dialogoIniciadoConn then
+			_dialogoIniciadoConn = dialogoIniciado.OnServerEvent:Connect(function(player)
+				print(string.format("[ServicioMisiones] 📥 DialogoIniciado recibido de %s | _jugador=%s", tostring(player), tostring(_jugador)))
 				if player == _jugador then pausarTimerEmergencia() end
 			end)
+			print("[ServicioMisiones] 🔌 Conectado DialogoIniciado")
+		elseif not dialogoIniciado then
+			warn("[ServicioMisiones] ❌ DialogoIniciado no encontrado en eventos")
+		else
+			print("[ServicioMisiones] ⚠️ DialogoIniciado ya conectado, saltando")
 		end
-		if dialogoTerminado then
-			dialogoTerminado.OnServerEvent:Connect(function(player)
+		local dialogoTerminado = eventos:FindFirstChild("DialogoTerminado") or eventos:WaitForChild("DialogoTerminado", 2)
+		if dialogoTerminado and not _dialogoTerminadoConn then
+			_dialogoTerminadoConn = dialogoTerminado.OnServerEvent:Connect(function(player)
+				print(string.format("[ServicioMisiones] 📥 DialogoTerminado recibido de %s | _jugador=%s", tostring(player), tostring(_jugador)))
 				if player ~= _jugador then return end
 				reanudarTimerEmergencia()
 				-- Si el timer nunca se inició (primera vez), iniciarlo ahora
-				iniciarTimerEmergenciaSiPendiente(_zonaActual)
+				-- Usar zona actual si existe; si no, buscar cualquier emergencia pendiente
+				if _zonaActual then
+					iniciarTimerEmergenciaSiPendiente(_zonaActual)
+				else
+					for _, m in ipairs(_misiones) do
+						if m.Tipo == "EMERGENCIA" and not _completadas[m.ID] then
+							if _misionEmergenciaActiva ~= m.ID and not _emergenciaFallida and not _emergenciaCompletada then
+								iniciarTimerEmergencia(m)
+							end
+							break
+						end
+					end
+				end
 			end)
+			print("[ServicioMisiones] 🔌 Conectado DialogoTerminado")
+		elseif not dialogoTerminado then
+			warn("[ServicioMisiones] ❌ DialogoTerminado no encontrado en eventos")
+		else
+			print("[ServicioMisiones] ⚠️ DialogoTerminado ya conectado, saltando")
 		end
 	end
 
@@ -531,6 +592,14 @@ function ServicioMisiones.desactivar()
 	_eventoNivelCompletado    = nil
 	_servicioDatos = nil
 	_config = nil
+
+	-- Limpiar conexiones de diálogo y timer para evitar fugas entre niveles
+	if _dialogoIniciadoConn then _dialogoIniciadoConn:Disconnect(); _dialogoIniciadoConn = nil end
+	if _dialogoTerminadoConn then _dialogoTerminadoConn:Disconnect(); _dialogoTerminadoConn = nil end
+	detenerTimerEmergencia()
+	_eventoTimerEmergencia = nil
+	_eventoReproducirEfecto = nil
+	print("[ServicioMisiones] Desactivado — conexiones limpiadas")
 end
 
 function ServicioMisiones.alCrearCable(nomA, nomB)
@@ -555,22 +624,17 @@ end
 function ServicioMisiones.alEntrarZona(nombre)
 	if not _activo then return end
 	_zonaActual = nombre
-	
-	-- Buscar si hay misión de emergencia en esta zona que aún no se completó
-	-- Primera vez: NO iniciar timer (esperar a que termine el diálogo)
-	-- Reentrada: iniciar timer si nunca se inició (fallback por si el diálogo ya fue visto)
-	local esPrimeraVez = not _zonasVisitadas[nombre]
-	_zonasVisitadas[nombre] = true
-	
+
+	-- Iniciar timer de emergencia si hay una misión pendiente en esta zona
 	for _, m in ipairs(_misiones) do
 		if m.Zona == nombre and m.Tipo == "EMERGENCIA" and not _completadas[m.ID] then
-			if not esPrimeraVez and _misionEmergenciaActiva ~= m.ID and not _emergenciaFallida and not _emergenciaCompletada then
+			if _misionEmergenciaActiva ~= m.ID and not _emergenciaFallida and not _emergenciaCompletada then
 				iniciarTimerEmergencia(m)
 			end
 			break
 		end
 	end
-	
+
 	notificar(nil)
 end
 

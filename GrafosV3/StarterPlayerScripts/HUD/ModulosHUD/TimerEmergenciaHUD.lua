@@ -26,6 +26,16 @@ local COLOR_FONDO_ROJO = Color3.fromRGB(80, 20, 20)
 function TimerEmergenciaHUD.init(hudGui)
 	_hudGui = hudGui
 
+	-- Crear ScreenGui propio para que sobreviva a hudGui.Enabled = false durante diálogos
+	local screenGui = playerGui:FindFirstChild("TimerEmergenciaGui")
+	if not screenGui then
+		screenGui = Instance.new("ScreenGui")
+		screenGui.Name = "TimerEmergenciaGui"
+		screenGui.ResetOnSpawn = false
+		screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+		screenGui.Parent = playerGui
+	end
+
 	-- Crear frame principal dinámicamente
 	_frame = Instance.new("Frame")
 	_frame.Name = "TimerEmergencia"
@@ -36,7 +46,7 @@ function TimerEmergenciaHUD.init(hudGui)
 	_frame.BorderSizePixel = 0
 	_frame.Visible = false
 	_frame.ZIndex = 15
-	_frame.Parent = hudGui
+	_frame.Parent = screenGui
 
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 8)

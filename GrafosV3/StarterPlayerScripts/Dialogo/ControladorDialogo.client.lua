@@ -590,7 +590,14 @@ function iniciarDialogo(dialogoID, metadata)
 	-- Notificar al servidor que el diálogo inició (pausar timer de emergencia)
 	local dialogoIniciadoEvento = remotos:FindFirstChild("DialogoIniciado")
 	if dialogoIniciadoEvento then
-		pcall(function() dialogoIniciadoEvento:FireServer() end)
+		local ok, err = pcall(function() dialogoIniciadoEvento:FireServer() end)
+		if ok then
+			print("[ControladorDialogo] 📤 DialogoIniciado enviado al servidor")
+		else
+			warn("[ControladorDialogo] ❌ Error enviando DialogoIniciado:", err)
+		end
+	else
+		warn("[ControladorDialogo] ❌ DialogoIniciado no encontrado en Remotos")
 	end
 
 	-- Combinar restricciones: Defaults → Config del archivo → Config del prompt/atributos
@@ -683,7 +690,14 @@ function iniciarDialogo(dialogoID, metadata)
 		-- Notificar al servidor que el diálogo terminó (reanudar timer de emergencia)
 		local dialogoTerminadoEvento = remotos:FindFirstChild("DialogoTerminado")
 		if dialogoTerminadoEvento then
-			pcall(function() dialogoTerminadoEvento:FireServer() end)
+			local ok, err = pcall(function() dialogoTerminadoEvento:FireServer() end)
+			if ok then
+				print("[ControladorDialogo] 📤 DialogoTerminado enviado al servidor")
+			else
+				warn("[ControladorDialogo] ❌ Error enviando DialogoTerminado:", err)
+			end
+		else
+			warn("[ControladorDialogo] ❌ DialogoTerminado no encontrado en Remotos")
 		end
 
 		dialogoActivo = false
@@ -699,7 +713,14 @@ function iniciarDialogo(dialogoID, metadata)
 		-- Notificar al servidor que el diálogo terminó (aunque falló)
 		local dialogoTerminadoEvento = remotos:FindFirstChild("DialogoTerminado")
 		if dialogoTerminadoEvento then
-			pcall(function() dialogoTerminadoEvento:FireServer() end)
+			local ok, err = pcall(function() dialogoTerminadoEvento:FireServer() end)
+			if ok then
+				print("[ControladorDialogo] 📤 DialogoTerminado enviado al servidor (fallback)")
+			else
+				warn("[ControladorDialogo] ❌ Error enviando DialogoTerminado (fallback):", err)
+			end
+		else
+			warn("[ControladorDialogo] ❌ DialogoTerminado no encontrado en Remotos (fallback)")
 		end
 		dialogoActivo = false
 	end

@@ -471,12 +471,12 @@ LevelsConfig[1] = {
 -- NIVEL 2: LA FABRICA DE SENALES
 -- ============================================
 -- Concepto: DFS (Búsqueda en Profundidad) + BFS comparativo.
--- El jugador explora una fábrica con túneles ramificados,
+-- El jugador explora una ciudad grande con calles ramificadas,
 -- aprendiendo el uso de la Pila (Stack, LIFO) y el backtracking.
 -- ============================================
 LevelsConfig[2] = {
-	Nombre           = "La Fabrica de Senales",
-	DescripcionCorta = "Explora los túneles de la fábrica usando DFS. Aprende el backtracking y la diferencia entre BFS y DFS.",
+	Nombre           = "La Gran Ciudad",
+	DescripcionCorta = "Explora las calles de la gran ciudad usando DFS. Aprende el backtracking y la diferencia entre BFS y DFS.",
 	ImageId          = "rbxassetid://76889299321141",
 	Modelo           = "Nivel2",
 
@@ -514,10 +514,10 @@ LevelsConfig[2] = {
 
 	-- Requisito especial para 3 estrellas: responder todas las preguntas correctamente
 	RequiereDialogosCorrectos = true,
-	TotalPreguntasDialogo = 4,  -- 1 (Laberinto) + 1 (Barrio Oeste) + 1 (Oficina) + 1 (Comparativa)
+	TotalPreguntasDialogo = 4,  -- 1 (Ciudad Grande) + 1 (Barrio Oeste) + 1 (Oficina) + 1 (Comparativa)
 
 	Adyacencias = {
-		-- Zona 1: El Barrio Laberinto
+		-- Zona 1: La Ciudad Grande
 		["Gen_Fabrica_z1"]    = {"Entrada_z1", "Cruce_z1"},
 		["Entrada_z1"]        = {"Gen_Fabrica_z1", "Sala_Maquinas_z1"},
 		["Cruce_z1"]          = {"Gen_Fabrica_z1", "Tunel_Norte_z2", "Tunel_Sur_z2"},
@@ -544,8 +544,8 @@ LevelsConfig[2] = {
 	Zonas = {
 		["Zona_Laberinto_1"] = {
 			Trigger = "ZonaTrigger_Laberinto",
-			Descripcion = "El Barrio Laberinto",
-			Dialogo = "Nivel2_Laberinto",
+			Descripcion = "La Ciudad Grande",
+			Dialogo = "Nivel2_CiudadGrande",
 			CarpetaLuz = "Zona_luz_1",
 			-- Nodos dañados en esta zona: efecto constante hasta completar la emergencia
 			NodosDaniados = { "Gen_Fabrica_z1", "Entrada_z1", "Sala_Maquinas_z1" },
@@ -573,12 +573,12 @@ LevelsConfig[2] = {
 	},
 
 	NombresNodos = {
-		["Gen_Fabrica_z1"]    = "Generador Fabrica",
-		["Entrada_z1"]        = "Entrada del Laberinto",
+		["Gen_Fabrica_z1"]    = "Generador Ciudad",
+		["Entrada_z1"]        = "Entrada de la Ciudad",
 		["Cruce_z1"]          = "Cruce Principal",
 		["Sala_Maquinas_z1"]  = "Sala de Maquinas",
-		["Tunel_Norte_z2"]    = "Tunnel Norte",
-		["Tunel_Sur_z2"]      = "Tunnel Sur",
+		["Tunel_Norte_z2"]    = "Avenida Norte",
+		["Tunel_Sur_z2"]      = "Avenida Sur",
 		["Cisterna_z2"]       = "Cisterna",
 		["Almacen_z2"]        = "Almacen",
 		["Puente_z2"]         = "Puente Metalico",
@@ -599,7 +599,7 @@ LevelsConfig[2] = {
 			nodoFin    = nil,
 			conceptos  = {
 				bfs = {
-					intro = "BFS explora la fábrica nivel por nivel usando una cola FIFO. Observa cómo visita todos los vecinos directos antes de profundizar.",
+					intro = "BFS explora la ciudad nivel por nivel usando una cola FIFO. Observa cómo visita todos los vecinos directos antes de profundizar.",
 					pasos = {
 						[2]  = "El Generador se encola como nodo inicial.",
 						[7]  = "Procesamos el nodo frontal y encolamos sus vecinos.",
@@ -608,7 +608,7 @@ LevelsConfig[2] = {
 					},
 				},
 				dfs = {
-					intro = "DFS explora la fábrica en profundidad usando una pila LIFO. Observa cómo se adentra por un túnel hasta el fondo antes de retroceder.",
+					intro = "DFS explora la ciudad en profundidad usando una pila LIFO. Observa cómo se adentra por una calle hasta el fondo antes de retroceder.",
 					pasos = {
 						[2]  = "El Generador se apila como nodo inicial.",
 						[7]  = "Desapilamos el tope y apilamos sus vecinos.",
@@ -624,10 +624,10 @@ LevelsConfig[2] = {
 			nodoFin    = "Deposito_z2",
 			conceptos  = {
 				bfs = {
-					intro = "BFS explora el Barrio Oeste nivel por nivel desde el Cruce Principal. Observa cómo ilumina primero todos los túneles, luego la Cisterna, Almacén y Puente, y finalmente el Patio, Taller, Vestíbulo y Sótano antes de llegar al Depósito.",
+					intro = "BFS explora el Barrio Oeste nivel por nivel desde el Cruce Principal. Observa cómo ilumina primero todas las calles, luego la Cisterna, Almacén y Puente, y finalmente el Patio, Taller, Vestíbulo y Sótano antes de llegar al Depósito.",
 					pasos = {
 						[2]  = "Nivel 0: el Cruce inicia la cola.",
-						[7]  = "Nivel 1: Túneles Norte y Sur descubiertos.",
+						[7]  = "Nivel 1: Avenidas Norte y Sur descubiertas.",
 						[9]  = "Nivel 2: Cisterna, Almacén, Puente, Patio y Vestíbulo en cola.",
 						[13] = "Nivel 3: Taller y Sótano. ¡Depósito alcanzado en el nivel más cercano!",
 					},
@@ -676,12 +676,12 @@ LevelsConfig[2] = {
 					},
 				},
 				prim = {
-					intro = "Prim: construye el Árbol de Expansión Mínima. Conecta toda la fábrica con el mínimo de cableado posible.",
+					intro = "Prim: construye el Árbol de Expansión Mínima. Conecta toda la ciudad con el mínimo de cableado posible.",
 					pasos = {
 						[2]  = "Raíz: Generador con key=0. Resto en ∞.",
 						[8]  = "El nodo con key mínima se integra al MST.",
 						[9]  = "Actualizamos keys de los vecinos no conectados.",
-						[13] = "MST completo: toda la fábrica conectada con 11 aristas.",
+						[13] = "MST completo: toda la ciudad conectada con 11 aristas.",
 					},
 				},
 			},
@@ -689,12 +689,12 @@ LevelsConfig[2] = {
 	},
 
 	Misiones = {
-		-- ── Zona 1: Laberinto ─────────────────────────────────────────────────
-		{ ID=201, Zona="Zona_Laberinto_1", Texto="Selecciona el Generador Fabrica",                  Tipo="NODO_SELECCIONADO", Puntos=100, Parametros={ Nodo="Gen_Fabrica_z1" } },
+		-- ── Zona 1: Ciudad Grande ─────────────────────────────────────────────────
+		{ ID=201, Zona="Zona_Laberinto_1", Texto="Selecciona el Generador Ciudad",                  Tipo="NODO_SELECCIONADO", Puntos=100, Parametros={ Nodo="Gen_Fabrica_z1" } },
 		{ ID=202, Zona="Zona_Laberinto_1", Texto="Conecta la Entrada al Generador",                    Tipo="ARISTA_CREADA",     Puntos=150, Parametros={ NodoA="Gen_Fabrica_z1", NodoB="Entrada_z1" } },
 		{ ID=203, Zona="Zona_Laberinto_1", Texto="Conecta el Cruce Principal al Generador",              Tipo="ARISTA_CREADA",     Puntos=150, Parametros={ NodoA="Gen_Fabrica_z1", NodoB="Cruce_z1" } },
 		{ ID=204, Zona="Zona_Laberinto_1", Texto="Conecta la Sala de Maquinas desde la Entrada",        Tipo="ARISTA_CREADA",     Puntos=150, Parametros={ NodoA="Entrada_z1",     NodoB="Sala_Maquinas_z1" } },
-		{ ID=205, Zona="Zona_Laberinto_1", Texto="Ilumina toda la zona del Laberinto (4 nodos)",        Tipo="GRAFO_CONEXO",      Puntos=200, Parametros={ Nodos={"Gen_Fabrica_z1","Entrada_z1","Cruce_z1","Sala_Maquinas_z1"} } },
+		{ ID=205, Zona="Zona_Laberinto_1", Texto="Ilumina toda la zona de la Ciudad (4 nodos)",        Tipo="GRAFO_CONEXO",      Puntos=200, Parametros={ Nodos={"Gen_Fabrica_z1","Entrada_z1","Cruce_z1","Sala_Maquinas_z1"} } },
 		{ ID=299, Zona="Zona_Laberinto_1", Texto="¡EMERGENCIA! Restaura la red en 60 segundos",         Tipo="EMERGENCIA",        Puntos=500, Parametros={ Nodos={"Gen_Fabrica_z1","Entrada_z1","Cruce_z1","Sala_Maquinas_z1"}, TiempoLimite=60 } },
 
 		-- ── Zona 2: Barrio Oeste (EXPANDIDO: 10 nodos) ───────────────────────
@@ -714,11 +714,11 @@ LevelsConfig[2] = {
 		{ ID=212, Zona="Zona_Oficina_3", Texto="Conecta la Oficina desde el Almacen",                   Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Almacen_z2", NodoB="Oficina_z3" } },
 		{ ID=213, Zona="Zona_Oficina_3", Texto="Conecta el Servidor Central a la Oficina",              Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Oficina_z3", NodoB="Servidor_z3" } },
 		{ ID=214, Zona="Zona_Oficina_3", Texto="Conecta la Antena a la Oficina",                        Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Oficina_z3", NodoB="Antena_z3" } },
-		{ ID=215, Zona="Zona_Oficina_3", Texto="Ilumina toda la fabrica (17 nodos)",                    Tipo="GRAFO_CONEXO",  Puntos=600, Parametros={ Nodos={"Gen_Fabrica_z1","Entrada_z1","Cruce_z1","Sala_Maquinas_z1","Tunel_Norte_z2","Tunel_Sur_z2","Cisterna_z2","Almacen_z2","Puente_z2","Patio_z2","Taller_z2","Vestibulo_z2","Sotano_z2","Deposito_z2","Oficina_z3","Servidor_z3","Antena_z3"} } },
+		{ ID=215, Zona="Zona_Oficina_3", Texto="Ilumina toda la ciudad (17 nodos)",                    Tipo="GRAFO_CONEXO",  Puntos=600, Parametros={ Nodos={"Gen_Fabrica_z1","Entrada_z1","Cruce_z1","Sala_Maquinas_z1","Tunel_Norte_z2","Tunel_Sur_z2","Cisterna_z2","Almacen_z2","Puente_z2","Patio_z2","Taller_z2","Vestibulo_z2","Sotano_z2","Deposito_z2","Oficina_z3","Servidor_z3","Antena_z3"} } },
 	},
 
 	Guia = {
-		{ ID="laberinto_1",    Zona="Zona_Laberinto_1",    Label="Ve al Laberinto",      WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Laberinto"    }, DestruirAlCompletar=false },
+		{ ID="ciudad_1",    Zona="Zona_Laberinto_1",    Label="Ve a la Ciudad Grande",      WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Laberinto"    }, DestruirAlCompletar=false },
 		{ ID="barrio_2",       Zona="Zona_BarrioOeste_2",  Label="Ve al Barrio Oeste",   WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_BarrioOeste"  }, DestruirAlCompletar=false },
 		{ ID="oficina_3",      Zona="Zona_Oficina_3",      Label="Ve a la Oficina",      WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Oficina"    }, DestruirAlCompletar=false },
 	},
