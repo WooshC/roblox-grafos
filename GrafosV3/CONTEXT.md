@@ -320,6 +320,37 @@ NivelActual/
       PromptPart (BasePart con ProximityPrompt)
 ```
 
+### 7.4 Depuración de Eventos — REGLA OBLIGATORIA
+
+> **Siempre que se agregue un nuevo `RemoteEvent` o función cross-cliente/servidor, se DEBE agregar depuración explícita en AMBOS lados.**
+
+**Por qué:** Roblox Studio mantiene una copia del lugar (`.rbxl`) que puede quedar desincronizada con el código del sistema de archivos. Si `EventRegistry` tiene un evento nuevo en el código pero Studio nunca lo ejecutó, el evento **no existe en runtime** y falla silenciosamente. Sin logs, este bug es prácticamente imposible de diagnosticar.
+
+**Checklist obligatorio al agregar un nuevo evento:**
+
+1. **Agregar el evento a `00_EventRegistry.server.lua`** (tanto en `EVENTOS_REMOTOS` como en comentarios descriptivos).
+2. **Log de existencia en el cliente:** antes de `FireServer()`, verificar que el `RemoteEvent` existe y loguear si no.
+   ```lua
+   local ev = remotos:FindFirstChild("MiNuevoEvento") or remotos:WaitForChild("MiNuevoEvento", 2)
+   if ev then
+       local ok, err = pcall(function() ev:FireServer() end)
+       if not ok then warn("[Modulo] ❌ Error enviando MiNuevoEvento:", err) end
+   else
+       warn("[Modulo] ❌ MiNuevoEvento no encontrado en Remotos")
+   end
+   ```
+3. **Log de recepción en el servidor:** en el callback de `OnServerEvent`, loguear quién envió el evento y el estado actual.
+   ```lua
+   ev.OnServerEvent:Connect(function(player)
+       print(string.format("[Servidor] 📥 MiNuevoEvento recibido de %s", tostring(player)))
+       -- ... lógica ...
+   end)
+   ```
+4. **Log de conexión en `activar()`:** cuando un módulo se suscribe al evento, imprimir confirmación.
+5. **Guardar el proyecto en Studio inmediatamente** después de modificar `EventRegistry` (o cualquier script `.server.lua` que cree instancias). Los cambios en archivos `.lua` del disco NO se reflejan automáticamente en la sesión de Play si Studio tiene una caché del lugar.
+
+**Consecuencia de no hacerlo:** eventos que "desaparecen" entre sesiones, timers que no se pausan, callbacks que nunca se ejecutan, y horas de debugging innecesario.
+
 ---
 
 ## 8. Funciones y Sistemas No Documentados en Consolidado Original
