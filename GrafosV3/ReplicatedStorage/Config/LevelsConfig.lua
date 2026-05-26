@@ -523,17 +523,12 @@ LevelsConfig[2] = {
 		["Cruce_z1"]          = {"Gen_Fabrica_z1", "Tunel_Norte_z2", "Tunel_Sur_z2"},
 		["Sala_Maquinas_z1"]  = {"Entrada_z1"},
 
-		-- Zona 2: El Barrio Oeste (EXPANDIDO para demo BFS vs DFS)
-		["Tunel_Norte_z2"]    = {"Cruce_z1", "Cisterna_z2", "Almacen_z2", "Patio_z2"},
-		["Tunel_Sur_z2"]      = {"Cruce_z1", "Puente_z2", "Vestibulo_z2"},
-		["Cisterna_z2"]       = {"Tunel_Norte_z2", "Puente_z2", "Taller_z2"},
-		["Almacen_z2"]        = {"Tunel_Norte_z2", "Oficina_z3", "Patio_z2"},
-		["Puente_z2"]         = {"Tunel_Sur_z2", "Cisterna_z2", "Oficina_z3", "Vestibulo_z2"},
-		["Patio_z2"]          = {"Tunel_Norte_z2", "Almacen_z2", "Taller_z2"},
-		["Taller_z2"]         = {"Cisterna_z2", "Patio_z2", "Deposito_z2"},
-		["Vestibulo_z2"]      = {"Tunel_Sur_z2", "Puente_z2", "Sotano_z2"},
-		["Deposito_z2"]       = {"Taller_z2"},
-		["Sotano_z2"]         = {"Vestibulo_z2"},
+		-- Zona 2: El Barrio Oeste (SIMPLIFICADO: 5 nodos propios)
+		["Tunel_Norte_z2"]    = {"Cruce_z1", "Cisterna_z2", "Almacen_z2"},
+		["Tunel_Sur_z2"]      = {"Cruce_z1", "Puente_z2"},
+		["Cisterna_z2"]       = {"Tunel_Norte_z2", "Puente_z2"},
+		["Almacen_z2"]        = {"Tunel_Norte_z2", "Oficina_z3"},
+		["Puente_z2"]         = {"Tunel_Sur_z2", "Cisterna_z2", "Oficina_z3"},
 
 		-- Zona 3: La Oficina de Análisis
 		["Oficina_z3"]        = {"Almacen_z2", "Puente_z2", "Servidor_z3", "Antena_z3"},
@@ -568,7 +563,7 @@ LevelsConfig[2] = {
 	-- Mapeo explícito de nodos por zona (permite Cruce_z1 en Zona 2 para análisis)
 	NodosZona = {
 		["Zona_Laberinto_1"]   = {"Gen_Fabrica_z1", "Entrada_z1", "Cruce_z1", "Sala_Maquinas_z1"},
-		["Zona_BarrioOeste_2"] = {"Cruce_z1", "Tunel_Norte_z2", "Tunel_Sur_z2", "Cisterna_z2", "Almacen_z2", "Puente_z2", "Patio_z2", "Taller_z2", "Vestibulo_z2", "Sotano_z2", "Deposito_z2"},
+		["Zona_BarrioOeste_2"] = {"Cruce_z1", "Tunel_Norte_z2", "Tunel_Sur_z2", "Cisterna_z2", "Almacen_z2", "Puente_z2"},
 		["Zona_Oficina_3"]     = {"Oficina_z3", "Servidor_z3", "Antena_z3"},
 	},
 
@@ -582,11 +577,7 @@ LevelsConfig[2] = {
 		["Cisterna_z2"]       = "Cisterna",
 		["Almacen_z2"]        = "Almacen",
 		["Puente_z2"]         = "Puente Metalico",
-		["Patio_z2"]          = "Patio Industrial",
-		["Taller_z2"]         = "Taller de Reparacion",
-		["Vestibulo_z2"]      = "Vestibulo Oeste",
-		["Sotano_z2"]         = "Sotano Abandonado",
-		["Deposito_z2"]       = "Deposito de Herramientas",
+
 		["Oficina_z3"]        = "Oficina de Analisis",
 		["Servidor_z3"]       = "Servidor Central",
 		["Antena_z3"]         = "Antena de Comunicaciones",
@@ -621,24 +612,24 @@ LevelsConfig[2] = {
 		["Zona_BarrioOeste_2"] = {
 			algoritmos = { "bfs", "dfs" },
 			nodoInicio = "Cruce_z1",
-			nodoFin    = "Deposito_z2",
+			nodoFin    = "Puente_z2",
 			conceptos  = {
 				bfs = {
 					intro = "BFS explora el Barrio Oeste nivel por nivel desde el Cruce Principal. Observa cómo ilumina primero todas las calles, luego la Cisterna, Almacén y Puente, y finalmente el Patio, Taller, Vestíbulo y Sótano antes de llegar al Depósito.",
 					pasos = {
 						[2]  = "Nivel 0: el Cruce inicia la cola.",
 						[7]  = "Nivel 1: Avenidas Norte y Sur descubiertas.",
-						[9]  = "Nivel 2: Cisterna, Almacén, Puente, Patio y Vestíbulo en cola.",
-						[13] = "Nivel 3: Taller y Sótano. ¡Depósito alcanzado en el nivel más cercano!",
+						[9]  = "Nivel 2: Cisterna, Almacén y Puente en cola.",
+						[13] = "¡Todos los nodos alcanzados en 2 niveles! BFS encuentra el camino más corto.",
 					},
 				},
 				dfs = {
-					intro = "DFS se adentra por una sola rama desde el Cruce hasta el fondo. Observa cómo llega al Depósito siguiendo Túnel Norte → Patio → Taller → Depósito, mientras ignora completamente las otras ramas hasta que retrocede.",
+					intro = "DFS se adentra por una sola rama desde el Cruce hasta el fondo. Observa cómo DFS sigue el Túnel Norte → Cisterna → Puente, mientras ignora la rama Sur hasta que retrocede.",
 					pasos = {
 						[2]  = "Apilamos el Cruce. DFS elige la rama más profunda.",
 						[7]  = "Desapilamos y apilamos vecinos. El último en entrar es el primero en salir.",
-						[8]  = "DFS bucea por el Túnel Norte → Patio → Taller → Depósito.",
-						[12] = "Backtracking: del Depósito retrocede al Cruce para explorar la rama Sur.",
+						[8]  = "DFS bucea por el Túnel Norte → Cisterna → Puente.",
+						[12] = "Backtracking: del Puente retrocede al Cruce para explorar la rama Sur.",
 					},
 				},
 			},
@@ -697,24 +688,19 @@ LevelsConfig[2] = {
 		{ ID=205, Zona="Zona_Laberinto_1", Texto="Ilumina toda la zona de la Ciudad (4 nodos)",        Tipo="GRAFO_CONEXO",      Puntos=200, Parametros={ Nodos={"Gen_Fabrica_z1","Entrada_z1","Cruce_z1","Sala_Maquinas_z1"} } },
 		{ ID=299, Zona="Zona_Laberinto_1", Texto="¡EMERGENCIA! Restaura la red en 60 segundos",         Tipo="EMERGENCIA",        Puntos=500, Parametros={ Nodos={"Gen_Fabrica_z1","Entrada_z1","Cruce_z1","Sala_Maquinas_z1"}, TiempoLimite=60 } },
 
-		-- ── Zona 2: Barrio Oeste (EXPANDIDO: 10 nodos) ───────────────────────
+		-- ── Zona 2: Barrio Oeste (SIMPLIFICADO: 5 nodos propios) ─────────────
 		{ ID=206, Zona="Zona_BarrioOeste_2", Texto="Tiende cable al Tunnel Norte desde el Cruce",       Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Cruce_z1",       NodoB="Tunel_Norte_z2" } },
 		{ ID=207, Zona="Zona_BarrioOeste_2", Texto="Conecta el Tunnel Sur desde el Cruce",              Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Cruce_z1",       NodoB="Tunel_Sur_z2" } },
 		{ ID=208, Zona="Zona_BarrioOeste_2", Texto="Conecta la Cisterna al Tunnel Norte",               Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Tunel_Norte_z2", NodoB="Cisterna_z2" } },
 		{ ID=209, Zona="Zona_BarrioOeste_2", Texto="Conecta el Almacen al Tunnel Norte",                Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Tunel_Norte_z2", NodoB="Almacen_z2" } },
 		{ ID=210, Zona="Zona_BarrioOeste_2", Texto="Conecta el Puente al Tunnel Sur",                   Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Tunel_Sur_z2",   NodoB="Puente_z2" } },
-		{ ID=2101, Zona="Zona_BarrioOeste_2", Texto="Conecta el Patio al Tunnel Norte",                 Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Tunel_Norte_z2", NodoB="Patio_z2" } },
-		{ ID=2102, Zona="Zona_BarrioOeste_2", Texto="Conecta el Taller a la Cisterna",                  Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Cisterna_z2",    NodoB="Taller_z2" } },
-		{ ID=2103, Zona="Zona_BarrioOeste_2", Texto="Conecta el Vestibulo al Tunnel Sur",               Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Tunel_Sur_z2",   NodoB="Vestibulo_z2" } },
-		{ ID=2104, Zona="Zona_BarrioOeste_2", Texto="Conecta el Sotano al Vestibulo",                   Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Vestibulo_z2",   NodoB="Sotano_z2" } },
-		{ ID=2105, Zona="Zona_BarrioOeste_2", Texto="Conecta el Deposito al Taller",                    Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Taller_z2",      NodoB="Deposito_z2" } },
-		{ ID=211, Zona="Zona_BarrioOeste_2", Texto="Ilumina todo el Barrio Oeste (11 nodos)",           Tipo="GRAFO_CONEXO",  Puntos=400, Parametros={ Nodos={"Cruce_z1","Tunel_Norte_z2","Tunel_Sur_z2","Cisterna_z2","Almacen_z2","Puente_z2","Patio_z2","Taller_z2","Vestibulo_z2","Sotano_z2","Deposito_z2"} } },
+		{ ID=211, Zona="Zona_BarrioOeste_2", Texto="Ilumina todo el Barrio Oeste (6 nodos)",            Tipo="GRAFO_CONEXO",  Puntos=400, Parametros={ Nodos={"Cruce_z1","Tunel_Norte_z2","Tunel_Sur_z2","Cisterna_z2","Almacen_z2","Puente_z2"} } },
 
 		-- ── Zona 3: Oficina de Analisis ───────────────────────────────────────
 		{ ID=212, Zona="Zona_Oficina_3", Texto="Conecta la Oficina desde el Almacen",                   Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Almacen_z2", NodoB="Oficina_z3" } },
 		{ ID=213, Zona="Zona_Oficina_3", Texto="Conecta el Servidor Central a la Oficina",              Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Oficina_z3", NodoB="Servidor_z3" } },
 		{ ID=214, Zona="Zona_Oficina_3", Texto="Conecta la Antena a la Oficina",                        Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Oficina_z3", NodoB="Antena_z3" } },
-		{ ID=215, Zona="Zona_Oficina_3", Texto="Ilumina toda la ciudad (17 nodos)",                    Tipo="GRAFO_CONEXO",  Puntos=600, Parametros={ Nodos={"Gen_Fabrica_z1","Entrada_z1","Cruce_z1","Sala_Maquinas_z1","Tunel_Norte_z2","Tunel_Sur_z2","Cisterna_z2","Almacen_z2","Puente_z2","Patio_z2","Taller_z2","Vestibulo_z2","Sotano_z2","Deposito_z2","Oficina_z3","Servidor_z3","Antena_z3"} } },
+		{ ID=215, Zona="Zona_Oficina_3", Texto="Ilumina toda la ciudad (12 nodos)",                    Tipo="GRAFO_CONEXO",  Puntos=600, Parametros={ Nodos={"Gen_Fabrica_z1","Entrada_z1","Cruce_z1","Sala_Maquinas_z1","Tunel_Norte_z2","Tunel_Sur_z2","Cisterna_z2","Almacen_z2","Puente_z2","Oficina_z3","Servidor_z3","Antena_z3"} } },
 	},
 
 	Guia = {

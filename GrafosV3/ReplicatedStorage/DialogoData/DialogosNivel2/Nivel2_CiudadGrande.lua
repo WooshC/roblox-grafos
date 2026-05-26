@@ -31,6 +31,19 @@ local DIALOGOS = {
 					EfectosDialogo.resaltarNodo("Cruce_z1", "ADYACENTE")
 					EfectosDialogo.resaltarNodo("Sala_Maquinas_z1", "ADYACENTE")
 				end,
+				Siguiente = "reparar_generadores",
+			},
+			{
+				Id        = "reparar_generadores",
+				Numero    = 2,
+				Actor     = "Sistema",
+				Texto     = "🔧 INFORMACIÓN: Los generadores dañados están hechando humo negro. Haz clic 3 veces sobre un generador con humo para repararlo. Cada clic cuesta energía, así que planifica bien tus reparaciones.",
+				Evento = function()
+					EfectosDialogo.limpiarTodo()
+					ServicioCamara.moverHaciaObjetivo("Gen_Fabrica_z1", { altura = 20, angulo = 55, duracion = 1 })
+					EfectosDialogo.resaltarNodo("Gen_Fabrica_z1", "SELECCIONADO")
+					EfectosDialogo.mostrarLabel("Gen_Fabrica_z1", "Clic x3 para reparar", "ADYACENTE")
+				end,
 				Siguiente = "emergencia_carlos",
 			},
 			{

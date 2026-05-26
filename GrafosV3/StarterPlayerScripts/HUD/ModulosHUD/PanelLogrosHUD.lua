@@ -642,11 +642,12 @@ function PanelLogrosHUD.init(hudRef)
 		return
 	end
 
-	-- Crear botón
-	btnLogros = crearBotonLogros()
-	if btnLogros then
-		btnLogros.MouseButton1Click:Connect(PanelLogrosHUD.togglePanel)
-	end
+	-- Boton de logros eliminado del gameplay — ahora solo en el menu principal
+	-- (PanelLogrosHUD.lua aun gestiona notificaciones toast de logros desbloqueados)
+	-- btnLogros = crearBotonLogros()
+	-- if btnLogros then
+	-- 	btnLogros.MouseButton1Click:Connect(PanelLogrosHUD.togglePanel)
+	-- end
 
 	-- Crear panel
 	panelLogros = crearPanelLogros()

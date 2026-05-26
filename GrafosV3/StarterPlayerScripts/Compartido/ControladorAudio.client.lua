@@ -470,6 +470,10 @@ function ControladorAudio.playNodoSeleccionado()
 	return ControladorAudio.playSFX("NodoSeleccionado")
 end
 
+function ControladorAudio.playSonidoArreglando()
+	return ControladorAudio.playSFX("SonidoArreglando")
+end
+
 function ControladorAudio.playNodoReparar()
 	return ControladorAudio.playSFX("NodoReparar")
 end

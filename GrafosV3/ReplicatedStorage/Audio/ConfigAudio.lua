@@ -94,6 +94,15 @@ ConfigAudio.Sonidos = {
 			Ruta = "SFX/Click", -- Usar Click como seleccion de nodo
 			Descripcion = "Sonido al seleccionar un nodo"
 		},
+		SonidoArreglando = {
+			Nombre = "SonidoArreglando",
+			Categoria = "SFX",
+			Volumen = 0.6,
+			Pitch = 1.0,
+			Loop = false,
+			Ruta = "SFX/SonidoArreglando",
+			Descripcion = "Sonido de cada click durante la reparacion de un nodo"
+		},
 		NodoReparar = {
 			Nombre = "NodoReparar",
 			Categoria = "SFX",

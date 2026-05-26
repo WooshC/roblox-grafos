@@ -410,6 +410,8 @@ if notificarEvento then
 			local restantes = tonumber(arg2) or 0
 			if nombreNodo then
 				print(string.format("[ControladorEfectos] Reparando %s: faltan %d clics", nombreNodo, restantes))
+				-- Sonido de click de reparacion
+				ControladorAudio.playSonidoArreglando()
 				-- Pequeno flash dorado en el nodo
 				local nivel = Workspace:FindFirstChild("NivelActual")
 				if nivel then

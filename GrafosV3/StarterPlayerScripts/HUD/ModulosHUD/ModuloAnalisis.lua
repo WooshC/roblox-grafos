@@ -353,8 +353,8 @@ function ModuloAnalisis.inicializar(hudGui)
 		local btnValidar = btnEjec.Parent:FindFirstChild("BtnValidarAislados")
 		if not btnValidar then
 			btnValidar = btnEjec:Clone()
-			btnValidar.Name = "BtnValidarAislados"
-			btnValidar.Text = "Validar Nodos Aislados"
+			btnValidar.Name = "BtnEjecutarProbarRed"
+			btnValidar.Text = "Ejecutar/Probar Red"
 			btnValidar.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 			btnValidar.Parent = btnEjec.Parent
 			-- Si usa UIListLayout, solo cambiamos el LayoutOrder

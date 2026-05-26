@@ -91,6 +91,8 @@ local nivelListoEvento = Remotos:WaitForChild("NivelListo")
 local NOMBRE_NIVEL_ACTUAL = "NivelActual"
 local _jugadorActual = nil
 local _nivelIDActual = nil
+local _spawnCFrameActual = nil
+local _connRespawn = nil
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- DESCARGAR NIVEL ACTUAL
@@ -143,6 +145,12 @@ function CargadorNiveles.descargar()
 		end
 	end
 
+	-- Desconectar respawn listener
+	if _connRespawn then
+		_connRespawn:Disconnect()
+		_connRespawn = nil
+	end
+	_spawnCFrameActual = nil
 	_jugadorActual = nil
 	_nivelIDActual = nil
 end
@@ -427,9 +435,10 @@ function CargadorNiveles.cargarPersonaje(jugador, nivelActual)
 		end
 
 		if spawnLoc then
+			_spawnCFrameActual = spawnLoc.CFrame * CFrame.new(0, 5, 0)
 			local hrp = personaje:WaitForChild("HumanoidRootPart", 8)
 			if hrp then
-				hrp.CFrame = spawnLoc.CFrame * CFrame.new(0, 5, 0)
+				hrp.CFrame = _spawnCFrameActual
 				print("[CargadorNiveles] Jugador teleportado al nivel")
 				
 				-- Añadir luz al jugador si la configuración lo pide
@@ -446,6 +455,31 @@ function CargadorNiveles.cargarPersonaje(jugador, nivelActual)
 				end
 			end
 		end
+		
+		-- Conectar respawn automático al morir (CharacterAutoLoads = false)
+		local humanoid = personaje:FindFirstChildOfClass("Humanoid")
+		if humanoid then
+			humanoid.Died:Connect(function()
+				task.wait(3)
+				if jugador and jugador.Parent then
+					jugador:LoadCharacter()
+				end
+			end)
+		end
+
+			-- Teleportar al spawn cada vez que el personaje reaparece (respawn por muerte)
+			if _connRespawn then
+				_connRespawn:Disconnect()
+			end
+			_connRespawn = jugador.CharacterAdded:Connect(function(nuevoPersonaje)
+				if not _spawnCFrameActual then return end
+				task.wait(0.1)
+				local nuevoHRP = nuevoPersonaje:WaitForChild("HumanoidRootPart", 3)
+				if nuevoHRP then
+					nuevoHRP.CFrame = _spawnCFrameActual
+					print("[CargadorNiveles] Jugador respawneado y teleportado al nivel")
+				end
+			end)
 	end)
 
 	if not exito then

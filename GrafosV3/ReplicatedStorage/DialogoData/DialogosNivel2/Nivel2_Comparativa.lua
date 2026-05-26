@@ -1,12 +1,10 @@
 -- ReplicatedStorage/DialogoData/DialogosNivel2/Nivel2_Comparativa.lua
--- Diálogo comparativo BFS vs DFS — Zona 2 expandida (Barrio Oeste)
--- Se recomienda asignar este diálogo a un trigger adicional cerca del Panel de Análisis.
+-- Diálogo comparativo BFS vs DFS — Barrio Oeste simplificado
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local EfectosDialogo = require(ReplicatedStorage:WaitForChild("Efectos"):WaitForChild("EfectosDialogo"))
 local ServicioCamara = require(ReplicatedStorage:WaitForChild("Compartido"):WaitForChild("ServicioCamara"))
 
--- Evento para notificar respuestas correctas al servidor
 local Utilidades = require(ReplicatedStorage:WaitForChild("Compartido"):WaitForChild("Utilidades"))
 
 local function notificarRespuestaCorrecta()
@@ -23,113 +21,69 @@ local DIALOGOS = {
 				Numero    = 1,
 				Actor     = "Carlos",
 				Expresion = "Presentacion",
-				Texto     = "Este es el punto de observación del Barrio Oeste. Desde aquí puedes ver toda la red expandida de la ciudad. Mira: once nodos conectados en múltiples direcciones. Este es el escenario perfecto para comparar BFS y DFS lado a lado.",
+				Texto     = "Desde aquí puedes ver todo el Barrio Oeste. Seis nodos conectados en dos ramas principales. Este es el escenario ideal para comparar BFS y DFS lado a lado.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
-					ServicioCamara.moverHaciaObjetivo("Cruce_z1", { altura = 45, angulo = 80, duracion = 2 })
+					ServicioCamara.moverHaciaObjetivo("Cruce_z1", { altura = 35, angulo = 75, duracion = 1.5 })
 					EfectosDialogo.resaltarNodo("Cruce_z1", "SELECCIONADO")
 					EfectosDialogo.resaltarNodo("Tunel_Norte_z2", "ADYACENTE")
 					EfectosDialogo.resaltarNodo("Tunel_Sur_z2", "ADYACENTE")
 					EfectosDialogo.resaltarNodo("Cisterna_z2", "ADYACENTE")
 					EfectosDialogo.resaltarNodo("Almacen_z2", "ADYACENTE")
 					EfectosDialogo.resaltarNodo("Puente_z2", "ADYACENTE")
-					EfectosDialogo.resaltarNodo("Patio_z2", "ADYACENTE")
-					EfectosDialogo.resaltarNodo("Taller_z2", "ADYACENTE")
-					EfectosDialogo.resaltarNodo("Vestibulo_z2", "ADYACENTE")
-					EfectosDialogo.resaltarNodo("Sotano_z2", "ADYACENTE")
-					EfectosDialogo.resaltarNodo("Deposito_z2", "ADYACENTE")
 				end,
-				Siguiente = "bfs_recorrido",
+				Siguiente = "bfs_demo",
 			},
 			{
-				Id        = "bfs_recorrido",
+				Id        = "bfs_demo",
 				Numero    = 2,
 				Actor     = "Carlos",
 				Expresion = "Pensativo",
-				Texto     = "Observa el recorrido de BFS desde el Cruce Principal. BFS usa una cola FIFO: primero procesa el Cruce, luego encola las Avenidas Norte y Sur. Después procesa el Túnel Norte y encola Cisterna, Almacén y Patio. Luego el Túnel Sur y encola Puente y Vestíbulo. ¡BFS ilumina por niveles!",
+				Texto     = "BFS usa una cola FIFO. Desde el Cruce, encola Norte y Sur. Luego procesa Norte y encola Cisterna y Almacén. Procesa Sur y encola Puente. Todos los nodos del Nivel 2 descubiertos a la vez. BFS ilumina por niveles, como una onda.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					EfectosDialogo.resaltarNodo("Cruce_z1", "SELECCIONADO")
 					EfectosDialogo.mostrarArista("Cruce_z1", "Tunel_Norte_z2", "SELECCIONADO", { sinParticulas = true })
 					EfectosDialogo.mostrarArista("Cruce_z1", "Tunel_Sur_z2", "SELECCIONADO", { sinParticulas = true })
 					EfectosDialogo.mostrarLabel("Cruce_z1", "Nivel 0", "SELECCIONADO")
-					ServicioCamara.moverHaciaObjetivo("Tunel_Norte_z2", { altura = 35, angulo = 70, duracion = 1.5 })
+					ServicioCamara.moverHaciaObjetivo("Cisterna_z2", { altura = 30, angulo = 65, duracion = 1.5 })
 				end,
-				Siguiente = "bfs_nivel2",
+				Siguiente = "dfs_demo",
 			},
 			{
-				Id        = "bfs_nivel2",
+				Id        = "dfs_demo",
 				Numero    = 3,
 				Actor     = "Carlos",
-				Expresion = "Sonriente",
-				Texto     = "Nivel 2 de BFS: Cisterna, Almacén, Patio, Puente, Vestíbulo. Todos fueron descubiertos a la misma profundidad. BFS no prefiere ninguna rama: expande uniformemente como una onda. Si buscas el camino más corto en saltos, BFS es tu elección.",
-				Evento = function()
-					EfectosDialogo.limpiarTodo()
-					EfectosDialogo.resaltarNodo("Tunel_Norte_z2", "SELECCIONADO")
-					EfectosDialogo.resaltarNodo("Tunel_Sur_z2", "SELECCIONADO")
-					EfectosDialogo.mostrarArista("Tunel_Norte_z2", "Cisterna_z2", "SELECCIONADO", { sinParticulas = true })
-					EfectosDialogo.mostrarArista("Tunel_Norte_z2", "Almacen_z2", "SELECCIONADO", { sinParticulas = true })
-					EfectosDialogo.mostrarArista("Tunel_Norte_z2", "Patio_z2", "SELECCIONADO", { sinParticulas = true })
-					EfectosDialogo.mostrarArista("Tunel_Sur_z2", "Puente_z2", "SELECCIONADO", { sinParticulas = true })
-					EfectosDialogo.mostrarArista("Tunel_Sur_z2", "Vestibulo_z2", "SELECCIONADO", { sinParticulas = true })
-					EfectosDialogo.mostrarLabel("Tunel_Norte_z2", "Nivel 1", "SELECCIONADO")
-					EfectosDialogo.mostrarLabel("Tunel_Sur_z2", "Nivel 1", "SELECCIONADO")
-				end,
-				Siguiente = "dfs_recorrido",
-			},
-			{
-				Id        = "dfs_recorrido",
-				Numero    = 4,
-				Actor     = "Carlos",
 				Expresion = "Serio",
-				Texto     = "Ahora DFS. Misma red, misma reglas, pero DFS usa una pila LIFO. Desde el Cruce, apila las Avenidas Norte y Sur. Como el Sur se apiló después, DFS lo procesa primero. Luego desde el Sur apila Puente y Vestíbulo. El Vestíbulo se apiló después, así que DFS va directo al Vestíbulo... luego al Sótano.",
+				Texto     = "DFS usa una pila LIFO. Desde el Cruce, apila Norte y Sur. Como Sur se apiló después, DFS va primero al Sur, luego al Puente. Sin vecinos nuevos, retrocede. Luego explora Norte → Almacén, retrocede, y finalmente Norte → Cisterna → Puente. DFS completó una rama antes de tocar la otra.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					EfectosDialogo.resaltarNodo("Cruce_z1", "SELECCIONADO")
 					EfectosDialogo.mostrarArista("Cruce_z1", "Tunel_Sur_z2", "SELECCIONADO", { sinParticulas = true })
-					EfectosDialogo.mostrarArista("Tunel_Sur_z2", "Vestibulo_z2", "SELECCIONADO", { sinParticulas = true })
-					EfectosDialogo.mostrarArista("Vestibulo_z2", "Sotano_z2", "SELECCIONADO", { sinParticulas = true })
-					EfectosDialogo.mostrarLabel("Sotano_z2", "¡Fondo de la rama!", "SELECCIONADO")
-					ServicioCamara.moverHaciaObjetivo("Sotano_z2", { altura = 30, angulo = 65, duracion = 1.5 })
-				end,
-				Siguiente = "dfs_backtracking_demo",
-			},
-			{
-				Id        = "dfs_backtracking_demo",
-				Numero    = 5,
-				Actor     = "Carlos",
-				Expresion = "Extasiado",
-				Texto     = "DFS llegó al fondo de la rama Sur. El Sótano no tiene vecinos sin visitar. ¿Qué hace? Backtracking: desapila y retrocede al Vestíbulo. Desde ahí prueba el Puente. Si el Puente tampoco lleva a nada nuevo, retrocede al Túnel Sur, luego al Cruce, y finalmente explora la rama Norte: Túnel Norte → Patio → Taller → Depósito. ¡DFS completó una rama entera antes de tocar la otra!",
-				Evento = function()
-					EfectosDialogo.limpiarTodo()
-					EfectosDialogo.resaltarNodo("Cruce_z1", "SELECCIONADO")
-					EfectosDialogo.mostrarArista("Cruce_z1", "Tunel_Norte_z2", "SELECCIONADO", { sinParticulas = true })
-					EfectosDialogo.mostrarArista("Tunel_Norte_z2", "Patio_z2", "SELECCIONADO", { sinParticulas = true })
-					EfectosDialogo.mostrarArista("Patio_z2", "Taller_z2", "SELECCIONADO", { sinParticulas = true })
-					EfectosDialogo.mostrarArista("Taller_z2", "Deposito_z2", "SELECCIONADO", { sinParticulas = true })
-					EfectosDialogo.mostrarLabel("Deposito_z2", "Rama Norte completa", "SELECCIONADO")
-					ServicioCamara.moverHaciaObjetivo("Deposito_z2", { altura = 30, angulo = 65, duracion = 1.5 })
+					EfectosDialogo.mostrarArista("Tunel_Sur_z2", "Puente_z2", "SELECCIONADO", { sinParticulas = true })
+					EfectosDialogo.mostrarLabel("Puente_z2", "Fondo de rama", "SELECCIONADO")
+					ServicioCamara.moverHaciaObjetivo("Puente_z2", { altura = 30, angulo = 65, duracion = 1.5 })
 				end,
 				Siguiente = "pregunta_comparativa",
 			},
 			{
 				Id        = "pregunta_comparativa",
-				Numero    = 6,
+				Numero    = 4,
 				Actor     = "Carlos",
 				Expresion = "Curioso",
-				Texto     = "Pregunta de análisis: en esta red de 11 nodos del Barrio Oeste, ¿cuál sería la principal diferencia visible si ejecutas BFS versus DFS desde el Cruce Principal?",
+				Texto     = "En esta red de 6 nodos, ¿cuál es la diferencia principal entre BFS y DFS desde el Cruce?",
 				Opciones = {
-					{ Texto = "BFS iluminaría todos los nodos nivel por nivel en forma de onda, mientras DFS se adentraría completamente por una rama antes de explorar la otra.", Siguiente = "resp_comp_bien" },
-					{ Texto = "Ambos algoritmos producirían exactamente el mismo orden de visita porque el grafo es pequeño.", Siguiente = "resp_comp_mal" },
-					{ Texto = "DFS siempre encontraría el camino más corto al Depósito porque usa una pila.", Siguiente = "resp_comp_mal2" },
+					{ Texto = "BFS ilumina nivel por nivel en onda; DFS se adentra por una rama antes de explorar la otra.", Siguiente = "resp_comp_bien" },
+					{ Texto = "Ambos algoritmos producen el mismo orden de visita porque el grafo es conexo.", Siguiente = "resp_comp_mal" },
+					{ Texto = "DFS siempre encuentra el camino más corto porque usa una pila LIFO.", Siguiente = "resp_comp_mal2" },
 				},
 			},
 			{
 				Id        = "resp_comp_bien",
-				Numero    = 7,
+				Numero    = 5,
 				Actor     = "Carlos",
 				Expresion = "Feliz",
-				Texto     = "¡Exacto! Esa es la diferencia fundamental. BFS expande en ondas: Cruce → Avenidas → Cisterna/Almacén/Patio/Puente/Vestíbulo → Taller/Sótano → Depósito. DFS se va por la rama Sur hasta el Sótano, retrocede, y luego va por la Norte hasta el Depósito. Abre el Panel de Análisis (Tab) y ejecútalos tú mismo para ver la animación paso a paso.",
+				Texto     = "¡Exacto! Esa es la diferencia fundamental. Abre el Panel de Análisis (Tab) y ejecútalos tú mismo para ver la animación paso a paso.",
 				Evento = function()
 					local jugador = game:GetService("Players").LocalPlayer
 					if jugador then
@@ -138,29 +92,29 @@ local DIALOGOS = {
 					end
 					notificarRespuestaCorrecta()
 				end,
-				Opciones = { { Texto = "Abriré el analizador", Siguiente = "consejo_final" } },
+				Opciones = { { Texto = "Probaré el analizador", Siguiente = "consejo_final" } },
 			},
 			{
 				Id        = "resp_comp_mal",
-				Numero    = 7,
+				Numero    = 5,
 				Actor     = "Carlos",
 				Expresion = "Serio",
-				Texto     = "No, el orden de visita es completamente diferente. BFS y DFS usan estructuras de datos distintas: cola FIFO versus pila LIFO. Eso produce órdenes de exploración radicalmente distintos, especialmente visible en grafos ramificados como este de 11 nodos. Prueba el analizador para verlo tú mismo.",
+				Texto     = "No, el orden es completamente diferente. Cola FIFO versus pila LIFO produce órdenes de exploración distintos. Prueba el analizador para verlo.",
 				Opciones = { { Texto = "Entendido", Siguiente = "consejo_final" } },
 			},
 			{
 				Id        = "resp_comp_mal2",
-				Numero    = 7,
+				Numero    = 5,
 				Actor     = "Carlos",
 				Expresion = "Serio",
-				Texto     = "No, DFS no garantiza el camino más corto. DFS encuentra un camino, pero no necesariamente el de menos saltos. En este grafo, BFS encontraría el Depósito en 4 saltos (Cruce→Túnel Norte→Patio→Taller→Depósito). DFS podría tardar mucho más si se va primero por la rama Sur. BFS es el rey de los caminos más cortos en grafos no ponderados.",
+				Texto     = "No, DFS no garantiza el camino más corto. BFS es el que encuentra el mínimo de saltos en grafos no ponderados.",
 				Opciones = { { Texto = "Entendido", Siguiente = "consejo_final" } },
 			},
 			{
 				Id        = "consejo_final",
-				Numero    = 8,
+				Numero    = 6,
 				Actor     = "Sistema",
-				Texto     = "Consejo práctico: selecciona BFS en el Panel de Análisis y presiona Ejecutar. Observa la cola y el orden de niveles. Luego cambia a DFS, reinicia y observa la pila y el backtracking. La misma red, dos historias completamente diferentes.",
+				Texto     = "Selecciona BFS en el Panel de Análisis y observa la cola. Luego cambia a DFS y observa la pila y el backtracking.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					ServicioCamara.restaurar(1.5)
