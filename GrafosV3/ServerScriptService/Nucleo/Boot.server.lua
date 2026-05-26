@@ -11,6 +11,7 @@ local Servidores = game:GetService("ServerScriptService")
 local Jugadores  = game:GetService("Players")
 local Replicado  = game:GetService("ReplicatedStorage")
 local StarterGui = game:GetService("StarterGui")
+local Utilidades = require(Replicado:WaitForChild("Compartido"):WaitForChild("Utilidades"))
 
 -- Sin spawn automatico (el menu no necesita personaje)
 Jugadores.CharacterAutoLoads = false
@@ -76,18 +77,11 @@ local function construirContexto(jugador)
 	if not sistemasCarpeta then return {} end
 
 	local ctx = {}
-
 	local mCables = sistemasCarpeta:FindFirstChild("ConectarCables")
-	if mCables then
-		local ok, ref = pcall(require, mCables)
-		if ok then ctx.cables = ref end
-	end
+	if mCables then ctx.cables = Utilidades.safeRequire(mCables, "ConectarCables") end
 
 	local mMisiones = sistemasCarpeta:FindFirstChild("ServicioMisiones")
-	if mMisiones then
-		local ok, ref = pcall(require, mMisiones)
-		if ok then ctx.misiones = ref end
-	end
+	if mMisiones then ctx.misiones = Utilidades.safeRequire(mMisiones, "ServicioMisiones") end
 
 	return ctx
 end

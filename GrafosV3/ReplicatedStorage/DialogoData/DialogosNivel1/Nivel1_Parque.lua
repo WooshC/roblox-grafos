@@ -7,17 +7,10 @@ local EfectosDialogo = require(ReplicatedStorage:WaitForChild("Efectos"):WaitFor
 local ServicioCamara = require(ReplicatedStorage:WaitForChild("Compartido"):WaitForChild("ServicioCamara"))
 
 -- Evento para notificar respuestas correctas al servidor
+local Utilidades = require(ReplicatedStorage:WaitForChild("Compartido"):WaitForChild("Utilidades"))
+
 local function notificarRespuestaCorrecta()
-	local eventos = ReplicatedStorage:FindFirstChild("EventosGrafosV3")
-	if eventos then
-		local remotos = eventos:FindFirstChild("Remotos")
-		if remotos then
-			local evento = remotos:FindFirstChild("DialogoCorrecto")
-			if evento then
-				evento:FireServer()
-			end
-		end
-	end
+	Utilidades.notificarDialogoCorrecto()
 end
 
 local DIALOGOS = {

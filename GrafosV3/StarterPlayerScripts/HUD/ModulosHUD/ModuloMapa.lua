@@ -59,12 +59,6 @@ local ModuloMatriz = nil
 -- Los techos los gestiona GestorColisiones (ControladorColisiones.client.lua)
 -- Los billboards de zonas los gestiona EfectosZonas
 
-local function _gestionarReflector(abierto)
-	-- Removido a petición del usuario. La iluminación ahora depende
-	-- exclusivamente de mantener los techos en su posición original
-	-- con transparencia, para que no oculten ni trasladen sus luces.
-end
-
 -- Estado de selección en el mapa
 local nodoSeleccionadoMapa = nil
 local adyacentesSeleccionados = {}
@@ -309,10 +303,6 @@ end
 -- ================================================================
 
 -- [DEPRECATED] Ahora se usa ServicioCamara.guardarEstado()
-function _guardarEstadoCamara()
-	ServicioCamara.guardarEstado()
-end
-
 function _calcularBoundsNivel()
 	if not nivelActual then return nil end
 
@@ -815,9 +805,6 @@ function ModuloMapa.abrir()
 	-- Ocultar techos usando GestorColisiones
 	GestorColisiones:ocultarTecho()
 
-	-- Crear reflector para iluminación
-	_gestionarReflector(true)
-
 	-- Calcular posicion cenital
 	local bounds = _calcularBoundsNivel()
 	local cframeCenital = _calcularCFrameCenital(bounds)
@@ -873,8 +860,6 @@ function ModuloMapa.cerrar()
 	end)
 
 	-- Eliminar reflector
-	_gestionarReflector(false)
-
 	-- Restaurar techos usando GestorColisiones
 	GestorColisiones:restaurar()
 

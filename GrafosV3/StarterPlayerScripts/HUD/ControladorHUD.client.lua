@@ -76,7 +76,7 @@ local function activarHUD()
 	hudGui.Enabled = true
 
 	-- Resetear estado
-	TransicionHUD.ocultarInmediato()
+	TransicionHUD.reset()
 	PanelMisionesHUD.reiniciar()
 	VictoriaHUD.ocultar()
 	PuntajeHUD.fijar(0)

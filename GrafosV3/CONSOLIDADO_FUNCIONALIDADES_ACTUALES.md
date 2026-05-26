@@ -32,7 +32,8 @@ La carga del juego es determinista y controlada en fases estrictas:
 
 ## 5. Misiones, Progresión y Puntuaciones
 - **Motor de Misiones (`ServicioMisiones.lua`):** Creado dinámicamente con cada nivel. Lee el `LevelsConfig` y se suscribe a los Handlers de los Cables. Vigila constantemente si se requiere conectar Nodos de Misión (ej: `Centro` con `Periferia`). Al completarlas, dispara estados de validación por zona.
-- **Puntuación y Victoria (`ServicioPuntaje.lua`):** Otorga un número específico de puntos (+100 por acierto de quiz, puntos por conectar cables, restas por deshacer). Cuando `ServicioMisiones` dictamina mapa resuelto, este módulo dispara la cadena que finaliza y bloquea el nivel (`Victoria!`).
+- **Timer de Emergencia (`TimerEmergencia.lua`):** Módulo independiente extraído de `ServicioMisiones` (SRP). Gestiona el countdown de misiones tipo EMERGENCIA, incluyendo pausa automática durante diálogos y notificación al cliente vía `TimerEmergencia` RemoteEvent. Delegado desde `ServicioMisiones` que decide cuándo iniciarlo según zona.
+- **Puntuación y Victoria (`ServicioPuntaje.lua`): Otorga un número específico de puntos (+100 por acierto de quiz, puntos por conectar cables, restas por deshacer). Cuando `ServicioMisiones` dictamina mapa resuelto, este módulo dispara la cadena que finaliza y bloquea el nivel (`Victoria!`).
 - **Almacenamiento Local (`ServicioProgreso.lua` / `ServicioDatos.lua`):** Guarda silenciosamente el mejor Record (High Score), Estrellas obtenidas, Tiempo record y desbloqueos, y se las transfiere al menú la próxima vez que el jugador inicia.
 
 ---
@@ -40,7 +41,8 @@ La carga del juego es determinista y controlada en fases estrictas:
 ## 6. Sistemas de Interfaz Dinámica (HUD y Menú)
 - **Menú Principal (`ControladorMenu.client.lua`):** Renderiza dinámicamente las tarjetas gráficas (Cards) de niveles agrupándolas por "Secciones". Lee el Progreso y cambia el estado visual (Candado, Jugar, Reintentar), animando barras de compleción de currícula.
 - **Panel Interfaz Dinámico (`PanelMisionesHUD.lua`):** Panel lateral izquierdo in-game. Escucha los cambios del `GestorZonas` para reconstruir sus listas de checkboxes. Da feedback en vivo a medida que accionas cables.
-- **Módulo de Análisis Visual (`ModuloAnalisis` / `ModuloMapa`):** Tecla `Tab` para la tablet de escaneo. Tecla `M` para activar el dron aéreo permitiendo trazar cables a larga distancia en el plano 2D.
+- **Control de Jugador durante Diálogos (`DialogoJugadorController.lua`):** Módulo independiente extraído de `ControladorDialogo` (SRP). Gestiona bloqueo/restauración de movimiento, ocultar/mostrar HUD, y click aéreo (raycast cenital para conectar nodos durante diálogos). Delegado desde `ControladorDialogo` que decide cuándo activar cada función según la configuración del diálogo.
+- **Módulo de Análisis Visual (`ModuloAnalisis` / `ModuloMapa`): Tecla `Tab` para la tablet de escaneo. Tecla `M` para activar el dron aéreo permitiendo trazar cables a larga distancia en el plano 2D.
 - **Cierre del Nivel (`VictoriaHUD` / `TransicionHUD`):** Produce un Flash/Cortinilla para frenar en seco el Input del jugador en pro de festejar la obtención del nivel e inyectar el feedback general.
 
 ---

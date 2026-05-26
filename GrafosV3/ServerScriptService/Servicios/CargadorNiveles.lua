@@ -16,6 +16,8 @@ local LevelsConfig = require(Replicado:WaitForChild("Config"):WaitForChild("Leve
 -- ValidadorConexiones se carga inmediatamente (CargadorNiveles es dueño de su ciclo de vida)
 local ValidadorConexiones = require(ServerScriptService.SistemasGameplay.ValidadorConexiones)
 local GrafoHelpers = require(Replicado:WaitForChild("Compartido"):WaitForChild("GrafoHelpers"))
+local Utilidades = require(Replicado:WaitForChild("Compartido"):WaitForChild("Utilidades"))
+local Constantes = require(Replicado:WaitForChild("Config"):WaitForChild("Constantes"))
 
 -- Sistemas de gameplay (se cargan bajo demanda)
 local ConectarCables = nil
@@ -27,112 +29,57 @@ local ServicioLogros = nil
 
 -- Cargar ServicioPuntaje directamente (workaround para problema de caché de Studio)
 local ServicioPuntaje = nil
-local function cargarServicioPuntajeDirecto()
-	local exito, resultado = pcall(function()
-		-- Intentar cargar directamente desde la ruta conocida
-		return require(ServerScriptService.SistemasGameplay.ServicioPuntaje)
-	end)
-	if exito then
-		return resultado
-	else
-		warn("[CargadorNiveles] No se pudo cargar ServicioPuntaje directamente:", resultado)
-		return nil
+
+-- Factory de lazy-loading para sistemas de gameplay
+local function _cargarSistema(cacheRef, nombreModulo, carpeta)
+	carpeta = carpeta or ServerScriptService:FindFirstChild("SistemasGameplay")
+	if not carpeta then return nil end
+	if not cacheRef then
+		local modulo = carpeta:FindFirstChild(nombreModulo)
+		if modulo then
+			cacheRef = Utilidades.safeRequire(modulo, nombreModulo)
+		end
 	end
+	return cacheRef
 end
 
--- Cargar ServicioProgreso
 local function obtenerServicioProgreso()
 	if not ServicioProgreso then
-		local exito, resultado = pcall(function()
-			return require(script.Parent.ServicioProgreso)
-		end)
-		if exito then
-			ServicioProgreso = resultado
-		else
-			warn("[CargadorNiveles] Error al cargar ServicioProgreso:", resultado)
-		end
+		ServicioProgreso = Utilidades.safeRequire(script.Parent.ServicioProgreso, "ServicioProgreso")
 	end
 	return ServicioProgreso
 end
 
--- Cache de modulos
 local function obtenerConectarCables()
-	if not ConectarCables then
-		local sistemasFolder = ServerScriptService:FindFirstChild("SistemasGameplay")
-		if not sistemasFolder then return nil end
-		local modulo = sistemasFolder:FindFirstChild("ConectarCables")
-		if modulo then ConectarCables = require(modulo) end
-	end
+	ConectarCables = _cargarSistema(ConectarCables, "ConectarCables")
 	return ConectarCables
 end
 
 local function obtenerServicioMisiones()
-	if not ServicioMisiones then
-		local sistemasFolder = ServerScriptService:FindFirstChild("SistemasGameplay")
-		if not sistemasFolder then return nil end
-		local modulo = sistemasFolder:FindFirstChild("ServicioMisiones")
-		if modulo then ServicioMisiones = require(modulo) end
-	end
+	ServicioMisiones = _cargarSistema(ServicioMisiones, "ServicioMisiones")
 	return ServicioMisiones
 end
 
 local function obtenerServicioEnergia()
-	if not ServicioEnergia then
-		local sistemasFolder = ServerScriptService:FindFirstChild("SistemasGameplay")
-		if not sistemasFolder then return nil end
-		local modulo = sistemasFolder:FindFirstChild("ServicioEnergia")
-		if modulo then ServicioEnergia = require(modulo) end
-	end
+	ServicioEnergia = _cargarSistema(ServicioEnergia, "ServicioEnergia")
 	return ServicioEnergia
 end
 
 local function obtenerServicioLogros()
-	if not ServicioLogros then
-		local sistemasFolder = ServerScriptService:FindFirstChild("SistemasGameplay")
-		if not sistemasFolder then return nil end
-		local modulo = sistemasFolder:FindFirstChild("ServicioLogros")
-		if modulo then
-			local ok, resultado = pcall(require, modulo)
-			if ok then
-				ServicioLogros = resultado
-			end
-		end
-	end
+	ServicioLogros = _cargarSistema(ServicioLogros, "ServicioLogros")
 	return ServicioLogros
 end
 
 local function obtenerServicioPuntaje()
-	if not ServicioPuntaje then
-		local sistemasFolder = ServerScriptService:FindFirstChild("SistemasGameplay")
-		if not sistemasFolder then 
-			warn("[CargadorNiveles] obtenerServicioPuntaje: No se encontro SistemasGameplay")
-			return nil 
-		end
-		local modulo = sistemasFolder:FindFirstChild("ServicioPuntaje")
-		if modulo then
-			local exito, resultado = pcall(function()
-				return require(modulo)
-			end)
-			if exito then
-				ServicioPuntaje = resultado
-				print("[CargadorNiveles] ServicioPuntaje cargado correctamente")
-			else
-				warn("[CargadorNiveles] Error al cargar ServicioPuntaje:", resultado)
-			end
-		else
-			warn("[CargadorNiveles] No se encontro el modulo ServicioPuntaje en SistemasGameplay")
-		end
+	ServicioPuntaje = _cargarSistema(ServicioPuntaje, "ServicioPuntaje")
+	if ServicioPuntaje then
+		print("[CargadorNiveles] ServicioPuntaje cargado correctamente")
 	end
 	return ServicioPuntaje
 end
 
 local function obtenerGestorZonas()
-	if not GestorZonas then
-		local sistemasFolder = ServerScriptService:FindFirstChild("SistemasGameplay")
-		if not sistemasFolder then return nil end
-		local modulo = sistemasFolder:FindFirstChild("GestorZonas")
-		if modulo then GestorZonas = require(modulo) end
-	end
+	GestorZonas = _cargarSistema(GestorZonas, "GestorZonas")
 	return GestorZonas
 end
 
@@ -257,12 +204,12 @@ function CargadorNiveles.cargar(nivelID, jugador)
 	local Lighting = game:GetService("Lighting")
 	if config.ConfiguracionEntorno then
 		Lighting.ClockTime = config.ConfiguracionEntorno.Reloj or 14
-		Lighting.Ambient = config.ConfiguracionEntorno.IluminacionAmbiental or Color3.fromRGB(128, 128, 128)
-		Lighting.OutdoorAmbient = config.ConfiguracionEntorno.IluminacionExteriores or Color3.fromRGB(128, 128, 128)
+		Lighting.Ambient = config.ConfiguracionEntorno.IluminacionAmbiental or Constantes.ILUMINACION_DEFAULT
+		Lighting.OutdoorAmbient = config.ConfiguracionEntorno.IluminacionExteriores or Constantes.ILUMINACION_DEFAULT
 	else
-		Lighting.ClockTime = 14
-		Lighting.Ambient = Color3.fromRGB(128, 128, 128)
-		Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+		Lighting.ClockTime = Constantes.HORA_DIA_DEFAULT
+		Lighting.Ambient = Constantes.ILUMINACION_DEFAULT
+		Lighting.OutdoorAmbient = Constantes.ILUMINACION_DEFAULT
 	end
 
 

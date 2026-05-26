@@ -80,11 +80,4 @@ function TransicionHUD.reset()
 	end
 end
 
-function TransicionHUD.ocultarInmediato()
-	asegurarFadeGui()
-	if fadeFrame then
-		fadeFrame.BackgroundTransparency = 1
-	end
-end
-
 return TransicionHUD

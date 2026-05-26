@@ -18,40 +18,15 @@ print("[GrafosV3] === ControladorDialogo Iniciando ===")
 local ServicioCamara = require(RS:WaitForChild("Compartido"):WaitForChild("ServicioCamara"))
 local GestorColisiones = require(RS:WaitForChild("Compartido"):WaitForChild("GestorColisiones"))
 local LevelsConfig = require(RS:WaitForChild("Config"):WaitForChild("LevelsConfig"))
+local Utilidades = require(RS:WaitForChild("Compartido"):WaitForChild("Utilidades"))
+local DialogoJugadorController = require(script.Parent:WaitForChild("DialogoJugadorController"))
 
--- Referencia al ModuloMapa (se obtiene dinámicamente para evitar dependencia circular)
-local function obtenerModuloMapa()
-	local playerScripts = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerScripts")
-	if not playerScripts then return nil end
-	local HUD = playerScripts:FindFirstChild("HUD")
-	if not HUD then return nil end
-	local ModulosHUD = HUD:FindFirstChild("ModulosHUD")
-	if not ModulosHUD then return nil end
-	local exito, modulo = pcall(function()
-		return require(ModulosHUD:FindFirstChild("ModuloMapa"))
-	end)
-	return exito and modulo or nil
-end
+-- (obtenerModuloMapa movido a DialogoJugadorController)
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- REFERENCIAS A SISTEMAS EXTERNOS
 -- ═══════════════════════════════════════════════════════════════════════════════
 
-local function obtenerHudGui()
-	local gui = playerGui:FindFirstChild("GUIExploradorV2")
-	if gui then return gui end
-
-	for _, child in ipairs(playerGui:GetChildren()) do
-		if child:IsA("ScreenGui") then
-			if child.Name:match("HUD") or child.Name:match("Explorador") or child.Name:match("Gameplay") then
-				return child
-			end
-		end
-	end
-	return nil
-end
-
-local hudGui = obtenerHudGui()
 local eventos = RS:WaitForChild("EventosGrafosV3")
 local remotos = eventos:WaitForChild("Remotos")
 
@@ -61,25 +36,18 @@ local remotos = eventos:WaitForChild("Remotos")
 
 local Dialogo = script.Parent
 
--- Función segura para cargar módulos
+-- Función segura para cargar módulos (delegada a Utilidades.safeRequire)
 local function cargarModulo(nombre)
 	local modulo = Dialogo:FindFirstChild(nombre)
 	if not modulo then
 		warn("[ControladorDialogo] Módulo no encontrado:", nombre)
 		return nil
 	end
-
-	local exito, resultado = pcall(function()
-		return require(modulo)
-	end)
-
-	if exito then
+	local resultado = Utilidades.safeRequire(modulo, nombre)
+	if resultado then
 		print("[ControladorDialogo] ✓ Módulo cargado:", nombre)
-		return resultado
-	else
-		warn("[ControladorDialogo] ✗ Error cargando", nombre .. ":", resultado)
-		return nil
 	end
+	return resultado
 end
 
 -- Cargar módulos en orden
@@ -164,16 +132,6 @@ end
 local dialogoActivo = false
 local promptsConectados = {}
 local nivelActual = nil
-local framesHUD = {}
-
--- Estado del jugador antes del diálogo
-local estadoJugador = {
-	humanoid = nil,
-	camaraOriginal = nil,
-	cframeOriginal = nil,
-	walkSpeedOriginal = nil,
-	jumpPowerOriginal = nil
-}
 
 -- Configuración por defecto de restricciones
 local RESTRICCIONES_DEFAULT = {
@@ -183,146 +141,6 @@ local RESTRICCIONES_DEFAULT = {
 	apuntarCamara = true,
 	permitirConexiones = false  -- Si true, el jugador puede hacer conexiones durante el diálogo
 }
-
--- ═══════════════════════════════════════════════════════════════════════════════
--- CONFIGURACIÓN
--- ═══════════════════════════════════════════════════════════════════════════════
-
-local CONFIG = {
-	FramesAOcultar = {
-		"PanelMisiones",
-		"PanelPuntaje", 
-		"PanelMapa",
-		"BotonesAccion"
-	},
-	DuracionTransicion = 0.3,
-
-	-- Configuración de cámara
-	Camara = {
-		Distancia = 8,           -- Distancia del personaje
-		Altura = 3,              -- Altura sobre el personaje
-		Suavizado = 0.1          -- Velocidad de transición (0-1)
-	}
-}
-
--- ═══════════════════════════════════════════════════════════════════════════════
--- FUNCIONES DE CONTROL DEL JUGADOR
--- ═══════════════════════════════════════════════════════════════════════════════
-
----Bloquea el movimiento del jugador
-local function bloquearMovimiento(restricciones)
-	local personaje = jugador.Character
-	if not personaje then return end
-
-	local humanoid = personaje:FindFirstChildOfClass("Humanoid")
-	if not humanoid then return end
-
-	-- Guardar estado original (valores numéricos exactos)
-	estadoJugador.humanoid = humanoid
-	estadoJugador.walkSpeedOriginal = humanoid.WalkSpeed
-	estadoJugador.jumpPowerOriginal = humanoid.JumpPower
-	estadoJugador.jumpHeightOriginal = humanoid.JumpHeight
-
-	-- Aplicar restricciones
-	if restricciones.bloquearMovimiento then
-		humanoid.WalkSpeed = 0
-	end
-
-	if restricciones.bloquearSalto then
-		humanoid.JumpPower = 0
-		humanoid.JumpHeight = 0   -- bloquea el salto en ambas APIs (legado y nueva)
-	end
-
-	-- Solo bloquear la cámara (Scriptable) si está habilitado, pero NO moverla
-	-- El movimiento de cámara se hace mediante ServicioCamara.moverTopDown() en eventos específicos
-	if restricciones.apuntarCamara then
-		ServicioCamara.bloquear()
-	end
-
-	print("[ControladorDialogo] Movimiento bloqueado")
-end
-
----Restaura el movimiento del jugador
-local function desbloquearMovimiento()
-	-- Solo restaurar si bloquearMovimiento() fue realmente llamado
-	if estadoJugador.humanoid then
-		local personaje = jugador.Character
-		if personaje then
-			local humanoid = personaje:FindFirstChildOfClass("Humanoid")
-			if humanoid then
-				humanoid.WalkSpeed = estadoJugador.walkSpeedOriginal or 16
-				humanoid.JumpPower = estadoJugador.jumpPowerOriginal or 50
-				humanoid.JumpHeight = estadoJugador.jumpHeightOriginal or 7.2
-			end
-		end
-		ServicioCamara.restaurar(0.5)
-		print("[ControladorDialogo] Movimiento restaurado")
-	end
-
-	-- Limpiar estado siempre
-	estadoJugador = {
-		humanoid = nil,
-		camaraOriginal = nil,
-		cframeOriginal = nil,
-		walkSpeedOriginal = nil,
-		jumpPowerOriginal = nil,
-		jumpHeightOriginal = nil
-	}
-end
-
--- ═══════════════════════════════════════════════════════════════════════════════
--- FUNCIONES DE GESTIÓN DEL HUD
--- ═══════════════════════════════════════════════════════════════════════════════
-
--- Esta función ya no se usa (ahora se desactiva todo el ScreenGui)
--- Se mantiene por compatibilidad
-local function obtenerFramesHUD()
-	local hud = obtenerHudGui()
-	if not hud then return end
-
-	for _, nombreFrame in ipairs(CONFIG.FramesAOcultar) do
-		local frame = hud:FindFirstChild(nombreFrame, true)
-		if frame then
-			framesHUD[nombreFrame] = frame
-		end
-	end
-end
-
-local function ocultarHUD()
-	-- Buscar HUD dinámicamente
-	local hud = obtenerHudGui()
-
-	-- Desactivar todo el ScreenGui del HUD
-	if hud then
-		hud:SetAttribute("EnabledAntesDialogo", hud.Enabled)
-		hud.Enabled = false
-		print("[ControladorDialogo] HUD ocultado:", hud.Name)
-	else
-		warn("[ControladorDialogo] No se encontró HUD para ocultar")
-	end
-end
-
-local function mostrarHUD()
-	-- Buscar HUD dinámicamente
-	local hud = obtenerHudGui()
-
-	-- Restaurar el ScreenGui del HUD
-	if hud then
-		local eraEnabled = hud:GetAttribute("EnabledAntesDialogo")
-		if eraEnabled ~= false then
-			hud.Enabled = true
-		end
-		print("[ControladorDialogo] HUD mostrado:", hud.Name)
-	else
-		-- Fallback: restaurar cualquier ScreenGui que ocultamos
-		for _, gui in ipairs(playerGui:GetChildren()) do
-			if gui:IsA("ScreenGui") and gui:GetAttribute("EnabledAntesDialogo") ~= nil then
-				gui.Enabled = gui:GetAttribute("EnabledAntesDialogo")
-				print("[ControladorDialogo] HUD restaurado (fallback):", gui.Name)
-			end
-		end
-	end
-end
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- FUNCIONES DE GESTIÓN DE PROMPTS
@@ -431,114 +249,6 @@ local function buscarYConectarPrompts()
 end
 
 -- ═══════════════════════════════════════════════════════════════════════════════
--- MODO CLICK AÉREO
--- Activo cuando un diálogo oculta techos (cámara cenital) y permite conexiones.
--- Usa raycast desde la cámara en lugar de ClickDetectors, que no funcionan
--- cuando CameraType = Scriptable y la cámara está muy alta.
--- ═══════════════════════════════════════════════════════════════════════════════
-
-local UIS = game:GetService("UserInputService")
-local _clickAereoConexion = nil
-local _primerNodoAereo    = nil
-
-local function _recolectarSelectores()
-	local lista = {}
-	local nivel = workspace:FindFirstChild("NivelActual")
-	if not nivel then return lista end
-	local grafos = nivel:FindFirstChild("Grafos")
-	if not grafos then return lista end
-	for _, grafo in ipairs(grafos:GetChildren()) do
-		local nodos = grafo:FindFirstChild("Nodos")
-		if nodos then
-			for _, nodo in ipairs(nodos:GetChildren()) do
-				if nodo:IsA("Model") then
-					local sel = nodo:FindFirstChild("Selector")
-					if sel and sel:IsA("BasePart") then
-						table.insert(lista, sel)
-					end
-				end
-			end
-		end
-	end
-	return lista
-end
-
-local function activarClickAereo()
-	if _clickAereoConexion then return end
-
-	local selectores = _recolectarSelectores()
-	if #selectores == 0 then
-		warn("[ControladorDialogo] Click aéreo: sin selectores")
-		return
-	end
-
-	-- Suprimir ClickDetectors del servidor mientras el diálogo maneja los clics
-	jugador:SetAttribute("MapaAbierto", true)
-
-	local camara = workspace.CurrentCamera
-	local conectarEvento = remotos:FindFirstChild("ConectarDesdeMapa")
-	local mapaNodoEvento  = remotos:FindFirstChild("MapaClickNodo")
-
-	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Include
-	params.FilterDescendantsInstances = selectores
-
-	_primerNodoAereo = nil
-
-	_clickAereoConexion = UIS.InputBegan:Connect(function(input, gameProcessed)
-		if gameProcessed then return end
-		if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
-
-		local mousePos = UIS:GetMouseLocation()
-		local ray = camara:ViewportPointToRay(mousePos.X, mousePos.Y)
-		local resultado = workspace:Raycast(ray.Origin, ray.Direction * 2000, params)
-
-		if not (resultado and resultado.Instance) then
-			_primerNodoAereo = nil
-			return
-		end
-
-		local selector  = resultado.Instance
-		local nodo      = selector.Parent
-		if not (nodo and nodo:IsA("Model")) then return end
-		local nombreNodo = nodo.Name
-
-		if _primerNodoAereo == nil then
-			_primerNodoAereo = nombreNodo
-			if mapaNodoEvento then mapaNodoEvento:FireServer(nombreNodo) end
-			-- Notificar EsperarAccion "seleccionarNodo" directamente (sin roundtrip al servidor)
-			if DialogoGUISystem and DialogoGUISystem._esperandoAccion then
-				DialogoGUISystem:onAccionJugador("seleccionarNodo", { nodo = nombreNodo })
-			end
-		elseif _primerNodoAereo == nombreNodo then
-			_primerNodoAereo = nil  -- cancelar
-		else
-			local nodoA = _primerNodoAereo
-			_primerNodoAereo = nil
-			if conectarEvento then
-				conectarEvento:FireServer(nodoA, nombreNodo)
-			end
-		end
-	end)
-
-	print("[ControladorDialogo] Click aéreo activado —", #selectores, "selectores")
-end
-
-local function desactivarClickAereo()
-	if _clickAereoConexion then
-		_clickAereoConexion:Disconnect()
-		_clickAereoConexion = nil
-	end
-	_primerNodoAereo = nil
-	-- Limpiar atributo sólo si el mapa real no está abierto
-	local mapa = obtenerModuloMapa()
-	if not (mapa and mapa.estaAbierto and mapa.estaAbierto()) then
-		jugador:SetAttribute("MapaAbierto", nil)
-	end
-	print("[ControladorDialogo] Click aéreo desactivado")
-end
-
--- ═══════════════════════════════════════════════════════════════════════════════
 -- FUNCIÓN PRINCIPAL: INICIAR DIÁLOGO
 -- ═══════════════════════════════════════════════════════════════════════════════
 
@@ -567,7 +277,7 @@ function iniciarDialogo(dialogoID, metadata)
 	end
 	local cerrarMapaAlIniciar = not (cerrarMapaConfig == false)
 	if cerrarMapaAlIniciar then
-		local ModuloMapa = obtenerModuloMapa()
+		local ModuloMapa = DialogoJugadorController.obtenerModuloMapa()
 		if ModuloMapa and ModuloMapa.estaAbierto and ModuloMapa.estaAbierto() then
 			print("[ControladorDialogo] Cerrando mapa antes de iniciar diálogo...")
 			ModuloMapa.cerrar()
@@ -628,7 +338,7 @@ function iniciarDialogo(dialogoID, metadata)
 
 	-- Crear instancia del highlighter de botones (nil si el módulo no cargó)
 	if Modulos.DialogoButtonHighlighter then
-		metadata.buttonHighlighter = Modulos.DialogoButtonHighlighter.new(obtenerHudGui())
+		metadata.buttonHighlighter = Modulos.DialogoButtonHighlighter.new(DialogoJugadorController.obtenerHudGui())
 	end
 
 	-- NOTA: La cámara NO se mueve aquí automáticamente.
@@ -636,7 +346,7 @@ function iniciarDialogo(dialogoID, metadata)
 
 	-- Bloquear movimiento si está configurado
 	if restricciones.bloquearMovimiento or restricciones.bloquearSalto or restricciones.apuntarCamara then
-		bloquearMovimiento(restricciones)
+		DialogoJugadorController.bloquear(restricciones)
 	end
 
 	-- Verificar si ocultar HUD (del archivo o del prompt)
@@ -649,7 +359,7 @@ function iniciarDialogo(dialogoID, metadata)
 	end
 
 	if debeOcultarHUD then
-		ocultarHUD()
+		DialogoJugadorController.ocultarHUD()
 	end
 
 	-- Determinar si debemos restaurar techos al cerrar
@@ -658,7 +368,11 @@ function iniciarDialogo(dialogoID, metadata)
 	-- Activar click aéreo si la cámara está cenital Y el diálogo permite conexiones
 	local permitirConexiones = restricciones.permitirConexiones
 	if ocultarTechosConfig and permitirConexiones then
-		activarClickAereo()
+		DialogoJugadorController.activarClickAereo(function(nombreNodo)
+			if DialogoGUISystem and DialogoGUISystem._esperandoAccion then
+				DialogoGUISystem:onAccionJugador("seleccionarNodo", { nodo = nombreNodo })
+			end
+		end)
 	end
 
 	DialogoGUISystem:OnClose(function()
@@ -670,10 +384,10 @@ function iniciarDialogo(dialogoID, metadata)
 		end
 
 		-- Desactivar click aéreo si estaba activo
-		desactivarClickAereo()
+		DialogoJugadorController.desactivarClickAereo()
 
 		-- Restaurar movimiento
-		desbloquearMovimiento()
+		DialogoJugadorController.desbloquear()
 
 		-- Restaurar techos si es necesario
 		if debenRestaurarTechos then
@@ -681,7 +395,7 @@ function iniciarDialogo(dialogoID, metadata)
 			GestorColisiones:restaurar()
 		end
 
-		mostrarHUD()
+		DialogoJugadorController.mostrarHUD()
 
 		if metadata.config and metadata.config.alCerrar then
 			metadata.config.alCerrar(metadata)
@@ -707,9 +421,9 @@ function iniciarDialogo(dialogoID, metadata)
 
 	if not exito then
 		-- Si falla, restaurar todo
-		desactivarClickAereo()
-		desbloquearMovimiento()
-		mostrarHUD()
+		DialogoJugadorController.desactivarClickAereo()
+		DialogoJugadorController.desbloquear()
+		DialogoJugadorController.mostrarHUD()
 		-- Notificar al servidor que el diálogo terminó (aunque falló)
 		local dialogoTerminadoEvento = remotos:FindFirstChild("DialogoTerminado")
 		if dialogoTerminadoEvento then
@@ -877,8 +591,6 @@ jugador:GetAttributeChangedSignal("ZonaActual"):Connect(onZonaChanged)
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- INICIALIZACIÓN
 -- ═══════════════════════════════════════════════════════════════════════════════
-
-obtenerFramesHUD()
 
 remotos.NivelListo.OnClientEvent:Connect(function(data)
 	if data and data.error then return end

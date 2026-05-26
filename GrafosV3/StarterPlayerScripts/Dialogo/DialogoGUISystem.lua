@@ -10,6 +10,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Utilidades = require(ReplicatedStorage:WaitForChild("Compartido"):WaitForChild("Utilidades"))
 
 local DialogoGUISystem = {}
 DialogoGUISystem.__index = DialogoGUISystem
@@ -616,12 +617,10 @@ function DialogoGUISystem:LoadDialogue(key)
 			modulosEncontrados = modulosEncontrados + 1
 			print("[DialogoGUISystem] Intentando cargar módulo:", module.Name)
 
-			local exito, data = pcall(function()
-				return require(module)
-			end)
+			local data = Utilidades.safeRequire(module, module.Name)
 
-			if not exito then
-				warn("[DialogoGUISystem] Error cargando módulo", module.Name .. ":", data)
+			if not data then
+				-- safeRequire ya logueó el error
 			elseif type(data) ~= "table" then
 				warn("[DialogoGUISystem] Módulo", module.Name, "no retorna una tabla, retorna:", type(data))
 			else
