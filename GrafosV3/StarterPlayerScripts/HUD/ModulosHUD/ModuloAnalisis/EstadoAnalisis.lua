@@ -47,4 +47,9 @@ E.btnEjecRef  = nil
 E.nodosDaniados  = {}  -- { nombreNodo, ... }  (de la respuesta del servidor)
 E.nodosReparados = {}  -- { [nombreNodo] = true }  (local al cliente)
 
+-- ── Navegación manual del viewport ───────────────────────────────────
+E.camOffsetX = 0   -- desplazamiento X desde el centroide
+E.camOffsetZ = 0   -- desplazamiento Z desde el centroide
+E.camZoom    = 1   -- 1 = default; <1 acerca; >1 aleja
+
 return E

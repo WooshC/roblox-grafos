@@ -163,6 +163,48 @@ function ViewportAnalisis.limpiarParticulas()
 end
 
 -- ════════════════════════════════════════════════════════════════
+-- CÁMARA
+-- ════════════════════════════════════════════════════════════════
+
+local function calcularCentroide()
+	local n = 0
+	local sumX, sumY, sumZ = 0, 0, 0
+	for _, pos in pairs(E.posicionesNodos) do
+		sumX = sumX + pos.X
+		sumY = sumY + pos.Y
+		sumZ = sumZ + pos.Z
+		n    = n + 1
+	end
+	if n == 0 then return nil end
+
+	local cx = sumX / n
+	local cy = sumY / n
+	local cz = sumZ / n
+
+	local maxR = 0
+	for _, pos in pairs(E.posicionesNodos) do
+		local r = math.sqrt((pos.X - cx)^2 + (pos.Z - cz)^2)
+		if r > maxR then maxR = r end
+	end
+	local alturaBase = math.max(30, maxR * 2.5)
+
+	return cx, cy, cz, alturaBase
+end
+
+function ViewportAnalisis.aplicarCamara()
+	if not E.camAnalisis or not E.posicionesNodos then return end
+	local cx, cy, cz, alturaBase = calcularCentroide()
+	if not cx then return end
+
+	local altura = alturaBase * E.camZoom
+	local posX   = cx + E.camOffsetX
+	local posZ   = cz + E.camOffsetZ
+
+	E.camAnalisis.CFrame      = CFrame.new(posX, cy + altura, posZ) * CFrame.Angles(math.rad(-90), 0, 0)
+	E.camAnalisis.FieldOfView = 70
+end
+
+-- ════════════════════════════════════════════════════════════════
 -- CONSTRUIR VIEWPORT (nodos estáticos)
 -- ════════════════════════════════════════════════════════════════
 
@@ -207,31 +249,7 @@ function ViewportAnalisis.construirViewport()
 		E.nodoParts[nome] = part
 	end
 
-	-- Cámara top-down sobre el centroide
-	local n = 0
-	local sumX, sumY, sumZ = 0, 0, 0
-	for _, pos in pairs(E.posicionesNodos) do
-		sumX = sumX + pos.X
-		sumY = sumY + pos.Y
-		sumZ = sumZ + pos.Z
-		n    = n + 1
-	end
-
-	if n > 0 and E.camAnalisis then
-		local cx = sumX / n
-		local cy = sumY / n
-		local cz = sumZ / n
-
-		local maxR = 0
-		for _, pos in pairs(E.posicionesNodos) do
-			local r = math.sqrt((pos.X - cx)^2 + (pos.Z - cz)^2)
-			if r > maxR then maxR = r end
-		end
-		local altura = math.max(30, maxR * 2.5)
-
-		E.camAnalisis.CFrame      = CFrame.new(cx, cy + altura, cz) * CFrame.Angles(math.rad(-90), 0, 0)
-		E.camAnalisis.FieldOfView = 70
-	end
+	ViewportAnalisis.aplicarCamara()
 
 	print("[ViewportAnalisis] Viewport construido —", #headers, "nodos")
 end

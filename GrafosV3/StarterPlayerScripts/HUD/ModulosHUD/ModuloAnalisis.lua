@@ -258,11 +258,81 @@ local function limpiarEstadoVisual()
 	E.modoValidacion  = false
 	E.nodosDaniados   = {}
 	E.nodosReparados  = {}
+	E.camOffsetX      = 0
+	E.camOffsetZ      = 0
+	E.camZoom         = 1
 end
 
 -- ════════════════════════════════════════════════════════════════
 -- API PÚBLICA
 -- ════════════════════════════════════════════════════════════════
+
+local function crearBotonesNavegacion()
+	if not E.visor then return end
+
+	local function crearBoton(parent, nombre, texto, pos, size)
+		local btn = Instance.new("TextButton")
+		btn.Name = nombre
+		btn.Text = texto
+		btn.Size = size
+		btn.Position = pos
+		btn.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+		btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		btn.TextSize = 18
+		btn.Font = Enum.Font.GothamBold
+		btn.AutoButtonColor = true
+		btn.Parent = parent
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 6)
+		corner.Parent = btn
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = Color3.fromRGB(90, 90, 100)
+		stroke.Thickness = 1
+		stroke.Parent = btn
+		return btn
+	end
+
+	local navFrame = Instance.new("Frame")
+	navFrame.Name = "ControlesNavegacion"
+	navFrame.Size = UDim2.new(0, 155, 0, 74)
+	navFrame.Position = UDim2.new(1, -165, 1, -84)
+	navFrame.BackgroundTransparency = 0.4
+	navFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
+	navFrame.BorderSizePixel = 0
+	navFrame.Parent = E.visor
+	local frameCorner = Instance.new("UICorner")
+	frameCorner.CornerRadius = UDim.new(0, 8)
+	frameCorner.Parent = navFrame
+
+	local s = UDim2.new(0, 36, 0, 30)
+	local z = UDim2.new(0, 30, 0, 28)
+
+	crearBoton(navFrame, "BtnNavIzq", "←", UDim2.new(0, 4, 0, 22), s)
+	crearBoton(navFrame, "BtnNavArr", "↑", UDim2.new(0, 42, 0, 4), s)
+	crearBoton(navFrame, "BtnNavAba", "↓", UDim2.new(0, 42, 0, 40), s)
+	crearBoton(navFrame, "BtnNavDer", "→", UDim2.new(0, 80, 0, 22), s)
+	crearBoton(navFrame, "BtnZoomMas", "+", UDim2.new(0, 122, 0, 4), z)
+	crearBoton(navFrame, "BtnZoomMen", "-", UDim2.new(0, 122, 0, 40), z)
+
+	local function mover(dx, dz)
+		if not E.camAnalisis then return end
+		E.camOffsetX = E.camOffsetX + dx
+		E.camOffsetZ = E.camOffsetZ + dz
+		ViewportAnalisis.aplicarCamara()
+	end
+	local function zoom(factor)
+		if not E.camAnalisis then return end
+		E.camZoom = math.clamp(E.camZoom * factor, C.ZOOM_MIN, C.ZOOM_MAX)
+		ViewportAnalisis.aplicarCamara()
+	end
+
+	navFrame:WaitForChild("BtnNavIzq").MouseButton1Click:Connect(function() mover(-C.PAN_STEP, 0) end)
+	navFrame:WaitForChild("BtnNavArr").MouseButton1Click:Connect(function() mover(0, -C.PAN_STEP) end)
+	navFrame:WaitForChild("BtnNavAba").MouseButton1Click:Connect(function() mover(0, C.PAN_STEP) end)
+	navFrame:WaitForChild("BtnNavDer").MouseButton1Click:Connect(function() mover(C.PAN_STEP, 0) end)
+	navFrame:WaitForChild("BtnZoomMas").MouseButton1Click:Connect(function() zoom(1 - C.ZOOM_STEP) end)
+	navFrame:WaitForChild("BtnZoomMen").MouseButton1Click:Connect(function() zoom(1 + C.ZOOM_STEP) end)
+end
 
 function ModuloAnalisis.inicializar(hudGui)
 	E.hudGui = hudGui
@@ -292,6 +362,9 @@ function ModuloAnalisis.inicializar(hudGui)
 	else
 		warn("[ModuloAnalisis] VisorGrafoAna no encontrado")
 	end
+
+	-- Botones de navegación del viewport
+	crearBotonesNavegacion()
 
 	-- Pills de algoritmo
 	for algo, _ in pairs(PanelEstadoAnalisis.PILL_NAMES) do

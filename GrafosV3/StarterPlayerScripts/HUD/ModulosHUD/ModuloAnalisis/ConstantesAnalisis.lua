@@ -34,6 +34,12 @@ C.VEL_PART    = 40    -- studs/segundo
 C.FREQ_PART   = 1.2   -- segundos entre disparos por dirección
 C.VEL_AUTO    = 1.3   -- segundos entre pasos del auto-play
 
+-- ── Navegación viewport ──────────────────────────────────────────────
+C.PAN_STEP   = 12   -- studs por clic de dirección
+C.ZOOM_STEP  = 0.25 -- factor por clic de zoom
+C.ZOOM_MIN   = 0.25
+C.ZOOM_MAX   = 5.0
+
 -- ── Helpers UI ───────────────────────────────────────────────────────
 
 function C.buscar(parent, nombre)
