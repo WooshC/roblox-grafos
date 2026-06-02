@@ -1,0 +1,1432 @@
+================================================================================
+  DISENO DE NIVELES 3, 4 Y 5 — REDES Y CAMINOS (GrafosV3)
+  Formato: Texto plano para revision antes de convertir a Lua
+  Fecha: 2026-05-31
+================================================================================
+
+Este documento contiene el diseno completo de los tres niveles faltantes o
+pendientes de documentacion formal:
+  - NIVEL 3: El Camino Mas Eficiente    (Dijkstra + Presupuesto)
+  - NIVEL 4: La Auditoria de los Contratos  (Prim / MST)
+  - NIVEL 5: La Reconstruccion de Villa Conexa  (Integrador Final)
+
+Cada nivel incluye: ambientacion, narrativa, configuracion de grafo (adyacencias
+y pesos), zonas, nombres de nodos, misiones, AnalisisConfig y dialogos completos
+redactados siguiendo el formato de DialogoData existente.
+
+================================================================================
+  SECCION A — NIVEL 3: EL CAMINO MAS EFICIENTE
+================================================================================
+
+--------------------------------------------------------------------------------
+A.1 NARRATIVA Y AMBIENTACION
+--------------------------------------------------------------------------------
+
+NOMBRE DEL NIVEL: "El Camino Mas Eficiente"
+TAG:              "NIVEL 3 · DIJKSTRA + PRESUPUESTO"
+SECCION:          "Algoritmos de Ruta"
+ALGORITMO:        "Dijkstra"
+CONCEPTOS:        { "Camino Minimo", "Peso de Arista", "Relajacion", "Presupuesto" }
+
+DESCRIPCION CORTA:
+"El alcalde exige reducir costos. Usa Dijkstra para encontrar las rutas de
+menor costo y administra el presupuesto del pueblo."
+
+AMBIENTACION:
+  - Entorno: Oficina municipal de presupuesto, rutas de suministro al aire libre
+    y centro de control tecnologico. Dia nublado, ambiente de oficina con
+    papeles, planos y monitores.
+  - Mood: Tension economica. Carlos preocupado por los numeros, el alcalde
+    presiona por resultados inmediatos.
+  - Reloj: 14:00 (tarde, hora de oficina).
+  - IluminacionAmbiental: Color3.fromRGB(80, 80, 90) — gris azulado nublado.
+  - IluminacionExteriores: Color3.fromRGB(70, 70, 80).
+  - LinternaJugador: false.
+
+NARRATIVA:
+El alcalde recibio la factura de mantenimiento y el costo subio un 300%. Exige
+reduccion inmediata de gastos. Carlos y Tocino deben demostrar que no es
+necesario gastar mas, sino gastar mejor.
+
+El problema: ya saben explorar con BFS y DFS, pero ninguno de los dos
+considera los pesos de las aristas. Una ruta de 2 pasos puede costar $25,000
+mientras que una de 3 pasos cuesta solo $9,000. BFS minimiza saltos, no costos.
+
+Para grafos ponderados necesitan Dijkstra: un algoritmo greedy que encuentra
+la ruta de menor costo acumulado desde un origen hacia todos los demas nodos.
+
+SUPUESTOS DEL ESCENARIO:
+  - El pueblo tiene un presupuesto limitado de $10,000.
+  - Cada metro de cable cuesta $500.
+  - El peso de cada arista representa la cantidad de metros de cable necesarios.
+  - Si el jugador excede el presupuesto, falla la mision.
+  - Dijkstra solo funciona con pesos no negativos (propiedad garantizada).
+
+--------------------------------------------------------------------------------
+A.2 CONFIGURACION DE NIVEL (LevelsConfig[3])
+--------------------------------------------------------------------------------
+
+  Nombre           = "El Camino Mas Eficiente"
+  DescripcionCorta = "El alcalde exige reducir costos. Usa Dijkstra para encontrar las rutas de menor costo y administra el presupuesto del pueblo."
+  ImageId          = "rbxassetid://1234567893"
+  Modelo           = "Nivel3"
+  Tag              = "NIVEL 3 · DIJKSTRA + PRESUPUESTO"
+  Seccion          = "Algoritmos de Ruta"
+  Algoritmo        = "Dijkstra"
+  Conceptos        = { "Camino Minimo", "Peso de Arista", "Relajacion", "Presupuesto" }
+  Generadores      = { "Gen_Bodega_z1" }
+
+  Presupuesto = {
+      Inicial = 10000,
+      AdvertenciaBajo = 3000
+  }
+  CostoPorMetro = 500
+
+  Puntuacion = {
+      TresEstrellas  = 3500,
+      DosEstrellas   = 2000,
+      RecompensaXP   = 1000,
+      PuntosConexion = 50,
+      PenaFallo      = 15,
+      PuntosPreguntaCorrecta = 100
+  }
+
+  RequiereDialogosCorrectos = true
+  TotalPreguntasDialogo = 3   -- 1 por zona (Presupuesto, Rutas, Control)
+
+--------------------------------------------------------------------------------
+A.3 ADYACENCIAS Y PESOS
+--------------------------------------------------------------------------------
+
+ADYACENCIAS (tabla completa):
+
+  -- Zona 1: Oficina de Presupuesto
+  ["Gen_Bodega_z1"]   = {"Poste_Norte_z1", "Poste_Sur_z1"}
+  ["Poste_Norte_z1"]  = {"Gen_Bodega_z1", "Cruce_Norte_z2"}
+  ["Poste_Sur_z1"]    = {"Gen_Bodega_z1", "Cruce_Sur_z2"}
+
+  -- Zona 2: Rutas de Suministro
+  ["Cruce_Norte_z2"]  = {"Poste_Norte_z1", "Mercado_z2", "Taller_z2"}
+  ["Cruce_Sur_z2"]    = {"Poste_Sur_z1", "Taller_z2", "Plaza_z2"}
+  ["Mercado_z2"]      = {"Cruce_Norte_z2", "Plaza_z2"}
+  ["Taller_z2"]       = {"Cruce_Norte_z2", "Cruce_Sur_z2", "Plaza_z2", "Antena_z3"}
+  ["Plaza_z2"]        = {"Mercado_z2", "Cruce_Sur_z2", "Taller_z2", "Centro_Control_z3"}
+
+  -- Zona 3: Centro de Control
+  ["Centro_Control_z3"] = {"Plaza_z2", "Antena_z3", "Subestacion_z3"}
+  ["Antena_z3"]         = {"Taller_z2", "Centro_Control_z3", "Terminal_z3"}
+  ["Subestacion_z3"]    = {"Centro_Control_z3", "Terminal_z3"}
+  ["Terminal_z3"]       = {"Antena_z3", "Subestacion_z3"}
+
+PESOS DE ARISTAS (clave canonica "NodoA|NodoB"):
+
+  ["Gen_Bodega_z1|Poste_Norte_z1"]       = 4
+  ["Gen_Bodega_z1|Poste_Sur_z1"]         = 7
+  ["Poste_Norte_z1|Cruce_Norte_z2"]      = 3
+  ["Poste_Sur_z1|Cruce_Sur_z2"]          = 5
+  ["Cruce_Norte_z2|Mercado_z2"]          = 3
+  ["Cruce_Norte_z2|Taller_z2"]           = 8
+  ["Cruce_Sur_z2|Taller_z2"]             = 4
+  ["Cruce_Sur_z2|Plaza_z2"]              = 6
+  ["Mercado_z2|Plaza_z2"]                = 2
+  ["Taller_z2|Plaza_z2"]                 = 1
+  ["Taller_z2|Antena_z3"]                = 7
+  ["Plaza_z2|Centro_Control_z3"]         = 5
+  ["Centro_Control_z3|Antena_z3"]        = 3
+  ["Centro_Control_z3|Subestacion_z3"]   = 4
+  ["Antena_z3|Terminal_z3"]              = 2
+  ["Subestacion_z3|Terminal_z3"]         = 6
+
+--------------------------------------------------------------------------------
+A.4 ZONAS
+--------------------------------------------------------------------------------
+
+  ["Zona_Presupuesto_1"] = {
+      Trigger = "ZonaTrigger_Presupuesto",
+      Descripcion = "Oficina de Presupuesto",
+      Dialogo = "Nivel3_Presupuesto",
+      CarpetaLuz = "Zona_luz_1"
+  }
+  ["Zona_Rutas_2"] = {
+      Trigger = "ZonaTrigger_Rutas",
+      Descripcion = "Rutas de Suministro",
+      Dialogo = "Nivel3_Rutas",
+      CarpetaLuz = "Zona_luz_2"
+  }
+  ["Zona_Control_3"] = {
+      Trigger = "ZonaTrigger_Control",
+      Descripcion = "Centro de Control",
+      Dialogo = "Nivel3_Control",
+      CarpetaLuz = "Zona_luz_3"
+  }
+
+--------------------------------------------------------------------------------
+A.5 NOMBRES DE NODOS
+--------------------------------------------------------------------------------
+
+  ["Gen_Bodega_z1"]      = "Generador Bodega"
+  ["Poste_Norte_z1"]     = "Poste Norte"
+  ["Poste_Sur_z1"]       = "Poste Sur"
+  ["Cruce_Norte_z2"]     = "Cruce Norte"
+  ["Cruce_Sur_z2"]       = "Cruce Sur"
+  ["Mercado_z2"]         = "Mercado Central"
+  ["Taller_z2"]          = "Taller Municipal"
+  ["Plaza_z2"]           = "Plaza Central"
+  ["Centro_Control_z3"]  = "Centro de Control"
+  ["Antena_z3"]          = "Antena Principal"
+  ["Subestacion_z3"]     = "Subestacion Electrica"
+  ["Terminal_z3"]        = "Terminal de Red"
+
+--------------------------------------------------------------------------------
+A.6 MISIONES
+--------------------------------------------------------------------------------
+
+  -- Zona 1: Oficina de Presupuesto
+  { ID=301, Zona="Zona_Presupuesto_1", Texto="Selecciona el Generador Bodega",                 Tipo="NODO_SELECCIONADO", Puntos=100, Parametros={ Nodo="Gen_Bodega_z1" } }
+  { ID=302, Zona="Zona_Presupuesto_1", Texto="Conecta el Poste Norte al Generador (costo 4)", Tipo="ARISTA_CREADA",     Puntos=150, Parametros={ NodoA="Gen_Bodega_z1", NodoB="Poste_Norte_z1" } }
+  { ID=303, Zona="Zona_Presupuesto_1", Texto="Conecta el Poste Sur al Generador (costo 7)",   Tipo="ARISTA_CREADA",     Puntos=150, Parametros={ NodoA="Gen_Bodega_z1", NodoB="Poste_Sur_z1" } }
+
+  -- Zona 2: Rutas de Suministro
+  { ID=304, Zona="Zona_Rutas_2", Texto="Tiende cable hacia el Cruce Norte (costo 3)",         Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Poste_Norte_z1", NodoB="Cruce_Norte_z2" } }
+  { ID=305, Zona="Zona_Rutas_2", Texto="Conecta el Mercado al Cruce Norte (costo 3)",         Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Cruce_Norte_z2", NodoB="Mercado_z2" } }
+  { ID=306, Zona="Zona_Rutas_2", Texto="Conecta la Plaza al Mercado (costo 2)",               Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Mercado_z2",     NodoB="Plaza_z2" } }
+  { ID=307, Zona="Zona_Rutas_2", Texto="Ilumina toda la zona de Rutas (5 nodos)",              Tipo="GRAFO_CONEXO",  Puntos=300, Parametros={ Nodos={"Cruce_Norte_z2","Cruce_Sur_z2","Mercado_z2","Taller_z2","Plaza_z2"} } }
+
+  -- Zona 3: Centro de Control
+  { ID=308, Zona="Zona_Control_3", Texto="Conecta Centro de Control desde Plaza (costo 5)",   Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Plaza_z2",         NodoB="Centro_Control_z3" } }
+  { ID=309, Zona="Zona_Control_3", Texto="Conecta la Antena al Centro de Control (costo 3)",  Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Centro_Control_z3", NodoB="Antena_z3" } }
+  { ID=310, Zona="Zona_Control_3", Texto="Conecta la Terminal desde la Antena (costo 2)",     Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Antena_z3",         NodoB="Terminal_z3" } }
+  { ID=311, Zona="Zona_Control_3", Texto="Conecta la Subestacion al Centro de Control (costo 4)", Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Centro_Control_z3", NodoB="Subestacion_z3" } }
+  { ID=312, Zona="Zona_Control_3", Texto="Ilumina todo el pueblo (12 nodos, sin exceder presupuesto)", Tipo="GRAFO_CONEXO", Puntos=500, Parametros={ Nodos={"Gen_Bodega_z1","Poste_Norte_z1","Poste_Sur_z1","Cruce_Norte_z2","Cruce_Sur_z2","Mercado_z2","Taller_z2","Plaza_z2","Centro_Control_z3","Antena_z3","Subestacion_z3","Terminal_z3"} } }
+
+--------------------------------------------------------------------------------
+A.7 ANALISISCONFIG
+--------------------------------------------------------------------------------
+
+  ["Zona_Presupuesto_1"] = {
+      algoritmos = { "dijkstra" },
+      nodoInicio = "Gen_Bodega_z1",
+      nodoFin    = "Poste_Sur_z1",
+      conceptos  = {
+          dijkstra = {
+              intro = "Dijkstra garantiza la ruta de MENOR COSTO desde el Generador Bodega hasta cualquier nodo. Abre el Panel de Analisis y ejecuta paso a paso para ver la relajacion en accion.",
+              pasos = {
+                  [2]  = "Inicializamos: dist[Bodega]=0, todos los demas nodos=infinito.",
+                  [7]  = "Extraemos el nodo no visitado con menor distancia acumulada.",
+                  [9]  = "Relajacion: si llegar por aqui es mas barato, actualizamos la distancia del vecino.",
+                  [13] = "Cola vacia — Dijkstra garantiza las rutas minimas a todos los nodos alcanzables.",
+              },
+          },
+      },
+  }
+
+  ["Zona_Rutas_2"] = {
+      algoritmos = { "dijkstra" },
+      nodoInicio = "Gen_Bodega_z1",
+      nodoFin    = "Plaza_z2",
+      conceptos  = {
+          dijkstra = {
+              intro = "Ejecuta Dijkstra desde la Bodega hacia la Plaza Central. Observa como el algoritmo descubre que el camino mas barato no siempre es el mas corto en saltos.",
+              pasos = {
+                  [2]  = "Bodega inicia con distancia 0. Sus vecinos reciben sus primeros costos.",
+                  [7]  = "Procesamos el nodo con menor distancia provisional.",
+                  [9]  = "¡Relajacion! Encontramos un camino mas barato hacia la Plaza pasando por otro nodo.",
+                  [13] = "Ruta minima confirmada. El costo acumulado no puede mejorarse.",
+              },
+          },
+      },
+  }
+
+  ["Zona_Control_3"] = {
+      algoritmos = { "dijkstra", "prim" },
+      nodoInicio = "Gen_Bodega_z1",
+      nodoFin    = "Terminal_z3",
+      conceptos  = {
+          dijkstra = {
+              intro = "Dijkstra busca el camino minimo desde un origen hacia un destino. Prim, en cambio, busca conectar TODOS los nodos con el menor costo total (MST).",
+              pasos = {
+                  [2]  = "Dijkstra: raiz con distancia 0, el resto en infinito.",
+                  [7]  = "Extraemos el nodo de menor distancia acumulada desde el origen.",
+                  [9]  = "Relajamos aristas: actualizamos si encontramos un camino mas barato.",
+                  [13] = "Destino alcanzado con costo minimo garantizado.",
+              },
+          },
+          prim = {
+              intro = "Prim construye el Arbol de Expansion Minima (MST): conecta todos los nodos gastando lo menos posible en cables. Ideal cuando el presupuesto es limitado.",
+              pasos = {
+                  [2]  = "Raiz: Generador Bodega con key=0. El resto empieza en infinito.",
+                  [8]  = "El nodo con key minima se integra al MST. Se actualizan sus vecinos.",
+                  [9]  = "Si este cable es mas barato para llegar a un nodo, actualizamos su key.",
+                  [13] = "MST completo — toda la red conectada con el tendido minimo de cables.",
+              },
+          },
+      },
+  }
+
+--------------------------------------------------------------------------------
+A.8 GUIA (Waypoints)
+--------------------------------------------------------------------------------
+
+  { ID="carlos",         Label="Hablar con Carlos",        WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="Objetivo_Carlos"           }, DestruirAlCompletar=false }
+  { ID="presupuesto_1",  Zona="Zona_Presupuesto_1", Label="Ve a la Oficina",      WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Presupuesto" }, DestruirAlCompletar=false }
+  { ID="rutas_2",        Zona="Zona_Rutas_2",       Label="Ve a las Rutas",       WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Rutas"       }, DestruirAlCompletar=false }
+  { ID="control_3",      Zona="Zona_Control_3",     Label="Ve al Centro Control", WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Control"     }, DestruirAlCompletar=false }
+
+--------------------------------------------------------------------------------
+A.9 — DIALOGOS NIVEL 3 (Redactados)
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+A.9.1 Nivel3_Presupuesto.lua  —  Dialogo: "Nivel3_Presupuesto"
+--------------------------------------------------------------------------------
+
+Zona  = "Zona_Presupuesto_1"
+Nivel = 3
+Metadata = { TiempoDeEspera=0.5, VelocidadTypewriter=0.03, PuedeOmitir=true, OcultarHUD=true, UsarTTS=true }
+Configuracion = { bloquearMovimiento=true, bloquearSalto=true, apuntarCamara=true, ocultarTechos=true }
+EventoSaltar = limpiarTodo + restaurar camara
+
+--- LINEA 1 ---
+Id        = "intro_presupuesto"
+Numero    = 1
+Actor     = "Carlos"
+Expresion = "Preocupado"
+Texto     = "Tocino, tenemos un problema grave. El alcalde recibio la factura del mantenimiento de las rutas de suministro... y el costo subio un trescientos por ciento. Nos exige reducir gastos de inmediato."
+Evento    = limpiarTodo + moverHaciaObjetivo(Gen_Bodega_z1, altura=25, angulo=65, duracion=1.5) + resaltarNodo(Gen_Bodega_z1, SELECCIONADO)
+Siguiente = "problema_bfs"
+
+--- LINEA 2 ---
+Id        = "problema_bfs"
+Numero    = 2
+Actor     = "Carlos"
+Expresion = "Serio"
+Texto     = "Ya sabemos explorar el pueblo con BFS y DFS. Pero hay algo que ninguno de los dos considera: los pesos de las aristas. Si de la Bodega a la Plaza Central hay dos rutas, una de tres pasos y otra de dos, BFS te da la de dos pasos. ¿Pero que pasa si la de tres pasos cuesta nueve y la de dos pasos cuesta veinticinco?"
+Evento    = mostrarLabel(Gen_Bodega_z1, "Generador Bodega", SELECCIONADO) + resaltarNodo(Poste_Norte_z1, ADYACENTE) + resaltarNodo(Poste_Sur_z1, ADYACENTE)
+Siguiente = "respuesta_tocino"
+
+--- LINEA 3 ---
+Id        = "respuesta_tocino"
+Numero    = 3
+Actor     = "Tocino"
+Expresion = "Normal"
+Texto     = "BFS elegiria la de dos pasos aunque sea mucho mas cara..."
+Siguiente = "explica_dijkstra"
+
+--- LINEA 4 ---
+Id        = "explica_dijkstra"
+Numero    = 4
+Actor     = "Carlos"
+Expresion = "Pensativo"
+Texto     = "Exacto. BFS minimiza pasos, no costos. Para grafos ponderados necesitamos un algoritmo que tome decisiones basadas en los pesos. Ahi entra Dijkstra."
+Evento    = limpiarTodo + resaltarNodo(Gen_Bodega_z1, SELECCIONADO) + mostrarArista(Gen_Bodega_z1, Poste_Norte_z1, SELECCIONADO, sinParticulas=true) + mostrarArista(Gen_Bodega_z1, Poste_Sur_z1, ADYACENTE, sinParticulas=true) + mostrarLabel(Poste_Norte_z1, "Costo: 4") + mostrarLabel(Poste_Sur_z1, "Costo: 7")
+Siguiente = "concepto_dijkstra"
+
+--- LINEA 5 ---
+Id        = "concepto_dijkstra"
+Numero    = 5
+Actor     = "Carlos"
+Expresion = "Presentacion"
+Texto     = "El Algoritmo de Dijkstra resuelve el Problema del Camino Minimo: encuentra la ruta de menor costo acumulado desde un nodo origen hacia todos los demas nodos. Solo funciona con pesos no negativos."
+Siguiente = "pregunta_pesos_negativos"
+
+--- LINEA 6 ---
+Id        = "pregunta_pesos_negativos"
+Numero    = 6
+Actor     = "Carlos"
+Expresion = "Curioso"
+Texto     = "Pregunta rapida: ¿por que crees que Dijkstra solo funciona con pesos no negativos?"
+Opciones  = {
+    { Texto = "Porque con pesos negativos, añadir mas aristas podria bajar el costo total y romper la garantia del algoritmo.", Siguiente = "resp_pesos_bien" },
+    { Texto = "Porque Dijkstra no sabe restar numeros negativos.", Siguiente = "resp_pesos_mal" },
+    { Texto = "Porque los pesos negativos no existen en la vida real.", Siguiente = "resp_pesos_mal" }
+}
+
+--- LINEA 7 (correcta) ---
+Id        = "resp_pesos_bien"
+Numero    = 7
+Actor     = "Carlos"
+Expresion = "Feliz"
+Texto     = "¡Correcto! Dijkstra se basa en una garantia critica: una vez que encuentra el camino minimo a un nodo, ese costo no puede mejorar. Si hubiera pesos negativos, añadir mas aristas podria bajar el costo, rompiendo esa garantia. En la vida real, ningun camino tiene distancia negativa."
+Evento    = jugador:SetAttribute(PuntajeDialogo, actual+100) + notificarDialogoCorrecto()
+Opciones  = { { Texto = "Continuar", Siguiente = "presupuesto_intro" } }
+
+--- LINEA 7 (incorrecta 1) ---
+Id        = "resp_pesos_mal"
+Numero    = 7
+Actor     = "Carlos"
+Expresion = "Serio"
+Texto     = "No exactamente. La razon es que Dijkstra asume que una vez que fija la distancia minima a un nodo, esa distancia no puede mejorar. Si existieran pesos negativos, podrias encontrar un camino mas barato pasando por mas aristas, lo que invalidaria todo el algoritmo."
+Opciones  = { { Texto = "Entendido", Siguiente = "presupuesto_intro" } }
+
+--- LINEA 8 ---
+Id        = "presupuesto_intro"
+Numero    = 8
+Actor     = "Carlos"
+Expresion = "Serio"
+Texto     = "Ahora, el detalle importante: el alcalde nos dio un presupuesto limitado para tender cables. Cada arista que conectes consume su peso en dinero. Si gastas de mas, fallas la mision. Usa Dijkstra en el Panel de Analisis para planificar la ruta mas barata antes de gastar."
+Evento    = limpiarTodo + resaltarNodo(Gen_Bodega_z1, SELECCIONADO) + resaltarNodo(Poste_Norte_z1, ADYACENTE) + resaltarNodo(Poste_Sur_z1, ADYACENTE) + moverHaciaObjetivo(Gen_Bodega_z1, altura=35, angulo=70, duracion=1.5)
+Siguiente = "instruccion_final"
+
+--- LINEA 9 ---
+Id        = "instruccion_final"
+Numero    = 9
+Actor     = "Sistema"
+Texto     = "Presupuesto inicial: 50 unidades. Cada cable cuesta su peso. Planifica con Dijkstra antes de conectar. Abre el Panel de Analisis (Tecla Tab) para simular el algoritmo paso a paso."
+Evento    = limpiarTodo + restaurar(1.2)
+Siguiente = "FIN"
+
+--------------------------------------------------------------------------------
+A.9.2 Nivel3_Rutas.lua  —  Dialogo: "Nivel3_Rutas"
+--------------------------------------------------------------------------------
+
+Zona  = "Zona_Rutas_2"
+Nivel = 3
+Metadata y Configuracion: igual que arriba.
+
+--- LINEA 1 ---
+Id        = "intro_rutas"
+Numero    = 1
+Actor     = "Carlos"
+Expresion = "Pensativo"
+Texto     = "Bienvenido a las Rutas de Suministro. Aqui es donde la teoria se convierte en practica. Mira este mapa: cada cable tiene un numero que representa su costo de instalacion."
+Evento    = limpiarTodo + moverHaciaObjetivo(Cruce_Norte_z2, altura=28, angulo=60, duracion=1.5) + resaltarNodo(Cruce_Norte_z2, SELECCIONADO) + resaltarNodo(Mercado_z2, ADYACENTE) + resaltarNodo(Taller_z2, ADYACENTE)
+Siguiente = "inicializacion"
+
+--- LINEA 2 ---
+Id        = "inicializacion"
+Numero    = 2
+Actor     = "Carlos"
+Expresion = "Presentacion"
+Texto     = "Paso uno de Dijkstra: inicializamos las distancias. La distancia al nodo origen, la Bodega, es cero. La distancia a todos los demas nodos es infinito, porque aun no sabemos cuanto cuestan."
+Evento    = limpiarTodo + resaltarNodo(Gen_Bodega_z1, SELECCIONADO) + mostrarLabel(Gen_Bodega_z1, "dist = 0") + mostrarLabel(Poste_Norte_z1, "dist = infinito") + mostrarLabel(Poste_Sur_z1, "dist = infinito") + mostrarLabel(Cruce_Norte_z2, "dist = infinito")
+Siguiente = "relajacion"
+
+--- LINEA 3 ---
+Id        = "relajacion"
+Numero    = 3
+Actor     = "Carlos"
+Expresion = "Pensativo"
+Texto     = "Paso dos: elegimos el nodo no visitado con la distancia minima. Al inicio, ese es la Bodega con distancia cero. Paso tres: para cada vecino, calculamos la distancia nueva. Si es menor que la registrada, la actualizamos. Eso se llama relajacion de aristas."
+Evento    = limpiarTodo + resaltarNodo(Gen_Bodega_z1, SELECCIONADO) + mostrarArista(Gen_Bodega_z1, Poste_Norte_z1, SELECCIONADO, sinParticulas=true) + mostrarArista(Gen_Bodega_z1, Poste_Sur_z1, ADYACENTE, sinParticulas=true) + mostrarLabel(Poste_Norte_z1, "dist = 0+4 = 4") + mostrarLabel(Poste_Sur_z1, "dist = 0+7 = 7")
+Siguiente = "ejemplo_ruta"
+
+--- LINEA 4 ---
+Id        = "ejemplo_ruta"
+Numero    = 4
+Actor     = "Carlos"
+Expresion = "Serio"
+Texto     = "Sigamos. El no visitado con menor distancia es el Poste Norte con cuatro. Desde el llegamos al Cruce Norte con costo tres: distancia acumulada siete. Luego al Mercado con costo tres mas: diez. Pero ojo: desde el Mercado a la Plaza cuesta solo dos..."
+Evento    = limpiarTodo + resaltarNodo(Poste_Norte_z1, SELECCIONADO) + mostrarArista(Poste_Norte_z1, Cruce_Norte_z2, SELECCIONADO, sinParticulas=true) + mostrarArista(Cruce_Norte_z2, Mercado_z2, ADYACENTE, sinParticulas=true) + mostrarLabel(Cruce_Norte_z2, "dist = 4+3 = 7") + mostrarLabel(Mercado_z2, "dist = 7+3 = 10")
+Siguiente = "relajacion_accion"
+
+--- LINEA 5 ---
+Id        = "relajacion_accion"
+Numero    = 5
+Actor     = "Carlos"
+Expresion = "Extasiado"
+Texto     = "¡Aqui viene lo bueno! Tambien podemos llegar a la Plaza desde el Taller con costo uno, y al Taller desde el Cruce Sur con costo cuatro. Si comparamos rutas: Bodega → Norte → Cruce Norte → Mercado → Plaza = doce. Pero Bodega → Norte → Cruce Norte → Taller → Plaza = doce tambien... espera, hay una mejor."
+Evento    = limpiarTodo + resaltarNodo(Plaza_z2, SELECCIONADO) + mostrarArista(Mercado_z2, Plaza_z2, SELECCIONADO, sinParticulas=true) + mostrarArista(Taller_z2, Plaza_z2, ADYACENTE, sinParticulas=true) + mostrarLabel(Plaza_z2, "Comparando rutas...")
+Siguiente = "pregunta_ruta"
+
+--- LINEA 6 ---
+Id        = "pregunta_ruta"
+Numero    = 6
+Actor     = "Carlos"
+Expresion = "Curioso"
+Texto     = "Pregunta: si quieres llegar a la Plaza Central gastando lo menos posible, y ya tienes conectados el Poste Norte y el Cruce Norte... ¿que arista deberias tender primero?"
+Opciones  = {
+    { Texto = "Cruce Norte → Taller (costo 8)", Siguiente = "resp_ruta_mal" },
+    { Texto = "Cruce Norte → Mercado (costo 3), luego Mercado → Plaza (costo 2)", Siguiente = "resp_ruta_bien" },
+    { Texto = "Cruce Norte → Taller (costo 8), luego Taller → Plaza (costo 1)", Siguiente = "resp_ruta_mal2" }
+}
+
+--- LINEA 7 (correcta) ---
+Id        = "resp_ruta_bien"
+Numero    = 7
+Actor     = "Carlos"
+Expresion = "Feliz"
+Texto     = "¡Exacto! Cruce Norte → Mercado cuesta tres, y Mercado → Plaza cuesta dos. Total acumulado desde la Bodega: cuatro + tres + dos = nueve. Esa es la ruta mas barata en este momento. Dijkstra la descubrira automaticamente al procesar cada nodo por orden de distancia minima."
+Evento    = jugador:SetAttribute(PuntajeDialogo, actual+100) + notificarDialogoCorrecto()
+Opciones  = { { Texto = "Continuar", Siguiente = "consejo_presupuesto" } }
+
+--- LINEA 7 (incorrecta 1) ---
+Id        = "resp_ruta_mal"
+Numero    = 7
+Actor     = "Carlos"
+Expresion = "Serio"
+Texto     = "No exactamente. Cruzar directamente al Taller desde el Cruce Norte cuesta ocho, lo cual es muy caro. Dijkstra nunca elegiria esa arista primero porque hay caminos mucho mas baratos disponibles. Recuerda: el algoritmo siempre expande el nodo con la distancia acumulada mas pequeña."
+Opciones  = { { Texto = "Entendido", Siguiente = "consejo_presupuesto" } }
+
+--- LINEA 7 (incorrecta 2) ---
+Id        = "resp_ruta_mal2"
+Numero    = 7
+Actor     = "Carlos"
+Expresion = "Serio"
+Texto     = "Casi, pero no. El Taller → Plaza cuesta uno, si, pero llegar al Taller desde el Cruce Norte cuesta ocho. Eso da un total de trece solo para esas dos aristas. En cambio, ir por el Mercado cuesta tres + dos = cinco. Dijkstra siempre suma el costo ACUMULADO desde el origen, no solo la arista individual."
+Opciones  = { { Texto = "Entendido", Siguiente = "consejo_presupuesto" } }
+
+--- LINEA 8 ---
+Id        = "consejo_presupuesto"
+Numero    = 8
+Actor     = "Carlos"
+Expresion = "Serio"
+Texto     = "Recuerda tu presupuesto. Cada cable que tiendes consume dinero real. Si gastas en aristas caras de mas, podrias quedarte sin fondos antes de iluminar todo el pueblo. Planifica con Dijkstra, ejecuta con cabeza."
+Evento    = limpiarTodo + resaltarNodo(Plaza_z2, SELECCIONADO) + resaltarNodo(Mercado_z2, ADYACENTE) + resaltarNodo(Taller_z2, ADYACENTE) + moverHaciaObjetivo(Plaza_z2, altura=30, angulo=65, duracion=1.5)
+Siguiente = "instruccion_final"
+
+--- LINEA 9 ---
+Id        = "instruccion_final"
+Numero    = 9
+Actor     = "Sistema"
+Texto     = "Conecta las rutas de suministro respetando el presupuesto. Usa el Panel de Analisis con Dijkstra para planificar la ruta mas economica antes de gastar. Recuerda: el costo acumulado importa mas que el costo individual de cada cable."
+Evento    = limpiarTodo + restaurar(1.2)
+Siguiente = "FIN"
+
+--------------------------------------------------------------------------------
+A.9.3 Nivel3_Control.lua  —  Dialogo: "Nivel3_Control"
+--------------------------------------------------------------------------------
+
+Zona  = "Zona_Control_3"
+Nivel = 3
+Metadata y Configuracion: igual que arriba.
+
+--- LINEA 1 ---
+Id        = "intro_control"
+Numero    = 1
+Actor     = "Carlos"
+Expresion = "Sonriente"
+Texto     = "Llegamos al Centro de Control. Desde aqui se ven todas las rutas del pueblo en las pantallas. Y tengo buenas noticias: usando Dijkstra, las rutas de suministro de Villa Conexa ahora son un cuarenta por ciento mas eficientes."
+Evento    = limpiarTodo + moverHaciaObjetivo(Centro_Control_z3, altura=25, angulo=60, duracion=1.5) + resaltarNodo(Centro_Control_z3, SELECCIONADO) + resaltarNodo(Antena_z3, ADYACENTE) + resaltarNodo(Terminal_z3, ADYACENTE)
+Siguiente = "pregunta_gps"
+
+--- LINEA 2 ---
+Id        = "pregunta_gps"
+Numero    = 2
+Actor     = "Carlos"
+Expresion = "Curioso"
+Texto     = "Pregunta: ¿Dijkstra se usa en aplicaciones reales como Google Maps o los sistemas de navegacion de aviones?"
+Opciones  = {
+    { Texto = "Si, absolutamente. Todos usan versiones optimizadas de Dijkstra.", Siguiente = "resp_gps_bien" },
+    { Texto = "No, los GPS usan trigonometria basica sin grafos.", Siguiente = "resp_gps_mal" },
+    { Texto = "Solo en redes sociales, no en navegacion.", Siguiente = "resp_gps_mal" }
+}
+
+--- LINEA 3 (correcta) ---
+Id        = "resp_gps_bien"
+Numero    = 3
+Actor     = "Carlos"
+Expresion = "Feliz"
+Texto     = "¡Correcto! Google Maps, Waze, los sistemas de enrutacion de internet, los algoritmos de navegacion de aviones... todos usan versiones optimizadas de Dijkstra. Es uno de los algoritmos mas aplicados en toda la industria de la computacion."
+Evento    = jugador:SetAttribute(PuntajeDialogo, actual+100) + notificarDialogoCorrecto()
+Opciones  = { { Texto = "Continuar", Siguiente = "complejidad" } }
+
+--- LINEA 3 (incorrecta) ---
+Id        = "resp_gps_mal"
+Numero    = 3
+Actor     = "Carlos"
+Expresion = "Serio"
+Texto     = "No exactamente. Dijkstra y sus variantes optimizadas son la base de casi todos los sistemas de navegacion modernos. Cuando Google Maps te dice la ruta mas rapida, en el fondo esta resolviendo el Problema del Camino Minimo en un grafo ponderado gigante."
+Opciones  = { { Texto = "Entendido", Siguiente = "complejidad" } }
+
+--- LINEA 4 ---
+Id        = "complejidad"
+Numero    = 4
+Actor     = "Carlos"
+Expresion = "Pensativo"
+Texto     = "Hablemos de eficiencia. Con una Matriz de Adyacencia, Dijkstra es O de N al cuadrado porque cada vez que busca el nodo de menor distancia, recorre todos los nodos. Con una Lista de Adyacencia mas un Min-Heap, baja a O de (N + A) por logaritmo de N. Para grafos grandes y dispersos, la segunda version es mucho mas rapida."
+Evento    = limpiarTodo + resaltarNodo(Centro_Control_z3, SELECCIONADO) + resaltarNodo(Terminal_z3, ADYACENTE) + mostrarArista(Centro_Control_z3, Antena_z3, SELECCIONADO, sinParticulas=true) + mostrarArista(Antena_z3, Terminal_z3, ADYACENTE, sinParticulas=true)
+Siguiente = "limitaciones"
+
+--- LINEA 5 ---
+Id        = "limitaciones"
+Numero    = 5
+Actor     = "Carlos"
+Expresion = "Serio"
+Texto     = "¿Hay algun caso donde Dijkstra no funcione? Si: cuando existen aristas con pesos negativos. Para eso existe Bellman-Ford. Y si necesitas los caminos minimos entre todos los pares de nodos, usarias Floyd-Warshall. Un algoritmo para cada variante del problema."
+Siguiente = "dijkstra_vs_prim"
+
+--- LINEA 6 ---
+Id        = "dijkstra_vs_prim"
+Numero    = 6
+Actor     = "Carlos"
+Expresion = "Pensativo"
+Texto     = "Antes de terminar, una comparacion crucial. Dijkstra busca el camino de menor costo desde un nodo origen hasta todos los demas. Prim, en cambio, busca conectar TODOS los nodos con el menor costo total posible. Ese segundo problema se llama Arbol de Expansion Minima, o MST."
+Evento    = limpiarTodo + resaltarNodo(Gen_Bodega_z1, SELECCIONADO) + resaltarNodo(Terminal_z3, SELECCIONADO) + moverHaciaObjetivo(Plaza_z2, altura=40, angulo=75, duracion=2)
+Siguiente = "cierre_presupuesto"
+
+--- LINEA 7 ---
+Id        = "cierre_presupuesto"
+Numero    = 7
+Actor     = "Carlos"
+Expresion = "Sonriente"
+Texto     = "En este nivel aprendiste algo valioso: no basta con conectar nodos. Hay que hacerlo de la forma mas economica posible. El presupuesto del pueblo es limitado, y cada decision cuenta. Dijkstra te da la herramienta matematica para tomar esas decisiones correctamente."
+Siguiente = "cierre_nivel"
+
+--- LINEA 8 ---
+Id        = "cierre_nivel"
+Numero    = 8
+Actor     = "Carlos"
+Expresion = "Extasiado"
+Texto     = "¡Excelente trabajo, Tocino! Las rutas de suministro de Villa Conexa son ahora un cuarenta por ciento mas eficientes. En el siguiente nivel aprenderemos algo diferente: no como ir de A a B de la forma mas barata, sino como conectar todos los nodos del pueblo con el menor costo total posible. ¡Nos vemos pronto!"
+Evento    = limpiarTodo + restaurar(1.2)
+Siguiente = "FIN"
+
+
+================================================================================
+  SECCION B — NIVEL 4: LA AUDITORIA DE LOS CONTRATOS
+================================================================================
+
+--------------------------------------------------------------------------------
+B.1 NARRATIVA Y AMBIENTACION
+--------------------------------------------------------------------------------
+
+NOMBRE DEL NIVEL: "La Auditoria de los Contratos"
+TAG:              "NIVEL 4 · EXPANSION MINIMA"
+SECCION:          "Optimizacion de Redes"
+ALGORITMO:        "Prim"
+CONCEPTOS:        { "Arbol de Expansion Minima", "Ciclo", "Corte", "Arista segura" }
+
+DESCRIPCION CORTA:
+"El alcalde cobro millones por cables innecesarios. Usa Prim para conectar toda
+la Zona Industrial con el minimo de cable posible y expone la corrupcion."
+
+AMBIENTACION:
+  - Entorno: Zona Industrial al atardecer. Torres de alta tension, fabricas con
+    chimeneas, muelles de carga, almacenes de material electrico.
+  - Mood: Tension profesional. Carlos confiado, el alcalde observa desde lejos.
+  - Reloj: 18:00 (atardecer dorado).
+  - IluminacionAmbiental: Color3.fromRGB(60, 40, 20) — naranja quemado.
+  - IluminacionExteriores: Color3.fromRGB(80, 50, 30).
+  - LinternaJugador: false.
+
+NARRATIVA:
+El alcalde presento una factura de reconexion de la Zona Industrial por $2.3
+millones. Carlos sabe que el diseno anterior tenia bucles innecesarios: cables
+que formaban ciclos, cobrados como "material de respaldo". La empresa apuesta
+a que puede reconectar toda la zona gastando menos de la mitad.
+
+Tocino debe aplicar el Algoritmo de Prim para construir el MST: el conjunto de
+aristas que conecta TODOS los nodos sin formar ciclos y con el menor costo.
+
+SUPUESTOS DEL ESCENARIO:
+  - 12 nodos en total, distribuidos en 3 zonas.
+  - El MST optimo tiene exactamente 11 aristas y costo total 25 unidades.
+  - Presupuesto: $15,000. CostoPorMetro: $600.
+  - Cualquier arista extra al MST forma un ciclo y excede el presupuesto.
+  - El jugador debe planificar con Prim antes de conectar.
+
+--------------------------------------------------------------------------------
+B.2 CONFIGURACION DE NIVEL (LevelsConfig[4])
+--------------------------------------------------------------------------------
+
+  Nombre           = "La Auditoria de los Contratos"
+  DescripcionCorta = "El alcalde cobro millones por cables innecesarios. Usa Prim para conectar toda la Zona Industrial con el minimo de cable posible y expone la corrupcion."
+  ImageId          = "rbxassetid://1234567895"
+  Modelo           = "Nivel4"
+  Tag              = "NIVEL 4 · EXPANSION MINIMA"
+  Seccion          = "Optimizacion de Redes"
+  Algoritmo        = "Prim"
+  Conceptos        = { "Arbol de Expansion Minima", "Ciclo", "Corte", "Arista segura" }
+  Generadores      = { "Gen_Puerto_z1" }
+
+  ConfiguracionEntorno = {
+      Reloj = 18,
+      IluminacionAmbiental  = Color3.fromRGB(60, 40, 20),
+      IluminacionExteriores = Color3.fromRGB(80, 50, 30),
+      LinternaJugador = false
+  }
+
+  Presupuesto = { Inicial = 15000, AdvertenciaBajo = 3000 }
+  CostoPorMetro = 600
+
+  Puntuacion = {
+      TresEstrellas  = 3500, DosEstrellas = 2000, RecompensaXP = 1000,
+      PuntosConexion = 50, PenaFallo = 15, PuntosPreguntaCorrecta = 100
+  }
+
+  RequiereDialogosCorrectos = true
+  TotalPreguntasDialogo = 3
+
+--------------------------------------------------------------------------------
+B.3 ADYACENCIAS Y PESOS
+--------------------------------------------------------------------------------
+
+ADYACENCIAS:
+
+  -- Zona 1: Puerto Industrial
+  ["Gen_Puerto_z1"] = {"Muelle_z1", "Grua_z1"}
+  ["Muelle_z1"]     = {"Gen_Puerto_z1", "Grua_z1", "Deposito_z1"}
+  ["Grua_z1"]       = {"Gen_Puerto_z1", "Muelle_z1", "Deposito_z1"}
+  ["Deposito_z1"]   = {"Muelle_z1", "Grua_z1", "Taller_z2"}
+
+  -- Zona 2: Fabricas
+  ["Taller_z2"]     = {"Deposito_z1", "Horno_z2", "Ensamblaje_z2"}
+  ["Horno_z2"]      = {"Taller_z2", "Ensamblaje_z2", "Embalaje_z2"}
+  ["Ensamblaje_z2"] = {"Taller_z2", "Horno_z2", "Embalaje_z2"}
+  ["Embalaje_z2"]   = {"Horno_z2", "Ensamblaje_z2", "Patio_z3"}
+
+  -- Zona 3: Terminal de Carga
+  ["Patio_z3"]           = {"Embalaje_z2", "Torre_Control_z3", "Antena_z3"}
+  ["Torre_Control_z3"]   = {"Patio_z3", "Antena_z3", "Estacion_Carga_z3"}
+  ["Antena_z3"]          = {"Patio_z3", "Torre_Control_z3", "Estacion_Carga_z3"}
+  ["Estacion_Carga_z3"]  = {"Torre_Control_z3", "Antena_z3"}
+
+PESOS:
+  Gen_Puerto|Muelle=2, Gen_Puerto|Grua=5, Muelle|Grua=3, Muelle|Deposito=4,
+  Grua|Deposito=1, Deposito|Taller=6, Taller|Horno=2, Taller|Ensamblaje=3,
+  Horno|Ensamblaje=1, Horno|Embalaje=4, Ensamblaje|Embalaje=2,
+  Embalaje|Patio=5, Patio|Torre_Control=3, Patio|Antena=7,
+  Torre_Control|Antena=2, Torre_Control|Estacion_Carga=4, Antena|Estacion_Carga=1
+
+NOTA: MST optimo = 25 unidades de peso × $600 = $15,000 exactos.
+
+--------------------------------------------------------------------------------
+B.4 ZONAS
+--------------------------------------------------------------------------------
+
+  ["Zona_Puerto_1"] = { Trigger="ZonaTrigger_Puerto", Descripcion="Puerto Industrial",
+      Dialogo="Nivel4_Puerto", CarpetaLuz="Zona_luz_1" }
+  ["Zona_Fabricas_2"] = { Trigger="ZonaTrigger_Fabricas", Descripcion="Fabricas",
+      Dialogo="Nivel4_Fabricas", CarpetaLuz="Zona_luz_2" }
+  ["Zona_Terminal_3"] = { Trigger="ZonaTrigger_Terminal", Descripcion="Terminal de Carga",
+      Dialogo="Nivel4_Terminal", CarpetaLuz="Zona_luz_3" }
+
+--------------------------------------------------------------------------------
+B.5 NOMBRES DE NODOS
+--------------------------------------------------------------------------------
+
+  Gen_Puerto_z1="Generador del Puerto", Muelle_z1="Muelle de Carga",
+  Grua_z1="Grua Principal", Deposito_z1="Deposito de Materiales",
+  Taller_z2="Taller de Ensamblaje", Horno_z2="Horno Industrial",
+  Ensamblaje_z2="Linea de Ensamblaje", Embalaje_z2="Zona de Embalaje",
+  Patio_z3="Patio de la Terminal", Torre_Control_z3="Torre de Control",
+  Antena_z3="Antena de Comunicaciones", Estacion_Carga_z3="Estacion de Carga"
+
+--------------------------------------------------------------------------------
+B.6 MISIONES
+--------------------------------------------------------------------------------
+
+  { ID=401, Zona="Zona_Puerto_1", Texto="Selecciona el Generador del Puerto", Tipo="NODO_SELECCIONADO", Puntos=100, Parametros={Nodo="Gen_Puerto_z1"} }
+  { ID=402, Zona="Zona_Puerto_1", Texto="Conecta el Muelle al Generador (costo 2)", Tipo="ARISTA_CREADA", Puntos=150, Parametros={NodoA="Gen_Puerto_z1",NodoB="Muelle_z1"} }
+  { ID=403, Zona="Zona_Puerto_1", Texto="Conecta la Grua al Generador (costo 5)", Tipo="ARISTA_CREADA", Puntos=150, Parametros={NodoA="Gen_Puerto_z1",NodoB="Grua_z1"} }
+  { ID=404, Zona="Zona_Puerto_1", Texto="Ilumina todo el Puerto (4 nodos)", Tipo="GRAFO_CONEXO", Puntos=200, Parametros={Nodos={"Gen_Puerto_z1","Muelle_z1","Grua_z1","Deposito_z1"}} }
+
+  { ID=405, Zona="Zona_Fabricas_2", Texto="Conecta el Taller desde el Deposito (costo 6)", Tipo="ARISTA_CREADA", Puntos=200, Parametros={NodoA="Deposito_z1",NodoB="Taller_z2"} }
+  { ID=406, Zona="Zona_Fabricas_2", Texto="Conecta el Horno al Taller (costo 2)", Tipo="ARISTA_CREADA", Puntos=150, Parametros={NodoA="Taller_z2",NodoB="Horno_z2"} }
+  { ID=407, Zona="Zona_Fabricas_2", Texto="Conecta la Linea de Ensamblaje al Taller (costo 3)", Tipo="ARISTA_CREADA", Puntos=150, Parametros={NodoA="Taller_z2",NodoB="Ensamblaje_z2"} }
+  { ID=408, Zona="Zona_Fabricas_2", Texto="Ilumina todas las Fabricas (4 nodos)", Tipo="GRAFO_CONEXO", Puntos=250, Parametros={Nodos={"Taller_z2","Horno_z2","Ensamblaje_z2","Embalaje_z2"}} }
+
+  { ID=409, Zona="Zona_Terminal_3", Texto="Conecta el Patio desde Embalaje (costo 5)", Tipo="ARISTA_CREADA", Puntos=200, Parametros={NodoA="Embalaje_z2",NodoB="Patio_z3"} }
+  { ID=410, Zona="Zona_Terminal_3", Texto="Conecta la Torre de Control al Patio (costo 3)", Tipo="ARISTA_CREADA", Puntos=150, Parametros={NodoA="Patio_z3",NodoB="Torre_Control_z3"} }
+  { ID=411, Zona="Zona_Terminal_3", Texto="Conecta la Antena al Patio (costo 7)", Tipo="ARISTA_CREADA", Puntos=150, Parametros={NodoA="Patio_z3",NodoB="Antena_z3"} }
+  { ID=412, Zona="Zona_Terminal_3", Texto="Ilumina toda la Terminal (4 nodos)", Tipo="GRAFO_CONEXO", Puntos=250, Parametros={Nodos={"Patio_z3","Torre_Control_z3","Antena_z3","Estacion_Carga_z3"}} }
+
+  { ID=413, Zona="Zona_Terminal_3", Texto="Conecta TODA la Zona Industrial sin exceder presupuesto", Tipo="GRAFO_CONEXO", Puntos=600, Parametros={Nodos={"Gen_Puerto_z1","Muelle_z1","Grua_z1","Deposito_z1","Taller_z2","Horno_z2","Ensamblaje_z2","Embalaje_z2","Patio_z3","Torre_Control_z3","Antena_z3","Estacion_Carga_z3"}} }
+  { ID=414, Zona="Zona_Terminal_3", Texto="Conecta todo sin crear ciclos (MST perfecto)", Tipo="GRAFO_CONEXO", Puntos=400, Parametros={Nodos={"Gen_Puerto_z1","Muelle_z1","Grua_z1","Deposito_z1","Taller_z2","Horno_z2","Ensamblaje_z2","Embalaje_z2","Patio_z3","Torre_Control_z3","Antena_z3","Estacion_Carga_z3"}} }
+
+--------------------------------------------------------------------------------
+B.7 ANALISISCONFIG
+--------------------------------------------------------------------------------
+
+  ["Zona_Puerto_1"] = {
+      algoritmos={"prim","dijkstra"}, nodoInicio="Gen_Puerto_z1", nodoFin=nil,
+      conceptos={
+          prim={
+              intro="Prim construye el MST paso a paso: siempre elige la arista mas barata que conecte un nuevo nodo al arbol. Observa como evita ciclos automaticamente.",
+              pasos={ [2]="Raiz: Generador del Puerto con key=0. Todos los demas nodos empiezan en infinito.", [8]="El nodo con key minima se integra al MST. Se actualizan las keys de sus vecinos no conectados.", [9]="Si esta arista es mas barata para llegar a un nodo, actualizamos su key.", [13]="MST completo: todos los nodos conectados sin ciclos y con el minimo costo total." }
+          },
+          dijkstra={
+              intro="Compara Prim con Dijkstra: Dijkstra busca el camino minimo a un destino. Prim busca conectar TODOS los nodos con el minimo costo total. La logica es similar, pero el objetivo es diferente.",
+              pasos={ [2]="Dijkstra inicializa distancias desde el origen.", [7]="Extrae el nodo con menor distancia acumulada.", [9]="Relaja vecinos: actualiza distancias si encuentra un camino mas corto.", [13]="Dijkstra termina cuando alcanza el destino. Prim termina cuando todos los nodos estan en el arbol." }
+          }
+      }
+  }
+  ["Zona_Fabricas_2"] = {
+      algoritmos={"prim"}, nodoInicio="Deposito_z1", nodoFin=nil,
+      conceptos={
+          prim={
+              intro="Desde el Deposito, Prim debe conectar Taller, Horno, Ensamblaje y Embalaje. El diseno del alcalde tenia ciclos aqui. El MST los elimina.",
+              pasos={ [2]="Raiz: Deposito. Sus vecinos reciben sus primeras keys.", [8]="Elige la arista mas barata que traiga un nodo nuevo al arbol.", [9]="Actualiza: si por el nuevo nodo llegamos mas barato a otro, cambiamos su key.", [13]="4 nodos conectados con solo 3 aristas: N-1 es la magia del MST." }
+          }
+      }
+  }
+  ["Zona_Terminal_3"] = {
+      algoritmos={"prim","dijkstra"}, nodoInicio="Gen_Puerto_z1", nodoFin="Estacion_Carga_z3",
+      conceptos={
+          prim={
+              intro="Prim conecta toda la Zona Industrial con 11 aristas (12 nodos - 1). Cada arista extra seria un ciclo: cable robado al pueblo.",
+              pasos={ [2]="Inicia en el Generador del Puerto.", [8]="Arista segura seleccionada: la mas barata que cruza la frontera del arbol.", [9]="Relajacion de keys en vecinos no conectados.", [13]="MST global completo. Costo minimo garantizado. Corrupcion expuesta." }
+          },
+          dijkstra={
+              intro="Dijkstra desde el Generador hasta la Estacion de Carga. Compara el costo acumulado del camino minimo versus el costo total del MST.",
+              pasos={ [2]="dist[Gen_Puerto]=0, resto=infinito.", [7]="Extrae nodo con menor distancia provisional.", [9]="Relaja vecinos: actualiza si llegar por aqui es mas barato.", [13]="Estacion de Carga alcanzada con costo minimo garantizado." }
+          }
+      }
+  }
+
+--------------------------------------------------------------------------------
+B.8 GUIA
+--------------------------------------------------------------------------------
+
+  { ID="puerto_1", Zona="Zona_Puerto_1", Label="Ve al Puerto Industrial", WaypointRef={Tipo="PART_DIRECTA",BuscarEn="NIVEL_ACTUAL",Nombre="ZonaTrigger_Puerto"}, DestruirAlCompletar=false }
+  { ID="fabricas_2", Zona="Zona_Fabricas_2", Label="Ve a las Fabricas", WaypointRef={Tipo="PART_DIRECTA",BuscarEn="NIVEL_ACTUAL",Nombre="ZonaTrigger_Fabricas"}, DestruirAlCompletar=false }
+  { ID="terminal_3", Zona="Zona_Terminal_3", Label="Ve a la Terminal", WaypointRef={Tipo="PART_DIRECTA",BuscarEn="NIVEL_ACTUAL",Nombre="ZonaTrigger_Terminal"}, DestruirAlCompletar=false }
+
+--------------------------------------------------------------------------------
+B.9 — DIALOGOS NIVEL 4 (Redactados)
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+B.9.1 Nivel4_Puerto.lua
+--------------------------------------------------------------------------------
+Zona="Zona_Puerto_1", Nivel=4
+Metadata y Configuracion estandar (bloquearMovimiento=true, apuntarCamara=true, etc.)
+
+Linea 1 (intro_puerto):
+  Actor=Carlos, Expresion=Serio
+  Texto: "Tocino, mira esta factura. El alcalde cobro 2.3 millones por 'reconexion completa' de la Zona Industrial. Pero yo revise los planos: hay cables que no llevan a ningun lado. Son ciclos disfrazados de seguridad."
+  Evento: limpiarTodo + moverHaciaObjetivo(Gen_Puerto_z1, altura=25, angulo=65, duracion=1.5) + resaltarNodo(Gen_Puerto_z1, SELECCIONADO)
+  Siguiente: muestra_ciclo
+
+Linea 2 (muestra_ciclo):
+  Actor=Carlos, Expresion=Preocupado
+  Texto: "Un CICLO es un camino que empieza y termina en el mismo nodo, pasando por aristas distintas. En electricidad, un ciclo no ilumina mas: solo gasta cable. El alcalde los puso para cobrar mas material."
+  Evento: resaltarNodo(Muelle_z1, ADYACENTE) + resaltarNodo(Grua_z1, ADYACENTE) + resaltarNodo(Deposito_z1, ADYACENTE) + mostrarArista(Muelle_z1, Grua_z1, ADYACENTE, sinParticulas=true) + mostrarArista(Grua_z1, Deposito_z1, ADYACENTE, sinParticulas=true) + mostrarArista(Muelle_z1, Deposito_z1, ERROR, sinParticulas=true) + mostrarLabel(Deposito_z1, "Ciclo: 3 aristas, 3 nodos", ERROR)
+  Siguiente: pregunta_ciclo
+
+Linea 3 (pregunta_ciclo):
+  Actor=Carlos, Expresion=Curioso
+  Texto: "Pregunta rapida: ¿que es un ciclo en un grafo?"
+  Opciones:
+    A) "Un camino que empieza y termina en el mismo nodo, usando aristas distintas." → resp_ciclo_bien
+    B) "Un nodo que no tiene ninguna conexion." → resp_ciclo_mal
+    C) "La arista con el mayor peso del grafo." → resp_ciclo_mal2
+
+Linea 4 correcta (resp_ciclo_bien):
+  Actor=Carlos, Expresion=Feliz
+  Texto: "¡Exacto! Un ciclo vuelve a su punto de partida. En una red electrica eficiente, no necesitamos ciclos: conectar todos los nodos con N-1 aristas es suficiente. Eso se llama Arbol de Expansion Minima."
+  Evento: +100 puntos + notificarDialogoCorrecto()
+  Opciones: { {Texto="Continuar", Siguiente=explica_mst} }
+
+Linea 4 incorrecta 1 (resp_ciclo_mal):
+  Actor=Carlos, Expresion=Serio
+  Texto: "No, eso es un nodo aislado. Un ciclo es un camino cerrado: empiezas en un nodo, recorres aristas distintas, y vuelves al inicio. Como dar una vuelta completa sin repetir cables."
+  Opciones: { {Texto="Entendido", Siguiente=explica_mst} }
+
+Linea 4 incorrecta 2 (resp_ciclo_mal2):
+  Actor=Carlos, Expresion=Serio
+  Texto: "No, la arista mas pesada no tiene que ver con ciclos. Un ciclo es simplemente un camino cerrado: empiezas en un nodo, sigues aristas, y regresas al mismo nodo sin repetir ninguna arista."
+  Opciones: { {Texto="Entendido", Siguiente=explica_mst} }
+
+Linea 5 (explica_mst):
+  Actor=Carlos, Expresion=Presentacion
+  Texto: "El Algoritmo de Prim construye el Arbol de Expansion Minima: conecta todos los nodos del grafo sin formar ciclos, usando el minimo costo total posible. Es la prueba definitiva de que el alcalde nos robo."
+  Evento: limpiarTodo + resaltarNodo(Gen_Puerto_z1, SELECCIONADO) + mostrarLabel(Gen_Puerto_z1, "Raiz del MST", EXITO) + moverHaciaObjetivo(Gen_Puerto_z1, altura=30, angulo=70, duracion=1.5)
+  Siguiente: instruccion_puerto
+
+Linea 6 (instruccion_puerto):
+  Actor=Sistema
+  Texto: "Presupuesto: $15,000. Costo por metro: $600. Conecta todo el Puerto, las Fabricas y la Terminal sin exceder el presupuesto. Usa el Panel de Analisis (Tecla Tab) para ejecutar Prim paso a paso."
+  Evento: limpiarTodo + restaurar(1.2)
+  Siguiente: FIN
+
+--------------------------------------------------------------------------------
+B.9.2 Nivel4_Fabricas.lua
+--------------------------------------------------------------------------------
+Zona="Zona_Fabricas_2", Nivel=4
+
+Linea 1 (intro_fabricas):
+  Actor=Carlos, Expresion=Serio
+  Texto: "Mira este desastre. El alcalde conecto Taller con Horno, Horno con Ensamblaje, Ensamblaje con Taller... y despues puso cables duplicados 'por si acaso'. Es un robo descarado."
+  Evento: limpiarTodo + moverHaciaObjetivo(Taller_z2, altura=22, angulo=60, duracion=1.5) + resaltarNodo(Taller_z2, SELECCIONADO) + resaltarNodo(Horno_z2, ADYACENTE) + resaltarNodo(Ensamblaje_z2, ADYACENTE) + mostrarArista(Taller_z2, Horno_z2, SELECCIONADO, sinParticulas=true) + mostrarArista(Horno_z2, Ensamblaje_z2, SELECCIONADO, sinParticulas=true) + mostrarArista(Taller_z2, Ensamblaje_z2, ERROR, sinParticulas=true) + mostrarLabel(Taller_z2, "Ciclo: 3 nodos, 3 aristas", ERROR)
+  Siguiente: pregunta_prim
+
+Linea 2 (pregunta_prim):
+  Actor=Carlos, Expresion=Curioso
+  Texto: "Pregunta rapida: ¿por que Prim NO necesita un nodo destino como Dijkstra?"
+  Opciones:
+    A) "Porque Prim conecta TODOS los nodos, no busca un camino a uno solo." → resp_prim_bien
+    B) "Porque Prim es mas rapido que Dijkstra en todas las situaciones." → resp_prim_mal
+    C) "Porque Prim no usa pesos en las aristas." → resp_prim_mal2
+
+Linea 3 correcta (resp_prim_bien):
+  Actor=Carlos, Expresion=Feliz
+  Texto: "¡Correcto! Dijkstra responde: '¿cual es el camino mas barato al Hospital?'. Prim responde: '¿como conecto TODO el pueblo gastando lo menos posible?'. Objetivos distintos, logicas similares."
+  Evento: +100 puntos + notificarDialogoCorrecto()
+  Opciones: { {Texto="Continuar", Siguiente=explica_prim_aqui} }
+
+Linea 3 incorrecta 1 (resp_prim_mal):
+  Actor=Carlos, Expresion=Serio
+  Texto: "No es cuestion de velocidad. La diferencia esta en el objetivo: Dijkstra busca un camino de origen a destino. Prim busca conectar absolutamente todos los nodos con el minimo costo total. Es como comparar un GPS con un plano de urbanizacion."
+  Opciones: { {Texto="Entendido", Siguiente=explica_prim_aqui} }
+
+Linea 3 incorrecta 2 (resp_prim_mal2):
+  Actor=Carlos, Expresion=Serio
+  Texto: "Prim SI usa pesos. De hecho, sin pesos no tendria sentido: cualquier arbol con N-1 aristas seria igual de bueno. Prim elige la arista mas barata en cada paso, justamente porque los pesos importan."
+  Opciones: { {Texto="Entendido", Siguiente=explica_prim_aqui} }
+
+Linea 4 (explica_prim_aqui):
+  Actor=Carlos, Expresion=Pensativo
+  Texto: "Abre el Panel de Analisis y observa Prim en accion. Siempre elige la arista mas barata que conecte un nuevo nodo al arbol. Si una arista formaria un ciclo, la ignora automaticamente. Es elegante."
+  Evento: limpiarTodo + resaltarNodo(Deposito_z1, SELECCIONADO) + resaltarNodo(Taller_z2, ADYACENTE) + resaltarNodo(Horno_z2, ADYACENTE) + resaltarNodo(Ensamblaje_z2, ADYACENTE) + resaltarNodo(Embalaje_z2, ADYACENTE) + mostrarLabel(Deposito_z1, "Raiz de esta zona", SELECCIONADO)
+  Siguiente: instruccion_fabricas
+
+Linea 5 (instruccion_fabricas):
+  Actor=Sistema
+  Texto: "Conecta Taller, Horno, Ensamblaje y Embalaje al arbol principal. Recuerda: 4 nodos necesitan exactamente 3 aristas. Cualquier cable extra es un ciclo... y dinero robado al pueblo."
+  Evento: limpiarTodo + restaurar(1.2)
+  Siguiente: FIN
+
+--------------------------------------------------------------------------------
+B.9.3 Nivel4_Terminal.lua
+--------------------------------------------------------------------------------
+Zona="Zona_Terminal_3", Nivel=4
+
+Linea 1 (intro_terminal):
+  Actor=Carlos, Expresion=Feliz
+  Texto: "Ya casi terminamos. La Terminal de Carga es la ultima pieza. Si conectamos Patio, Torre de Control, Antena y Estacion de Carga con el minimo de cable, habremos demostrado que el alcalde cobro el DOBLE de lo necesario."
+  Evento: limpiarTodo + moverHaciaObjetivo(Patio_z3, altura=25, angulo=65, duracion=1.5) + resaltarNodo(Patio_z3, SELECCIONADO)
+  Siguiente: pregunta_aristas
+
+Linea 2 (pregunta_aristas):
+  Actor=Carlos, Expresion=Curioso
+  Texto: "Pregunta final: ¿cuantas aristas tiene un Arbol de Expansion Minima con N nodos?"
+  Opciones:
+    A) "N - 1" → resp_aristas_bien
+    B) "N" → resp_aristas_mal
+    C) "N × (N - 1) / 2" → resp_aristas_mal2
+
+Linea 3 correcta (resp_aristas_bien):
+  Actor=Carlos, Expresion=Extasiado
+  Texto: "¡Exacto! N - 1. Con 12 nodos en toda la Zona Industrial, el MST tiene exactamente 11 aristas. El alcalde cobro por 18. Eso son 7 aristas de mas. Siete cables que no iluminan nada nuevo."
+  Evento: +100 puntos + notificarDialogoCorrecto()
+  Opciones: { {Texto="A expone la corrupcion", Siguiente=cierre_terminal} }
+
+Linea 3 incorrecta 1 (resp_aristas_mal):
+  Actor=Carlos, Expresion=Serio
+  Texto: "No, N aristas formarian un ciclo. Un arbol conecta todos los nodos sin ciclos, y eso siempre requiere exactamente N - 1 aristas. Es una de las propiedades fundamentales de los grafos."
+  Opciones: { {Texto="Entendido", Siguiente=cierre_terminal} }
+
+Linea 3 incorrecta 2 (resp_aristas_mal2):
+  Actor=Carlos, Expresion=Serio
+  Texto: "Esa formula da el numero maximo de aristas en un grafo completo, no en un arbol. Un MST es un arbol: conecta todo sin ciclos. Y todo arbol con N nodos tiene exactamente N - 1 aristas. Siempre."
+  Opciones: { {Texto="Entendido", Siguiente=cierre_terminal} }
+
+Linea 4 (cierre_terminal):
+  Actor=Carlos, Expresion=Feliz
+  Texto: "Conecta toda la Terminal. Si completas el MST de toda la Zona Industrial con costo total menor o igual a $15,000, habremos ganado la apuesta. El pueblo entero sabra la verdad."
+  Evento: limpiarTodo + resaltarNodo(Gen_Puerto_z1, EXITO) + mostrarLabel(Gen_Puerto_z1, "Raiz del MST", EXITO) + resaltarNodo(Estacion_Carga_z3, ADYACENTE) + mostrarLabel(Estacion_Carga_z3, "Ultimo nodo", ADYACENTE)
+  Siguiente: instruccion_final
+
+Linea 5 (instruccion_final):
+  Actor=Sistema
+  Texto: "Mision final: conecta los 12 nodos de la Zona Industrial sin exceder $15,000. Usa Prim en el Panel de Analisis para planificar antes de gastar."
+  Evento: limpiarTodo + restaurar(1.2)
+  Siguiente: FIN
+
+
+================================================================================
+  SECCION C — NIVEL 5: LA RECONSTRUCCION DE VILLA CONEXA
+================================================================================
+
+--------------------------------------------------------------------------------
+C.1 NARRATIVA Y AMBIENTACION
+--------------------------------------------------------------------------------
+
+NOMBRE DEL NIVEL: "La Reconstruccion de Villa Conexa"
+TAG:              "NIVEL 5 · INTEGRACION TOTAL"
+SECCION:          "Maestria en Redes"
+ALGORITMO:        "BFS · DFS · Dijkstra · Prim"
+CONCEPTOS:        { "Integracion", "Seleccion de algoritmo", "Cobertura total", "Optimizacion final" }
+
+DESCRIPCION CORTA:
+"Una tormenta destruyo Villa Conexa. Aplica todo lo aprendido: BFS, DFS,
+Dijkstra y Prim para reconstruir la ciudad desde cero."
+
+AMBIENTACION:
+  - Entorno: Villa Conexa post-tormenta. Calles inundadas, postes caidos,
+    escombros, arboles arrancados. Al fondo se ve el amanecer.
+  - Mood: Epico y conclusivo. Carlos confiado, Tocino asume liderazgo real.
+    El alcalde ya no esta: fue destituido. Ahora el pueblo depende de ellos.
+  - Reloj: 06:00 (amanecer despues de la tormenta).
+  - IluminacionAmbiental: Color3.fromRGB(30, 35, 50) — azul grisaceo madrugada.
+  - IluminacionExteriores: Color3.fromRGB(40, 45, 60).
+  - LinternaJugador: true.
+
+NARRATIVA:
+Carlos fue elegido alcalde. Tocino, ahora gerente de Redes y Caminos, debe
+liderar la reconstruccion tras una tormenta sin precedentes. El Barrio de la
+Estacion quedo a oscuras (BFS para mapear danos). Los tuneles de drenaje se
+colapsaron (DFS para explorar en profundidad). El puente hacia el Centro esta
+dañado y los materiales escasean (Dijkstra para optimizar costos). La Plaza
+Central, corazon del pueblo, debe reconstruirse con el minimo de recursos
+(Prim para el MST final).
+
+Cada zona requiere un algoritmo diferente. El jugador debe recordar cuando
+usar cada uno. Es la prueba de fuego de todo el aprendizaje.
+
+SUPUESTOS DEL ESCENARIO:
+  - Villa Conexa sufrio una tormenta masiva. La red electrica esta destruida.
+  - Hay 4 zonas con 20 nodos en total.
+  - Cada zona requiere el algoritmo especifico aprendido en niveles anteriores.
+  - Presupuesto: $20,000. CostoPorMetro: $500.
+  - La mision final requiere conectar TODA la ciudad (integracion total).
+
+--------------------------------------------------------------------------------
+C.2 CONFIGURACION DE NIVEL (LevelsConfig[5])
+--------------------------------------------------------------------------------
+
+  Nombre           = "La Reconstruccion de Villa Conexa"
+  DescripcionCorta = "Una tormenta destruyo Villa Conexa. Aplica todo lo aprendido: BFS, DFS, Dijkstra y Prim para reconstruir la ciudad desde cero."
+  ImageId          = "rbxassetid://1234567896"
+  Modelo           = "Nivel5"
+  Tag              = "NIVEL 5 · INTEGRACION TOTAL"
+  Seccion          = "Maestria en Redes"
+  Algoritmo        = "BFS · DFS · Dijkstra · Prim"
+  Conceptos        = { "Integracion", "Seleccion de algoritmo", "Cobertura total", "Optimizacion final" }
+  Generadores      = { "Gen_Emergencia_z1" }
+
+  ConfiguracionEntorno = {
+      Reloj = 6,
+      IluminacionAmbiental  = Color3.fromRGB(30, 35, 50),
+      IluminacionExteriores = Color3.fromRGB(40, 45, 60),
+      LinternaJugador = true
+  }
+
+  Presupuesto = { Inicial = 20000, AdvertenciaBajo = 5000 }
+  CostoPorMetro = 500
+
+  Puntuacion = {
+      TresEstrellas  = 5000, DosEstrellas = 3000, RecompensaXP = 1500,
+      PuntosConexion = 50, PenaFallo = 15, PuntosPreguntaCorrecta = 100
+  }
+
+  RequiereDialogosCorrectos = true
+  TotalPreguntasDialogo = 4
+
+--------------------------------------------------------------------------------
+C.3 ADYACENCIAS Y PESOS
+--------------------------------------------------------------------------------
+
+ADYACENCIAS:
+
+  -- Zona 1: Barrio de la Estacion (danos por BFS)
+  ["Gen_Emergencia_z1"]  = {"Casa_Norte_z1", "Casa_Sur_z1"}
+  ["Casa_Norte_z1"]      = {"Gen_Emergencia_z1", "Escuela_z1", "Plaza_Barrio_z1"}
+  ["Casa_Sur_z1"]        = {"Gen_Emergencia_z1", "Plaza_Barrio_z1", "Mercado_z1"}
+  ["Escuela_z1"]         = {"Casa_Norte_z1", "Mercado_z1"}
+  ["Plaza_Barrio_z1"]    = {"Casa_Norte_z1", "Casa_Sur_z1", "Entrada_Tunel_z2"}
+  ["Mercado_z1"]         = {"Casa_Sur_z1", "Escuela_z1"}
+
+  -- Zona 2: Tuneles de Drenaje (colapsados, DFS)
+  ["Entrada_Tunel_z2"]   = {"Plaza_Barrio_z1", "Cisterna_z2", "Paso_Estrecho_z2"}
+  ["Cisterna_z2"]        = {"Entrada_Tunel_z2", "Sala_Bombas_z2"}
+  ["Paso_Estrecho_z2"]   = {"Entrada_Tunel_z2", "Sala_Bombas_z2", "Salida_Tunel_z2"}
+  ["Sala_Bombas_z2"]     = {"Cisterna_z2", "Paso_Estrecho_z2"}
+  ["Salida_Tunel_z2"]    = {"Paso_Estrecho_z2", "Base_Puente_z3"}
+
+  -- Zona 3: Puente hacia el Centro (Dijkstra con pesos)
+  ["Base_Puente_z3"]     = {"Salida_Tunel_z2", "Pilar_Norte_z3", "Pilar_Sur_z3"}
+  ["Pilar_Norte_z3"]     = {"Base_Puente_z3", "Centro_z3"}
+  ["Pilar_Sur_z3"]       = {"Base_Puente_z3", "Centro_z3"}
+  ["Centro_z3"]          = {"Pilar_Norte_z3", "Pilar_Sur_z3", "Hospital_z3", "Ayuntamiento_z3"}
+  ["Hospital_z3"]        = {"Centro_z3", "Fuente_z4"}
+  ["Ayuntamiento_z3"]    = {"Centro_z3", "Fuente_z4"}
+
+  -- Zona 4: Plaza Central (Prim / MST)
+  ["Fuente_z4"]          = {"Hospital_z3", "Ayuntamiento_z3", "Torre_Reloj_z4", "Monumento_z4", "Jardines_z4"}
+  ["Torre_Reloj_z4"]     = {"Fuente_z4", "Monumento_z4"}
+  ["Monumento_z4"]       = {"Fuente_z4", "Torre_Reloj_z4", "Jardines_z4"}
+  ["Jardines_z4"]        = {"Fuente_z4", "Monumento_z4"}
+
+PESOS (solo Zona 3 y 4):
+  Base_Puente|Pilar_Norte=3, Base_Puente|Pilar_Sur=8, Pilar_Norte|Centro=4,
+  Pilar_Sur|Centro=2, Centro|Hospital=3, Centro|Ayuntamiento=5,
+  Hospital|Fuente=4, Ayuntamiento|Fuente=2, Fuente|Torre_Reloj=3,
+  Fuente|Monumento=5, Fuente|Jardines=4, Torre_Reloj|Monumento=2,
+  Monumento|Jardines=1
+
+--------------------------------------------------------------------------------
+C.4 ZONAS
+--------------------------------------------------------------------------------
+
+  ["Zona_Danos_1"] = { Trigger="ZonaTrigger_Danos", Descripcion="Barrio de la Estacion",
+      Dialogo="Nivel5_Danos", CarpetaLuz="Zona_luz_1" }
+  ["Zona_Tuneles_2"] = { Trigger="ZonaTrigger_Tuneles", Descripcion="Tuneles de Drenaje",
+      Dialogo="Nivel5_Tuneles", CarpetaLuz="Zona_luz_2" }
+  ["Zona_Puente_3"] = { Trigger="ZonaTrigger_Puente", Descripcion="Puente hacia el Centro",
+      Dialogo="Nivel5_Puente", CarpetaLuz="Zona_luz_3" }
+  ["Zona_Plaza_4"] = { Trigger="ZonaTrigger_Plaza", Descripcion="Plaza Central",
+      Dialogo="Nivel5_Plaza", CarpetaLuz="Zona_luz_4" }
+
+--------------------------------------------------------------------------------
+C.5 NOMBRES DE NODOS
+--------------------------------------------------------------------------------
+
+  Gen_Emergencia_z1="Generador de Emergencia", Casa_Norte_z1="Casa del Norte",
+  Casa_Sur_z1="Casa del Sur", Escuela_z1="Escuela del Barrio",
+  Plaza_Barrio_z1="Plaza del Barrio", Mercado_z1="Mercado Local",
+  Entrada_Tunel_z2="Entrada al Tunel", Cisterna_z2="Cisterna Subterranea",
+  Paso_Estrecho_z2="Paso Estrecho", Sala_Bombas_z2="Sala de Bombas",
+  Salida_Tunel_z2="Salida del Tunel", Base_Puente_z3="Base del Puente",
+  Pilar_Norte_z3="Pilar Norte", Pilar_Sur_z3="Pilar Sur",
+  Centro_z3="Centro de la Ciudad", Hospital_z3="Hospital Central",
+  Ayuntamiento_z3="Ayuntamiento", Fuente_z4="Fuente Central",
+  Torre_Reloj_z4="Torre del Reloj", Monumento_z4="Monumento a la Union",
+  Jardines_z4="Jardines Municipales"
+
+--------------------------------------------------------------------------------
+C.6 MISIONES
+--------------------------------------------------------------------------------
+
+  -- Zona 1: Danos (BFS)
+  { ID=501, Zona="Zona_Danos_1", Texto="Selecciona el Generador de Emergencia", Tipo="NODO_SELECCIONADO", Puntos=100, Parametros={Nodo="Gen_Emergencia_z1"} }
+  { ID=502, Zona="Zona_Danos_1", Texto="Conecta la Casa del Norte al Generador", Tipo="ARISTA_CREADA", Puntos=150, Parametros={NodoA="Gen_Emergencia_z1",NodoB="Casa_Norte_z1"} }
+  { ID=503, Zona="Zona_Danos_1", Texto="Conecta la Casa del Sur al Generador", Tipo="ARISTA_CREADA", Puntos=150, Parametros={NodoA="Gen_Emergencia_z1",NodoB="Casa_Sur_z1"} }
+  { ID=504, Zona="Zona_Danos_1", Texto="Ilumina el Barrio completo (6 nodos)", Tipo="GRAFO_CONEXO", Puntos=250, Parametros={Nodos={"Gen_Emergencia_z1","Casa_Norte_z1","Casa_Sur_z1","Escuela_z1","Plaza_Barrio_z1","Mercado_z1"}} }
+
+  -- Zona 2: Tuneles (DFS)
+  { ID=505, Zona="Zona_Tuneles_2", Texto="Conecta la Entrada al Tunel desde la Plaza", Tipo="ARISTA_CREADA", Puntos=200, Parametros={NodoA="Plaza_Barrio_z1",NodoB="Entrada_Tunel_z2"} }
+  { ID=506, Zona="Zona_Tuneles_2", Texto="Explora la Cisterna desde la Entrada", Tipo="ARISTA_CREADA", Puntos=150, Parametros={NodoA="Entrada_Tunel_z2",NodoB="Cisterna_z2"} }
+  { ID=507, Zona="Zona_Tuneles_2", Texto="Explora el Paso Estrecho", Tipo="ARISTA_CREADA", Puntos=150, Parametros={NodoA="Entrada_Tunel_z2",NodoB="Paso_Estrecho_z2"} }
+  { ID=508, Zona="Zona_Tuneles_2", Texto="Ilumina todos los Tuneles (5 nodos)", Tipo="GRAFO_CONEXO", Puntos=250, Parametros={Nodos={"Entrada_Tunel_z2","Cisterna_z2","Paso_Estrecho_z2","Sala_Bombas_z2","Salida_Tunel_z2"}} }
+
+  -- Zona 3: Puente (Dijkstra)
+  { ID=509, Zona="Zona_Puente_3", Texto="Conecta la Base del Puente desde el Tunel", Tipo="ARISTA_CREADA", Puntos=200, Parametros={NodoA="Salida_Tunel_z2",NodoB="Base_Puente_z3"} }
+  { ID=510, Zona="Zona_Puente_3", Texto="Conecta el Pilar Norte a la Base (costo 3)", Tipo="ARISTA_CREADA", Puntos=150, Parametros={NodoA="Base_Puente_z3",NodoB="Pilar_Norte_z3"} }
+  { ID=511, Zona="Zona_Puente_3", Texto="Conecta el Pilar Sur a la Base (costo 8)", Tipo="ARISTA_CREADA", Puntos=150, Parametros={NodoA="Base_Puente_z3",NodoB="Pilar_Sur_z3"} }
+  { ID=512, Zona="Zona_Puente_3", Texto="Conecta el Hospital al Centro (costo 3)", Tipo="ARISTA_CREADA", Puntos=150, Parametros={NodoA="Centro_z3",NodoB="Hospital_z3"} }
+  { ID=513, Zona="Zona_Puente_3", Texto="Ilumina el Centro y el Puente (7 nodos)", Tipo="GRAFO_CONEXO", Puntos=300, Parametros={Nodos={"Base_Puente_z3","Pilar_Norte_z3","Pilar_Sur_z3","Centro_z3","Hospital_z3","Ayuntamiento_z3"}} }
+
+  -- Zona 4: Plaza (Prim)
+  { ID=514, Zona="Zona_Plaza_4", Texto="Conecta la Fuente desde el Hospital (costo 4)", Tipo="ARISTA_CREADA", Puntos=150, Parametros={NodoA="Hospital_z3",NodoB="Fuente_z4"} }
+  { ID=515, Zona="Zona_Plaza_4", Texto="Conecta la Fuente desde el Ayuntamiento (costo 2)", Tipo="ARISTA_CREADA", Puntos=150, Parametros={NodoA="Ayuntamiento_z3",NodoB="Fuente_z4"} }
+  { ID=516, Zona="Zona_Plaza_4", Texto="Conecta la Torre del Reloj a la Fuente (costo 3)", Tipo="ARISTA_CREADA", Puntos=150, Parametros={NodoA="Fuente_z4",NodoB="Torre_Reloj_z4"} }
+  { ID=517, Zona="Zona_Plaza_4", Texto="Conecta el Monumento a la Fuente (costo 5)", Tipo="ARISTA_CREADA", Puntos=150, Parametros={NodoA="Fuente_z4",NodoB="Monumento_z4"} }
+  { ID=518, Zona="Zona_Plaza_4", Texto="Ilumina la Plaza Central (4 nodos propios)", Tipo="GRAFO_CONEXO", Puntos=300, Parametros={Nodos={"Fuente_z4","Torre_Reloj_z4","Monumento_z4","Jardines_z4"}} }
+
+  -- Mision final global
+  { ID=519, Zona="Zona_Plaza_4", Texto="¡RECONSTRUCCION COMPLETA! Ilumina toda Villa Conexa (20 nodos)", Tipo="GRAFO_CONEXO", Puntos=1000, Parametros={Nodos={"Gen_Emergencia_z1","Casa_Norte_z1","Casa_Sur_z1","Escuela_z1","Plaza_Barrio_z1","Mercado_z1","Entrada_Tunel_z2","Cisterna_z2","Paso_Estrecho_z2","Sala_Bombas_z2","Salida_Tunel_z2","Base_Puente_z3","Pilar_Norte_z3","Pilar_Sur_z3","Centro_z3","Hospital_z3","Ayuntamiento_z3","Fuente_z4","Torre_Reloj_z4","Monumento_z4","Jardines_z4"}} }
+
+--------------------------------------------------------------------------------
+C.7 ANALISISCONFIG
+--------------------------------------------------------------------------------
+
+  ["Zona_Danos_1"] = {
+      algoritmos={"bfs"}, nodoInicio="Gen_Emergencia_z1", nodoFin=nil,
+      conceptos={
+          bfs={
+              intro="BFS es la herramienta correcta para mapear danos: explora capa por capa, asegurando que no quede ninguna casa sin revisar. Ninguna ola de luz se detiene antes de tiempo.",
+              pasos={ [2]="Generador de Emergencia inicia la cola. El barrio aun esta a oscuras.", [7]="Capa 1: Casas del Norte y Sur descubiertas. Sus vecinos pasan a la siguiente capa.", [9]="Capa 2: Escuela, Plaza y Mercado iluminados. Todos los danos mapeados.", [13]="Barrio completo. BFS garantizo cobertura total sin dejar nadie atras." }
+          }
+      }
+  }
+  ["Zona_Tuneles_2"] = {
+      algoritmos={"dfs"}, nodoInicio="Entrada_Tunel_z2", nodoFin=nil,
+      conceptos={
+          dfs={
+              intro="Los tuneles estan colapsados. No sabemos que caminos siguen abiertos. DFS adentra en una rama hasta el fondo antes de retroceder. Si un camino esta bloqueado, vuelve y prueba otro: backtracking puro.",
+              pasos={ [2]="Apilamos la Entrada al Tunel. DFS elegira una rama al azar.", [7]="Rama Cisterna explorada hasta la Sala de Bombas. Si esta bloqueada, retrocede.", [8]="Backtracking: del fondo vuelve a la Entrada para probar el Paso Estrecho.", [12]="Todas las rutas verificadas. DFS encontro todos los caminos abiertos." }
+          }
+      }
+  }
+  ["Zona_Puente_3"] = {
+      algoritmos={"dijkstra"}, nodoInicio="Base_Puente_z3", nodoFin="Hospital_z3",
+      conceptos={
+          dijkstra={
+              intro="Los materiales escasean despues de la tormenta. Dijkstra encuentra la ruta de menor costo para reconectar el Centro. Observa como el Pilar Sur, aunque mas largo en saltos, podria ser mas barato que el Norte.",
+              pasos={ [2]="dist[Base_Puente]=0. Los pilares reciben sus costos iniciales.", [7]="Extraemos el nodo con menor distancia acumulada.", [9]="Relajacion: actualizamos si encontramos un camino mas barato hacia el Centro.", [13]="Hospital alcanzado con costo minimo garantizado. Materiales optimizados." }
+          }
+      }
+  }
+  ["Zona_Plaza_4"] = {
+      algoritmos={"prim","dijkstra"}, nodoInicio="Fuente_z4", nodoFin=nil,
+      conceptos={
+          prim={
+              intro="La Plaza Central es el corazon de Villa Conexa. Prim reconstruira sus conexiones con el minimo de cable posible. Cada arista extra seria un ciclo: recursos desperdiciados que el pueblo no tiene.",
+              pasos={ [2]="Raiz: Fuente Central. Sus vecinos reciben sus keys iniciales.", [8]="Arista segura seleccionada: la mas barata que traiga un nuevo monumento al arbol.", [9]="Actualizacion de keys: si por la Torre llegamos mas barato al Monumento, cambiamos.", [13]="Plaza reconstruida. 4 nodos, 3 aristas, costo minimo. Villa Conexa renace." }
+          },
+          dijkstra={
+              intro="Comparativa final: Dijkstra desde la Fuente hasta cualquier monumento. Observa como Dijkstra calcula distancias, mientras Prim construye el arbol. Ambos usan greedy, pero sus metas difieren.",
+              pasos={ [2]="Inicializacion: Fuente a distancia 0.", [7]="Extraccion del nodo mas cercano.", [9]="Relajacion de vecinos.", [13]="Distancias minimas confirmadas a todos los monumentos." }
+          }
+      }
+  }
+
+--------------------------------------------------------------------------------
+C.8 GUIA
+--------------------------------------------------------------------------------
+
+  { ID="danos_1", Zona="Zona_Danos_1", Label="Ve al Barrio de la Estacion", WaypointRef={Tipo="PART_DIRECTA",BuscarEn="NIVEL_ACTUAL",Nombre="ZonaTrigger_Danos"}, DestruirAlCompletar=false }
+  { ID="tuneles_2", Zona="Zona_Tuneles_2", Label="Ve a los Tuneles", WaypointRef={Tipo="PART_DIRECTA",BuscarEn="NIVEL_ACTUAL",Nombre="ZonaTrigger_Tuneles"}, DestruirAlCompletar=false }
+  { ID="puente_3", Zona="Zona_Puente_3", Label="Ve al Puente", WaypointRef={Tipo="PART_DIRECTA",BuscarEn="NIVEL_ACTUAL",Nombre="ZonaTrigger_Puente"}, DestruirAlCompletar=false }
+  { ID="plaza_4", Zona="Zona_Plaza_4", Label="Ve a la Plaza Central", WaypointRef={Tipo="PART_DIRECTA",BuscarEn="NIVEL_ACTUAL",Nombre="ZonaTrigger_Plaza"}, DestruirAlCompletar=false }
+
+--------------------------------------------------------------------------------
+C.9 — DIALOGOS NIVEL 5 (Redactados)
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+C.9.1 Nivel5_Danos.lua
+--------------------------------------------------------------------------------
+Zona="Zona_Danos_1", Nivel=5
+
+Linea 1 (intro_danos):
+  Actor=Tocino, Expresion=Serio
+  Texto: "Carlos... la tormenta fue peor de lo que pensabamos. El Barrio de la Estacion quedo a oscuras. Pero ya se que hacer."
+  Evento: limpiarTodo + moverHaciaObjetivo(Gen_Emergencia_z1, altura=25, angulo=65, duracion=1.5) + resaltarNodo(Gen_Emergencia_z1, SELECCIONADO)
+  Siguiente: carlos_confia
+
+Linea 2 (carlos_confia):
+  Actor=Carlos, Expresion=Feliz
+  Texto: "Tocino, ya no eres el aprendiz que llego hace meses. Eres gerente de Redes y Caminos. Este pueblo te necesita. Dame un plan."
+  Evento: mostrarLabel(Gen_Emergencia_z1, "Generador de Emergencia", SELECCIONADO)
+  Siguiente: plan_bfs
+
+Linea 3 (plan_bfs):
+  Actor=Tocino, Expresion=Pensativo
+  Texto: "Primero necesitamos saber que tan mal estamos. No podemos arreglar lo que no vemos. Usare BFS: un pulso de luz que se expande capa por capa, revisando cada casa, cada escuela, cada rincon. Nada se queda sin revisar."
+  Evento: resaltarNodo(Casa_Norte_z1, ADYACENTE) + resaltarNodo(Casa_Sur_z1, ADYACENTE) + resaltarNodo(Escuela_z1, ADYACENTE) + resaltarNodo(Plaza_Barrio_z1, ADYACENTE) + resaltarNodo(Mercado_z1, ADYACENTE)
+  Siguiente: pregunta_bfs
+
+Linea 4 (pregunta_bfs):
+  Actor=Carlos, Expresion=Curioso
+  Texto: "Pregunta de jefe a gerente: ¿cuando usamos BFS en lugar de DFS?"
+  Opciones:
+    A) "Cuando necesitamos la ruta mas corta en saltos y cobertura total de un area." → resp_bfs_bien
+    B) "Nunca. DFS es siempre mejor porque es mas rapido." → resp_bfs_mal
+    C) "Solo cuando el grafo tiene pesos en las aristas." → resp_bfs_mal2
+
+Linea 5 correcta (resp_bfs_bien):
+  Actor=Carlos, Expresion=Feliz
+  Texto: "¡Esa es mi respuesta! BFS garantiza que revisamos todo nivel por nivel. En una emergencia, no podemos dejar una casa a oscuras porque nos adentramos demasiado rapido en un solo camino. Primero vemos todo, luego decidimos."
+  Evento: +100 puntos + notificarDialogoCorrecto()
+  Opciones: { {Texto="A iluminar el barrio", Siguiente=instruccion_danos} }
+
+Linea 5 incorrecta 1 (resp_bfs_mal):
+  Actor=Carlos, Expresion=Serio
+  Texto: "Cuidado, gerente. DFS no es siempre mejor. En una emergencia, si nos adentramos en un tunel y dejamos casas sin revisar, podemos perder vidas. BFS expande en circulos, asegurando cobertura total antes de profundizar."
+  Opciones: { {Texto="Entendido", Siguiente=instruccion_danos} }
+
+Linea 5 incorrecta 2 (resp_bfs_mal2):
+  Actor=Carlos, Expresion=Serio
+  Texto: "No, los pesos son territorio de Dijkstra. BFS y DFS trabajan con grafos sin pesos o con pesos iguales. La diferencia esta en el orden: BFS explora por amplitud, DFS por profundidad. Elegir el orden correcto es elegir la herramienta correcta."
+  Opciones: { {Texto="Entendido", Siguiente=instruccion_danos} }
+
+Linea 6 (instruccion_danos):
+  Actor=Sistema
+  Texto: "Fase 1 de 4: BFS. Conecta el Generador de Emergencia a todas las casas, la escuela y el mercado. Abre el Panel de Analisis (Tab) para ver como BFS expande capa por capa. No dejes ningun habitante a oscuras."
+  Evento: limpiarTodo + restaurar(1.2)
+  Siguiente: FIN
+
+--------------------------------------------------------------------------------
+C.9.2 Nivel5_Tuneles.lua
+--------------------------------------------------------------------------------
+Zona="Zona_Tuneles_2", Nivel=5
+
+Linea 1 (intro_tuneles):
+  Actor=Carlos, Expresion=Preocupado
+  Texto: "Buenas noticias: el Barrio esta iluminado. Malas noticias: los tuneles de drenaje se colapsaron. No sabemos que caminos siguen abiertos ni donde estan las bombas de agua."
+  Evento: limpiarTodo + moverHaciaObjetivo(Entrada_Tunel_z2, altura=22, angulo=55, duracion=1.5) + resaltarNodo(Entrada_Tunel_z2, SELECCIONADO)
+  Siguiente: tocino_dfs
+
+Linea 2 (tocino_dfs):
+  Actor=Tocino, Expresion=Pensativo
+  Texto: "Esto es trabajo para DFS. Los tuneles son ramificados y desconocidos. Necesitamos adentrarnos en una rama hasta el fondo. Si esta bloqueada, retrocedemos y probamos otra. Es backtracking puro."
+  Evento: resaltarNodo(Cisterna_z2, ADYACENTE) + resaltarNodo(Paso_Estrecho_z2, ADYACENTE) + resaltarNodo(Sala_Bombas_z2, ADYACENTE) + resaltarNodo(Salida_Tunel_z2, ADYACENTE) + mostrarLabel(Entrada_Tunel_z2, "Raiz de exploracion", SELECCIONADO)
+  Siguiente: pregunta_dfs
+
+Linea 3 (pregunta_dfs):
+  Actor=Carlos, Expresion=Curioso
+  Texto: "Pregunta rapida: ¿por que DFS es util en tuneles desconocidos y colapsados?"
+  Opciones:
+    A) "Porque explora una rama hasta el fondo antes de retroceder, verificando caminos completos." → resp_dfs_bien
+    B) "Porque DFS es mas rapido que BFS en todos los grafos." → resp_dfs_mal
+    C) "Porque DFS no necesita recordar los nodos que ya visito." → resp_dfs_mal2
+
+Linea 4 correcta (resp_dfs_bien):
+  Actor=Carlos, Expresion=Feliz
+  Texto: "¡Exacto! DFS bucea hasta el fondo. Si la Cisterna conduce a una Sala de Bombas bloqueada, sabemos que toda esa rama esta comprometida. Retrocedemos a la Entrada y probamos el Paso Estrecho. Eficiente para espacios ramificados."
+  Evento: +100 puntos + notificarDialogoCorrecto()
+  Opciones: { {Texto="A explorar tuneles", Siguiente=instruccion_tuneles} }
+
+Linea 4 incorrecta 1 (resp_dfs_mal):
+  Actor=Carlos, Expresion=Serio
+  Texto: "La velocidad no es la razon. La clave es la estrategia: DFS verifica caminos completos. En tuneles, eso es critico: un camino parcialmente abierto no sirve. Necesitamos saber si llegamos del otro lado."
+  Opciones: { {Texto="Entendido", Siguiente=instruccion_tuneles} }
+
+Linea 4 incorrecta 2 (resp_dfs_mal2):
+  Actor=Carlos, Expresion=Serio
+  Texto: "DFS SI necesita recordar visitados. Sin eso, daria vueltas en circulos para siempre. La diferencia con BFS esta en el orden: pila LIFO vs cola FIFO. Ambos necesitan memoria de visitados."
+  Opciones: { {Texto="Entendido", Siguiente=instruccion_tuneles} }
+
+Linea 5 (instruccion_tuneles):
+  Actor=Sistema
+  Texto: "Fase 2 de 4: DFS. Adentrate en los tuneles desde la Plaza del Barrio. Encuentra la Salida hacia el Puente. Si un camino esta bloqueado, vuelve y prueba otro. El Panel de Analisis muestra la pila LIFO en accion."
+  Evento: limpiarTodo + restaurar(1.2)
+  Siguiente: FIN
+
+--------------------------------------------------------------------------------
+C.9.3 Nivel5_Puente.lua
+--------------------------------------------------------------------------------
+Zona="Zona_Puente_3", Nivel=5
+
+Linea 1 (intro_puente):
+  Actor=Carlos, Expresion=Serio
+  Texto: "Los tuneles estan despejados. Pero ahora tenemos un problema de recursos: el puente hacia el Centro esta danado y nos queda poco material de construccion. No podemos reforzar todos los pilares."
+  Evento: limpiarTodo + moverHaciaObjetivo(Base_Puente_z3, altura=25, angulo=65, duracion=1.5) + resaltarNodo(Base_Puente_z3, SELECCIONADO)
+  Siguiente: tocino_dijkstra
+
+Linea 2 (tocino_dijkstra):
+  Actor=Tocino, Expresion=Pensativo
+  Texto: "Si reforzamos el Pilar Norte parece mas corto, pero el suelo esta debilitado y cada metro cuesta mas. El Pilar Sur da un rodeo, pero el terreno es firme. Necesitamos Dijkstra: no la ruta mas corta en saltos, sino la mas barata en costo total."
+  Evento: resaltarNodo(Pilar_Norte_z3, ADYACENTE) + resaltarNodo(Pilar_Sur_z3, ADYACENTE) + mostrarLabel(Pilar_Norte_z3, "Costo: 3+4=7", ADYACENTE) + mostrarLabel(Pilar_Sur_z3, "Costo: 8+2=10", ADYACENTE) + mostrarLabel(Base_Puente_z3, "Base del Puente", SELECCIONADO)
+  Siguiente: pregunta_dijkstra
+
+Linea 3 (pregunta_dijkstra):
+  Actor=Carlos, Expresion=Curioso
+  Texto: "Pregunta de planeacion: ¿que algoritmo combina exploracion con minimizacion de costos acumulados en cada paso?"
+  Opciones:
+    A) "Dijkstra" → resp_dijkstra_bien
+    B) "BFS" → resp_dijkstra_mal
+    C) "Prim" → resp_dijkstra_mal2
+
+Linea 4 correcta (resp_dijkstra_bien):
+  Actor=Carlos, Expresion=Feliz
+  Texto: "¡Dijkstra! BFS minimiza saltos. Prim conecta todo con minimo cable. Dijkstra encuentra el camino mas barato de A a B, sumando pesos. Es el GPS de los grafos ponderados. Exactamente lo que necesitamos para este puente."
+  Evento: +100 puntos + notificarDialogoCorrecto()
+  Opciones: { {Texto="A optimizar el puente", Siguiente=instruccion_puente} }
+
+Linea 4 incorrecta 1 (resp_dijkstra_mal):
+  Actor=Carlos, Expresion=Serio
+  Texto: "BFS no considera costos. Si BFS eligiera, tomaria el Pilar Norte porque son menos saltos... pero ignoraria que el terreno debilitado encarece la obra. Dijkstra suma los pesos reales. Eso es lo que necesitamos."
+  Opciones: { {Texto="Entendido", Siguiente=instruccion_puente} }
+
+Linea 4 incorrecta 2 (resp_dijkstra_mal2):
+  Actor=Carlos, Expresion=Serio
+  Texto: "Prim es para conectar TODOS los nodos con minimo costo total, no para ir de un punto a otro. Aqui necesitamos llegar del Puente al Hospital con el menor costo posible. Eso es Dijkstra: camino minimo origen-destino."
+  Opciones: { {Texto="Entendido", Siguiente=instruccion_puente} }
+
+Linea 5 (instruccion_puente):
+  Actor=Sistema
+  Texto: "Fase 3 de 4: Dijkstra. Refuerza el puente hacia el Centro y reconecta el Hospital y el Ayuntamiento. Presupuesto restante: limitado. Planifica con el Panel de Analisis antes de gastar."
+  Evento: limpiarTodo + restaurar(1.2)
+  Siguiente: FIN
+
+--------------------------------------------------------------------------------
+C.9.4 Nivel5_Plaza.lua
+--------------------------------------------------------------------------------
+Zona="Zona_Plaza_4", Nivel=5
+
+Linea 1 (intro_plaza):
+  Actor=Carlos, Expresion=Feliz
+  Texto: "Ya casi terminamos. La Terminal de Carga es la ultima pieza. Si conectamos Patio, Torre de Control, Antena y Estacion de Carga con el minimo de cable, habremos demostrado que el alcalde cobro el DOBLE de lo necesario."
+  Evento: limpiarTodo + moverHaciaObjetivo(Fuente_z4, altura=22, angulo=60, duracion=1.5) + resaltarNodo(Fuente_z4, SELECCIONADO)
+  Siguiente: tocino_prim
+
+Linea 2 (tocino_prim):
+  Actor=Tocino, Expresion=Serio
+  Texto: "Los materiales se acaban. No podemos darnos el lujo de ciclos. Conectare la Plaza con el minimo de cable posible. Prim: el Arbol de Expansion Minima. La culminacion de todo lo que aprendi."
+  Evento: resaltarNodo(Torre_Reloj_z4, ADYACENTE) + resaltarNodo(Monumento_z4, ADYACENTE) + resaltarNodo(Jardines_z4, ADYACENTE) + mostrarLabel(Fuente_z4, "Corazon de Villa Conexa", SELECCIONADO)
+  Siguiente: pregunta_prim
+
+Linea 3 (pregunta_prim):
+  Actor=Carlos, Expresion=Curioso
+  Texto: "Ultima pregunta, gerente: ¿que algoritmo garantiza conectar todos los nodos sin ciclos y con el menor costo total posible?"
+  Opciones:
+    A) "Prim" → resp_prim_bien
+    B) "Dijkstra" → resp_prim_mal
+    C) "BFS" → resp_prim_mal2
+
+Linea 4 correcta (resp_prim_bien):
+  Actor=Carlos, Expresion=Extasiado
+  Texto: "¡PRIM! Ese es mi gerente. Prim no busca un destino: abraza a todos. Sin ciclos, sin desperdicio, sin corrupcion. Conecta todo con N-1 aristas y el minimo costo. Es la prueba de fuego de una red bien pensada."
+  Evento: +100 puntos + notificarDialogoCorrecto()
+  Opciones: { {Texto="A reconstruir la Plaza", Siguiente=cierre_epico} }
+
+Linea 4 incorrecta 1 (resp_prim_mal):
+  Actor=Carlos, Expresion=Serio
+  Texto: "Dijkstra encuentra el camino mas barato de A a B, pero no se preocupa por conectar a todos. Prim conecta absolutamente todos los nodos sin ciclos. Para la Plaza Central, necesitamos que todo este unido: eso es Prim."
+  Opciones: { {Texto="Entendido", Siguiente=cierre_epico} }
+
+Linea 4 incorrecta 2 (resp_prim_mal2):
+  Actor=Carlos, Expresion=Serio
+  Texto: "BFS no usa pesos y no minimiza costos. Prim es el unico que conecta todo, evita ciclos Y minimiza el gasto total. Es el algoritmo de la eficiencia absoluta."
+  Opciones: { {Texto="Entendido", Siguiente=cierre_epico} }
+
+Linea 5 (cierre_epico):
+  Actor=Carlos, Expresion=Feliz
+  Texto: "Si completas esta Plaza, Villa Conexa renace. Y tu, Tocino... ya no eres un aprendiz. Eres el gerente que devolvio la luz a un pueblo entero. BFS para cubrir, DFS para explorar, Dijkstra para optimizar, Prim para unir. Eso es Redes y Caminos."
+  Evento: limpiarTodo + resaltarNodo(Gen_Emergencia_z1, EXITO) + resaltarNodo(Fuente_z4, EXITO) + mostrarLabel(Fuente_z4, "Corazon restaurado", EXITO) + moverHaciaObjetivo(Fuente_z4, altura=35, angulo=70, duracion=2.0)
+  Siguiente: instruccion_final
+
+Linea 6 (instruccion_final):
+  Actor=Sistema
+  Texto: "Fase 4 de 4: PRIM — RECONSTRUCCION FINAL. Conecta la Fuente Central, la Torre del Reloj, el Monumento y los Jardines con el minimo de cable. Luego conecta TODO Villa Conexa. El pueblo cuenta contigo, gerente."
+  Evento: limpiarTodo + restaurar(1.2)
+  Siguiente: FIN
+
+================================================================================
+  SECCION D — NOTAS DE IMPLEMENTACION
+================================================================================
+
+--------------------------------------------------------------------------------
+D.1 Archivos a Crear
+--------------------------------------------------------------------------------
+
+DIALOGOS (ReplicatedStorage/DialogoData/):
+  DialogosNivel3/ (ya existen, verificar completitud)
+    Nivel3_Presupuesto.lua
+    Nivel3_Rutas.lua
+    Nivel3_Control.lua
+  DialogosNivel4/ (nuevos)
+    Nivel4_Puerto.lua
+    Nivel4_Fabricas.lua
+    Nivel4_Terminal.lua
+  DialogosNivel5/ (nuevos)
+    Nivel5_Danos.lua
+    Nivel5_Tuneles.lua
+    Nivel5_Puente.lua
+    Nivel5_Plaza.lua
+
+CONFIGURACION (ReplicatedStorage/Config/LevelsConfig.lua):
+  - Verificar LevelsConfig[3] completo (ya implementado).
+  - Reemplazar LevelsConfig[4] placeholder con config completa (Seccion B).
+  - Agregar LevelsConfig[5] con config completa (Seccion C).
+
+MODELOS 3D:
+  - Nivel3 → ya existe.
+  - Nivel4 → modelo "Nivel4" con nodos fisicos.
+  - Nivel5 → modelo "Nivel5" con nodos fisicos.
+
+--------------------------------------------------------------------------------
+D.2 IDs de Misiones
+--------------------------------------------------------------------------------
+
+Nivel 0:   1-11
+Nivel 1:   101-105
+Nivel 2:   201-215, 299
+Nivel 3:   301-312  (ya implementadas)
+Nivel 4:   401-414  (nuevas)
+Nivel 5:   501-519  (nuevas)
+
+--------------------------------------------------------------------------------
+D.3 Checklist de Implementacion
+--------------------------------------------------------------------------------
+
+[ ] Verificar LevelsConfig[3] completo
+[ ] Implementar LevelsConfig[4] completo
+[ ] Implementar LevelsConfig[5] completo
+[ ] Crear 3 archivos de dialogo en DialogosNivel4/
+[ ] Crear 4 archivos de dialogo en DialogosNivel5/
+[ ] Verificar IDs unicos de dialogo
+[ ] Reemplazar ImageId placeholders por IDs reales de Roblox
+[ ] Probar presupuesto Nivel 4: MST = $15,000 exactos
+[ ] Probar presupuesto Nivel 5: Dijkstra + Prim calibrados
+[ ] Verificar RequiereDialogosCorrectos en niveles 3, 4 y 5
+[ ] Verificar Waypoints de Guia apuntan a triggers correctos
+[ ] Playtest completo de niveles 4 y 5
+
+================================================================================
+  FIN DEL DOCUMENTO
+================================================================================

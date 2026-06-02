@@ -24,6 +24,19 @@ function PanelMisionesHUD.init(hudRef)
 	btnMisiones = parentHud:FindFirstChild("BtnMisiones", true)
 	btnCerrar = frameMisiones and frameMisiones:FindFirstChild("BtnCerrarMisiones", true)
 
+	-- Asegurar que el UIListLayout del cuerpo tenga padding
+	if cuerpoMisiones then
+		local listLayout = cuerpoMisiones:FindFirstChildOfClass("UIListLayout")
+		if not listLayout then
+			listLayout = Instance.new("UIListLayout")
+			listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+			listLayout.Parent = cuerpoMisiones
+		end
+		if listLayout.Padding.Scale == 0 and listLayout.Padding.Offset == 0 then
+			listLayout.Padding = UDim.new(0, 4)
+		end
+	end
+
 	PanelMisionesHUD._conectarBotones()
 end
 
@@ -61,7 +74,7 @@ function PanelMisionesHUD.limpiar()
 	end
 end
 
-local function crearEtiqueta(parent, texto, color, tamanyo, esNegrita, usarRichText)
+local function crearEtiqueta(parent, texto, color, tamanyo, esNegrita, usarRichText, wrap)
 	local label = Instance.new("TextLabel")
 	label.Size = tamanyo or UDim2.new(1, 0, 0, ALTURA_FILA)
 	label.BackgroundTransparency = 1
@@ -71,6 +84,11 @@ local function crearEtiqueta(parent, texto, color, tamanyo, esNegrita, usarRichT
 	label.TextSize = 14
 	label.Font = esNegrita and Enum.Font.GothamBold or Enum.Font.Gotham
 	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextYAlignment = Enum.TextYAlignment.Top
+	label.TextWrapped = wrap or false
+	if wrap then
+		label.AutomaticSize = Enum.AutomaticSize.Y
+	end
 	label.RichText = usarRichText or false
 	label.Parent = parent
 	return label
@@ -244,18 +262,19 @@ function PanelMisionesHUD._mostrarMisionesZona(nombreZona, datosZona, completada
 		local icono = estaCompleta and "✅ " or "○ "
 
 		local rowFrame = Instance.new("Frame")
-		rowFrame.Size = UDim2.new(1, 0, 0, ALTURA_FILA + 16)
+		rowFrame.Size = UDim2.new(1, 0, 0, 0)
+		rowFrame.AutomaticSize = Enum.AutomaticSize.Y
 		rowFrame.BackgroundTransparency = 1
 		rowFrame.Parent = cuerpoMisiones
 
 		if estaCompleta then
 			crearEtiqueta(rowFrame,
 				string.format("<s>%s%s%s</s>", icono, mision.Texto or "?", puntosTexto),
-				COLOR_COMPLETA, UDim2.new(1, -22, 1, 0), false, true)
+				COLOR_COMPLETA, UDim2.new(1, -22, 0, 0), false, true, true)
 		else
 			crearEtiqueta(rowFrame,
 				icono .. (mision.Texto or "?") .. puntosTexto,
-				COLOR_PENDIENTE, UDim2.new(1, -22, 1, 0), false, false)
+				COLOR_PENDIENTE, UDim2.new(1, -22, 0, 0), false, false, true)
 		end
 	end
 end

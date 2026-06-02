@@ -102,6 +102,13 @@ local function setMinimapVisible(visible)
 	if cont then cont.Visible = visible end
 end
 
+-- Toggle de la leyenda (Leyenda)
+local function setLeyendaVisible(visible)
+	if not _hudGui then return end
+	local leg = _hudGui:FindFirstChild("Leyenda", true)
+	if leg then leg.Visible = visible end
+end
+
 -- ════════════════════════════════════════════════════════════════
 -- ALIAS (nombre legible del nodo)
 -- Prioridad: NombresNodos del servidor → LevelsConfig cliente → nombre interno
@@ -561,6 +568,7 @@ local function activar()
 	if not panel then return end
 	panel.Visible = true
 	setMinimapVisible(false)   -- ← ocultar minimapa al abrir la matriz
+	setLeyendaVisible(false)   -- ← ocultar leyenda al abrir la matriz
 
 	_nodoSelecIdx = nil
 	actualizarInfoNodo(nil, 0, 0, 0)
@@ -585,6 +593,7 @@ local function desactivar()
 	local panel = getPanel()
 	if panel then panel.Visible = false end
 	setMinimapVisible(true)    -- ← restaurar minimapa al cerrar la matriz
+	setLeyendaVisible(true)    -- ← restaurar leyenda al cerrar la matriz
 
 	_nodoSelecIdx = nil
 	_matrizData   = nil
