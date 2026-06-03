@@ -204,7 +204,7 @@ local DIALOGOS = {
 				},
 			},
 
-			-- ── 7a. RESPUESTA CORRECTA ────────────────────────────────
+			-- ── 7a. RESPUESTA CORRECTA ───────────────────────────────
 			-- Usa Opciones de un solo botón para forzar el salto a la instrucción,
 			-- evitando que Next() secuencial caiga en la línea de respuesta incorrecta.
 			{
@@ -214,7 +214,7 @@ local DIALOGOS = {
 				Expresion = "Feliz",
 				Texto     = "¡Exacto! Cuatro vecinos = cuatro aristas = grado 4. El concepto está claro.",
 				Opciones = {
-					{ Texto = "Continuar", Siguiente = "instruccion_conectar" },
+					{ Texto = "Continuar", Siguiente = "matriz_intro" },
 				},
 			},
 
@@ -226,14 +226,73 @@ local DIALOGOS = {
 				Expresion = "Serio",
 				Texto     = "No exactamente. El grado cuenta aristas, no nodos vecinos en total. Con cuatro vecinos conectados, el " .. aliasCentro .. " tendrá grado 4, uno por cada arista.",
 				Opciones = {
-					{ Texto = "Entendido", Siguiente = "instruccion_conectar" },
+					{ Texto = "Entendido", Siguiente = "matriz_intro" },
 				},
 			},
 
-			-- ── 8. INSTRUCCIÓN: CONECTAR PRIMER VECINO ────────────────
+			-- ── 8. MATRIZ DE ADYACENCIA: INTRO ────────────────────────
+			{
+				Id        = "matriz_intro",
+				Numero    = 8,
+				Actor     = "Sistema",
+				Expresion = "Normal",
+				Texto     = "La Matriz de Adyacencia muestra todas las conexiones del grafo en formato de tabla. También puedes abrirla en cualquier momento presionando la tecla F.",
+				Siguiente = "matriz_destacar",
+			},
+
+			-- ── 9. MATRIZ DE ADYACENCIA: DESTACAR BOTÓN ───────────────
+			{
+				Id        = "matriz_destacar",
+				Numero    = 9,
+				Actor     = "Sistema",
+				Expresion = "Normal",
+				Texto     = "Presiona el botón de la Matriz para abrirla. Verás una tabla con todos los nodos y sus conexiones.",
+
+				DestacarBoton = {
+					nombre         = "BtnMatriz",
+					escala         = 1.3,
+					duracion       = 0.4,
+					animacion      = "pulse",
+					flecha         = true,
+					punteroDesde   = "dialogo",
+					punteroEstilo  = "flecha",
+					textoAyuda     = "Click para abrir la matriz",
+					oscurecerFondo = true,
+					alTerminar     = "restaurar",
+				},
+
+				Evento = function()
+					local Players = game:GetService("Players")
+					local ModuloMatriz = nil
+					pcall(function()
+						ModuloMatriz = require(Players.LocalPlayer:WaitForChild("PlayerScripts"):WaitForChild("HUD"):WaitForChild("ModulosHUD"):WaitForChild("ModuloMatriz"))
+					end)
+					if ModuloMatriz and ModuloMatriz.abrir then
+						ModuloMatriz.abrir()
+					end
+				end,
+
+				Siguiente = "matriz_explicacion",
+			},
+
+			-- ── 10. MATRIZ DE ADYACENCIA: EXPLICACIÓN ─────────────────
+			{
+				Id        = "matriz_explicacion",
+				Numero    = 10,
+				Actor     = "Sistema",
+				Expresion = "Normal",
+				Texto     = "Observa la fila del " .. aliasCentro .. " en la matriz. El número de unos en esa fila es exactamente su grado: 4. La matriz te ayuda a verificar el grado de cualquier nodo de forma rápida.",
+				Evento = function()
+					EfectosDialogo.limpiarTodo()
+					enfocarEstrella({ altura = 28, angulo = 60, duracion = 1.0 })
+				end,
+				Siguiente = "instruccion_conectar",
+			},
+
+			-- ── 11. INSTRUCCIÓN: CONECTAR PRIMER VECINO ───────────────
 			{
 				Id        = "instruccion_conectar",
-				Numero    = 8,
+				Numero    = 11,
 				Actor     = "Sistema",
 				Expresion = "Normal",
 				Texto     = "Haz clic en el " .. aliasCentro .. " y luego en el " .. aliasA .. " para crear tu primera arista.",
@@ -251,10 +310,10 @@ local DIALOGOS = {
 				Siguiente = "resultado",
 			},
 
-			-- ── 9. RESULTADO ──────────────────────────────────────────
+			-- ── 12. RESULTADO ─────────────────────────────────────────
 			{
 				Id        = "resultado",
-				Numero    = 9,
+				Numero    = 12,
 				Actor     = "Carlos",
 				Expresion = "Feliz",
 				Texto     = "¡Bien hecho! Ya creaste la primera arista. Conecta los tres vecinos restantes para completar la misión y alcanzar grado 4.",
@@ -273,7 +332,7 @@ local DIALOGOS = {
 			TiempoDeEspera      = 0.5,
 			VelocidadTypewriter = 0.03,
 			PuedeOmitir         = true,
-			OcultarHUD          = true,
+			OcultarHUD          = false,
 			UsarTTS             = true,
 		},
 
@@ -282,7 +341,7 @@ local DIALOGOS = {
 			bloquearSalto      = true,
 			bloquearCarrera    = true,
 			apuntarCamara      = true,
-			permitirConexiones = true,   -- necesario para la línea interactiva 8 (conectarNodos)
+			permitirConexiones = true,   -- necesario para la línea interactiva 11 (conectarNodos)
 			ocultarTechos      = true,
 		},
 	},

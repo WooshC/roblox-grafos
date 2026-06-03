@@ -148,13 +148,58 @@ local DIALOGOS = {
 					end)
 					enfocarMedio({ altura = 22, angulo = 65, duracion = 1.2 })
 				end,
+				Siguiente = "validacion_intro",
+			},
+
+			-- ── 6. VALIDACIÓN: INTRO ──────────────────────────────────
+			{
+				Id        = "validacion_intro",
+				Numero    = 6,
+				Actor     = "Sistema",
+				Expresion = "Normal",
+				Texto     = "Contesta la siguiente pregunta para verificar que entendiste el concepto.",
+				Siguiente = "validacion_pregunta",
+			},
+
+			-- ── 7. VALIDACIÓN: PREGUNTA ───────────────────────────────
+			{
+				Id        = "validacion_pregunta",
+				Numero    = 7,
+				Actor     = "Sistema",
+				Expresion = "Normal",
+				Texto     = "¿Se puede considerar un nodo a?",
+				Opciones = {
+					{ Texto = "Relación de una red social", Siguiente = "validacion_incorrecta" },
+					{ Texto = "Una moneda",                Siguiente = "validacion_incorrecta" },
+					{ Texto = "Un punto de una red",       Siguiente = "validacion_correcta"   },
+					{ Texto = "Una arista",                Siguiente = "validacion_incorrecta" },
+				},
+			},
+
+			-- ── 7a. RESPUESTA CORRECTA ────────────────────────────────
+			{
+				Id        = "validacion_correcta",
+				Numero    = 8,
+				Actor     = "Sistema",
+				Expresion = "Normal",
+				Texto     = "¡Correcto! Un nodo es un punto dentro de una red, como una persona, ciudad o computadora.",
 				Siguiente = "instruccion_origen",
 			},
 
-			-- ── 6. INSTRUCCIÓN: ORIGEN ────────────────────────────────
+			-- ── 7b. RESPUESTA INCORRECTA ──────────────────────────────
+			{
+				Id        = "validacion_incorrecta",
+				Numero    = 8,
+				Actor     = "Sistema",
+				Expresion = "Normal",
+				Texto     = "No exactamente. Un nodo es un punto dentro de una red. La arista es la relación entre nodos, no el nodo mismo.",
+				Siguiente = "instruccion_origen",
+			},
+
+			-- ── 8. INSTRUCCIÓN: ORIGEN ────────────────────────────────
 			{
 				Id        = "instruccion_origen",
-				Numero    = 6,
+				Numero    = 9,
 				Actor     = "Carlos",
 				Expresion = "Normal",
 				Texto     = "Selecciona el nodo de origen (" .. alias1 .. ").",
@@ -171,10 +216,10 @@ local DIALOGOS = {
 				Siguiente = "instruccion_destino",
 			},
 
-			-- ── 7. INSTRUCCIÓN: DESTINO ───────────────────────────────
+			-- ── 10. INSTRUCCIÓN: DESTINO ──────────────────────────────
 			{
 				Id        = "instruccion_destino",
-				Numero    = 7,
+				Numero    = 10,
 				Actor     = "Carlos",
 				Expresion = "Serio",
 				Texto     = "Luego selecciona el nodo destino (" .. alias2 .. "). ¡Conéctalos!",
@@ -193,10 +238,10 @@ local DIALOGOS = {
 				Siguiente = "instruccion_resultado",
 			},
 
-			-- ── 8. RESULTADO ───────────────────────────────────────────
+			-- ── 11. RESULTADO ──────────────────────────────────────────
 			{
 				Id        = "instruccion_resultado",
-				Numero    = 8,
+				Numero    = 11,
 				Actor     = "Carlos",
 				Expresion = "Feliz",
 				Texto     = "Así crearás una arista entre dos nodos. ¡Bien hecho!",
@@ -206,6 +251,24 @@ local DIALOGOS = {
 					-- Muestra el beam sin partículas (el gameplay ya tiene sus propios efectos)
 					task.delay(0.3, function()
 						EfectosDialogo.mostrarArista("Nodo1_z1", "Nodo2_z1", "EXITO", { sinParticulas = true })
+					end)
+					enfocarMedio({ altura = 22, angulo = 65, duracion = 1.0 })
+				end,
+				Siguiente = "eliminar_arista",
+			},
+
+			-- ── 12. ELIMINAR ARISTA ───────────────────────────────────
+			{
+				Id        = "eliminar_arista",
+				Numero    = 12,
+				Actor     = "Sistema",
+				Expresion = "Normal",
+				Texto     = "Para eliminar una arista, simplemente haz clic sobre el cable que se ha creado. ¡Inténtalo!",
+				Evento = function()
+					EfectosDialogo.limpiarTodo()
+					-- Destacar visualmente el cable para que el jugador lo vea
+					task.delay(0.3, function()
+						EfectosDialogo.mostrarArista("Nodo1_z1", "Nodo2_z1", "ADYACENTE", { sinParticulas = true })
 					end)
 					enfocarMedio({ altura = 22, angulo = 65, duracion = 1.0 })
 				end,
@@ -226,7 +289,7 @@ local DIALOGOS = {
 			bloquearSalto      = true,
 			bloquearCarrera    = true,
 			apuntarCamara      = true,
-			permitirConexiones = true,   -- necesario para las líneas interactivas 6 y 7
+			permitirConexiones = true,   -- necesario para las líneas interactivas 9 y 10 (seleccionarNodo / conectarNodos)
 			ocultarTechos      = true,
 			cerrarMapa         = true,
 		},

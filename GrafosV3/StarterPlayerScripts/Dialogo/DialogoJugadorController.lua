@@ -195,6 +195,15 @@ function DialogoJugadorController.activarClickAereo(onSeleccionarNodo)
 	-- Suprimir ClickDetectors del servidor mientras el diálogo maneja los clics
 	jugador:SetAttribute("MapaAbierto", true)
 
+	-- Sincronizar con el servidor para suprimir ClickDetectors normales
+	local eventos = RS:FindFirstChild("EventosGrafosV3")
+	if eventos then
+		local toggleRemoto = eventos:WaitForChild("Remotos"):FindFirstChild("ToggleMapaAbierto")
+		if toggleRemoto then
+			toggleRemoto:FireServer(true)
+		end
+	end
+
 	local camara = workspace.CurrentCamera
 	local eventos = RS:WaitForChild("EventosGrafosV3")
 	local remotos = eventos:WaitForChild("Remotos")
@@ -228,9 +237,8 @@ function DialogoJugadorController.activarClickAereo(onSeleccionarNodo)
 		if _primerNodoAereo == nil then
 			_primerNodoAereo = nombreNodo
 			if mapaNodoEvento then mapaNodoEvento:FireServer(nombreNodo) end
-			if onSeleccionarNodo then
-				onSeleccionarNodo(nombreNodo)
-			end
+			-- NOTA: onSeleccionarNodo se eliminó de aquí para evitar doble notificación.
+			-- El diálogo recibe la acción únicamente vía NotificarSeleccionNodo (remoto).
 		elseif _primerNodoAereo == nombreNodo then
 			_primerNodoAereo = nil  -- cancelar
 		else
@@ -255,6 +263,15 @@ function DialogoJugadorController.desactivarClickAereo()
 	local mapa = DialogoJugadorController.obtenerModuloMapa()
 	if not (mapa and mapa.estaAbierto and mapa.estaAbierto()) then
 		jugador:SetAttribute("MapaAbierto", nil)
+
+		-- Sincronizar con el servidor para restaurar ClickDetectors
+		local eventos = RS:FindFirstChild("EventosGrafosV3")
+		if eventos then
+			local toggleRemoto = eventos:WaitForChild("Remotos"):FindFirstChild("ToggleMapaAbierto")
+			if toggleRemoto then
+				toggleRemoto:FireServer(false)
+			end
+		end
 	end
 	print("[DialogoJugadorController] Click aéreo desactivado")
 end

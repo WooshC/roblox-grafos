@@ -148,36 +148,9 @@ local DIALOGOS = {
 					end
 				end,
 
-				Siguiente = "tutorial_boton_mapa"
+				Siguiente = "FIN"
 			},
 
-			-- 6. TUTORIAL: DESTACAR BOTÓN DEL MAPA
-			{
-				Id = "tutorial_boton_mapa",
-				Numero = 7,
-				Actor = "Carlos",
-				Expresion = "Presentacion",
-				Texto = "Este es el botón para ver el mapa. Úsalo para tener una vista panorámica del nivel.",
-
-				-- BtnMapa aparece en su posición original del HUD con efecto pulse.
-				-- Una flecha animada parte del área del diálogo y apunta al botón.
-				-- Al pasar a FIN, el overlay se destruye automáticamente.
-				DestacarBoton = {
-					nombre         = "BtnMapa",
-					-- modo = "original" es el default: clon en posición exacta, sin moverse
-					escala         = 1.3,
-					duracion       = 0.4,
-					animacion      = "pulse",
-					flecha         = true,
-					punteroDesde   = "dialogo",  -- flecha sale desde el área del diálogo
-					punteroEstilo  = "flecha",   -- línea + arrowhead animado
-					textoAyuda     = "Click para ver el mapa",
-					oscurecerFondo = true,
-					alTerminar     = "restaurar",
-				},
-
-				Siguiente = "FIN"
-			}
 		},
 
 		Metadata = {

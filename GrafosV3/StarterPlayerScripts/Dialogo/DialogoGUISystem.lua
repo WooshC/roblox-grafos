@@ -538,6 +538,17 @@ function DialogoGUISystem:Next()
 	if not self.isPlaying then return end
 	if self._esperandoAccion then return end  -- bloqueado hasta que el jugador actúe
 
+	local linea = self:GetCurrentLine()
+	if linea and linea.Siguiente then
+		if linea.Siguiente == "FIN" then
+			self:Close()
+			return
+		end
+		self:GoToLine(linea.Siguiente)
+		return
+	end
+
+	-- Fallback: avance lineal cuando no hay Siguiente explícito
 	self.currentLineIndex = self.currentLineIndex + 1
 
 	if self.currentLineIndex > #self.currentDialogue.Lineas then
