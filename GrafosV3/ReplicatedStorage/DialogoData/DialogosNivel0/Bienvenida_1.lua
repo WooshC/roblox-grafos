@@ -141,6 +141,11 @@ local DIALOGOS = {
 
 					-- Mostrar techo nuevamente
 					toggleTecho(true)
+
+					-- Eliminar bloqueo configurado para este dialogo (ejemplo)
+					if _G.GestorBloqueos then
+						_G.GestorBloqueos:eliminarPorDialogo("Bienvenida_1")
+					end
 				end,
 
 				Siguiente = "tutorial_boton_mapa"

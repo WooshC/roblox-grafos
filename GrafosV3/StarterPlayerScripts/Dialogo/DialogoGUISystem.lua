@@ -69,6 +69,7 @@ function DialogoGUISystem:Init()
 
 	-- Aplicar TextScaled y ajustes de layout sobre el GUI existente en Studio
 	self:_configurarTextos()
+	self:_configurarBotones()
 
 	-- Inicializar módulos
 	self.controller = DialogoController.new(self.gui, self)
@@ -172,32 +173,33 @@ function DialogoGUISystem:CrearGUIBasica(playerGui)
 	-- Controls
 	local controls = Instance.new("Frame")
 	controls.Name = "Controls"
-	controls.Size = UDim2.new(1, -30, 0, 30)
-	controls.Position = UDim2.new(0, 15, 1, -40)
+	controls.Size = UDim2.new(1, -30, 0, 44)
+	controls.Position = UDim2.new(0, 15, 1, -54)
 	controls.BackgroundTransparency = 1
 	controls.Parent = dialogueBox
 
 	local nextBtn = Instance.new("TextButton")
 	nextBtn.Name = "NextBtn"
-	nextBtn.Size = UDim2.new(0, 80, 0, 25)
-	nextBtn.Position = UDim2.new(1, -80, 0, 0)
+	nextBtn.Size = UDim2.new(0, 110, 0, 36)
+	nextBtn.Position = UDim2.new(1, -110, 0, 0)
 	nextBtn.BackgroundColor3 = Color3.fromRGB(0, 207, 255)
 	nextBtn.Text = "Continuar"
 	nextBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	nextBtn.TextSize = 14
+	nextBtn.TextSize = 18
 	nextBtn.Font = Enum.Font.GothamBold
 	nextBtn.Parent = controls
 
 	local skipBtn = Instance.new("TextButton")
 	skipBtn.Name = "SkipBtn"
-	skipBtn.Size = UDim2.new(0, 60, 0, 25)
-	skipBtn.Position = UDim2.new(1, -150, 0, 0)
+	skipBtn.Size = UDim2.new(0, 110, 0, 36)
+	skipBtn.Position = UDim2.new(1, -230, 0, 0)
 	skipBtn.BackgroundColor3 = Color3.fromRGB(244, 63, 94)
 	skipBtn.Text = "Saltar"
 	skipBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	skipBtn.TextSize = 14
+	skipBtn.TextSize = 18
 	skipBtn.Font = Enum.Font.GothamBold
 	skipBtn.Parent = controls
+
 
 	-- CharacterArea
 	local charArea = Instance.new("Frame")
@@ -347,6 +349,53 @@ function DialogoGUISystem:_configurarTextos()
 	end
 
 	print("[DialogoGUISystem] ✓ Textos configurados con TextScaled")
+end
+
+-- ════════════════════════════════════════════════════════════════
+-- CONFIGURACION DE BOTONES (tamaños grandes)
+-- ════════════════════════════════════════════════════════════════
+
+function DialogoGUISystem:_configurarBotones()
+	local g = self.gui
+
+	-- Controls frame
+	if g.dialogueBox then
+		local controls = g.dialogueBox:FindFirstChild("Controls")
+		if controls then
+			controls.Size = UDim2.new(1, -30, 0, 44)
+			controls.Position = UDim2.new(0, 15, 1, -54)
+		end
+	end
+
+	-- NextBtn
+	if g.nextBtn then
+		g.nextBtn.Size = UDim2.new(0, 110, 0, 36)
+		g.nextBtn.Position = UDim2.new(1, -110, 0, 4)
+		g.nextBtn.Text = "Continuar"
+		g.nextBtn.TextSize = 16
+	end
+
+	-- SkipBtn
+	if g.skipBtn then
+		g.skipBtn.Size = UDim2.new(0, 110, 0, 36)
+		g.skipBtn.Position = UDim2.new(1, -230, 0, 4)
+		g.skipBtn.Text = "Saltar"
+		g.skipBtn.TextSize = 16
+	end
+
+	-- EyeBtn en DialogueBox
+	if g.eyeBtn then
+		g.eyeBtn.Size = UDim2.new(0, 28, 0, 28)
+		g.eyeBtn.TextSize = 18
+	end
+
+	-- EyeBtn en ChoicesPanel
+	if g.choicesEyeBtn then
+		g.choicesEyeBtn.Size = UDim2.new(0, 28, 0, 28)
+		g.choicesEyeBtn.TextSize = 18
+	end
+
+	print("[DialogoGUISystem] ✓ Botones configurados con tamaños grandes")
 end
 
 ---Obtiene referencias a los elementos de la GUI

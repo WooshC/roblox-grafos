@@ -17,6 +17,7 @@ print("[GrafosV3] === ControladorDialogo Iniciando ===")
 
 local ServicioCamara = require(RS:WaitForChild("Compartido"):WaitForChild("ServicioCamara"))
 local GestorColisiones = require(RS:WaitForChild("Compartido"):WaitForChild("GestorColisiones"))
+local GestorBloqueos = require(RS:WaitForChild("Compartido"):WaitForChild("GestorBloqueos"))
 local LevelsConfig = require(RS:WaitForChild("Config"):WaitForChild("LevelsConfig"))
 local Utilidades = require(RS:WaitForChild("Compartido"):WaitForChild("Utilidades"))
 local DialogoJugadorController = require(script.Parent:WaitForChild("DialogoJugadorController"))
@@ -532,6 +533,7 @@ function ControladorDialogo.restaurarCamara(duracion)
 end
 
 _G.ControladorDialogo = ControladorDialogo
+_G.GestorBloqueos = GestorBloqueos
 
 local dialogosZonaVistos = {}
 

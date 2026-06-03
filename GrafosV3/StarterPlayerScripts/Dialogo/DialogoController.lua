@@ -258,7 +258,7 @@ function DialogoController:ShowChoices(opciones)
 
 	-- Actualizar pregunta
 	if linea and linea.Texto and self.gui.questionText then
-		self.gui.questionText.Text = linea.Texto
+		self.gui.questionText.Text = "Selecciona la respuesta correcta:\n\n" .. linea.Texto
 	end
 
 	-- Limpiar opciones anteriores (incluye layouts previos)
@@ -272,7 +272,7 @@ function DialogoController:ShowChoices(opciones)
 		if dosBotones then
 			-- Layout en dos columnas (lado A izquierda, lado B derecha)
 			local grid = Instance.new("UIGridLayout")
-			grid.CellSize = UDim2.new(0.47, 0, 0, 80)
+			grid.CellSize = UDim2.new(0.47, 0, 0, 100)
 			grid.CellPadding = UDim2.new(0.06, 0, 0, 8)
 			grid.FillDirection = Enum.FillDirection.Horizontal
 			grid.SortOrder = Enum.SortOrder.LayoutOrder
@@ -314,7 +314,7 @@ function DialogoController:CreateChoiceButton(index, opcion, dosBotones)
 	choiceBtn.Name = "Choice_" .. index
 	choiceBtn.LayoutOrder = index
 	-- tamaño solo usado en modo lista (el UIGridLayout controla en modo 2 columnas)
-	choiceBtn.Size = dosBotones and UDim2.new(1, 0, 1, 0) or UDim2.new(1, 0, 0, 52)
+	choiceBtn.Size = dosBotones and UDim2.new(1, 0, 1, 0) or UDim2.new(1, 0, 0, 68)
 	choiceBtn.BackgroundColor3 = Color3.fromRGB(22, 36, 58)
 	choiceBtn.BorderSizePixel = 0
 	choiceBtn.Parent = self.gui.choicesList
@@ -339,8 +339,8 @@ function DialogoController:CreateChoiceButton(index, opcion, dosBotones)
 	local badge = Instance.new("TextLabel")
 	badge.Name = "Badge"
 	badge.Text = letra
-	badge.Size = UDim2.new(0, 26, 0, 26)
-	badge.Position = UDim2.new(0, 0, 0.5, -13)
+	badge.Size = UDim2.new(0, 32, 0, 32)
+	badge.Position = UDim2.new(0, 0, 0.5, -16)
 	badge.BackgroundColor3 = color
 	badge.TextColor3 = Color3.fromRGB(17, 28, 46)
 	badge.Font = Enum.Font.GothamBold
@@ -366,8 +366,8 @@ function DialogoController:CreateChoiceButton(index, opcion, dosBotones)
 	textLabel.Parent = choiceBtn
 
 	local txtConstraint = Instance.new("UITextSizeConstraint")
-	txtConstraint.MinTextSize = 12
-	txtConstraint.MaxTextSize = 20
+		txtConstraint.MinTextSize = 14
+		txtConstraint.MaxTextSize = 24
 	txtConstraint.Parent = textLabel
 
 	-- Pista (solo en modo lista; en grid no hay espacio)

@@ -50,6 +50,7 @@ local lblInfoTipo = nil
 -- Leyenda y Otros Paneles
 local frameLeyenda = nil
 local frameSelectorModos = nil
+local btnCerrarLeyenda = nil  -- hermano de frameLeyenda, fuera del UIScale
 
 -- Modulos Adicionales (para botones del mapa)
 local PanelMisionesHUD = nil
@@ -135,6 +136,40 @@ function ModuloMapa.inicializar(hudRef)
 	-- Leyenda es hermano de PantallaMapaGrande en GUIExploradorV2 según GUI_ESTRUCTURA
 	frameLeyenda = hudGui:FindFirstChild("Leyenda", true)
 	frameSelectorModos = hudGui:FindFirstChild("SelectorModos", true)
+
+	-- Crear boton toggle para la leyenda dentro del encabezado del mapa (no en BarraBotonesMain)
+	if frameMapa then
+		local header = frameMapa:FindFirstChild("Header") or frameMapa:FindFirstChild("TopBar") or frameMapa
+		local btnLeyenda = header:FindFirstChild("BtnLeyenda")
+		if not btnLeyenda then
+			btnLeyenda = Instance.new("TextButton")
+			btnLeyenda.Name = "BtnLeyenda"
+			btnLeyenda.Size = UDim2.new(0, 28, 0, 28)
+			btnLeyenda.Position = UDim2.new(0, 8, 0, 8)
+			btnLeyenda.BackgroundTransparency = 0.2
+			btnLeyenda.BackgroundColor3 = Color3.fromRGB(17, 28, 46)
+			btnLeyenda.Text = "?"
+			btnLeyenda.TextColor3 = Color3.fromRGB(0, 207, 255)
+			btnLeyenda.TextSize = 16
+			btnLeyenda.Font = Enum.Font.GothamBold
+			btnLeyenda.Parent = header
+
+			local corner = Instance.new("UICorner")
+			corner.CornerRadius = UDim.new(0, 6)
+			corner.Parent = btnLeyenda
+
+			local stroke = Instance.new("UIStroke")
+			stroke.Color = Color3.fromRGB(0, 207, 255)
+			stroke.Thickness = 1
+			stroke.Parent = btnLeyenda
+
+			btnLeyenda.MouseButton1Click:Connect(function()
+				if frameLeyenda then
+					frameLeyenda.Visible = not frameLeyenda.Visible
+				end
+			end)
+		end
+	end
 	
 	frameMinimapa = hudGui:FindFirstChild("ContenedorMiniMapa", true) or hudGui:FindFirstChild("ContenedorMinimapa", true) or hudGui:FindFirstChild("PanelMinimapa", true) or hudGui:FindFirstChild("PanelNavegacion", true)
 	if not frameMinimapa then
@@ -653,13 +688,48 @@ function _actualizarLegend()
 		scaleObj.Scale = 2.2 -- ~3 veces más área visual / presencia
 		scaleObj.Parent = frameLeyenda
 		
-		-- Reposicionarlo dinámicamente para la derecha
-		frameLeyenda.AnchorPoint = Vector2.new(1, 0.5)
-		frameLeyenda.Position = UDim2.new(1, -40, 0.5, 0)
-		
-		-- Activar redimensionado automático por si se añaden ítems
-		frameLeyenda.AutomaticSize = Enum.AutomaticSize.Y
+		-- Reposicionarlo dinámicamente para la izquierda
+			frameLeyenda.AnchorPoint = Vector2.new(0, 0.5)
+			frameLeyenda.Position = UDim2.new(0, 20, 0.5, 0)
+
+			-- Activar redimensionado automático por si se añaden ítems
+			frameLeyenda.AutomaticSize = Enum.AutomaticSize.Y
+
+			-- Crear boton X para cerrar la leyenda (hermano, fuera del UIScale)
+			if not btnCerrarLeyenda then
+				btnCerrarLeyenda = Instance.new("TextButton")
+				btnCerrarLeyenda.Name = "BtnCerrarLeyenda"
+				btnCerrarLeyenda.Size = UDim2.new(0, 24, 0, 24)
+				btnCerrarLeyenda.AnchorPoint = Vector2.new(1, 0)
+				btnCerrarLeyenda.BackgroundColor3 = Color3.fromRGB(244, 63, 94)
+				btnCerrarLeyenda.Text = "X"
+				btnCerrarLeyenda.TextColor3 = Color3.fromRGB(255, 255, 255)
+				btnCerrarLeyenda.TextSize = 12
+				btnCerrarLeyenda.Font = Enum.Font.GothamBold
+				btnCerrarLeyenda.Parent = frameLeyenda.Parent
+				btnCerrarLeyenda.ZIndex = (frameLeyenda.ZIndex or 1) + 10
+
+				local corner = Instance.new("UICorner")
+				corner.CornerRadius = UDim.new(0, 6)
+				corner.Parent = btnCerrarLeyenda
+
+				btnCerrarLeyenda.MouseButton1Click:Connect(function()
+					frameLeyenda.Visible = false
+					btnCerrarLeyenda.Visible = false
+				end)
+			end
+
 	end
+	-- Posicionar en la esquina superior-derecha de la leyenda (defer para layout)
+	task.defer(function()
+		if frameLeyenda and btnCerrarLeyenda then
+			btnCerrarLeyenda.Position = UDim2.new(
+				0, frameLeyenda.AbsolutePosition.X + frameLeyenda.AbsoluteSize.X - 4,
+				0, frameLeyenda.AbsolutePosition.Y + 4
+			)
+			btnCerrarLeyenda.Visible = frameLeyenda.Visible
+		end
+	end)
 	
 	local function setDotColor(legName, color)
 		local leg = frameLeyenda:FindFirstChild(legName)
@@ -874,9 +944,12 @@ function ModuloMapa.cerrar()
 		frameMapa.Visible = false
 	end
 
-	-- Ocultar Leyenda
+	-- Ocultar Leyenda y su botón X
 	if frameLeyenda then
 		frameLeyenda.Visible = false
+	end
+	if btnCerrarLeyenda then
+		btnCerrarLeyenda.Visible = false
 	end
 
 	-- Mostrar Minimapa y SelectorModos

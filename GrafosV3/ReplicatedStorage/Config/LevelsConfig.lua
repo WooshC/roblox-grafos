@@ -31,6 +31,7 @@ LevelsConfig[0] = {
 	Algoritmo = "Grafos No Dirigidos",
 	Conceptos = { "Nodos", "Aristas", "Adyacencia", "Grado" },
 	Generadores = { "NodoE_z4" },
+	DialogoInicial = "Bienvenida_Laboratorio",
 
 	Puntuacion = {
 		TresEstrellas  = 1250,
@@ -258,6 +259,10 @@ LevelsConfig[0] = {
 		{ ID="estacion_3", Zona="Zona_Estacion_3", Label="Ve a la Estacion 3", WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Estacion3" }, DestruirAlCompletar=false },
 		{ ID="estacion_4", Zona="Zona_Estacion_4", Label="Ve a la Estacion 4", WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Estacion4" }, DestruirAlCompletar=false },
 	},
+
+	Bloqueos = {
+		Muro_Tutorial_z1 = { Dialogo = "Bienvenida_1" },
+	},
 }
 
 
@@ -462,6 +467,10 @@ LevelsConfig[1] = {
 		{ ID="mercado_2",     Zona="Zona_Mercado_2",     Label="Ve al Mercado Central",     WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Mercado"  }, DestruirAlCompletar=false },
 		{ ID="canchas_3",     Zona="Zona_Canchas_3",     Label="Ve a las Canchas",          WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Canchas"  }, DestruirAlCompletar=false },
 		{ ID="parque_4",      Zona="Zona_Parque_4",      Label="Ve al Parque del Barrio",   WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Parque"   }, DestruirAlCompletar=false },
+	},
+
+	Bloqueos = {
+		Muro_PuertaMercado = { Zona = "Zona_Ferroviaria_1" },
 	},
 }
 

@@ -85,6 +85,15 @@ ConfigAudio.Sonidos = {
 			Ruta = "SFX/Success",
 			Descripcion = "Sonido de exito/confirmacion"
 		},
+		ZonaCompletadaSFX = {
+			Nombre = "ZonaCompletadaSFX",
+			Categoria = "SFX",
+			Volumen = 0.75,
+			Pitch = 1.1,
+			Loop = false,
+			Ruta = "SFX/Success",
+			Descripcion = "Sonido al completar una zona (reutiliza Success con pitch mas alto)"
+		},
 		NodoSeleccionado = {
 			Nombre = "NodoSeleccionado",
 			Categoria = "SFX",

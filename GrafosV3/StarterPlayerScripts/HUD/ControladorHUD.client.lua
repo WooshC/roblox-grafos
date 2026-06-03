@@ -289,6 +289,109 @@ EventosHUD.timerEmergencia.OnClientEvent:Connect(function(restante, texto, expir
 	TimerEmergenciaHUD.actualizar(restante, texto, expirado, completada)
 end)
 
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- CONFIGURACION DE BOTONES DEL HUD (tamaños grandes)
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+local function _configurarBotonesHUD()
+	local barraMain = hudGui:FindFirstChild("BarraBotonesMain", true)
+	if not barraMain then return end
+
+	-- Aumentar altura de la barra principal
+	barraMain.Size = UDim2.new(barraMain.Size.X.Scale, barraMain.Size.X.Offset, 0, 52)
+
+	for _, btn in ipairs(barraMain:GetChildren()) do
+		if btn:IsA("TextButton") then
+			btn.TextSize = 18
+		end
+	end
+	print("[ControladorHUD] Botones del HUD configurados con tamaños grandes")
+end
+
+_configurarBotonesHUD()
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- SONIDO + DIALOGO AL COMPLETAR ZONA
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+local ControladorAudio = require(script.Parent.Parent:WaitForChild("Compartido"):WaitForChild("ControladorAudio"))
+local _zonasCompletadasNotificadas = {}
+local _totalZonasNivel = 0
+
+EventosHUD.actualizarMisiones.OnClientEvent:Connect(function(data)
+	-- Inyectar zona actual desde atributo del jugador
+	local zonaActual = jugador:GetAttribute("ZonaActual")
+	if data then
+		data.zonaActual = zonaActual
+	end
+	PanelMisionesHUD.reconstruir(data)
+
+	-- Detectar zonas completadas
+	if data and data.porZona then
+		local nivelID = jugador:GetAttribute("CurrentLevelID") or 0
+		local configNivel = LevelsConfig[nivelID]
+		local zonasConfig = configNivel and configNivel.Zonas or {}
+		local totalZonas = 0
+		for _ in pairs(zonasConfig) do totalZonas = totalZonas + 1 end
+
+		for nombreZona, infoZona in pairs(data.porZona) do
+			if infoZona.total and infoZona.completadas and infoZona.total > 0 and infoZona.completadas >= infoZona.total then
+				if not _zonasCompletadasNotificadas[nombreZona] then
+					_zonasCompletadasNotificadas[nombreZona] = true
+
+					-- Reproducir sonido de exito
+					pcall(function()
+						ControladorAudio.playSFX("ZonaCompletadaSFX")
+					end)
+
+					-- Contar zonas completadas
+					local zonasCompletadasCount = 0
+					for _, zdata in pairs(data.porZona) do
+						if zdata.completadas and zdata.total and zdata.completadas >= zdata.total then
+							zonasCompletadasCount = zonasCompletadasCount + 1
+						end
+					end
+
+					-- Solo mostrar dialogo si NO es la ultima zona
+					if zonasCompletadasCount < totalZonas then
+						task.delay(0.5, function()
+							if _G.ControladorDialogo and _G.ControladorDialogo.iniciar then
+								_G.ControladorDialogo.iniciar("ZonaCompletada_Generico", {
+									metadata = { zonaNombre = nombreZona }
+								})
+							end
+						end)
+					end
+				end
+			end
+		end
+	end
+end)
+
+-- Limpiar zonas notificadas al cargar nuevo nivel
+EventosHUD.nivelListo.OnClientEvent:Connect(function()
+	_zonasCompletadasNotificadas = {}
+end)
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- DIALOGO INICIAL AL ENTRAR AL NIVEL 0
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+EventosHUD.nivelListo.OnClientEvent:Connect(function(data)
+	if data and data.error then return end
+
+	local nivelID = (data and data.nivelID) or jugador:GetAttribute("CurrentLevelID") or 0
+	local configNivel = LevelsConfig[nivelID]
+
+	if configNivel and configNivel.DialogoInicial then
+		task.delay(2, function()
+			if _G.ControladorDialogo and _G.ControladorDialogo.iniciar then
+				_G.ControladorDialogo.iniciar(configNivel.DialogoInicial)
+			end
+		end)
+	end
+end)
+
 -- Inicialmente, el HUD debe estar desactivado (el menú está activo)
 desactivarHUD()
 
