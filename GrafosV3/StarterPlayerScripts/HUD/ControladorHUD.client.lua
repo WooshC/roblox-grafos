@@ -34,6 +34,7 @@ local ModuloMatriz   = require(ModulosHUD.ModuloMatriz)
 local ModuloAnalisis = require(ModulosHUD.ModuloAnalisis)
 local PanelLogrosHUD = require(ModulosHUD.PanelLogrosHUD)
 local TimerEmergenciaHUD = require(ModulosHUD.TimerEmergenciaHUD)
+local SelectorModosHUD = require(ModulosHUD.SelectorModosHUD)
 
 -- Inicializar módulos con referencia al hud
 TransicionHUD.reset()
@@ -46,6 +47,40 @@ ModuloMatriz.inicializar(hudGui)
 ModuloAnalisis.inicializar(hudGui)
 PanelLogrosHUD.init(hudGui)
 TimerEmergenciaHUD.init(hudGui)
+SelectorModosHUD.init(hudGui)
+
+-- Asegurar que la leyenda del mapa inicie oculta (por si el GUI la tiene visible por defecto)
+task.defer(function()
+	local leyenda = hudGui:FindFirstChild("Leyenda", true)
+	if leyenda then
+		leyenda.Visible = false
+	end
+end)
+
+-- ════════════════════════════════════════════════════════════════
+-- WRAPPERS: sincronizar SelectorModos con Matriz y Análisis
+-- ════════════════════════════════════════════════════════════════
+local _matrizAbrir = ModuloMatriz.abrir
+local _matrizCerrar = ModuloMatriz.cerrar
+local _analisisAbrir = ModuloAnalisis.abrir
+local _analisisCerrar = ModuloAnalisis.cerrar
+
+ModuloMatriz.abrir = function(...)
+	_matrizAbrir(...)
+	SelectorModosHUD.setModoActivo("matriz")
+end
+ModuloMatriz.cerrar = function(...)
+	_matrizCerrar(...)
+	SelectorModosHUD.setModoActivo("visual")
+end
+ModuloAnalisis.abrir = function(...)
+	_analisisAbrir(...)
+	SelectorModosHUD.setModoActivo("analisis")
+end
+ModuloAnalisis.cerrar = function(...)
+	_analisisCerrar(...)
+	SelectorModosHUD.setModoActivo("visual")
+end
 
 -- Atajos de teclado para togglear paneles (M = Mapa, T = Análisis, F = Matriz)
 UserInputService.InputBegan:Connect(function(input, gameProcessed)

@@ -617,8 +617,8 @@ function ModuloMatriz.inicializar(hudGui)
 	if selectorModos then
 		local matrizBtn = selectorModos:FindFirstChild("MatrizBtn")
 		local visualBtn = selectorModos:FindFirstChild("VisualBtn")
-		if matrizBtn then matrizBtn.MouseButton1Click:Connect(activar)  end
-		if visualBtn then visualBtn.MouseButton1Click:Connect(desactivar) end
+		if matrizBtn then matrizBtn.MouseButton1Click:Connect(function() ModuloMatriz.abrir() end) end
+		if visualBtn then visualBtn.MouseButton1Click:Connect(function() ModuloMatriz.cerrar() end) end
 	else
 		warn("[ModuloMatriz] SelectorModos no encontrado")
 	end
