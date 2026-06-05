@@ -48,7 +48,7 @@ function ServicioPuntaje:gastar(jugador, cantidad)
 	if (d.dinero or 0) < cantidad then return false end
 	d.dinero = d.dinero - cantidad
 	self:_notificar(jugador)
-	print(string.format("[ServicioPuntaje] Gasto: %d | Restante: %d | Jugador: %s", cantidad, d.dinero, jugador.Name))
+	-- print(string.format("[ServicioPuntaje] Gasto: %d | Restante: %d | Jugador: %s", cantidad, d.dinero, jugador.Name))
 	return true
 end
 
@@ -66,7 +66,7 @@ function ServicioPuntaje:reembolsar(jugador, cantidad)
 	if d.dinero == nil then return end
 	d.dinero = d.dinero + (cantidad or 0)
 	self:_notificar(jugador)
-	print(string.format("[ServicioPuntaje] Reembolso: +%d | Nuevo saldo: %d | Jugador: %s", cantidad or 0, d.dinero, jugador.Name))
+	-- print(string.format("[ServicioPuntaje] Reembolso: +%d | Nuevo saldo: %d | Jugador: %s", cantidad or 0, d.dinero, jugador.Name))
 end
 
 -- Registra una conexión correcta.

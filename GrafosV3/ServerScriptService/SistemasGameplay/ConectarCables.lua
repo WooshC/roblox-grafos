@@ -210,7 +210,7 @@ local function manejarClicReparacion(jugador, selector)
 		if notificarEvento then
 			notificarEvento:FireClient(jugador, "ClicReparacion", nombreNodo, 3 - clics)
 		end
-		print(string.format("[ConectarCables] Reparando %s: %d/3 clics", nombreNodo, clics))
+		-- print(string.format("[ConectarCables] Reparando %s: %d/3 clics", nombreNodo, clics))
 	else
 		-- Verificar costo de reparacion antes de completar
 		local costo = 0
@@ -230,7 +230,7 @@ local function manejarClicReparacion(jugador, selector)
 			if notificarEvento then
 				notificarEvento:FireClient(jugador, "FaltaDineroReparacion", nombreNodo, costo)
 			end
-			print(string.format("[ConectarCables] Reparacion bloqueada por falta de dinero: %s (costo: %d)", nombreNodo, costo))
+			-- print(string.format("[ConectarCables] Reparacion bloqueada por falta de dinero: %s (costo: %d)", nombreNodo, costo))
 			return true
 		end
 
@@ -247,7 +247,7 @@ local function manejarClicReparacion(jugador, selector)
 			_callbacks.onNodoReparado(nombreNodo, 0)
 		end
 
-		print(string.format("[ConectarCables] Nodo reparado: %s", nombreNodo))
+		-- print(string.format("[ConectarCables] Nodo reparado: %s", nombreNodo))
 	end
 	return true  -- Consumir el clic: la reparacion es independiente de la seleccion de cable
 end
@@ -482,7 +482,7 @@ local function intentarConectar(jugador, selector1, selector2)
 			_callbacks.onFalloConexion()
 		end
 		
-		print("[ConectarCables] Fallo (" .. tipoError .. "):", nomA, "->", nomB)
+		-- print("[ConectarCables] Fallo (" .. tipoError .. "):", nomA, "->", nomB)
 	end
 	
 	finalizar()

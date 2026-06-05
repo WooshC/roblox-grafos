@@ -207,7 +207,7 @@ local function ajustarNivelEnergia(carpeta, porcentaje)
 end
 
 local function actualizarProgresoZona(zonaID, porcentaje)
-	print(string.format("[SistemaEnergia] 📡 Recibido ProgresoEnergia: zonaID=%s porcentaje=%.2f", tostring(zonaID), porcentaje))
+	-- print(string.format("[SistemaEnergia] 📡 Recibido ProgresoEnergia: zonaID=%s porcentaje=%.2f", tostring(zonaID), porcentaje))
 	
 	local nombreCarpeta = _mapaZonas[zonaID]
 	if not nombreCarpeta then
@@ -225,12 +225,12 @@ local function actualizarProgresoZona(zonaID, porcentaje)
 
 	local viejoPorcentaje = _zonasEncendidas[zonaID] or 0
 	if viejoPorcentaje == porcentaje then
-		print(string.format("[SistemaEnergia] ⚡ %s → %d%% (sin cambio, ignorado)", nombreCarpeta, math.floor(porcentaje * 100)))
+		-- print(string.format("[SistemaEnergia] ⚡ %s → %d%% (sin cambio, ignorado)", nombreCarpeta, math.floor(porcentaje * 100)))
 		return
 	end
 
 	_zonasEncendidas[zonaID] = porcentaje
-	print(string.format("[SistemaEnergia] ⚡ %s → %d%%", nombreCarpeta, math.floor(porcentaje * 100)))
+	-- print(string.format("[SistemaEnergia] ⚡ %s → %d%%", nombreCarpeta, math.floor(porcentaje * 100)))
 	ajustarNivelEnergia(carpeta, porcentaje)
 end
 
@@ -273,7 +273,7 @@ local function inicializarApagado()
 			totalBeams = totalBeams + b
 			totalNeon  = totalNeon  + n
 			zonasApagadas = zonasApagadas + 1
-			print(string.format("[SistemaEnergia] %s → %d luces apagadas", nombreCarpeta, l))
+			-- print(string.format("[SistemaEnergia] %s → %d luces apagadas", nombreCarpeta, l))
 		else
 			warn(string.format("[SistemaEnergia] ⚠ No encontrada: '%s' (ZonaID: %s)", nombreCarpeta, tostring(zonaID)))
 		end

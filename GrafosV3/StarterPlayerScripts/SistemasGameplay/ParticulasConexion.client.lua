@@ -16,9 +16,9 @@ local CONFIG = {
 	TamanoParticula = 0.6,         -- Más grande (antes 0.3)
 	ColorParticulaAB = Color3.fromRGB(0, 207, 255),  -- Azul cian (A -> B)
 	ColorParticulaBA = Color3.fromRGB(255, 50, 100), -- Rosa/Rojo (B -> A)
-	BrilloParticula = 3,           -- Más brillante
-	FrecuenciaParticulas = 1.2,    -- Más frecuente
-	MaxParticulasPorConexion = 4   -- Más partículas
+	BrilloParticula = 3,           -- (ya no se usa: sin PointLight)
+	FrecuenciaParticulas = 3.0,    -- Menos frecuente para reducir carga
+	MaxParticulasPorConexion = 2   -- Menos partículas simultáneas
 }
 
 -- Estado
@@ -135,29 +135,8 @@ local function crearParticulaVisual(direccion)
 	particula.CanQuery = false
 	particula.CastShadow = false
 
-	-- Efecto de brillo con el color correspondiente
-	local puntoLuz = Instance.new("PointLight")
-	puntoLuz.Color = color
-	puntoLuz.Brightness = CONFIG.BrilloParticula
-	puntoLuz.Range = 5  -- Mayor alcance
-	puntoLuz.Parent = particula
-
-	-- Opcional: Añadir un efecto de trail/rastro
-	local trail = Instance.new("Trail")
-	trail.Color = ColorSequence.new(color)
-	trail.WidthScale = NumberSequence.new(0.5, 0)
-	trail.Lifetime = 0.3
-	trail.Parent = particula
-
-	-- Attachment para el trail
-	local att0 = Instance.new("Attachment")
-	att0.Position = Vector3.new(0, 0, 0.1)
-	att0.Parent = particula
-	local att1 = Instance.new("Attachment")
-	att1.Position = Vector3.new(0, 0, -0.1)
-	att1.Parent = particula
-	trail.Attachment0 = att0
-	trail.Attachment1 = att1
+	-- OPT: eliminados PointLight y Trail para reducir carga de renderizado.
+	-- La esfera Neon sola ya es visible suficientemente.
 
 	return particula
 end
@@ -262,7 +241,7 @@ local function iniciarFlujoParticulas(idConexion, nodoA, nodoB, esDirigido)
 		end)
 	end
 
-	print("[ParticulasConexion] Flujo iniciado:", idConexion, "Dirigido:", esDirigido)
+	-- print("[ParticulasConexion] Flujo iniciado:", idConexion, "Dirigido:", esDirigido)
 end
 
 local function detenerFlujoParticulas(idConexion)
@@ -277,7 +256,7 @@ local function detenerFlujoParticulas(idConexion)
 		end
 	end
 
-	print("[ParticulasConexion] Flujo detenido:", idConexion)
+	-- print("[ParticulasConexion] Flujo detenido:", idConexion)
 end
 
 -- ═══════════════════════════════════════════════════════════════════════════════
@@ -291,7 +270,7 @@ GestorEfectos.registrar("ConexionCompletada", function(params)
 	if not nodoA or not nodoB then return end
 	local idConexion = nodoA .. "_" .. nodoB
 	local esDirigido = esConexionDirigida(nodoA, nodoB)
-	print("[ParticulasConexion] Conexión creada:", nodoA, "->", nodoB, "Dirigido:", esDirigido)
+	-- print("[ParticulasConexion] Conexión creada:", nodoA, "->", nodoB, "Dirigido:", esDirigido)
 	iniciarFlujoParticulas(idConexion, nodoA, nodoB, esDirigido)
 end)
 
@@ -299,7 +278,7 @@ GestorEfectos.registrar("CableDesconectado", function(params)
 	local nodoA, nodoB = params.arg1, params.arg2
 	if not nodoA or not nodoB then return end
 	local idConexion = nodoA .. "_" .. nodoB
-	print("[ParticulasConexion] Conexión eliminada:", nodoA, "->", nodoB)
+	-- print("[ParticulasConexion] Conexión eliminada:", nodoA, "->", nodoB)
 	detenerFlujoParticulas(idConexion)
 	detenerFlujoParticulas(nodoB .. "_" .. nodoA)
 end)

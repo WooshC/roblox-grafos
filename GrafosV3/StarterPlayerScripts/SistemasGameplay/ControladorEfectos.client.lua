@@ -386,9 +386,9 @@ local function conectarReproducirEfecto()
 	
 	if reproducirEfectoEv then
 		reproducirEfectoEv.OnClientEvent:Connect(function(tipoEfecto, arg1, arg2)
-			print(string.format("[ControladorEfectos] 📥 Recibido efecto: %s | arg1=%s", tostring(tipoEfecto), tostring(arg1)))
+			-- print(string.format("[ControladorEfectos] 📥 Recibido efecto: %s | arg1=%s", tostring(tipoEfecto), tostring(arg1)))
 			if tipoEfecto == "LIMPIAR_DANO" then
-				print("[ControladorEfectos] 🧹 Limpiando efectos de daño por evento remoto")
+				-- print("[ControladorEfectos] 🧹 Limpiando efectos de daño por evento remoto")
 				EfectosDano.limpiarTodo()
 			end
 		end)
@@ -409,7 +409,7 @@ if notificarEvento then
 			local nombreNodo = type(arg1) == "string" and arg1 or nil
 			local restantes = tonumber(arg2) or 0
 			if nombreNodo then
-				print(string.format("[ControladorEfectos] Reparando %s: faltan %d clics", nombreNodo, restantes))
+				-- print(string.format("[ControladorEfectos] Reparando %s: faltan %d clics", nombreNodo, restantes))
 				-- Sonido de click de reparacion
 				ControladorAudio.playSonidoArreglando()
 				-- Pequeno flash dorado en el nodo
@@ -425,7 +425,7 @@ if notificarEvento then
 		elseif tipo == "NodoReparado" then
 			local nombreNodo = type(arg1) == "string" and arg1 or nil
 			if nombreNodo then
-				print("[ControladorEfectos] Nodo reparado:", nombreNodo)
+				-- print("[ControladorEfectos] Nodo reparado:", nombreNodo)
 				-- Marcar como reparado para no reactivar al volver a la zona
 				_nodosReparadosLocal[nombreNodo] = true
 				-- Sonido de reparacion
@@ -445,7 +445,7 @@ if notificarEvento then
 		elseif tipo == "FaltaDineroReparacion" then
 			local nombreNodo = type(arg1) == "string" and arg1 or nil
 			local costo = tonumber(arg2) or 0
-			print(string.format("[ControladorEfectos] Falta dinero para reparar %s (costo: %d)", tostring(nombreNodo), costo))
+			-- print(string.format("[ControladorEfectos] Falta dinero para reparar %s (costo: %d)", tostring(nombreNodo), costo))
 			-- Flash rojo intenso indicando falta de fondos
 			local nivel = Workspace:FindFirstChild("NivelActual")
 			if nivel and nombreNodo then
@@ -461,7 +461,7 @@ if notificarEvento then
 			local nomA = type(arg1) == "string" and arg1 or nil
 			local nomB = type(arg2) == "string" and arg2 or nil
 			local peso = tonumber(arg3) or 0
-			print(string.format("[ControladorEfectos] Falta dinero para cable %s-%s (peso: %d)", tostring(nomA), tostring(nomB), peso))
+			-- print(string.format("[ControladorEfectos] Falta dinero para cable %s-%s (peso: %d)", tostring(nomA), tostring(nomB), peso))
 			-- Flash rojo en ambos nodos
 			local nivel = Workspace:FindFirstChild("NivelActual")
 			if nivel then

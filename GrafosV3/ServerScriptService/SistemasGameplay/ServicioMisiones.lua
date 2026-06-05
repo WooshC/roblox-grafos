@@ -36,6 +36,16 @@ local _eventoReproducirEfecto = nil
 local _dialogoIniciadoConn = nil
 local _dialogoTerminadoConn = nil
 local _zonasVisitadas = {}
+local _cooldownsDialogo = {}  -- [userId] = tick último evento
+
+local function chequearCooldownDialogo(userId, segundos)
+	segundos = segundos or 0.5
+	local ahora = tick()
+	local ultimo = _cooldownsDialogo[userId] or 0
+	if (ahora - ultimo) < segundos then return false end
+	_cooldownsDialogo[userId] = ahora
+	return true
+end
 
 -- ── Helpers ───────────────────────────────────────────────────────────────────
 local function clavePar(a, b)
@@ -85,9 +95,9 @@ local function calcularEstrellasHelper(puntos)
 				-- Limitar a 2 estrellas si no respondió todas las preguntas correctamente
 				estrellas = 2
 				_estrellasLimitadasPorDialogos = true
-				print(string.format(
-					"[ServicioMisiones] Estrellas limitadas a 2 — Diálogos correctos: %d/%d",
-					correctas, requeridas))
+				-- print(string.format(
+				-- 	"[ServicioMisiones] Estrellas limitadas a 2 — Diálogos correctos: %d/%d",
+				-- 	correctas, requeridas))
 			end
 		end
 	end
@@ -192,7 +202,7 @@ local function _onTimerExpirado(misionID)
 	-- Penalización: -500 puntos por fallar la emergencia
 	_puntosAcum = math.max(0, _puntosAcum - 500)
 	if _servicioPuntaje then _servicioPuntaje:fijarPuntajeMision(_jugador, _puntosAcum, calcularEstrellasHelper(_puntosAcum)) end
-	print(string.format("[ServicioMisiones] 💥 Penalización -500 pts | Puntaje actual: %d", _puntosAcum))
+	-- print(string.format("[ServicioMisiones] 💥 Penalización -500 pts | Puntaje actual: %d", _puntosAcum))
 	verificarYNotificar()
 end
 
@@ -248,8 +258,8 @@ local function verificarYNotificar()
 			_puntosAcum = _puntosAcum + (m.Puntos or 0)
 			if _servicioPuntaje then _servicioPuntaje:fijarPuntajeMision(_jugador, _puntosAcum, calcularEstrellasHelper(_puntosAcum)) end
 			cambiado = true
-			print(string.format("[ServicioMisiones] ✅ Misión %d completada — +%d pts (total: %d)",
-				m.ID, m.Puntos or 0, _puntosAcum))
+			-- print(string.format("[ServicioMisiones] ✅ Misión %d completada — +%d pts (total: %d)",
+				-- m.ID, m.Puntos or 0, _puntosAcum))
 
 			-- Si es emergencia, detener timer, limpiar efectos de daño y notificar éxito
 			if m.Tipo == "EMERGENCIA" then
@@ -294,10 +304,10 @@ local function verificarYNotificar()
 				}
 			end
 
-			print(string.format(
-				"[ServicioMisiones] Snapshot → puntaje=%d / aciertosTotal=%d / conexiones=%d / fallos=%d / tiempo=%d",
-				snap.puntajeBase, snap.aciertosTotal or 0, snap.conexiones, snap.fallos, snap.tiempo
-				))
+			-- print(string.format(
+			-- 	"[ServicioMisiones] Snapshot → puntaje=%d / aciertosTotal=%d / conexiones=%d / fallos=%d / tiempo=%d",
+			-- 	snap.puntajeBase, snap.aciertosTotal or 0, snap.conexiones, snap.fallos, snap.tiempo
+			-- 	))
 
 			-- Guardar en DataStore antes de mostrar victoria
 			if _servicioDatos and _nivelID ~= nil then
@@ -396,7 +406,8 @@ function ServicioMisiones.activar(config, nivelID, jugador, eventos, servicioPun
 		local dialogoIniciado = eventos:FindFirstChild("DialogoIniciado") or eventos:WaitForChild("DialogoIniciado", 2)
 		if dialogoIniciado and not _dialogoIniciadoConn then
 			_dialogoIniciadoConn = dialogoIniciado.OnServerEvent:Connect(function(player)
-				print(string.format("[ServicioMisiones] 📥 DialogoIniciado recibido de %s | _jugador=%s", tostring(player), tostring(_jugador)))
+				if not chequearCooldownDialogo(player.UserId, 0.3) then return end
+				-- print(string.format("[ServicioMisiones] 📥 DialogoIniciado recibido de %s | _jugador=%s", tostring(player), tostring(_jugador)))
 				if player == _jugador and _timerEmergencia then _timerEmergencia:pausar() end
 			end)
 			print("[ServicioMisiones] 🔌 Conectado DialogoIniciado")
@@ -408,7 +419,8 @@ function ServicioMisiones.activar(config, nivelID, jugador, eventos, servicioPun
 		local dialogoTerminado = eventos:FindFirstChild("DialogoTerminado") or eventos:WaitForChild("DialogoTerminado", 2)
 		if dialogoTerminado and not _dialogoTerminadoConn then
 			_dialogoTerminadoConn = dialogoTerminado.OnServerEvent:Connect(function(player)
-				print(string.format("[ServicioMisiones] 📥 DialogoTerminado recibido de %s | _jugador=%s", tostring(player), tostring(_jugador)))
+				if not chequearCooldownDialogo(player.UserId, 0.3) then return end
+				-- print(string.format("[ServicioMisiones] 📥 DialogoTerminado recibido de %s | _jugador=%s", tostring(player), tostring(_jugador)))
 				if player ~= _jugador then return end
 				if _timerEmergencia then _timerEmergencia:reanudar() end
 				-- Si el timer nunca se inició (primera vez), iniciarlo ahora

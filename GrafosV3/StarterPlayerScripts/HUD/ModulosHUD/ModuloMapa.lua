@@ -204,7 +204,7 @@ function ModuloMapa.inicializar(hudRef)
 		local nivelCompletado = eventosFolder.Remotos:FindFirstChild("NivelCompletado")
 		if nivelCompletado then
 			conexionVictoria = nivelCompletado.OnClientEvent:Connect(function()
-				print("[ModuloMapa] Nivel completado - cerrando mapa automáticamente")
+				-- 				print("[ModuloMapa] Nivel completado - cerrando mapa automáticamente")
 				ModuloMapa.cerrar()
 			end)
 		end
@@ -216,7 +216,7 @@ function ModuloMapa.inicializar(hudRef)
 				-- Si el mapa está abierto y hay un evento de conexión/desconexión, actualizar
 				if mapaAbierto then
 					if eventType == "ConexionCompletada" or eventType == "CableDesconectado" then
-						print("[ModuloMapa] Conexión cambiada, actualizando efectos...")
+						-- print("[ModuloMapa] Conexión cambiada, actualizando efectos...")
 						task.wait(0.1) -- Pequeño delay para que el servidor actualice primero
 						_actualizarHighlights()
 						_actualizarInfoHUD()
@@ -282,7 +282,7 @@ function ModuloMapa.configurarNivel(nivelModel, id, config)
 	-- Escuchar cambios de zona para ocultar/mostrar billboards
 	conexionZona = jugador:GetAttributeChangedSignal("ZonaActual"):Connect(function()
 		local nuevaZona = jugador:GetAttribute("ZonaActual")
-		print("[ModuloMapa] Zona cambiada a:", nuevaZona)
+		-- print("[ModuloMapa] Zona cambiada a:", nuevaZona)
 
 		-- Actualizar zona en EfectosZonas
 		EfectosZonas.establecerZonaActual(nuevaZona)
@@ -328,7 +328,7 @@ function _collectarSelectores()
 		end
 	end
 
-	print("[ModuloMapa] Selectores collectados:", #selectores)
+	-- print("[ModuloMapa] Selectores collectados:", #selectores)
 end
 
 -- ================================================================
@@ -336,7 +336,7 @@ end
 -- ================================================================
 
 function _actualizarHighlights()
-	print("[ModuloMapa] Actualizando highlights...")
+	-- print("[ModuloMapa] Actualizando highlights...")
 
 	-- Usar el módulo de efectos del mapa
 	local adyacentes = {}
@@ -344,7 +344,7 @@ function _actualizarHighlights()
 		adyacentes = configNivel.Adyacencias[nodoSeleccionadoMapa.Name] or {}
 	end
 
-	print("[ModuloMapa] Nivel:", nivelActual and nivelActual.Name or "NIL", "Nodo seleccionado:", nodoSeleccionadoMapa and nodoSeleccionadoMapa.Name or "NINGUNO")
+	-- print("[ModuloMapa] Nivel:", nivelActual and nivelActual.Name or "NIL", "Nodo seleccionado:", nodoSeleccionadoMapa and nodoSeleccionadoMapa.Name or "NINGUNO")
 
 	EfectosMapa.actualizarTodos(nivelActual, nodoSeleccionadoMapa, adyacentes)
 end
@@ -481,7 +481,7 @@ function _iniciarEscuchaInput()
 				-- Se cliqueó una conexión (arista) para desconectarla
 				local nomA, nomB = string.match(part.Name, "^Hitbox_(.+)|(.+)$")
 				if nomA and nomB then
-					print("[ModuloMapa] Intentando desconectar arista:", nomA, nomB)
+					-- print("[ModuloMapa] Intentando desconectar arista:", nomA, nomB)
 					local eventosFolder = ReplicatedStorage:FindFirstChild("EventosGrafosV3")
 					if eventosFolder then
 						local conectarEvent = eventosFolder.Remotos:FindFirstChild("ConectarDesdeMapa")
@@ -555,7 +555,8 @@ function _onNodoClickeado(nodo, selectorPart)
 			_seleccionCallback(nombreNodo)
 		end
 
-		print("[ModuloMapa] Primer nodo seleccionado:", nombreNodo)
+		-- 
+		-- print("[ModuloMapa] Primer nodo seleccionado:", nombreNodo)
 
 	elseif nodoSeleccionadoMapa == nodo then
 		-- Click en el mismo nodo: cancelar selección
@@ -567,14 +568,16 @@ function _onNodoClickeado(nodo, selectorPart)
 			_cancelCallback()
 		end
 
-		print("[ModuloMapa] Selección cancelada")
+		-- 
+		-- print("[ModuloMapa] Selección cancelada")
 
 	else
 		-- Segundo nodo seleccionado: intentar conectar
 		local nodoA = nodoSeleccionadoMapa.Name
 		local nodoB = nombreNodo
 
-		print("[ModuloMapa] Intentando conectar:", nodoA, "->", nodoB)
+		-- 
+		-- print("[ModuloMapa] Intentando conectar:", nodoA, "->", nodoB)
 
 		-- Enviar solicitud de conexión al servidor
 		local eventosFolder = ReplicatedStorage:FindFirstChild("EventosGrafosV3")

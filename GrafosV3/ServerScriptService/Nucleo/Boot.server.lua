@@ -62,6 +62,19 @@ local ESTADO = { MENU = "MENU", CARGANDO = "CARGANDO", GAMEPLAY = "GAMEPLAY" }
 local _estado = {}  -- [userId] = ESTADO.*
 local _ctx    = {}  -- [userId] = { cables = Module, misiones = Module }
 local _dialogosCorrectos = {}  -- [userId] = número de respuestas correctas en diálogos del nivel actual
+local _cooldowns = {}  -- [userId][accion] = tick del último uso
+
+-- Rate limiting simple para eventos frecuentes del cliente
+local function chequearCooldown(jugador, accion, segundos)
+	segundos = segundos or 0.3
+	local uid = jugador.UserId
+	local ahora = tick()
+	local ultimo = _cooldowns[uid] and _cooldowns[uid][accion] or 0
+	if (ahora - ultimo) < segundos then return false end
+	_cooldowns[uid] = _cooldowns[uid] or {}
+	_cooldowns[uid][accion] = ahora
+	return true
+end
 
 local function setEstado(jugador, nuevoEstado)
 	_estado[jugador.UserId] = nuevoEstado
@@ -353,11 +366,12 @@ if mapaClickNodo then
 		-- REGLA DE ORO: ignorar si no está en gameplay
 		if not estaEnGameplay(jugador) then return end
 		if not nombreNodo then return end
+		if not chequearCooldown(jugador, "MapaClickNodo", 0.2) then return end
 
 		local ctx = _ctx[jugador.UserId]
 		if not ctx then return end
 
-		print("[GrafosV3] MapaClickNodo - Jugador:", jugador.Name, "Nodo:", nombreNodo)
+		-- print("[GrafosV3] MapaClickNodo - Jugador:", jugador.Name, "Nodo:", nombreNodo)
 
 		-- Notificar a ServicioMisiones
 		if ctx.misiones and ctx.misiones.estaActivo() then
@@ -386,11 +400,12 @@ if conectarDesdeMapa then
 		-- REGLA DE ORO: ignorar si no está en gameplay
 		if not estaEnGameplay(jugador) then return end
 		if not nodoA or not nodoB then return end
+		if not chequearCooldown(jugador, "ConectarDesdeMapa", 0.3) then return end
 
 		local ctx = _ctx[jugador.UserId]
 		if not ctx then return end
 
-		print("[GrafosV3] ConectarDesdeMapa - Jugador:", jugador.Name, nodoA, "->", nodoB)
+		-- print("[GrafosV3] ConectarDesdeMapa - Jugador:", jugador.Name, nodoA, "->", nodoB)
 
 		if ctx.cables and ctx.cables.estaActivo() and ctx.cables.conectarNodos then
 			ctx.cables.conectarNodos(nodoA, nodoB, jugador)
@@ -407,6 +422,7 @@ local toggleMapa = esperarEvento("ToggleMapaAbierto", 5)
 if toggleMapa then
 	toggleMapa.OnServerEvent:Connect(function(jugador, isOpen)
 		if not estaEnGameplay(jugador) then return end
+		if not chequearCooldown(jugador, "ToggleMapaAbierto", 0.2) then return end
 		jugador:SetAttribute("MapaAbierto", isOpen and true or nil)
 	end)
 else
@@ -421,9 +437,10 @@ local dialogoCorrectoEvento = esperarEvento("DialogoCorrecto", 5)
 if dialogoCorrectoEvento then
 	dialogoCorrectoEvento.OnServerEvent:Connect(function(jugador)
 		if not estaEnGameplay(jugador) then return end
+		if not chequearCooldown(jugador, "DialogoCorrecto", 0.5) then return end
 		local actual = _dialogosCorrectos[jugador.UserId] or 0
 		_dialogosCorrectos[jugador.UserId] = actual + 1
-		print(string.format("[Boot.server] DialogoCorrecto — Jugador: %s | Total correctas: %d", jugador.Name, actual + 1))
+		-- print(string.format("[Boot.server] DialogoCorrecto — Jugador: %s | Total correctas: %d", jugador.Name, actual + 1))
 		
 		-- Notificar a ServicioLogros para el logro "sabio_grafos"
 		if ServicioLogros and ServicioLogros.registrarDialogoCorrecto then
