@@ -257,21 +257,35 @@ Funciones publicas:
      - Grafo real del jugador (GetAdjacencyMatrix) → muestra solo lo que el construyo.
      Recomendacion: usar GetGrafoCompleto para que el algoritmo tenga sentido pedagogico.
 
+     Respuesta: En realidad usara ambos, construira con un grafo teorico, mientras que se dejara
+     una validación sobre la red construida por el usuario para usarla en un futuro para un feature
+
+
   b) ¿Se quiere mostrar un panel de pasos/pseudocodigo minimizado junto a la simulacion 3D?
      - Opcion A: No, solo los efectos visuales en el mundo.
      - Opcion B: Si, un pequeno panel flotante (como el LabelRecorrido) que muestre
        "PASO X/Y: descripcion" sin abrir todo el OverlayAnalisis.
 
+       Respuesta: Solo opcion A
+
   c) ¿Velocidad de paso fija o configurable?
      - Recomendacion: fija de 0.8s por paso, con constante editable.
+     Respuesta: Con variable modificable
 
   d) ¿Que pasa si el jugador cambia de zona durante la simulacion?
      - Recomendacion: detener automaticamente y limpiar efectos (la simulacion
        pertenece a la zona, no al mundo global).
+       Respuesta: No debería detenerse, que almacene la ultima zona visitada y ejecutada ya que puede importar
+       ingresar a otra zona para ver a donde más se conecta.
+
+
 
   e) ¿SelectorAlg ya existe en la GUI o hay que crearlo?
      - Segun GUI_ESTRUCTURA.md existe como hijo de GUIExploradorV2, pero verificar
        si esta posicionado correctamente para mostrarse al presionar BtnEjecutarAlg.
+       Respuesta: si
+
+       
 
 8. CHECKLIST DE IMPLEMENTACION (PARA CUANDO SE APRUEBE)
 -------------------------------------------------------

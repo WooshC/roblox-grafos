@@ -35,6 +35,7 @@ local ModuloAnalisis = require(ModulosHUD.ModuloAnalisis)
 local PanelLogrosHUD = require(ModulosHUD.PanelLogrosHUD)
 local TimerEmergenciaHUD = require(ModulosHUD.TimerEmergenciaHUD)
 local SelectorModosHUD = require(ModulosHUD.SelectorModosHUD)
+local EjecutorAlgoritmo3D = require(ModulosHUD.EjecutorAlgoritmo3D)
 
 -- Inicializar módulos con referencia al hud
 TransicionHUD.reset()
@@ -48,6 +49,7 @@ ModuloAnalisis.inicializar(hudGui)
 PanelLogrosHUD.init(hudGui)
 TimerEmergenciaHUD.init(hudGui)
 SelectorModosHUD.init(hudGui)
+EjecutorAlgoritmo3D.inicializar(hudGui)
 
 -- Asegurar que la leyenda del mapa inicie oculta (por si el GUI la tiene visible por defecto)
 task.defer(function()
@@ -185,6 +187,13 @@ local function desactivarHUD()
 	end)
 	if not exitoAna then
 		warn("[ControladorHUD] Error al limpiar analisis:", errAna)
+	end
+
+	local exitoAlg3D, errAlg3D = pcall(function()
+		EjecutorAlgoritmo3D.limpiar()
+	end)
+	if not exitoAlg3D then
+		warn("[ControladorHUD] Error al limpiar ejecutor 3D:", errAlg3D)
 	end
 
 	local exitoLogros, errLogros = pcall(function()
@@ -328,6 +337,8 @@ end)
 -- CONFIGURACION DE BOTONES DEL HUD (tamaños grandes)
 -- ═══════════════════════════════════════════════════════════════════════════════
 
+local TextService = game:GetService("TextService")
+
 local function _configurarBotonesHUD()
 	local barraMain = hudGui:FindFirstChild("BarraBotonesMain", true)
 	if not barraMain then return end
@@ -335,12 +346,30 @@ local function _configurarBotonesHUD()
 	-- Aumentar altura de la barra principal
 	barraMain.Size = UDim2.new(barraMain.Size.X.Scale, barraMain.Size.X.Offset, 0, 52)
 
+	-- Recolectar botones
+	local botones = {}
 	for _, btn in ipairs(barraMain:GetChildren()) do
 		if btn:IsA("TextButton") then
-			btn.TextSize = 18
+			table.insert(botones, btn)
 		end
 	end
-	print("[ControladorHUD] Botones del HUD configurados con tamaños grandes")
+	if #botones == 0 then return end
+
+	-- Encontrar el ancho necesario para el texto mas largo
+	local maxAncho = 0
+	for _, btn in ipairs(botones) do
+		btn.TextSize = 18
+		local bounds = TextService:GetTextSize(btn.Text, btn.TextSize, btn.Font, Vector2.new(9999, 9999))
+		maxAncho = math.max(maxAncho, bounds.X)
+	end
+
+	-- Aplicar el mismo ancho a todos (+24px de padding interno)
+	local anchoUniforme = maxAncho + 24
+	for _, btn in ipairs(botones) do
+		btn.Size = UDim2.new(0, anchoUniforme, 1, 0)
+	end
+
+	print("[ControladorHUD] Botones del HUD configurados. Ancho uniforme:", anchoUniforme)
 end
 
 _configurarBotonesHUD()
