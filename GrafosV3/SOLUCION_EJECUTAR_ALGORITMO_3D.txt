@@ -1,0 +1,291 @@
+================================================================================
+  SOLUCION: EJECUCION DE ALGORITMOS EN EL MUNDO 3D DESDE BtnEjecutarAlg
+  GrafosV3 — Plan de implementacion (escrito para revision del usuario)
+================================================================================
+
+1. RESUMEN DEL PROBLEMA
+-----------------------
+Actualmente el panel de Analisis (OverlayAnalisis / tecla T) ejecuta algoritmos
+paso a paso dentro de un ViewportFrame 2D/3D aislado. Se requiere que el boton
+"BtnEjecutarAlg" de la BarraBotonesMain del HUD permita:
+
+  a) Mostrar un selector de algoritmos filtrado por la zona actual.
+  b) Al elegir uno, ejecutarlo paso a paso directamente en el MUNDO 3D REAL.
+  c) A medida que avanza el algoritmo, "encender" (iluminar/resaltar) los nodos
+     del workspace progresivamente, como si la energia los fuera alcanzando.
+  d) Permitir cancelar la animacion (click de nuevo en BtnEjecutarAlg) o
+     cambiar de algoritmo limpiando las conexiones/efectos anteriores.
+  e)El boton BtnEjecutarAlg para la ejecución y cierra el frame correspondiente al selector
+
+2. ARCHIVOS INVOLUCRADOS
+------------------------
+  Ya existentes (solo lectura / referencia):
+    - ReplicatedStorage/Config/LevelsConfig.lua
+    - StarterPlayerScripts/HUD/ModulosHUD/AlgoritmosGrafo.lua
+    - StarterPlayerScripts/HUD/ModulosHUD/ModuloAnalisis.lua
+    - StarterPlayerScripts/HUD/ModulosHUD/ModuloAnalisis/ViewportAnalisis.lua
+    - StarterPlayerScripts/HUD/ModulosHUD/ModuloAnalisis/PanelEstadoAnalisis.lua
+    - StarterPlayerScripts/HUD/ControladorHUD.client.lua
+    - StarterPlayerScripts/SistemasGameplay/SistemaEnergia.client.lua
+    - ReplicatedStorage/Efectos/EfectosNodo.lua
+
+  A crear o modificar:
+    - StarterPlayerScripts/HUD/ModulosHUD/EjecutorAlgoritmo3D.lua   (NUEVO)
+    - StarterPlayerScripts/HUD/ControladorHUD.client.lua            (MODIFICAR)
+    - StarterPlayerScripts/HUD/ModulosHUD/SelectorModosHUD.lua      (opcional, si se centraliza logica de toggles)
+
+3. COMPONENTES DE LA GUI EXISTENTES RELEVANTES
+----------------------------------------------
+  Segun GUI_ESTRUCTURA.md:
+    - BarraBotonesMain (Frame) → contiene BtnEjecutarAlg (TextButton)
+    - SelectorAlg (Frame) → PanelAnalisis → PillsAlgo → PillBFS, PillDFS, PillDijkstra, PillPrim
+
+  Nota: SelectorAlg parece estar fuera de la jerarquia principal del HUD.
+  Verificar si esta en GUIExploradorV2 o si hay que crearlo/anclarlo.
+ GUIExploradorV2 (ScreenGui)
+  └─ SelectorAlg (Frame)
+   └─ PanelAnalisis (Frame)
+      ├─ UIStroke (UIStroke)
+      ├─ UICorner (UICorner)
+      └─ PillsAlgo (Frame)
+         ├─ PillBFS (TextButton)
+         │  ├─ UIStroke (UIStroke)
+         │  └─ UICorner (UICorner)
+         ├─ PillDFS (TextButton)
+         │  ├─ UIStroke (UIStroke)
+         │  └─ UICorner (UICorner)
+         ├─ PillDijkstra (TextButton)
+         │  ├─ UIStroke (UIStroke)
+         │  └─ UICorner (UICorner)
+         ├─ PillPrim (TextButton)
+         │  ├─ UIStroke (UIStroke)
+         │  └─ UICorner (UICorner)
+         └─ UIListLayout (UIListLayout) 
+
+4. LOGICA EXISTENTE A REUTILIZAR
+--------------------------------
+  a) Obtener algoritmos disponibles por zona:
+       LevelsConfig[nivelID].AnalisisConfig[zonaID].algoritmos
+       LevelsConfig[nivelID].AnalisisConfig[zonaID].nodoInicio
+       LevelsConfig[nivelID].AnalisisConfig[zonaID].nodoFin
+
+  b) Generar pasos del algoritmo:
+       AlgoritmosGrafo.bfs(nodos, adyacencias, inicio)   → devuelve tabla de steps
+       AlgoritmosGrafo.dfs(nodos, adyacencias, inicio)
+       AlgoritmosGrafo.dijkstra(nodos, adyacencias, inicio)
+       AlgoritmosGrafo.prim(nodos, adyacencias, inicio)
+
+     Cada step contiene:
+       { nodoActual, visitados, pendientes, distancias, descripcion,
+         lineaPseudo, struct, structConten, aristasRecorridas, aristaNueva }
+
+  c) Construir adyacencias desde matriz (ya existe en ModuloAnalisis):
+       buildAdyacencias(data, soloValidas)
+
+  d) Obtener grafo completo desde servidor:
+       RemoteFunction: GetGrafoCompleto:InvokeServer(zona)
+
+  e) Obtener matriz real de conexiones (opcional, si se quiere ejecutar sobre
+     el grafo real del jugador en vez del teorico):
+       RemoteFunction: GetAdjacencyMatrix:InvokeServer(zona)
+
+5. PROPUESTA DE SOLUCION
+------------------------
+
+5.1 NUEVO MODULO: EjecutorAlgoritmo3D.lua
+-----------------------------------------
+Responsabilidad: orquestar la simulacion de algoritmos directamente sobre los
+nodos 3D del workspace, independientemente del panel de analisis.
+
+Estado interno:
+  - activo: boolean           -- hay una simulacion corriendo?
+  - pasos: table              -- lista de steps generados
+  - pasoActual: number
+  - totalPasos: number
+  - autoPlaying: boolean
+  - algoritmoActual: string   -- "bfs", "dfs", etc.
+  - zonaActual: string
+  - nodosEncendidos: {}       -- set de nombres de nodos ya iluminados en 3D
+  - conexionesCreadas: {}     -- lista de Parts/Beams creados para aristas
+  - tareaAutoPlay: thread/nil
+  - nodoInicio: string
+
+Funciones publicas:
+
+  inicializar(hudGui)
+    -- Busca BtnEjecutarAlg y SelectorAlg en el hudGui.
+    -- Conecta eventos de click.
+    -- Oculta SelectorAlg al inicio.
+
+  toggleSelector()
+    -- Si el selector esta visible → ocultarlo + detenerSimulacion() + limpiarEfectos3D().
+    -- Si esta oculto → consultar zona actual, leer AnalisisConfig,
+    --   filtrar pills visibles, mostrar SelectorAlg.
+
+  seleccionarAlgoritmo(algo: string)
+    -- Guardar algoritmoActual = algo.
+    -- Si ya habia una simulacion activa → limpiarEfectos3D() primero.
+    -- Llamar iniciarSimulacion(algo).
+    -- Ocultar SelectorAlg (o dejarlo visible si se quiere cambiar rapido).
+
+  iniciarSimulacion(algo: string)
+    -- Obtener zona actual del jugador (atributo ZonaActual).
+    -- Obtener nivel actual (atributo CurrentLevelID).
+    -- Obtener AnalisisConfig para la zona → nodoInicio.
+    -- Cargar grafo completo via GetGrafoCompleto (o GetAdjacencyMatrix si se
+    --    quiere simular sobre el estado real del jugador).
+    -- Construir adyacencias.
+    -- Generar pasos con AlgoritmosGrafo[algo](nodos, adyacencias, nodoInicio).
+    -- pasoActual = 1.
+    -- autoPlaying = true.
+    -- Iniciar corrutina de auto-play paso a paso.
+
+  detenerSimulacion()
+    -- autoPlaying = false.
+    -- Cancelar corrutina si existe.
+    -- NO limpiar efectos visuales todavia (para que el usuario vea el estado final).
+
+  limpiarEfectos3D()
+    -- Restaurar todos los nodos de la zona a su estado visual original.
+    -- Destruir todos los Beams/Parts temporales creados para aristas.
+    -- Limpiar nodosEncendidos y conexionesCreadas.
+    -- Opcional: apagar luces si se usaron PointLights temporales.
+
+  aplicarPaso3D(step)
+    -- Encender el nodoActual:
+    --    Buscar el modelo del nodo en workspace.NivelActual.Grafos...Nodos[nombre]
+    --    Aplicar efecto visual (ver seccion 5.3).
+    --    Buscar Selector del nodo y cambiar color/material a ENERGIZADO/NEON.
+    --    Opcional: reproducir sonido ligero de "activacion".
+    -- Si hay aristaNueva:
+    --    Dibujar un Beam temporal o resaltar la conexion existente entre los nodos.
+    --    (Reutilizar logica de EfectosDialogo.mostrarArista o crear Beam simple).
+    -- Actualizar algun label opcional en el HUD (ej: paso X de Y).
+
+  buscarNodoEnWorkspace(nombreNodo) → Model/BasePart
+    -- Misma logica que ViewportAnalisis.buscarPosNodo pero retornando
+    -- el modelo completo (no solo la posicion).
+
+5.2 COMPORTAMIENTO DE BtnEjecutarAlg
+------------------------------------
+  Click #1 (no hay simulacion):
+    - Si hay SelectorAlg → mostrarlo.
+    - Si no hay SelectorAlg → iniciar directamente el ultimo algoritmo usado
+      (o el primero disponible de la zona).
+
+  Click #2 (simulacion activa o selector visible):
+    - Si selector visible → ocultar selector.
+    - Si simulacion activa → detener + limpiarEfectos3D().
+    - Cambiar texto del boton entre "Ejecutar Algoritmo" / "Detener Algoritmo".
+
+  Cambio de algoritmo desde SelectorAlg:
+    - Si ya hay simulacion → limpiarEfectos3D() + iniciar nueva.
+    - Esto cumple el requisito: "al elegir otro algoritmo limpiando asi las
+      anteriores conexiones".
+
+5.3 EFECTOS VISUALES EN NODOS 3D (como "encenderlos")
+------------------------------------------------------
+  Opcion A — Usar EfectosNodo.lua (recomendada, minima invasion):
+    - EfectosNodo.aplicarASelector(selector, "ENERGIZADO")
+    - Usa PresetTween.COLORES.NODO_ENERGIZADO (debe existir en PresetTween)
+    - Usa material NEON, transparencia baja.
+    - Si no existe ENERGIZADO, crearlo en PresetTween o usar "SELECCIONADO".
+
+  Opcion B — Crear/encender PointLight temporal:
+    - Similar a SistemaEnergia.client.lua pero solo sobre el nodo afectado.
+    - Insertar un PointLight en el Selector del nodo.
+    - Tween de Brightness 0 → 5, Range 0 → 20.
+    - Color: amarillo/dorado para "energia del algoritmo".
+
+  Opcion C — Combinacion (recomendada final):
+    1. Cambiar color/material del Selector a NEON + color dorado/cian.
+    2. Crear PointLight temporal dentro del Selector (o en un Attachment).
+    3. Aplicar Tween de encendido (0.3s) para suavizar la transicion.
+    4. Para aristas: si el nodo A y B estan conectados por un cable fisico real,
+       resaltar ese Beam (cambiar color a dorado/neon). Si no existe cable
+       fisico, crear un Beam temporal entre los Attachments de los Selectores
+       (como hace EfectosDialogo.mostrarArista).
+
+5.4 EFECTOS EN ARISTAS (construir la red paso a paso)
+------------------------------------------------------
+  Para cada step que tenga aristaNueva = {A, B}:
+    - Buscar si ya existe un cable fisico entre A y B en el workspace.
+    - Si existe → aplicar Tween de color al Beam existente (a neon dorado).
+    - Si no existe → crear un Beam temporal entre los Attachments de A y B.
+      (Similar a EfectosDialogo.mostrarArista o ParticulasConexion.client.lua).
+    - El Beam temporal se destruye al limpiarEfectos3D().
+
+  Nota: La simulacion del algoritmo opera sobre el GRAFO TEORICO completo
+  (GetGrafoCompleto), no sobre las conexiones fisicas del jugador. Esto es
+  correcto pedagogicamente: muestra como DEBERIA ser el recorrido.
+  Si se quiere mostrar sobre el grafo real del jugador, usar GetAdjacencyMatrix.
+
+5.5 VELOCIDAD Y AUTO-PLAY
+-------------------------
+  - Velocidad configurable (ej: 1 segundo por paso).
+  - Corrutina que hace task.wait(velocidad) entre pasos.
+  - Si el jugador cambia de zona mientras corre → detener + limpiar.
+  - Si el jugador cambia de algoritmo → limpiar + reiniciar.
+
+5.6 INTEGRACION CON ControladorHUD.client.lua
+---------------------------------------------
+  - Importar EjecutorAlgoritmo3D en ControladorHUD.
+  - Llamar EjecutorAlgoritmo3D.inicializar(hudGui) despues de los demas modulos.
+  - No requiere cambios en ModuloAnalisis ni en OverlayAnalisis (quedan intactos).
+
+6. FLUJO DE EJECUCION (EJEMPLO)
+-------------------------------
+  1. Jugador entra a Zona_Ferroviaria_1.
+  2. Presiona BtnEjecutarAlg.
+  3. Aparece SelectorAlg con solo PillBFS visible (segun AnalisisConfig).
+  4. Jugador presiona PillBFS.
+  5. Se limpia cualquier efecto previo.
+  6. Se carga grafo completo de la zona, nodoInicio = "Gen_Estacion_z1".
+  7. Se generan los steps de BFS.
+  8. Paso 1: nodo Gen_Estacion_z1 se ilumina (NEON dorado + PointLight).
+  9. Paso 2: arista Gen_Estacion_z1→Casa_Estacion1_z1 se resalta (Beam dorado).
+             Casa_Estacion1_z1 se ilumina.
+  10. Paso 3: ... y asi sucesivamente hasta completar.
+  11. Jugador presiona BtnEjecutarAlg de nuevo:
+      → Se detiene auto-play, se apagan todos los nodos, se destruyen Beams temporales.
+      → Texto del boton vuelve a "Ejecutar Algoritmo".
+
+7. PREGUNTAS ABIERTAS / DECISIONES DEL USUARIO
+----------------------------------------------
+  a) ¿Sobre que grafo se ejecuta el algoritmo?
+     - Grafo teorico completo (GetGrafoCompleto) → siempre muestra la topologia ideal.
+     - Grafo real del jugador (GetAdjacencyMatrix) → muestra solo lo que el construyo.
+     Recomendacion: usar GetGrafoCompleto para que el algoritmo tenga sentido pedagogico.
+
+  b) ¿Se quiere mostrar un panel de pasos/pseudocodigo minimizado junto a la simulacion 3D?
+     - Opcion A: No, solo los efectos visuales en el mundo.
+     - Opcion B: Si, un pequeno panel flotante (como el LabelRecorrido) que muestre
+       "PASO X/Y: descripcion" sin abrir todo el OverlayAnalisis.
+
+  c) ¿Velocidad de paso fija o configurable?
+     - Recomendacion: fija de 0.8s por paso, con constante editable.
+
+  d) ¿Que pasa si el jugador cambia de zona durante la simulacion?
+     - Recomendacion: detener automaticamente y limpiar efectos (la simulacion
+       pertenece a la zona, no al mundo global).
+
+  e) ¿SelectorAlg ya existe en la GUI o hay que crearlo?
+     - Segun GUI_ESTRUCTURA.md existe como hijo de GUIExploradorV2, pero verificar
+       si esta posicionado correctamente para mostrarse al presionar BtnEjecutarAlg.
+
+8. CHECKLIST DE IMPLEMENTACION (PARA CUANDO SE APRUEBE)
+-------------------------------------------------------
+  [ ] Verificar/ajustar existencia y posicion de SelectorAlg en GUIExploradorV2.
+  [ ] Crear EjecutorAlgoritmo3D.lua con toda la logica descrita.
+  [ ] Modificar ControladorHUD.client.lua para importar e inicializar el nuevo modulo.
+  [ ] Agregar funcion buscarNodoEnWorkspace (reutilizando logica de ViewportAnalisis).
+  [ ] Implementar aplicarPaso3D con cambio de color/material + PointLight temporal.
+  [ ] Implementar creacion/destruccion de Beams temporales para aristas.
+  [ ] Implementar limpiarEfectos3D que restaure todo.
+  [ ] Conectar eventos de ZonaActual cambiada para auto-limpiar al salir de zona.
+  [ ] Probar con cada algoritmo (BFS, DFS, Dijkstra, Prim) en distintas zonas.
+  [ ] Asegurar que no interfiera con SistemaEnergia.client.lua (luces de progreso real).
+
+================================================================================
+  FIN DEL PLAN
+================================================================================
