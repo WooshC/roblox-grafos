@@ -80,7 +80,7 @@ local function calcularRedEnergizada()
 
 	local count = 0
 	for _ in pairs(energizados) do count = count + 1 end
-	print(string.format("[ServicioEnergia] BFS energía: %d nodos energizados", count))
+	-- print(string.format("[ServicioEnergia] BFS energía: %d nodos energizados", count))
 	return energizados
 end
 
@@ -99,7 +99,7 @@ local function evaluarPropagacion()
 
 	local countZonas = 0
 	for _ in pairs(_zonas) do countZonas = countZonas + 1 end
-	print(string.format("[ServicioEnergia] Evaluando %d zonas...", countZonas))
+	-- print(string.format("[ServicioEnergia] Evaluando %d zonas...", countZonas))
 	for zonaID, nodosEnZona in pairs(_zonas) do
 		local energizadosCount = 0
 		local totalCount = 0
@@ -118,7 +118,7 @@ local function evaluarPropagacion()
 			porcentaje = math.clamp(energizadosCount / totalCount, 0, 1)
 		end
 
-		print(string.format("[ServicioEnergia] → Zona %s: %d/%d nodos energizados (%.0f%%)", zonaID, energizadosCount, totalCount, porcentaje * 100))
+		-- print(string.format("[ServicioEnergia] → Zona %s: %d/%d nodos energizados (%.0f%%)", zonaID, energizadosCount, totalCount, porcentaje * 100))
 		_eventoProgresoEnergia:FireAllClients(zonaID, porcentaje)
 	end
 end

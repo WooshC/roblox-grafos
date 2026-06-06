@@ -156,8 +156,8 @@ function PanelMisionesHUD.reconstruir(datosMision)
 	local completadas = datos.completadas or {}
 	local zonaActual = datos.zonaActual
 
-	print(string.format("[PanelMisionesHUD] Reconstruir: %d misiones, zonaActual: %s", 
-		#misiones, tostring(zonaActual)))
+	-- print(string.format("[PanelMisionesHUD] Reconstruir: %d misiones, zonaActual: %s", 
+	-- 	#misiones, tostring(zonaActual)))
 
 	local completadasSet = {}
 	for _, id in ipairs(completadas) do completadasSet[id] = true end
@@ -179,11 +179,11 @@ function PanelMisionesHUD.reconstruir(datosMision)
 
 	-- MODO 1: Dentro de zona especifica - mostrar SOLO misiones de esa zona
 	if zonaActual and zonaActual ~= "" and zonasMap[zonaActual] then
-		print("[PanelMisionesHUD] Modo: DENTRO de zona " .. zonaActual)
+		-- print("[PanelMisionesHUD] Modo: DENTRO de zona " .. zonaActual)
 		PanelMisionesHUD._mostrarMisionesZona(zonaActual, zonasMap[zonaActual], completadasSet)
 	else
 		-- MODO 2: Fuera de zona - mostrar resumen de TODAS las zonas
-		print("[PanelMisionesHUD] Modo: FUERA de zona - mostrando resumen")
+		-- print("[PanelMisionesHUD] Modo: FUERA de zona - mostrando resumen")
 		for _, nombreZona in ipairs(zonasOrden) do
 			PanelMisionesHUD._mostrarHeaderZona(nombreZona, zonasMap[nombreZona])
 		end

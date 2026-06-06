@@ -207,20 +207,20 @@ local function buscarYConectarPrompts()
 
 	local dialoguePrompts = nivelActual:FindFirstChild("DialoguePrompts")
 	if not dialoguePrompts then
-		print("[ControladorDialogo] No hay DialoguePrompts en este nivel")
+		-- print("[ControladorDialogo] No hay DialoguePrompts en este nivel")
 		return
 	end
 
-	print("[ControladorDialogo] Buscando prompts en:", dialoguePrompts.Name)
-	print("[ControladorDialogo] Hijos encontrados en DialoguePrompts:", #dialoguePrompts:GetChildren())
+	-- print("[ControladorDialogo] Buscando prompts en:", dialoguePrompts.Name)
+	-- print("[ControladorDialogo] Hijos encontrados en DialoguePrompts:", #dialoguePrompts:GetChildren())
 
 	for _, modeloDialogo in ipairs(dialoguePrompts:GetChildren()) do
-		print("[ControladorDialogo] Revisando:", modeloDialogo.Name, "Tipo:", modeloDialogo.ClassName)
+		-- print("[ControladorDialogo] Revisando:", modeloDialogo.Name, "Tipo:", modeloDialogo.ClassName)
 
 		if modeloDialogo:IsA("Model") or modeloDialogo:IsA("Folder") then
 			local promptPart = modeloDialogo:FindFirstChild("PromptPart")
 			if promptPart then
-				print("[ControladorDialogo] ✓ PromptPart encontrado en:", modeloDialogo.Name)
+				-- print("[ControladorDialogo] ✓ PromptPart encontrado en:", modeloDialogo.Name)
 				local config = {
 					id = modeloDialogo:GetAttribute("DialogoID") or modeloDialogo.Name,
 					actionText = modeloDialogo:GetAttribute("ActionText") or "Hablar",
@@ -597,14 +597,14 @@ jugador:GetAttributeChangedSignal("ZonaActual"):Connect(onZonaChanged)
 remotos.NivelListo.OnClientEvent:Connect(function(data)
 	if data and data.error then return end
 
-	print("[ControladorDialogo] Nivel cargado - buscando prompts de diálogo")
+	-- print("[ControladorDialogo] Nivel cargado - buscando prompts de diálogo")
 
 	task.wait(0.5)
 	buscarYConectarPrompts()
 end)
 
 remotos.NivelDescargado.OnClientEvent:Connect(function()
-	print("[ControladorDialogo] Nivel descargado - limpiando")
+	-- print("[ControladorDialogo] Nivel descargado - limpiando")
 
 	if dialogoActivo then
 		DialogoGUISystem:Close()
