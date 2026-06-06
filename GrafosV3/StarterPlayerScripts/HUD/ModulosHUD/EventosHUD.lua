@@ -19,6 +19,9 @@ EventosHUD.timerEmergencia = remotosFolder:WaitForChild("TimerEmergencia")
 EventosHUD.volverAlMenu = remotosFolder:WaitForChild("VolverAlMenu")
 EventosHUD.reiniciarNivel = remotosFolder:WaitForChild("ReiniciarNivel")
 
+-- RemoteEvents para ciclo de vida del nivel
+EventosHUD.nivelDescargado = remotosFolder:WaitForChild("NivelDescargado")
+
 -- RemoteFunctions
 EventosHUD.obtenerLogros = remotosFolder:WaitForChild("ObtenerLogros")
 

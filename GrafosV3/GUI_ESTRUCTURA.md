@@ -36,7 +36,7 @@
 │     ├─ BtnReiniciar (TextButton)
 │     │  ├─ UIStroke (UIStroke)
 │     │  └─ UICorner (UICorner)
-│     ├─ BtnFinalizar (TextButton)
+│     ├─ BtnAyuda (TextButton)
 │     │  ├─ UIStroke (UIStroke)
 │     │  └─ UICorner (UICorner)
 │     └─ UIListLayout (UIListLayout)

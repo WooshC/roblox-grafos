@@ -341,9 +341,14 @@ reiniciarNivel.OnServerEvent:Connect(function(jugador, nivelID)
 		ServicioLogros.iniciarNivel(jugador, nivelID)
 	end
 
+	-- NOTIFICAR al cliente para que limpie su estado antes de descargar
+	local nivelDescargado = Remotos:FindFirstChild("NivelDescargado")
+	if nivelDescargado then
+		nivelDescargado:FireClient(jugador)
+	end
+
 	if CargadorNiveles then
-		CargadorNiveles.descargar()
-		task.wait(0.5)
+		-- NOTA: cargar() ya llama descargar() internamente, no es necesario llamarlo aqui
 		local ok, err = pcall(CargadorNiveles.cargar, nivelID, jugador)
 		if ok then
 			_ctx[jugador.UserId] = construirContexto(jugador)

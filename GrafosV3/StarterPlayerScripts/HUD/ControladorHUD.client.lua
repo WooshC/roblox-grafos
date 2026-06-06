@@ -38,6 +38,7 @@ local PanelLogrosHUD = require(ModulosHUD.PanelLogrosHUD)
 local TimerEmergenciaHUD = require(ModulosHUD.TimerEmergenciaHUD)
 local SelectorModosHUD = require(ModulosHUD.SelectorModosHUD)
 local EjecutorAlgoritmo3D = require(ModulosHUD.EjecutorAlgoritmo3D)
+local AyudaHUD = require(ModulosHUD.AyudaHUD)
 
 -- Inicializar módulos con referencia al hud
 TransicionHUD.reset()
@@ -93,6 +94,127 @@ Controles.init({
 	ModuloMatriz = ModuloMatriz,
 	PanelMisionesHUD = PanelMisionesHUD,
 })
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- MODAL DE CONFIRMACIÓN (reutilizable para Reiniciar / Salir)
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+local modalFondo = hudGui:FindFirstChild("ModalSalirFondo", true)
+local modalPanel = modalFondo and modalFondo:FindFirstChild("ModalSalir")
+local modalTitulo = modalPanel and modalPanel:FindFirstChild("ModalTitulo", true)
+local modalSub = modalPanel and modalPanel:FindFirstChild("ModalSub", true)
+local modalMsg = modalPanel and modalPanel:FindFirstChild("ModalMsg", true)
+local modalNote = modalPanel and modalPanel:FindFirstChild("ModalNoteLabel", true)
+local btnCancelar = modalPanel and modalPanel:FindFirstChild("BtnCancelarSalir", true)
+local btnConfirmar = modalPanel and modalPanel:FindFirstChild("BtnConfirmarSalir", true)
+
+local _modalCallback = nil
+
+local function ocultarModal()
+	if modalFondo then
+		modalFondo.Visible = false
+	end
+	_modalCallback = nil
+end
+
+local function mostrarModal(titulo, sub, mensaje, nota, callback)
+	if not modalFondo or not modalPanel then
+		warn("[ControladorHUD] Modal no encontrado, ejecutando acción directamente")
+		if callback then callback() end
+		return
+	end
+	if modalTitulo then modalTitulo.Text = titulo or "" end
+	if modalSub then modalSub.Text = sub or "" end
+	if modalMsg then modalMsg.Text = mensaje or "" end
+	if modalNote then modalNote.Text = nota or "" end
+	_modalCallback = callback
+	modalFondo.Visible = true
+end
+
+-- Conectar botones del modal una sola vez
+if btnCancelar then
+	btnCancelar.MouseButton1Click:Connect(ocultarModal)
+end
+if btnConfirmar then
+	btnConfirmar.MouseButton1Click:Connect(function()
+		if _modalCallback then
+			local ok, err = pcall(_modalCallback)
+			if not ok then
+				warn("[ControladorHUD] Error en modal callback:", err)
+			end
+		end
+		ocultarModal()
+	end)
+end
+
+-- Asegurar que el modal inicie oculto
+if modalFondo then
+	modalFondo.Visible = false
+end
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- BOTONES DEL HUD (Reiniciar, Salir)
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+-- Inicializar GUI de ayuda
+AyudaHUD.init(hudGui)
+
+local barraSecundaria = hudGui:FindFirstChild("BarraBotonesSecundarios", true)
+if barraSecundaria then
+	local btnReiniciar = barraSecundaria:FindFirstChild("BtnReiniciar")
+	if btnReiniciar then
+		btnReiniciar.MouseButton1Click:Connect(function()
+			local nivelID = jugador:GetAttribute("CurrentLevelID")
+			mostrarModal(
+				"REINICIAR NIVEL",
+				"Confirmación requerida",
+				"¿Desea reiniciar el nivel? Se perderá todo el progreso no guardado.",
+				"Esta acción no se puede deshacer.",
+				function()
+					if nivelID then
+						EventosHUD.reiniciarNivel:FireServer(nivelID)
+						print("[ControladorHUD] ReiniciarNivel solicitado — Nivel:", nivelID)
+					end
+				end
+			)
+		end)
+		print("[ControladorHUD] BtnReiniciar conectado (con modal)")
+	else
+		warn("[ControladorHUD] BtnReiniciar no encontrado en BarraBotonesSecundarios")
+	end
+
+	local btnAyuda = barraSecundaria:FindFirstChild("BtnAyuda")
+	if btnAyuda then
+		btnAyuda.MouseButton1Click:Connect(function()
+			AyudaHUD.alternar()
+		end)
+		print("[ControladorHUD] BtnAyuda conectado")
+	else
+		warn("[ControladorHUD] BtnAyuda no encontrado en BarraBotonesSecundarios")
+	end
+end
+
+local barraMain = hudGui:FindFirstChild("BarraBotonesMain", true)
+if barraMain then
+	local btnSalir = barraMain:FindFirstChild("BtnSalir")
+	if btnSalir then
+		btnSalir.MouseButton1Click:Connect(function()
+			mostrarModal(
+				"SALIR DEL NIVEL",
+				"Confirmación requerida",
+				"¿Desea salir al menú principal? Se perderá el progreso del nivel actual.",
+				"Tu progreso general se mantendrá guardado.",
+				function()
+					EventosHUD.volverAlMenu:FireServer()
+					print("[ControladorHUD] VolverAlMenu solicitado")
+				end
+			)
+		end)
+		print("[ControladorHUD] BtnSalir conectado (con modal)")
+	else
+		warn("[ControladorHUD] BtnSalir no encontrado en BarraBotonesMain")
+	end
+end
 
 -- Helper: cuando el mapa intenta conectar/desconectar nodos,
 -- la matriz (si está abierta) se refresca automáticamente.
@@ -281,6 +403,12 @@ EventosHUD.actualizarPuntuacion.OnClientEvent:Connect(function(data)
 	end
 end)
 
+-- NivelDescargado: El servidor notifica que el nivel se está descargando (reinicio/salida)
+EventosHUD.nivelDescargado.OnClientEvent:Connect(function()
+	print("[ControladorHUD] NivelDescargado recibido — limpiando HUD")
+	desactivarHUD()
+end)
+
 -- NivelCompletado: El servidor notifica que se completaron todas las misiones
 EventosHUD.nivelCompletado.OnClientEvent:Connect(function(snap)
 	print("[ControladorHUD] NivelCompletado recibido:", snap ~= nil and "con datos" or "SIN DATOS")
@@ -317,26 +445,31 @@ end)
 
 local TextService = game:GetService("TextService")
 
-local function _configurarBotonesHUD()
-	local barraMain = hudGui:FindFirstChild("BarraBotonesMain", true)
-	if not barraMain then return end
-
-	-- Aumentar altura de la barra principal
-	barraMain.Size = UDim2.new(barraMain.Size.X.Scale, barraMain.Size.X.Offset, 0, 52)
+local function _configurarBotonesBarra(barra, nombreBarra)
+	if not barra then return end
 
 	-- Recolectar botones
 	local botones = {}
-	for _, btn in ipairs(barraMain:GetChildren()) do
+	for _, btn in ipairs(barra:GetChildren()) do
 		if btn:IsA("TextButton") then
 			table.insert(botones, btn)
 		end
 	end
-	if #botones == 0 then return end
+	if #botones == 0 then
+		print("[ControladorHUD] No hay botones en", nombreBarra)
+		return
+	end
+
+	-- Asegurar que todos los botones sean visibles y tengan texto
+	for _, btn in ipairs(botones) do
+		btn.Visible = true
+		btn.TextSize = 18
+		btn.Font = Enum.Font.GothamBold
+	end
 
 	-- Encontrar el ancho necesario para el texto mas largo
 	local maxAncho = 0
 	for _, btn in ipairs(botones) do
-		btn.TextSize = 18
 		local bounds = TextService:GetTextSize(btn.Text, btn.TextSize, btn.Font, Vector2.new(9999, 9999))
 		maxAncho = math.max(maxAncho, bounds.X)
 	end
@@ -347,7 +480,24 @@ local function _configurarBotonesHUD()
 		btn.Size = UDim2.new(0, anchoUniforme, 1, 0)
 	end
 
-	print("[ControladorHUD] Botones del HUD configurados. Ancho uniforme:", anchoUniforme)
+	print(string.format("[ControladorHUD] %s configurada. Botones: %d, Ancho: %d",
+		nombreBarra, #botones, anchoUniforme))
+end
+
+local function _configurarBotonesHUD()
+	-- Barra principal
+	local barraMain = hudGui:FindFirstChild("BarraBotonesMain", true)
+	if barraMain then
+		barraMain.Size = UDim2.new(barraMain.Size.X.Scale, barraMain.Size.X.Offset, 0, 52)
+		_configurarBotonesBarra(barraMain, "BarraBotonesMain")
+	end
+
+	-- Barra secundaria
+	local barraSec = hudGui:FindFirstChild("BarraBotonesSecundarios", true)
+	if barraSec then
+		barraSec.Size = UDim2.new(barraSec.Size.X.Scale, barraSec.Size.X.Offset, 0, 52)
+		_configurarBotonesBarra(barraSec, "BarraBotonesSecundarios")
+	end
 end
 
 _configurarBotonesHUD()
