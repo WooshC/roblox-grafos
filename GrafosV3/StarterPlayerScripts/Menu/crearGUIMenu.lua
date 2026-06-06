@@ -150,16 +150,16 @@ local pav=n("Frame",{Name="PlayerAvatar",Size=UDim2.new(0,22,0,22),Position=UDim
 n("TextLabel",{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Text="P",TextColor3=C.bg,Font=F.bold,TextSize=12,ZIndex=5},pav)
 n("TextLabel",{Name="PlayerTag",Size=UDim2.new(1,-36,1,0),Position=UDim2.new(0,32,0,0),BackgroundTransparency=1,Text="Cargando...",TextColor3=C.accent,Font=F.body,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=4},ptag)
 local lsMain=n("Frame",{Name="LevelMainArea",Size=UDim2.new(1,0,1,-60),Position=UDim2.new(0,0,0,60),BackgroundTransparency=1,ZIndex=2},S2)
-local sidebar=n("Frame",{Name="LevelSidebar",Size=UDim2.new(0,320,1,0),BackgroundColor3=Color3.fromRGB(6,10,20),BackgroundTransparency=0.05,BorderSizePixel=0,ZIndex=3},lsMain)
+local sidebar=n("Frame",{Name="LevelSidebar",Size=UDim2.new(0,340,1,0),BackgroundColor3=Color3.fromRGB(6,10,20),BackgroundTransparency=0.05,BorderSizePixel=0,ZIndex=3},lsMain)
 stroke(C.border,1,sidebar)
 
 local sideHead=n("Frame",{Name="SidebarHeader",Size=UDim2.new(1,0,0,56),BackgroundTransparency=1,ZIndex=4},sidebar) stroke(C.border,1,sideHead)
-n("TextLabel",{Size=UDim2.new(1,-40,0,20),Position=UDim2.new(0,20,0,10),BackgroundTransparency=1,Text="INFORMACIÓN",TextColor3=C.text,Font=F.bold,TextSize=12,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5},sideHead)
-n("TextLabel",{Size=UDim2.new(1,-40,0,16),Position=UDim2.new(0,20,0,32),BackgroundTransparency=1,Text="Selecciona un nivel para ver detalles",TextColor3=C.muted,Font=F.body,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5},sideHead)
+n("TextLabel",{Size=UDim2.new(1,-40,0,20),Position=UDim2.new(0,20,0,10),BackgroundTransparency=1,Text="INFORMACIÓN",TextColor3=C.text,Font=F.bold,TextSize=14,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5},sideHead)
+n("TextLabel",{Size=UDim2.new(1,-40,0,16),Position=UDim2.new(0,20,0,32),BackgroundTransparency=1,Text="Selecciona un nivel para ver detalles",TextColor3=C.muted,Font=F.body,TextSize=13,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5},sideHead)
 
 local placeholder=n("Frame",{Name="Placeholder",Size=UDim2.new(1,0,1,-130),Position=UDim2.new(0,0,0,56),BackgroundTransparency=1,Visible=true,ZIndex=4},sidebar)
 n("TextLabel",{Size=UDim2.new(1,0,0,44),Position=UDim2.new(0,0,0.38,0),BackgroundTransparency=1,Text="🗺️",Font=F.body,TextSize=40,ZIndex=5},placeholder)
-n("TextLabel",{Size=UDim2.new(1,-40,0,56),Position=UDim2.new(0,20,0.45,0),BackgroundTransparency=1,Text="Selecciona una tarjeta de nivel\npara ver su información y comenzar.",TextColor3=C.muted,Font=F.body,TextSize=12,TextXAlignment=Enum.TextXAlignment.Center,TextWrapped=true,ZIndex=5},placeholder)
+n("TextLabel",{Size=UDim2.new(1,-40,0,56),Position=UDim2.new(0,20,0.45,0),BackgroundTransparency=1,Text="Selecciona una tarjeta de nivel\npara ver su información y comenzar.",TextColor3=C.muted,Font=F.body,TextSize=14,TextXAlignment=Enum.TextXAlignment.Center,TextWrapped=true,ZIndex=5},placeholder)
 
 local infoContent=n("Frame",{Name="InfoContent",Size=UDim2.new(1,0,1,-130),Position=UDim2.new(0,0,0,56),BackgroundTransparency=1,Visible=false,ZIndex=4},sidebar)
 local hero=n("Frame",{Name="Hero",Size=UDim2.new(1,0,0,140),BackgroundColor3=Color3.fromRGB(8,14,26),BorderSizePixel=0,ZIndex=5},infoContent)
@@ -167,20 +167,20 @@ local heroGlow=n("Frame",{Name="HeroGlow",Size=UDim2.new(0,110,0,110),Position=U
 n("TextLabel",{Name="HeroEmoji",Size=UDim2.new(0,60,0,60),Position=UDim2.new(0.5,-30,0.5,-30),BackgroundTransparency=1,Text="🧪",Font=F.body,TextSize=50,ZIndex=6},hero)
 local heroBadge=n("Frame",{Name="HeroBadge",Size=UDim2.new(0,110,0,22),Position=UDim2.new(1,-118,0,10),BackgroundColor3=Color3.fromRGB(4,26,18),BorderSizePixel=0,ZIndex=6},hero)
 corner(3,heroBadge) stroke(C.accent3,1,heroBadge)
-n("TextLabel",{Name="HeroBadgeText",Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Text="◆ DISPONIBLE",TextColor3=C.accent3,Font=F.mono,TextSize=9,ZIndex=7},heroBadge)
+n("TextLabel",{Name="HeroBadgeText",Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Text="◆ DISPONIBLE",TextColor3=C.accent3,Font=F.mono,TextSize=11,ZIndex=7},heroBadge)
 
-local infoBody=n("ScrollingFrame",{Name="InfoBody",Size=UDim2.new(1,0,1,-140),Position=UDim2.new(0,0,0,140),BackgroundTransparency=1,ScrollBarThickness=3,ScrollBarImageColor3=C.border,CanvasSize=UDim2.new(0,0,0,440),BorderSizePixel=0,ZIndex=5},infoContent)
+local infoBody=n("ScrollingFrame",{Name="InfoBody",Size=UDim2.new(1,0,1,-140),Position=UDim2.new(0,0,0,140),BackgroundTransparency=1,ScrollBarThickness=3,ScrollBarImageColor3=C.border,CanvasSize=UDim2.new(0,0,0,600),BorderSizePixel=0,ZIndex=5},infoContent)
 pad(16,16,20,20,infoBody)
 n("UIListLayout",{Padding=UDim.new(0,12),FillDirection=Enum.FillDirection.Vertical,SortOrder=Enum.SortOrder.LayoutOrder},infoBody)
-n("TextLabel",{Name="InfoTag",Size=UDim2.new(1,0,0,16),BackgroundTransparency=1,Text="",TextColor3=C.accent,Font=F.mono,TextSize=9,TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=1},infoBody)
-n("TextLabel",{Name="InfoName",Size=UDim2.new(1,0,0,42),BackgroundTransparency=1,Text="",TextColor3=C.text,Font=F.bold,TextSize=16,TextXAlignment=Enum.TextXAlignment.Left,TextWrapped=true,LayoutOrder=2},infoBody)
-n("TextLabel",{Name="InfoDesc",Size=UDim2.new(1,0,0,64),BackgroundTransparency=1,Text="",TextColor3=C.muted,Font=F.body,TextSize=12,TextXAlignment=Enum.TextXAlignment.Left,TextWrapped=true,LayoutOrder=3},infoBody)
+n("TextLabel",{Name="InfoTag",Size=UDim2.new(1,0,0,16),BackgroundTransparency=1,Text="",TextColor3=C.accent,Font=F.mono,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=1},infoBody)
+n("TextLabel",{Name="InfoName",Size=UDim2.new(1,0,0,48),BackgroundTransparency=1,Text="",TextColor3=C.text,Font=F.bold,TextSize=18,TextXAlignment=Enum.TextXAlignment.Left,TextWrapped=true,LayoutOrder=2},infoBody)
+n("TextLabel",{Name="InfoDesc",Size=UDim2.new(1,0,0,72),BackgroundTransparency=1,Text="",TextColor3=C.muted,Font=F.body,TextSize=14,TextXAlignment=Enum.TextXAlignment.Left,TextWrapped=true,LayoutOrder=3},infoBody)
 
 local starsFrame=n("Frame",{Name="Stars",Size=UDim2.new(1,0,0,26),BackgroundTransparency=1,LayoutOrder=4},infoBody)
 n("UIListLayout",{FillDirection=Enum.FillDirection.Horizontal,Padding=UDim.new(0,6),VerticalAlignment=Enum.VerticalAlignment.Center},starsFrame)
-for i=1,3 do n("TextLabel",{Name="Star"..i,Size=UDim2.new(0,22,1,0),BackgroundTransparency=1,Text="⭐",Font=F.body,TextSize=18,TextTransparency=0.7},starsFrame) end
+for i=1,3 do n("TextLabel",{Name="Star"..i,Size=UDim2.new(0,22,1,0),BackgroundTransparency=1,Text="⭐",Font=F.body,TextSize=20,TextTransparency=0.7},starsFrame) end
 
-local statsGrid=n("Frame",{Name="StatsGrid",Size=UDim2.new(1,0,0,170),BackgroundTransparency=1,LayoutOrder=5},infoBody)
+local statsGrid=n("Frame",{Name="StatsGrid",Size=UDim2.new(1,0,0,186),BackgroundTransparency=1,LayoutOrder=5},infoBody)
 for i,sd in ipairs({
 	{name="StatScore", label="Récord",       col=C.gold},
 	{name="StatStatus",label="Estado",       col=C.accent},
@@ -192,16 +192,16 @@ for i,sd in ipairs({
 	local col=(i-1)%2; local row=math.floor((i-1)/2)
 	local box=n("Frame",{Name=sd.name,Size=UDim2.new(0.5,-5,0,50),Position=UDim2.new(col==0 and 0 or 0.5,col==1 and 5 or 0,0,row*58),BackgroundColor3=C.panel,BorderSizePixel=0,ZIndex=6},statsGrid)
 	corner(8,box) stroke(C.border,1,box)
-	n("TextLabel",{Size=UDim2.new(1,-16,0,14),Position=UDim2.new(0,8,0,8),BackgroundTransparency=1,Text=sd.label,TextColor3=C.muted,Font=F.mono,TextSize=9,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=7},box)
-	n("TextLabel",{Name="Valor",Size=UDim2.new(1,-16,0,22),Position=UDim2.new(0,8,0,24),BackgroundTransparency=1,Text="—",TextColor3=sd.col,Font=F.mono,TextSize=16,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=7},box)
+	n("TextLabel",{Size=UDim2.new(1,-16,0,14),Position=UDim2.new(0,8,0,8),BackgroundTransparency=1,Text=sd.label,TextColor3=C.muted,Font=F.mono,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=7},box)
+	n("TextLabel",{Name="Valor",Size=UDim2.new(1,-16,0,22),Position=UDim2.new(0,8,0,24),BackgroundTransparency=1,Text="—",TextColor3=sd.col,Font=F.mono,TextSize=18,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=7},box)
 end
-n("TextLabel",{Name="ConceptosLabel",Size=UDim2.new(1,0,0,16),BackgroundTransparency=1,Text="CONCEPTOS",TextColor3=C.muted,Font=F.mono,TextSize=9,TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=6},infoBody)
-local tagsFrame=n("Frame",{Name="Tags",Size=UDim2.new(1,0,0,30),BackgroundTransparency=1,LayoutOrder=7},infoBody)
+n("TextLabel",{Name="ConceptosLabel",Size=UDim2.new(1,0,0,20),BackgroundTransparency=1,Text="CONCEPTOS",TextColor3=C.muted,Font=F.mono,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=6},infoBody)
+local tagsFrame=n("Frame",{Name="Tags",Size=UDim2.new(1,0,0,40),BackgroundTransparency=1,LayoutOrder=7},infoBody)
 n("UIListLayout",{FillDirection=Enum.FillDirection.Horizontal,Padding=UDim.new(0,6),VerticalAlignment=Enum.VerticalAlignment.Center,Wraps=true},tagsFrame)
 
 local playArea=n("Frame",{Name="PlayArea",Size=UDim2.new(1,0,0,72),Position=UDim2.new(0,0,1,-72),BackgroundTransparency=1,ZIndex=4},sidebar)
 stroke(C.border,1,playArea)
-local playBtn=n("TextButton",{Name="PlayButton",Size=UDim2.new(1,-44,0,44),Position=UDim2.new(0,22,0.5,-22),BackgroundColor3=C.panel,Text="🔒  SELECCIONA UN NIVEL",TextColor3=C.muted,Font=F.mono,TextSize=11,BorderSizePixel=0,ZIndex=5},playArea)
+local playBtn=n("TextButton",{Name="PlayButton",Size=UDim2.new(1,-44,0,44),Position=UDim2.new(0,22,0.5,-22),BackgroundColor3=C.panel,Text="🔒  SELECCIONA UN NIVEL",TextColor3=C.muted,Font=F.mono,TextSize=13,BorderSizePixel=0,ZIndex=5},playArea)
 corner(8,playBtn) stroke(C.border,1,playBtn)
 
 -- ════════════════════════════════════════════
@@ -209,18 +209,18 @@ corner(8,playBtn) stroke(C.border,1,playBtn)
 -- MenuController.client.lua construye las tarjetas dinámicamente
 -- al recibir datos de GetPlayerProgress.
 -- ════════════════════════════════════════════
-local gridScroll=n("ScrollingFrame",{Name="GridArea",Size=UDim2.new(1,-320,1,0),Position=UDim2.new(0,320,0,0),BackgroundTransparency=1,ScrollBarThickness=4,ScrollBarImageColor3=C.border,CanvasSize=UDim2.new(0,0,0,800),BorderSizePixel=0,ZIndex=3},lsMain)
+local gridScroll=n("ScrollingFrame",{Name="GridArea",Size=UDim2.new(1,-340,1,0),Position=UDim2.new(0,340,0,0),BackgroundTransparency=1,ScrollBarThickness=4,ScrollBarImageColor3=C.border,CanvasSize=UDim2.new(0,0,0,800),BorderSizePixel=0,ZIndex=3},lsMain)
 pad(28,28,32,32,gridScroll)
 n("UIListLayout",{Name="GridLayout",Padding=UDim.new(0,0),FillDirection=Enum.FillDirection.Vertical,SortOrder=Enum.SortOrder.LayoutOrder},gridScroll)
 
 -- Barra de progreso (se actualiza desde MenuController)
 local progWrap=n("Frame",{Name="ProgressBar",Size=UDim2.new(1,0,0,60),BackgroundColor3=C.panel,BorderSizePixel=0,ZIndex=4,LayoutOrder=1},gridScroll)
 corner(8,progWrap) stroke(C.border,1,progWrap)
-n("TextLabel",{Name="ProgText",Size=UDim2.new(0,60,0,26),Position=UDim2.new(0,16,0,7),BackgroundTransparency=1,Text="0 / 5",TextColor3=C.text,Font=F.title,TextSize=20,ZIndex=5},progWrap)
-n("TextLabel",{Size=UDim2.new(0,140,0,16),Position=UDim2.new(0,16,0,36),BackgroundTransparency=1,Text="Niveles completados",TextColor3=C.muted,Font=F.mono,TextSize=9,ZIndex=5},progWrap)
+n("TextLabel",{Name="ProgText",Size=UDim2.new(0,60,0,26),Position=UDim2.new(0,16,0,7),BackgroundTransparency=1,Text="0 / 5",TextColor3=C.text,Font=F.title,TextSize=22,ZIndex=5},progWrap)
+n("TextLabel",{Size=UDim2.new(0,140,0,16),Position=UDim2.new(0,16,0,36),BackgroundTransparency=1,Text="Niveles completados",TextColor3=C.muted,Font=F.mono,TextSize=11,ZIndex=5},progWrap)
 local bt=n("Frame",{Size=UDim2.new(1,-220,0,6),Position=UDim2.new(0,165,0.5,-3),BackgroundColor3=C.border,BorderSizePixel=0,ZIndex=5},progWrap) corner(3,bt)
 n("Frame",{Name="ProgFill",Size=UDim2.new(0,0,1,0),BackgroundColor3=C.accent3,BorderSizePixel=0,ZIndex=6},bt) corner(3, bt:FindFirstChild("ProgFill") or bt)
-n("TextLabel",{Name="ProgPct",Size=UDim2.new(0,44,1,0),Position=UDim2.new(1,-46,0,0),BackgroundTransparency=1,Text="0%",TextColor3=C.accent3,Font=F.mono,TextSize=11,ZIndex=5},progWrap)
+n("TextLabel",{Name="ProgPct",Size=UDim2.new(0,44,1,0),Position=UDim2.new(1,-46,0,0),BackgroundTransparency=1,Text="0%",TextColor3=C.accent3,Font=F.mono,TextSize=12,ZIndex=5},progWrap)
 n("Frame",{Size=UDim2.new(1,0,0,20),BackgroundTransparency=1,LayoutOrder=2},gridScroll)
 
 -- Contenedor vacío para las tarjetas — MenuController lo llenará.

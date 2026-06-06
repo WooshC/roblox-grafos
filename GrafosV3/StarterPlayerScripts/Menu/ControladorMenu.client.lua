@@ -193,8 +193,8 @@ local function crearTarjetaNivel(datosNivel, columna, fila, parent)
 	-- Contenedor de la tarjeta (usar tamaño similar a GrafosV2)
 	local tarjeta = crearInstancia("TextButton", {
 		Name = "Card" .. idNivel,
-		Size = UDim2.new(0.5, -8, 0, 140),
-		Position = UDim2.new(columna == 1 and 0 or 0.5, columna == 1 and 4 or 0, 0, fila * 156),
+		Size = UDim2.new(0.5, -8, 0, 190),
+		Position = UDim2.new(columna == 1 and 0 or 0.5, columna == 1 and 4 or 0, 0, fila * 206),
 		BackgroundColor3 = COLORES.panel,
 		Text = "",
 		BorderSizePixel = 0,
@@ -206,7 +206,7 @@ local function crearTarjetaNivel(datosNivel, columna, fila, parent)
 	-- Imagen del nivel
 	if datosNivel.imageId and datosNivel.imageId ~= "" then
 		local imagen = crearInstancia("ImageLabel", {
-			Size = UDim2.new(1, 0, 0, 70),
+			Size = UDim2.new(1, 0, 0, 100),
 			BackgroundTransparency = 1,
 			Image = datosNivel.imageId,
 			ScaleType = Enum.ScaleType.Crop,
@@ -218,7 +218,7 @@ local function crearTarjetaNivel(datosNivel, columna, fila, parent)
 	-- Badge de estado
 	local badge = crearInstancia("Frame", {
 		Size = UDim2.new(0, 90, 0, 18),
-		Position = UDim2.new(0, 8, 0, 74),
+		Position = UDim2.new(0, 8, 0, 106),
 		BackgroundColor3 = COLORES.fondo,
 		BorderSizePixel = 0,
 		ZIndex = 7,
@@ -232,19 +232,19 @@ local function crearTarjetaNivel(datosNivel, columna, fila, parent)
 		Text = estado == "completado" and "◆ COMPLETADO" or (estado == "disponible" and "◆ DISPONIBLE" or "🔒 BLOQUEADO"),
 		TextColor3 = colorEstado,
 		Font = FUENTES.mono,
-		TextSize = 9,
+		TextSize = 11,
 		ZIndex = 8,
 	}, badge)
 
 	-- Nombre del nivel
 	crearInstancia("TextLabel", {
-		Size = UDim2.new(1, -16, 0, 26),
-		Position = UDim2.new(0, 8, 0, 96),
+		Size = UDim2.new(1, -16, 0, 24),
+		Position = UDim2.new(0, 8, 0, 126),
 		BackgroundTransparency = 1,
 		Text = datosNivel.nombre or "Nivel " .. idNivel,
 		TextColor3 = COLORES.texto,
 		Font = FUENTES.bold,
-		TextSize = 12,
+		TextSize = 14,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextTruncate = Enum.TextTruncate.AtEnd,
 		ZIndex = 6,
@@ -252,8 +252,8 @@ local function crearTarjetaNivel(datosNivel, columna, fila, parent)
 
 	-- Footer con estrellas y puntuacion
 	local footer = crearInstancia("Frame", {
-		Size = UDim2.new(1, 0, 0, 22),
-		Position = UDim2.new(0, 0, 1, -22),
+		Size = UDim2.new(1, 0, 0, 28),
+		Position = UDim2.new(0, 0, 1, -28),
 		BackgroundColor3 = Color3.fromRGB(10, 10, 18),
 		BorderSizePixel = 0,
 		ZIndex = 6,
@@ -268,7 +268,7 @@ local function crearTarjetaNivel(datosNivel, columna, fila, parent)
 		Text = (estrellas >= 1 and "⭐" or "☆") .. (estrellas >= 2 and "⭐" or "☆") .. (estrellas >= 3 and "⭐" or "☆"),
 		TextColor3 = COLORES.oro,
 		Font = FUENTES.body,
-		TextSize = 12,
+		TextSize = 14,
 		ZIndex = 7,
 	}, footer)
 
@@ -280,7 +280,7 @@ local function crearTarjetaNivel(datosNivel, columna, fila, parent)
 		Text = puntuacion > 0 and (puntuacion .. " pts") or "—",
 		TextColor3 = COLORES.dim,
 		Font = FUENTES.mono,
-		TextSize = 10,
+		TextSize = 11,
 		TextXAlignment = Enum.TextXAlignment.Right,
 		ZIndex = 7,
 	}, footer)
@@ -469,19 +469,27 @@ function actualizarSidebar(datosNivel)
 			end
 			for _, concepto in ipairs(datosNivel.conceptos or {}) do
 				local tag = crearInstancia("TextButton", {
-					Size = UDim2.new(0, 0, 0, 22),
+					Size = UDim2.new(0, 0, 0, 26),
 					AutomaticSize = Enum.AutomaticSize.X,
 					BackgroundColor3 = Color3.fromRGB(0, 20, 30),
 					Text = concepto,
 					TextColor3 = Color3.fromRGB(0, 138, 170),
 					Font = FUENTES.mono,
-					TextSize = 9,
+					TextSize = 11,
 					BorderSizePixel = 0,
 					ZIndex = 5,
 				}, tagsFrame)
 				crearEsquina(4, tag)
 				crearBorde(Color3.fromRGB(0, 62, 90), 1, tag)
 			end
+		end
+
+		-- Ajustar CanvasSize del InfoBody para mostrar ConceptosLabel y Tags
+		local listLayout = infoBody:FindFirstChildOfClass("UIListLayout")
+		if listLayout then
+			task.defer(function()
+				infoBody.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 40)
+			end)
 		end
 	end
 
@@ -564,7 +572,7 @@ local function construirGrid(datosProgreso)
 		-- Header de seccion
 		local header = crearInstancia("Frame", {
 			Name = "SecH_" .. nombreSeccion,
-			Size = UDim2.new(1, 0, 0, 32),
+			Size = UDim2.new(1, 0, 0, 36),
 			BackgroundTransparency = 1,
 			LayoutOrder = ordenLayout,
 		}, gridArea)
@@ -576,7 +584,7 @@ local function construirGrid(datosProgreso)
 			Text = nombreSeccion:upper(),
 			TextColor3 = COLORES.accent,
 			Font = FUENTES.mono,
-			TextSize = 10,
+			TextSize = 12,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			ZIndex = 5,
 		}, header)
@@ -596,13 +604,13 @@ local function construirGrid(datosProgreso)
 			Text = #niveles .. (#niveles == 1 and " nivel" or " niveles"),
 			TextColor3 = COLORES.dim,
 			Font = FUENTES.mono,
-			TextSize = 10,
+			TextSize = 11,
 			TextXAlignment = Enum.TextXAlignment.Right,
 			ZIndex = 5,
 		}, header)
 
 		-- Contenedor de tarjetas
-		local alturaContenedor = math.ceil(#niveles / columnas) * 156
+		local alturaContenedor = math.ceil(#niveles / columnas) * 206
 		local contenedor = crearInstancia("Frame", {
 			Name = "Sec_" .. idxSeccion,
 			Size = UDim2.new(1, 0, 0, alturaContenedor),
