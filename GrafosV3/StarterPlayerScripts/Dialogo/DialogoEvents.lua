@@ -128,28 +128,9 @@ end
 function DialogoEvents:OnKeyPressed(keyCode)
 	if not self.controller.system.isPlaying then return end
 
-	-- ESPACIO o ENTER = CONTINUAR
-	if keyCode == Enum.KeyCode.Space or keyCode == Enum.KeyCode.Return then
+	-- ESPACIO = CONTINUAR
+	if keyCode == Enum.KeyCode.Space then
 		self:OnNextClicked()
-	end
-
-	-- ESC = SALTAR
-	if keyCode == Enum.KeyCode.Escape then
-		self:OnSkipClicked()
-	end
-
-	-- H = OJO
-	if keyCode == Enum.KeyCode.H then
-		self:OnEyeClicked()
-	end
-
-	-- FLECHAS (navegación opcional)
-	if keyCode == Enum.KeyCode.Right then
-		self.controller.system:Next()
-	end
-
-	if keyCode == Enum.KeyCode.Left then
-		self.controller.system:Previous()
 	end
 end
 

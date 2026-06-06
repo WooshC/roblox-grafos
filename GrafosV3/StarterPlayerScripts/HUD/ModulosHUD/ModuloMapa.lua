@@ -174,9 +174,10 @@ function ModuloMapa.inicializar(hudRef)
 					if frameLeyenda then
 						local abriendo = not frameLeyenda.Visible
 						frameLeyenda.Visible = abriendo
-						-- Si se abre la leyenda, cerrar el panel de misiones
+						-- Si se abre la leyenda, solo ocultar (no reiniciar/borrar)
+						-- el panel de misiones para preservar los datos.
 						if abriendo and PanelMisionesHUD then
-							PanelMisionesHUD.reiniciar()
+							PanelMisionesHUD.ocultar()
 						end
 					end
 				end)

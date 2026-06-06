@@ -65,6 +65,13 @@ function PanelMisionesHUD.reiniciar()
 	PanelMisionesHUD.limpiar()
 end
 
+function PanelMisionesHUD.ocultar()
+	panelAbierto = false
+	if frameMisiones then frameMisiones.Visible = false end
+	-- NOTA: NO borramos _ultimosDatos para que al volver a abrir
+	-- el panel siga teniendo las misiones disponibles.
+end
+
 function PanelMisionesHUD.limpiar()
 	if not cuerpoMisiones then return end
 	for _, child in ipairs(cuerpoMisiones:GetChildren()) do

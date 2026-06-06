@@ -3,13 +3,15 @@
 
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
-local UserInputService = game:GetService("UserInputService")
 
 local jugador = Players.LocalPlayer
 local playerGui = jugador:WaitForChild("PlayerGui")
 
 -- Cargar configuración de niveles
 local LevelsConfig = require(RS:WaitForChild("Config"):WaitForChild("LevelsConfig"))
+
+-- Módulo centralizado de controles de teclado
+local Controles = require(script.Parent.Parent:WaitForChild("Compartido"):WaitForChild("Controles"))
 
 print("[GrafosV3] === ControladorHUD Iniciando ===")
 
@@ -84,37 +86,13 @@ ModuloAnalisis.cerrar = function(...)
 	SelectorModosHUD.setModoActivo("visual")
 end
 
--- Atajos de teclado para togglear paneles (M = Mapa, T = Análisis, F = Matriz)
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-	if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-
-	-- Solo bloquear si el jugador está escribiendo en un TextBox o input ya procesado
-	if gameProcessed or UserInputService:GetFocusedTextBox() then return end
-
-	local key = input.KeyCode
-
-	if key == Enum.KeyCode.M then
-		if ModuloMapa.estaAbierto() then
-			ModuloMapa.cerrar()
-		else
-			ModuloMapa.abrir()
-		end
-
-	elseif key == Enum.KeyCode.T then
-		if ModuloAnalisis.estaAbierto() then
-			ModuloAnalisis.cerrar()
-		else
-			ModuloAnalisis.abrir()
-		end
-
-	elseif key == Enum.KeyCode.F then
-		if ModuloMatriz.estaAbierta() then
-			ModuloMatriz.cerrar()
-		else
-			ModuloMatriz.abrir()
-		end
-	end
-end)
+-- Inicializar módulo centralizado de controles de teclado
+Controles.init({
+	ModuloMapa = ModuloMapa,
+	ModuloAnalisis = ModuloAnalisis,
+	ModuloMatriz = ModuloMatriz,
+	PanelMisionesHUD = PanelMisionesHUD,
+})
 
 -- Helper: cuando el mapa intenta conectar/desconectar nodos,
 -- la matriz (si está abierta) se refresca automáticamente.
