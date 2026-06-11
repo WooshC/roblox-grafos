@@ -61,7 +61,7 @@ end
 local CONFIG_PERSONAJES = {
 	Carlos   = { voiceId = VOCES.SPANISH_MALE,   volumen = 0.6, velocidad = 1.0, pitch = 0 },
 	Alcalde  = { voiceId = VOCES.SPANISH_MALE,   volumen = 0.7, velocidad = 0.82, pitch = 1.5 }, -- Más pausado y tono más alto que Carlos
-	Sistema  = { voiceId = VOCES.DAVID,           volumen = 0.4, velocidad = 1.1 },
+	Sistema  = { voiceId = VOCES.SPANISH_FEMALE,          volumen = 0.4, velocidad = 1.1 },
 	Narrador = { voiceId = VOCES.SPANISH_MALE,    volumen = 0.7, velocidad = 0.9 },
 	Maria    = { voiceId = VOCES.SPANISH_FEMALE,  volumen = 0.6, velocidad = 1.0 },
 	Default  = { voiceId = VOCES.SPANISH_MALE,    volumen = 0.5, velocidad = 1.0 },

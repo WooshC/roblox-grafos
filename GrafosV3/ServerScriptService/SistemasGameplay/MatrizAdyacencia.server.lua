@@ -17,6 +17,7 @@ local Workspace         = game:GetService("Workspace")
 
 local LevelsConfig  = require(ReplicatedStorage:WaitForChild("Config"):WaitForChild("LevelsConfig"))
 local GrafoHelpers  = require(ReplicatedStorage:WaitForChild("Compartido"):WaitForChild("GrafoHelpers"))
+local ValidadorConexiones = require(script.Parent:WaitForChild("ValidadorConexiones"))
 
 local Remotos = ReplicatedStorage
 	:WaitForChild("EventosGrafosV3", 10)
@@ -96,21 +97,14 @@ getMatrixFunc.OnServerInvoke = function(player, zonaID)
 
 	-- 4. Leer conexiones activas del nivel (estado real del jugador)
 	local conexiones = recolectarConexiones(nivelActual)
-	
-	-- 4.5 Detectar defectuosos
-	local cablesDefectuosos = {}
-	if config.CablesDefectuosos then
-		for _, par in ipairs(config.CablesDefectuosos) do
-			cablesDefectuosos[par[1] .. "|" .. par[2]] = true
-			cablesDefectuosos[par[2] .. "|" .. par[1]] = true
-		end
-	end
 
 	-- 5. Llenar la matriz según adyacencias + Hitboxes activos.
 	--    Para cada arista A→B definida en LevelsConfig: si hay un Hitbox activo
 	--    (en cualquier orden de nombres) → matrix[A][B] = 1.
 	--    Dígrafo: NO se marca la celda simétrica.
 	--    No dirigido: se marca también matrix[B][A] (la simetría ya viene de la config).
+	--    Los cables defectuosos se consultan al ValidadorConexiones (estado dinámico),
+	--    no a LevelsConfig, para reflejar reemplazos del jugador.
 	for _, nomA in ipairs(nodos) do
 		local listaA = adyacencias[nomA] or {}
 		local idxA   = nameToIdx[nomA]
@@ -125,7 +119,7 @@ getMatrixFunc.OnServerInvoke = function(player, zonaID)
 			local conectado = conexiones[claveAB] or conexiones[claveBA]
 
 			if conectado then
-				local esDefectuoso = cablesDefectuosos[claveAB] or cablesDefectuosos[claveBA]
+				local esDefectuoso = ValidadorConexiones.esCableDefectuoso(nomA, nomB)
 				local val = esDefectuoso and 2 or 1
 				
 				matrix[idxA][idxB] = val

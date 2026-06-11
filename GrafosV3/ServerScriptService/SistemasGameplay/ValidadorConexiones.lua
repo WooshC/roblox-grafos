@@ -207,6 +207,18 @@ function ValidadorConexiones.estaConectado(nombreA, nombreB)
 end
 
 --[[
+	Verifica si un cable está marcado como defectuoso en el estado actual.
+	
+	@param nombreA string - Nombre del primer nodo
+	@param nombreB string - Nombre del segundo nodo
+	@return boolean - true si el cable es defectuoso
+]]
+function ValidadorConexiones.esCableDefectuoso(nombreA, nombreB)
+	local clave = generarClave(nombreA, nombreB)
+	return cablesDefectuososClaves[clave] == true
+end
+
+--[[
 	Obtiene todas las conexiones de un nodo.
 	
 	@param nombreNodo string - Nombre del nodo
@@ -383,13 +395,15 @@ function ValidadorConexiones.generarMatrizAdyacencia(nombresNodos)
 		nombreAIndice[nombresNodos[i]] = i
 	end
 	
-	-- Marcar conexiones
+	-- Marcar conexiones (omitir cables defectuosos)
 	for clave, data in pairs(conexiones) do
-		local idxA = nombreAIndice[data.nodoA.Name]
-		local idxB = nombreAIndice[data.nodoB.Name]
-		if idxA and idxB then
-			matriz[idxA][idxB] = 1
-			matriz[idxB][idxA] = 1 -- No dirigida
+		if not cablesDefectuososClaves[clave] then
+			local idxA = nombreAIndice[data.nodoA.Name]
+			local idxB = nombreAIndice[data.nodoB.Name]
+			if idxA and idxB then
+				matriz[idxA][idxB] = 1
+				matriz[idxB][idxA] = 1 -- No dirigida
+			end
 		end
 	end
 	
