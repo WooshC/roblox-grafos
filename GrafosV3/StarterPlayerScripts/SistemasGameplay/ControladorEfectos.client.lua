@@ -44,19 +44,36 @@ local Eventos = Replicado:WaitForChild("EventosGrafosV3")
 local Remotos = Eventos:WaitForChild("Remotos")
 local nivelListoEv = Remotos:WaitForChild("NivelListo")
 
+local function activarTodosNodosDaniadosDelNivel(nivelID)
+	local cfg = LevelsConfig[nivelID]
+	if not cfg or not cfg.Zonas then return end
+	for nombreZona, zonaCfg in pairs(cfg.Zonas) do
+		if zonaCfg.NodosDaniados then
+			for _, nombreNodo in ipairs(zonaCfg.NodosDaniados) do
+				if not _nodosReparadosLocal[nombreNodo] then
+					EfectosDano.activar(nombreNodo)
+				end
+			end
+		end
+	end
+end
+
 nivelListoEv.OnClientEvent:Connect(function(data)
 	if data and data.nivelID ~= nil then
 		_nivelActualID = data.nivelID
 		local cfg = LevelsConfig[data.nivelID]
 		_nombresNodos = (cfg and cfg.NombresNodos) or {}
 		print("[ControladorEfectos] Nombres cargados para nivel", data.nivelID)
+		-- Activar efectos de daño de TODAS las zonas con nodos dañados
+		activarTodosNodosDaniadosDelNivel(data.nivelID)
 	end
 end)
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- EFECTOS DE DAÑO POR ZONA
--- Se activan al entrar a una zona con NodosDaniados en su config.
--- Se desactivan cuando la emergencia de esa zona se completa.
+-- Se activan al cargar el nivel para TODAS las zonas con nodos dañados.
+-- Se mantienen activos al cambiar de zona (no se limpian al salir).
+-- Se desactivan solo cuando el nodo es reparado manualmente o la emergencia termina.
 -- ═══════════════════════════════════════════════════════════════════════════════
 
 local jugador = Players.LocalPlayer
@@ -69,17 +86,10 @@ local function obtenerNodosDaniadosDeZona(nombreZona)
 	return zonaCfg and zonaCfg.NodosDaniados or nil
 end
 
-local function manejarCambioZona()
-	local zonaActual = jugador:GetAttribute("ZonaActual") or ""
-	
-	-- Limpiar efectos de zonas anteriores
-	EfectosDano.limpiarTodo()
-	
-	if zonaActual == "" then return end
-	
-	local nodosDaniados = obtenerNodosDaniadosDeZona(zonaActual)
+local function activarNodosDaniadosDeZona(nombreZona)
+	local nodosDaniados = obtenerNodosDaniadosDeZona(nombreZona)
 	if nodosDaniados then
-		print(string.format("[ControladorEfectos] 🚨 Zona '%s' tiene nodos dañados:", zonaActual), table.concat(nodosDaniados, ", "))
+		print(string.format("[ControladorEfectos] 🚨 Zona '%s' tiene nodos dañados:", nombreZona), table.concat(nodosDaniados, ", "))
 		for _, nombreNodo in ipairs(nodosDaniados) do
 			-- TG 07: no reactivar efectos en nodos ya reparados manualmente
 			if not _nodosReparadosLocal[nombreNodo] then
@@ -87,6 +97,16 @@ local function manejarCambioZona()
 			end
 		end
 	end
+end
+
+local function manejarCambioZona()
+	local zonaActual = jugador:GetAttribute("ZonaActual") or ""
+
+	-- TG 07: NO limpiar efectos de daño al cambiar de zona.
+	-- Los nodos dañados deben seguir visiblemente dañados hasta ser reparados.
+	if zonaActual == "" then return end
+
+	activarNodosDaniadosDeZona(zonaActual)
 end
 
 jugador:GetAttributeChangedSignal("ZonaActual"):Connect(manejarCambioZona)

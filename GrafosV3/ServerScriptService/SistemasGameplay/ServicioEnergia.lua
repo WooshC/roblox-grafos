@@ -16,9 +16,8 @@ local _generadores = {}
 local _adyacencias = {}
 local _zonas = {}
 local _eventoProgresoEnergia = nil
-local _eventoLamparaEmergencia = nil
 local _conexionEstado = nil
-local _consultarEmergencia = nil  -- callback(zonaID) -> boolean
+local _hiloEvaluacion = nil
 
 -- ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -82,7 +81,6 @@ local function calcularRedEnergizada()
 
 	local count = 0
 	for _ in pairs(energizados) do count = count + 1 end
-	-- print(string.format("[ServicioEnergia] BFS energía: %d nodos energizados", count))
 	return energizados
 end
 
@@ -99,9 +97,6 @@ local function evaluarPropagacion()
 
 	local redEnergizada = calcularRedEnergizada()
 
-	local countZonas = 0
-	for _ in pairs(_zonas) do countZonas = countZonas + 1 end
-	-- print(string.format("[ServicioEnergia] Evaluando %d zonas...", countZonas))
 	for zonaID, nodosEnZona in pairs(_zonas) do
 		local energizadosCount = 0
 		local totalCount = 0
@@ -122,18 +117,6 @@ local function evaluarPropagacion()
 
 		-- print(string.format("[ServicioEnergia] → Zona %s: %d/%d nodos energizados (%.0f%%)", zonaID, energizadosCount, totalCount, porcentaje * 100))
 		_eventoProgresoEnergia:FireAllClients(zonaID, porcentaje)
-
-		-- ── Lámpara de emergencia ──────────────────────────────────────────
-		if _eventoLamparaEmergencia and _consultarEmergencia then
-			local hayEmergencia = _consultarEmergencia(zonaID)
-			local intensidad = 0
-			if hayEmergencia then
-				-- Intensidad inversamente proporcional a la energía:
-				-- 0% energía → máxima intensidad | 100% energía → apagado
-				intensidad = math.clamp(1 - porcentaje, 0, 1)
-			end
-			_eventoLamparaEmergencia:FireAllClients(zonaID, intensidad, hayEmergencia)
-		end
 	end
 end
 
@@ -149,7 +132,6 @@ function ServicioEnergia.activar(config, nivelID, eventos)
 
 	if eventos then
 		_eventoProgresoEnergia = eventos:FindFirstChild("ProgresoEnergia")
-		_eventoLamparaEmergencia = eventos:FindFirstChild("EstadoLamparaEmergencia")
 	end
 
 	indexarNivel()
@@ -162,10 +144,12 @@ function ServicioEnergia.activar(config, nivelID, eventos)
 		end
 	end)
 
-	-- Forzar evaluación inicial (por si arranca con generadores ya puestos o zonas nulas)
+	-- Forzar evaluación inicial
 	task.delay(1, function()
 		if _activo then evaluarPropagacion() end
 	end)
+
+	-- (Loop periódico removido — solo evalúa al cambiar conexiones)
 
 	print(string.format("[ServicioEnergia] Activado — Nivel %s / Generadores: %d", tostring(nivelID), #(_config.Generadores or {})))
 end
@@ -178,25 +162,17 @@ function ServicioEnergia.desactivar()
 	_adyacencias = {}
 	_zonas = {}
 	_eventoProgresoEnergia = nil
-	_eventoLamparaEmergencia = nil
-	_consultarEmergencia = nil
 
 	if _conexionEstado then
 		_conexionEstado:Disconnect()
 		_conexionEstado = nil
 	end
+	if _hiloEvaluacion then
+		task.cancel(_hiloEvaluacion)
+		_hiloEvaluacion = nil
+	end
 	
 	print("[ServicioEnergia] Desactivado")
-end
-
----Establece el callback para consultar si hay emergencia pendiente en una zona.
--- @param callback function(zonaID) -> boolean
-function ServicioEnergia.establecerConsultaEmergencia(callback)
-	if type(callback) == "function" then
-		_consultarEmergencia = callback
-	else
-		warn("[ServicioEnergia] establecerConsultaEmergencia: se esperaba una función")
-	end
 end
 
 return ServicioEnergia

@@ -28,6 +28,7 @@ local _puntosAcum = 0
 local _eventoActualizarMisiones = nil
 local _eventoNivelCompletado    = nil
 local _estrellasLimitadasPorDialogos = false  -- true si se limitaron estrellas por diálogos incorrectos
+local _nodosReparados = {}  -- TG 07: { [nombreNodo] = true } nodos reparados manualmente
 
 -- ── Timer de emergencia (instancia delegada) ──────────────────────────────────
 local _timerEmergencia = nil
@@ -247,6 +248,19 @@ local function verificarYNotificar()
 
 		local ok = validador(m.Parametros or {})
 
+		-- TG 07: Emergencia además requiere que todos los nodos dañados de la zona estén reparados
+		if ok and m.Tipo == "EMERGENCIA" then
+			local zonaCfg = _config and _config.Zonas and _config.Zonas[m.Zona]
+			if zonaCfg and zonaCfg.NodosDaniados then
+				for _, nodo in ipairs(zonaCfg.NodosDaniados) do
+					if not _nodosReparados[nodo] then
+						ok = false
+						break
+					end
+				end
+			end
+		end
+
 		if ok and not _completadas[m.ID] then
 			_completadas[m.ID] = true
 			-- Solo marcar como permanente si NO es una misión de cableado ni de conectividad
@@ -380,6 +394,7 @@ function ServicioMisiones.activar(config, nivelID, jugador, eventos, servicioPun
 	_puntosAcum = 0
 	_estrellasLimitadasPorDialogos = false
 	_zonasVisitadas = {}
+	_nodosReparados = {}
 	if _timerEmergencia then _timerEmergencia:detener() end
 	_timerEmergencia = nil
 
@@ -472,6 +487,7 @@ function ServicioMisiones.desactivar()
 	_eventoNivelCompletado    = nil
 	_servicioDatos = nil
 	_config = nil
+	_nodosReparados = {}
 
 	-- Limpiar conexiones de diálogo y timer para evitar fugas entre niveles
 	if _dialogoIniciadoConn then _dialogoIniciadoConn:Disconnect(); _dialogoIniciadoConn = nil end
@@ -546,6 +562,15 @@ function ServicioMisiones.hayEmergenciaPendienteEnZona(zonaID)
 end
 
 ---Devuelve true si hay alguna misión de emergencia pendiente en cualquier zona.
+---Registra que un nodo dañado fue reparado manualmente.
+-- @param nombreNodo string
+function ServicioMisiones.alRepararNodo(nombreNodo)
+	if not nombreNodo then return end
+	_nodosReparados[nombreNodo] = true
+	-- Re-verificar misiones inmediatamente (puede desbloquear emergencia)
+	verificarYNotificar()
+end
+
 function ServicioMisiones.hayEmergenciaPendiente()
 	if not _activo then return false end
 	for _, m in ipairs(_misiones) do

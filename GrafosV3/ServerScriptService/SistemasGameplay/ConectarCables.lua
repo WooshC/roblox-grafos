@@ -185,13 +185,18 @@ local function obtenerNodosDaniadosDeZona(zona)
 	return zonaCfg and zonaCfg.NodosDaniados or nil
 end
 
+-- Devuelve true si el nodo está dañado en CUALQUIER zona del nivel,
+-- sin importar en qué zona se encuentre el jugador actualmente.
 local function esNodoDaniado(nombreNodo)
 	if _nodosReparados[nombreNodo] then return false end
-	local zona = _jugador and _jugador:GetAttribute("ZonaActual") or ""
-	local danados = obtenerNodosDaniadosDeZona(zona)
-	if not danados then return false end
-	for _, n in ipairs(danados) do
-		if n == nombreNodo then return true end
+	local config = _nivelID and LevelsConfig[_nivelID]
+	if not config or not config.Zonas then return false end
+	for _, zonaCfg in pairs(config.Zonas) do
+		if zonaCfg.NodosDaniados then
+			for _, n in ipairs(zonaCfg.NodosDaniados) do
+				if n == nombreNodo then return true end
+			end
+		end
 	end
 	return false
 end

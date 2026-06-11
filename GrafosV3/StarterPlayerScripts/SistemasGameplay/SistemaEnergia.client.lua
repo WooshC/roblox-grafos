@@ -12,6 +12,7 @@
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService      = game:GetService("TweenService")
+local RunService        = game:GetService("RunService")
 
 local LevelsConfig = require(ReplicatedStorage:WaitForChild("Config"):WaitForChild("LevelsConfig"))
 local jugador      = Players.LocalPlayer
@@ -60,6 +61,134 @@ end
 -- Estado: qué zonas están energizadas
 local _zonasEncendidas = {}
 local _conexionesZonas = {} -- Conexiones para DescendantAdded
+
+-- ════════════════════════════════════════════════════════════════════
+-- PARTES DE EMERGENCIA (sirena visual flotante)
+-- ════════════════════════════════════════════════════════════════════
+local _partsEmergencia = {}   -- [zonaID] = Part
+local _connsEmergencia = {}   -- [zonaID] = Heartbeat connection
+local _nivelIDActual = nil
+local COLOR_ROJO = Color3.fromRGB(255, 0, 20)
+local COLOR_AZUL = Color3.fromRGB(0, 60, 255)
+
+local function zonaTieneEmergencia(nivelID, zonaID)
+	local cfg = LevelsConfig[nivelID]
+	if not cfg or not cfg.Misiones then return false end
+	for _, m in ipairs(cfg.Misiones) do
+		if m.Zona == zonaID and m.Tipo == "EMERGENCIA" then
+			return true
+		end
+	end
+	return false
+end
+
+local function obtenerTriggerPart(nivelID, zonaID)
+	local cfg = LevelsConfig[nivelID]
+	if not cfg or not cfg.Zonas or not cfg.Zonas[zonaID] then return nil end
+	local triggerName = cfg.Zonas[zonaID].Trigger
+	if not triggerName then return nil end
+
+	local nivel = workspace:FindFirstChild("NivelActual")
+	if not nivel then return nil end
+
+	local trigger = nivel:FindFirstChild(triggerName, true)
+	if trigger and trigger:IsA("BasePart") then
+		return trigger
+	end
+	return nil
+end
+
+local function crearPartEmergencia(zonaID, triggerPart)
+	if _partsEmergencia[zonaID] then
+		local part = _partsEmergencia[zonaID]
+		part.Transparency = 0
+		return part
+	end
+
+	print(string.format("[SistemaEnergia] Creando Emergencia_Visual para %s en %.1f, %.1f, %.1f", zonaID, triggerPart.Position.X, triggerPart.Position.Y, triggerPart.Position.Z))
+
+	local part = Instance.new("Part")
+	part.Name = "Emergencia_Visual"
+	part.Size = Vector3.new(6, 6, 6)
+	part.Material = Enum.Material.Neon
+	part.Anchored = true
+	part.CanCollide = false
+	part.CastShadow = false
+	part.Color = COLOR_ROJO
+	part.Transparency = 0
+	part.Position = triggerPart.Position + Vector3.new(0, 50, 0)
+	part.Parent = workspace
+
+	local pointLight = Instance.new("PointLight")
+	pointLight.Name = "LuzEmergencia"
+	pointLight.Color = COLOR_ROJO
+	pointLight.Brightness = 8
+	pointLight.Range = 50
+	pointLight.Parent = part
+
+	_partsEmergencia[zonaID] = part
+	return part
+end
+
+local function detenerEmergencia(zonaID)
+	if _connsEmergencia[zonaID] then
+		_connsEmergencia[zonaID]:Disconnect()
+		_connsEmergencia[zonaID] = nil
+	end
+	local part = _partsEmergencia[zonaID]
+	if part then
+		part:Destroy()
+		_partsEmergencia[zonaID] = nil
+	end
+end
+
+local function iniciarEmergencia(zonaID)
+	local part = _partsEmergencia[zonaID]
+	if not part then return end
+
+	if _connsEmergencia[zonaID] then return end
+
+	local pointLight = part:FindFirstChild("LuzEmergencia")
+	local ciclo = 0
+	_connsEmergencia[zonaID] = RunService.Heartbeat:Connect(function(dt)
+		ciclo = ciclo + dt
+		local fase = math.floor(ciclo / 0.5) % 2
+		local color = (fase == 0) and COLOR_ROJO or COLOR_AZUL
+		part.Color = color
+		if pointLight then
+			pointLight.Color = color
+		end
+		local pulso = 0.8 + 0.2 * math.sin(ciclo * 8)
+		part.Transparency = 1 - (0.9 * pulso)
+	end)
+end
+
+local function actualizarEmergencia(zonaID, porcentaje)
+	-- print(string.format("[SistemaEnergia] actualizarEmergencia(%s, %.2f)", tostring(zonaID), porcentaje))
+
+	if porcentaje >= 1 then
+		detenerEmergencia(zonaID)
+		return
+	end
+
+	-- Solo crear en zonas con misión EMERGENCIA
+	if not zonaTieneEmergencia(_nivelIDActual, zonaID) then
+		print(string.format("[SistemaEnergia] Zona %s NO tiene misión EMERGENCIA", tostring(zonaID)))
+		return
+	end
+
+	local triggerPart = obtenerTriggerPart(_nivelIDActual, zonaID)
+	if not triggerPart then
+		warn("[SistemaEnergia] No se encontró trigger para zona: " .. tostring(zonaID))
+		return
+	end
+
+	local part = crearPartEmergencia(zonaID, triggerPart)
+	if part then
+		print(string.format("[SistemaEnergia] Emergencia activada en %s", zonaID))
+		iniciarEmergencia(zonaID)
+	end
+end
 
 -- ════════════════════════════════════════════════════════════════════
 -- HELPERS
@@ -211,27 +340,22 @@ local function actualizarProgresoZona(zonaID, porcentaje)
 	
 	local nombreCarpeta = _mapaZonas[zonaID]
 	if not nombreCarpeta then
-		warn(string.format("[SistemaEnergia] ⚠ zonaID '%s' no está en _mapaZonas. Zonas conocidas:", tostring(zonaID)))
-		for zid, carp in pairs(_mapaZonas) do
-			warn(string.format("  → %s → %s", zid, carp))
-		end
+		-- warn(string.format("[SistemaEnergia] ⚠ zonaID '%s' no está en _mapaZonas. Zonas conocidas:", tostring(zonaID)))
+		-- for zid, carp in pairs(_mapaZonas) do
+		-- 	warn(string.format("  → %s → %s", zid, carp))
+		-- end
 		return
 	end
 	local carpeta = obtenerCarpeta(nombreCarpeta)
 	if not carpeta then
-		warn(string.format("[SistemaEnergia] ⚠ Carpeta '%s' no encontrada en workspace para zona '%s'", nombreCarpeta, tostring(zonaID)))
-		return
-	end
-
-	local viejoPorcentaje = _zonasEncendidas[zonaID] or 0
-	if viejoPorcentaje == porcentaje then
-		-- print(string.format("[SistemaEnergia] ⚡ %s → %d%% (sin cambio, ignorado)", nombreCarpeta, math.floor(porcentaje * 100)))
+		-- warn(string.format("[SistemaEnergia] ⚠ Carpeta '%s' no encontrada en workspace para zona '%s'", nombreCarpeta, tostring(zonaID)))
 		return
 	end
 
 	_zonasEncendidas[zonaID] = porcentaje
 	-- print(string.format("[SistemaEnergia] ⚡ %s → %d%%", nombreCarpeta, math.floor(porcentaje * 100)))
 	ajustarNivelEnergia(carpeta, porcentaje)
+	actualizarEmergencia(zonaID, porcentaje)
 end
 
 -- ════════════════════════════════════════════════════════════════════
@@ -305,6 +429,7 @@ end
 -- Nivel listo → construir mapa y apagar
 conectar("NivelListo", function(info)
 	local nivelID = (info and info.nivelID) or nil
+	_nivelIDActual = nivelID
 	construirMapa(nivelID)
 	task.spawn(inicializarApagado)
 end)
@@ -314,6 +439,11 @@ conectar("NivelDescargado", function()
 	for _, conn in ipairs(_conexionesZonas) do
 		conn:Disconnect()
 	end
+	for _, conn in pairs(_connsEmergencia) do
+		conn:Disconnect()
+	end
+	_partsEmergencia   = {}
+	_connsEmergencia   = {}
 	_conexionesZonas   = {}
 	_mapaZonas         = {}
 	_zonasEncendidas   = {}
