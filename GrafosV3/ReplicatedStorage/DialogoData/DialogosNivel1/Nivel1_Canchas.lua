@@ -1,6 +1,6 @@
 -- ReplicatedStorage/DialogoData/DialogosNivel1/Nivel1_Canchas.lua
 -- Diálogo de la Zona 3 (Las Canchas) — Nivel 1: El Barrio Antiguo
--- Concepto BFS: Nodos y Subgrafos Aislados
+-- Concepto DFS: Pila LIFO, Retroceso y Componentes Aislados
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local EfectosDialogo = require(ReplicatedStorage:WaitForChild("Efectos"):WaitForChild("EfectosDialogo"))
@@ -18,12 +18,13 @@ local DIALOGOS = {
 		Zona  = "Zona_Canchas_3",
 		Nivel = 1,
 		Lineas = {
+			-- ── 1. INTRODUCCIÓN ─────────────────────────────────────────
 			{
 				Id        = "intro_canchas",
 				Numero    = 1,
 				Actor     = "Carlos",
 				Expresion = "Preocupado",
-				Texto     = "Las Canchas... El alcalde juró que incluso los vecindarios más alejados tenían luz. Pero mira: hay dos postes, y la Casa de las Canchas sigue completamente a oscuras. Ejecuta BFS desde el Poste de las Canchas y verás exactamente dónde se rompe la cadena.",
+				Texto     = "Las Canchas... El alcalde juró que incluso los vecindarios más alejados tenían luz. Pero la sobrecarga que originó en el Mercado viajó por los cables como una onda expansiva. Dos postes quedaron aislados y la Casa de las Canchas sigue completamente a oscuras. Ejecuta DFS desde el Poste de las Canchas y verás exactamente dónde se rompe la cadena.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					ServicioCamara.moverHaciaObjetivo("Poste_Canchas_z3", { altura = 32, angulo = 58, duracion = 1.5 })
@@ -32,26 +33,40 @@ local DIALOGOS = {
 					EfectosDialogo.resaltarNodo("Poste_Canchas_z3", "SELECCIONADO")
 					EfectosDialogo.mostrarLabel("Casa_Canchas_z3", "Sin luz", "ERROR")
 				end,
-				Siguiente = "pregunta_componente",
+				Siguiente = "por_que_dfs",
 			},
+
+			-- ── 2. ¿POR QUÉ DFS EN LAS CANCHAS? ─────────────────────────
 			{
-				Id        = "pregunta_componente",
+				Id        = "por_que_dfs",
 				Numero    = 2,
 				Actor     = "Carlos",
-				Expresion = "Serio",
-				Texto     = "BFS agotó su cola sin visitar todos los nodos. En teoría de grafos, ¿cómo se llama formalmente esta parte del barrio que quedó sin energía y sin conexión al resto?",
-				Opciones = {
-					{ Texto = "Un subgrafo dirigido.",         Siguiente = "resp_incorrecta" },
-					{ Texto = "Un componente conexo aislado.", Siguiente = "resp_correcta"   },
-					{ Texto = "Un nodo raíz externo.",         Siguiente = "resp_incorrecta" },
-				},
+				Expresion = "Pensativo",
+				Texto     = "DFS es ideal para este problema porque se adentra a fondo en cada rama antes de retroceder. Es como explorar un callejón hasta el final antes de darte cuenta de que no hay salida. Así descubrimos rápidamente si un camino llega a un callejón sin salida... o a una casa sin luz.",
+				Siguiente = "pregunta_pila",
 			},
+
+			-- ── 3. PREGUNTA: ESTRUCTURA DE DFS ──────────────────────────
 			{
-				Id        = "resp_correcta",
+				Id        = "pregunta_pila",
 				Numero    = 3,
 				Actor     = "Carlos",
+				Expresion = "Curioso",
+				Texto     = "Pregunta rápida: DFS usa una estructura llamada PILA. ¿Qué significa LIFO, la regla que gobierna una pila?",
+				Opciones = {
+					{ Texto = "Last In, First Out: el último en entrar es el primero en salir.", Siguiente = "resp_correcta" },
+					{ Texto = "Last In, First On: el último en entrar se queda al fondo.",       Siguiente = "resp_incorrecta" },
+					{ Texto = "Large Input, Fast Output: cuanto más grande, más rápido.",        Siguiente = "resp_incorrecta" },
+				},
+			},
+
+			-- ── 4a. RESPUESTA CORRECTA ──────────────────────────────────
+			{
+				Id        = "resp_correcta",
+				Numero    = 4,
+				Actor     = "Carlos",
 				Expresion = "Feliz",
-				Texto     = "¡Correcto! Un Componente Conexo es un subconjunto de nodos donde todos se pueden alcanzar entre sí, pero no tienen ninguna arista que los una al resto del grafo. ¡Eso es exactamente lo que el alcalde ocultó! Una manzana entera aislada.",
+				Texto     = "¡Exacto! LIFO = Last In, First Out. Cuando DFS apila los vecinos de un nodo, el último vecino añadido será el primero en procesarse. Por eso DFS se adentra tan profundo: siempre sigue el camino más reciente antes de volver atrás.",
 				Evento = function()
 					local jugador = game:GetService("Players").LocalPlayer
 					if jugador then
@@ -60,21 +75,43 @@ local DIALOGOS = {
 					end
 					notificarRespuestaCorrecta()
 				end,
-				Opciones = { { Texto = "Continuar", Siguiente = "instruccion" } },
+				Opciones = { { Texto = "Continuar", Siguiente = "componente_aislado" } },
 			},
+
+			-- ── 4b. RESPUESTA INCORRECTA ────────────────────────────────
 			{
 				Id        = "resp_incorrecta",
-				Numero    = 3,
+				Numero    = 4,
 				Actor     = "Carlos",
-				Expresion = "Triste",
-				Texto     = "No exactamente. Cuando un BFS se detiene con la cola vacía y aún quedan nodos sin visitar, esos nodos forman un Componente Conexo aislado: un 'islote' sin cables que lo unan al grafo principal. Es como una isla sin puentes.",
-				Opciones = { { Texto = "Entendido", Siguiente = "instruccion" } },
+				Expresion = "Serio",
+				Texto     = "No exactamente. LIFO significa Last In, First Out: el último elemento que entra a la pila es el primero que sale. Imagina una pila de platos: el último que pones arriba es el primero que quitas. DFS usa esa regla para siempre seguir el camino más reciente antes de retroceder.",
+				Opciones = { { Texto = "Entendido", Siguiente = "componente_aislado" } },
 			},
+
+			-- ── 5. COMPONENTE AISLADO ───────────────────────────────────
+			{
+				Id        = "componente_aislado",
+				Numero    = 5,
+				Actor     = "Carlos",
+				Expresion = "Serio",
+				Texto     = "Cuando DFS agota su pila sin visitar todos los nodos, significa que llegó al final de una rama y no encontró más conexiones. En teoría de grafos, esos nodos no visitados forman un Componente Conexo Aislado: un 'islote' sin puentes hacia el grafo principal.",
+				Evento = function()
+					EfectosDialogo.limpiarTodo()
+					EfectosDialogo.resaltarNodo("Poste_Canchas_z3", "SELECCIONADO")
+					EfectosDialogo.resaltarNodo("Poste2_Canchas_z3", "ADYACENTE")
+					EfectosDialogo.mostrarLabel("Poste_Canchas_z3", "DFS inicia aquí")
+					EfectosDialogo.mostrarLabel("Casa_Canchas_z3", "Componente aislado", "ERROR")
+				end,
+				Siguiente = "instruccion",
+			},
+
+			-- ── 6. INSTRUCCIÓN FINAL ────────────────────────────────────
 			{
 				Id        = "instruccion",
-				Numero    = 4,
+				Numero    = 6,
 				Actor     = "Sistema",
-				Texto     = "Conecta el Segundo Poste de las Canchas e ilumina la zona completa. Luego tiende el cable hacia el Parque para rescatar el componente aislado. Cada componente aislado que unes es una familia que recupera la luz.",
+				Expresion = "Normal",
+				Texto     = "Conecta el Segundo Poste de las Canchas e ilumina la zona completa. Luego tiende el cable hacia el Parque para rescatar el componente aislado. DFS ya te mostró dónde está el corte; ahora reparalo.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					ServicioCamara.restaurar(1.2)
@@ -82,6 +119,7 @@ local DIALOGOS = {
 				Siguiente = "FIN",
 			},
 		},
+
 		Metadata = { TiempoDeEspera = 0.5, VelocidadTypewriter = 0.03, PuedeOmitir = true, OcultarHUD = true, UsarTTS = true },
 		Configuracion = { bloquearMovimiento = true, bloquearSalto = true, apuntarCamara = true, ocultarTechos = true },
 	},

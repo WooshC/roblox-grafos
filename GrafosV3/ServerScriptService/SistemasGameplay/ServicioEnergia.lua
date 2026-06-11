@@ -16,7 +16,9 @@ local _generadores = {}
 local _adyacencias = {}
 local _zonas = {}
 local _eventoProgresoEnergia = nil
+local _eventoLamparaEmergencia = nil
 local _conexionEstado = nil
+local _consultarEmergencia = nil  -- callback(zonaID) -> boolean
 
 -- ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -120,6 +122,18 @@ local function evaluarPropagacion()
 
 		-- print(string.format("[ServicioEnergia] → Zona %s: %d/%d nodos energizados (%.0f%%)", zonaID, energizadosCount, totalCount, porcentaje * 100))
 		_eventoProgresoEnergia:FireAllClients(zonaID, porcentaje)
+
+		-- ── Lámpara de emergencia ──────────────────────────────────────────
+		if _eventoLamparaEmergencia and _consultarEmergencia then
+			local hayEmergencia = _consultarEmergencia(zonaID)
+			local intensidad = 0
+			if hayEmergencia then
+				-- Intensidad inversamente proporcional a la energía:
+				-- 0% energía → máxima intensidad | 100% energía → apagado
+				intensidad = math.clamp(1 - porcentaje, 0, 1)
+			end
+			_eventoLamparaEmergencia:FireAllClients(zonaID, intensidad, hayEmergencia)
+		end
 	end
 end
 
@@ -135,6 +149,7 @@ function ServicioEnergia.activar(config, nivelID, eventos)
 
 	if eventos then
 		_eventoProgresoEnergia = eventos:FindFirstChild("ProgresoEnergia")
+		_eventoLamparaEmergencia = eventos:FindFirstChild("EstadoLamparaEmergencia")
 	end
 
 	indexarNivel()
@@ -163,6 +178,8 @@ function ServicioEnergia.desactivar()
 	_adyacencias = {}
 	_zonas = {}
 	_eventoProgresoEnergia = nil
+	_eventoLamparaEmergencia = nil
+	_consultarEmergencia = nil
 
 	if _conexionEstado then
 		_conexionEstado:Disconnect()
@@ -170,6 +187,16 @@ function ServicioEnergia.desactivar()
 	end
 	
 	print("[ServicioEnergia] Desactivado")
+end
+
+---Establece el callback para consultar si hay emergencia pendiente en una zona.
+-- @param callback function(zonaID) -> boolean
+function ServicioEnergia.establecerConsultaEmergencia(callback)
+	if type(callback) == "function" then
+		_consultarEmergencia = callback
+	else
+		warn("[ServicioEnergia] establecerConsultaEmergencia: se esperaba una función")
+	end
 end
 
 return ServicioEnergia

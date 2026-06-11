@@ -108,12 +108,21 @@ local DIALOGOS = {
 				Actor     = "Sistema",
 				Expresion = "Normal",
 				Texto     = "Sigue la flecha amarilla que sale de tu personaje. Te indicará el camino hacia tu próximo objetivo.",
+				Siguiente = "hud_ayuda",
+			},
+			-- 8. Tutorial: Botón de Ayuda
+			{
+				Id        = "hud_ayuda",
+				Numero    = 8,
+				Actor     = "Sistema",
+				Expresion = "Normal",
+				Texto     = "Si necesitas recordar qué hace cada botón, presiona el botón de Ayuda. Siempre está disponible en la barra superior.",
 				Siguiente = "mostrar_carlos",
 			},
-			-- 8. Enfocar cámara en Carlos
+			-- 9. Enfocar cámara en Carlos
 			{
 				Id        = "mostrar_carlos",
-				Numero    = 8,
+				Numero    = 9,
 				Actor     = "Sistema",
 				Expresion = "Normal",
 				Texto     = "Carlos es tu instructor. Te espera cerca de la entrada.",
@@ -138,10 +147,10 @@ local DIALOGOS = {
 
 				Siguiente = "instruccion_final",
 			},
-			-- 9. Instrucción final + activar guía
+			-- 10. Instrucción final + activar guía
 			{
 				Id        = "instruccion_final",
-				Numero    = 9,
+				Numero    = 10,
 				Actor     = "Sistema",
 				Expresion = "Normal",
 				Texto     = "Ve a hablar con él para comenzar tu entrenamiento. ¡Suerte!",

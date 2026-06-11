@@ -144,7 +144,7 @@ LogrosConfig.LOGROS = {
 		icono = "❓",
 		categoria = "secreto",
 		secreto = true,
-		condicion = { tipo = "nivelCompletado", nivelID = 2 }, -- Placeholder para nivel futuro
+		condicion = { tipo = "nivelCompletado", nivelID = 2 }, 
 	},
 }
 

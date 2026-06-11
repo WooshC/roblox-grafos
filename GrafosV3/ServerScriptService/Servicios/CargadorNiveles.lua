@@ -275,6 +275,12 @@ function CargadorNiveles.cargar(nivelID, jugador)
 	local moduloEnergia = obtenerServicioEnergia()
 	if moduloEnergia then
 		moduloEnergia.activar(config, nivelID, Remotos)
+		-- Conectar consulta de emergencia desde ServicioMisiones
+		if moduloMisiones and moduloMisiones.hayEmergenciaPendienteEnZona then
+			moduloEnergia.establecerConsultaEmergencia(function(zonaID)
+				return moduloMisiones.hayEmergenciaPendienteEnZona(zonaID)
+			end)
+		end
 	end
 
 	-- 4. Configurar ValidadorConexiones (fuente de verdad — antes de ConectarCables)

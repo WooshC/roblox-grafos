@@ -532,4 +532,28 @@ function ServicioMisiones.estaActivo()
 	return _activo
 end
 
+---Devuelve true si hay una misión de emergencia PENDIENTE (no completada) en la zona dada.
+-- @param zonaID string
+-- @return boolean
+function ServicioMisiones.hayEmergenciaPendienteEnZona(zonaID)
+	if not _activo or not zonaID then return false end
+	for _, m in ipairs(_misiones) do
+		if m.Zona == zonaID and m.Tipo == "EMERGENCIA" and not _completadas[m.ID] then
+			return true
+		end
+	end
+	return false
+end
+
+---Devuelve true si hay alguna misión de emergencia pendiente en cualquier zona.
+function ServicioMisiones.hayEmergenciaPendiente()
+	if not _activo then return false end
+	for _, m in ipairs(_misiones) do
+		if m.Tipo == "EMERGENCIA" and not _completadas[m.ID] then
+			return true
+		end
+	end
+	return false
+end
+
 return ServicioMisiones

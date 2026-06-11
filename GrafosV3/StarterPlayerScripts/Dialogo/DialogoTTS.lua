@@ -16,6 +16,7 @@ local VOCES = {
 	-- Inglés
 	DAVID          = "0",
 	ENGLISH_FEMALE = "1",
+	HOST           = "11",   -- Host / Presentador
 	-- Español
 	SPANISH_MALE   = "101",
 	SPANISH_FEMALE = "102",
@@ -58,7 +59,8 @@ end
 -- ════════════════════════════════════════════════════════════════
 
 local CONFIG_PERSONAJES = {
-	Carlos   = { voiceId = VOCES.SPANISH_MALE,   volumen = 0.6, velocidad = 1.0 },
+	Carlos   = { voiceId = VOCES.SPANISH_MALE,   volumen = 0.6, velocidad = 1.0, pitch = 0 },
+	Alcalde  = { voiceId = VOCES.SPANISH_MALE,   volumen = 0.7, velocidad = 0.82, pitch = 1.5 }, -- Más pausado y tono más alto que Carlos
 	Sistema  = { voiceId = VOCES.DAVID,           volumen = 0.4, velocidad = 1.1 },
 	Narrador = { voiceId = VOCES.SPANISH_MALE,    volumen = 0.7, velocidad = 0.9 },
 	Maria    = { voiceId = VOCES.SPANISH_FEMALE,  volumen = 0.6, velocidad = 1.0 },
@@ -225,6 +227,7 @@ function DialogoTTS:Hablar(texto, personaje)
 	self.audioTTS.Text          = textoPreparado
 	self.audioTTS.VoiceId       = voiceId
 	self.audioTTS.PlaybackSpeed = config.velocidad
+	self.audioTTS.Pitch         = config.pitch or 0
 
 	local exito, err = pcall(function() self.audioTTS:Play() end)
 	if exito then

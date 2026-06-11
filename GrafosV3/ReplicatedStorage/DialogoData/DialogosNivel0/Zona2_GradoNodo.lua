@@ -248,19 +248,6 @@ local DIALOGOS = {
 				Expresion = "Normal",
 				Texto     = "Presiona el botón de la Matriz para abrirla. Verás una tabla con todos los nodos y sus conexiones.",
 
-				DestacarBoton = {
-					nombre         = "BtnMatriz",
-					escala         = 1.3,
-					duracion       = 0.4,
-					animacion      = "pulse",
-					flecha         = true,
-					punteroDesde   = "dialogo",
-					punteroEstilo  = "flecha",
-					textoAyuda     = "Click para abrir la matriz",
-					oscurecerFondo = true,
-					alTerminar     = "restaurar",
-				},
-
 				Evento = function()
 					local Players = game:GetService("Players")
 					local ModuloMatriz = nil

@@ -68,8 +68,6 @@ LevelsConfig[0] = {
 		["NodoD_z4"] = {"NodoB_z4", "NodoF_z4"},                              -- El Labrador
 		["NodoF_z4"] = {"NodoC_z4", "NodoD_z4"},                              -- Iñaquito
 
-		["PostePanel"]     = {"toma_corriente"},
-		["toma_corriente"] = {"PostePanel"},
 	},
 
 	Zonas = {
@@ -254,15 +252,18 @@ LevelsConfig[0] = {
 
 	Guia = {
 		{ ID="carlos",     Label="Hablar con Carlos",    WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="Objetivo_Carlos"         }, DestruirAlCompletar=false },
-		{ ID="estacion_1", Zona="Zona_Estacion_1", Label="Ve a la Estacion 1", WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Estacion1" }, DestruirAlCompletar=false },
-		{ ID="estacion_2", Zona="Zona_Estacion_2", Label="Ve a la Estacion 2", WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Estacion2" }, DestruirAlCompletar=false },
-		{ ID="estacion_3", Zona="Zona_Estacion_3", Label="Ve a la Estacion 3", WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Estacion3" }, DestruirAlCompletar=false },
-		{ ID="estacion_4", Zona="Zona_Estacion_4", Label="Ve a la Estacion 4", WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Estacion4" }, DestruirAlCompletar=false },
+		{ ID="estacion_1", Zona="Zona_Estacion_1", Label="Ve a la Zona 1: Nodos y Aristas", WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Estacion1" }, DestruirAlCompletar=false },
+		{ ID="estacion_2", Zona="Zona_Estacion_2", Label="Ve a Zona 2: Grado de un Nodo", WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Estacion2" }, DestruirAlCompletar=false },
+		{ ID="estacion_3", Zona="Zona_Estacion_3", Label="Ve a la Zona 3: Grafos Dirigidos", WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Estacion3" }, DestruirAlCompletar=false },
+		{ ID="estacion_4", Zona="Zona_Estacion_4", Label="Ve a la Zona 4: Conectividad", WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Estacion4" }, DestruirAlCompletar=false },
 	},
 
 	Bloqueos = {
-		Muro_Tutorial_z1 = { Dialogo = "Bienvenida_1" },
-	},
+		Puerta_Principal_z1 = { Dialogo = "Bienvenida_1" },
+		Muro_Simple_z2      = { Zona = "Zona_Estacion_1" },
+		Muro_Simple_z3	={ Zona = "Zona_Estacion_2" },
+		Muro_Simple_z4	={ Zona = "Zona_Estacion_3" },
+	}
 }
 
 
@@ -277,7 +278,7 @@ LevelsConfig[1] = {
 
 	Tag       = "NIVEL 1 · CONECTIVIDAD",
 	Seccion   = "Busqueda y Conectividad",
-	Algoritmo = "BFS",
+	Algoritmo = "BFS / DFS",
 	Conceptos = { "Onda por Capas", "Mínimo de Saltos", "Nodos Aislados", "Grafo Conexo (100%)" },
 	Generadores = { "Gen_Estacion_z1" },
 
@@ -309,7 +310,7 @@ LevelsConfig[1] = {
 
 	-- Requisito especial para 3 estrellas: responder todas las preguntas de diálogo correctamente
 	RequiereDialogosCorrectos = true,
-	TotalPreguntasDialogo = 5,  -- 1 (Estación) + 2 (Mercado) + 1 (Canchas) + 1 (Parque)
+	TotalPreguntasDialogo = 4,  -- 0 (Estación) + 2 (Mercado) + 1 (Canchas) + 1 (Parque)
 
 	Adyacencias = {
 		-- Zona 1: Estación Plana
@@ -348,7 +349,8 @@ LevelsConfig[1] = {
 			Trigger = "ZonaTrigger_Mercado", 
 			Descripcion = "Mercado Central", 
 			Dialogo = "Nivel1_Mercado",
-			CarpetaLuz = "Zona_luz_2"
+			CarpetaLuz = "Zona_luz_2",
+			NodosDaniados = {"Poste_Mercado_z2"}
 		},
 		["Zona_Canchas_3"] = { 
 			Trigger = "ZonaTrigger_Canchas", 
@@ -393,6 +395,7 @@ LevelsConfig[1] = {
 		{ ID=102,  Zona="Zona_Mercado_2", Texto="Tiende el cable desde el Parque al Poste del Mercado",   Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Parque_z1",        NodoB="Poste_Mercado_z2" } },
 		{ ID=1021, Zona="Zona_Mercado_2", Texto="Conecta también el Parque del Mercado",                  Tipo="ARISTA_CREADA", Puntos=100, Parametros={ NodoA="Parque_z2",        NodoB="Poste_Mercado_z2" } },
 		{ ID=1022, Zona="Zona_Mercado_2", Texto="Ilumina todo el Mercado",                                Tipo="GRAFO_CONEXO",  Puntos=200, Parametros={ Nodos={"Gen_Estacion_z1","Casa_Estacion1_z1","Parque_z1","Poste_Mercado_z2","Puesto_Mercado_z2","Parque_z2"} } },
+		{ ID=1023, Zona="Zona_Mercado_2", Texto="¡Emergencia eléctrica! Repara el poste dañado y reconecta el Mercado antes de que el tiempo se agote.", Tipo="EMERGENCIA", Puntos=400, Parametros={ Nodos={"Parque_z1","Poste_Mercado_z2","Puesto_Mercado_z2","Parque_z2"}, TiempoLimite=90 } },
 
 		-- ── Zona 3: Canchas ────────────────────────────────────────────────────
 		{ ID=103,  Zona="Zona_Canchas_3", Texto="Lleva energía al Poste de las Canchas",               Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Puesto_Mercado_z2", NodoB="Poste_Canchas_z3" } },
@@ -408,14 +411,21 @@ LevelsConfig[1] = {
 
 	AnalisisConfig = {
 		["Zona_Ferroviaria_1"] = {
-			algoritmos = { "bfs" },
+			algoritmos = { "dfs", "bfs" },
 			nodoInicio = "Gen_Estacion_z1",
 			conceptos = {
-				bfs = {
-					intro = "Abre el Panel de Análisis. Al ejecutar BFS paso a paso, verás cómo el algoritmo explora la red capa por capa, encolando todos los vecinos directos simultáneamente.",
+				dfs = {
+					intro = "Abre el Panel de Análisis y ejecuta DFS. Observa cómo la pila LIFO hace que el algoritmo se adentre lo más posible por cada rama antes de retroceder.",
 					pasos = {
-						[2]  = "El algoritmo encola el Generador y comienza a escanear sus vecinos directos en el Nivel 1.",
-						[13] = "Exploración terminada. El algoritmo ha recorrido todos los nodos alcanzables de esta zona.",
+						[2]  = "DFS apila el Generador y toma su primer vecino, adentrándose en la rama.",
+						[12] = "DFS ha agotado una rama y retrocede. La pila decide el siguiente camino a explorar.",
+					},
+				},
+				bfs = {
+					intro = "También puedes ejecutar BFS para comparar. Mientras DFS se adentra en profundidad, BFS expande en anillos desde el Generador.",
+					pasos = {
+						[2]  = "BFS encola el Generador y procesa todos sus vecinos directos simultáneamente.",
+						[13] = "BFS termina todas las capas. Compara con DFS: mismo resultado, orden diferente.",
 					},
 				},
 			},
@@ -434,14 +444,15 @@ LevelsConfig[1] = {
 			},
 		},
 		["Zona_Canchas_3"] = {
-			algoritmos = { "bfs" },
+			algoritmos = { "dfs" },
 			nodoInicio = "Poste_Canchas_z3",
 			conceptos = {
-				bfs = {
-					intro = "Aquí descubrirás gráficamente si el Alcalde mintió. Ejecuta el algoritmo y verás que la exploración se detiene al encontrar un vacío: un sector aislado.",
+				dfs = {
+					intro = "Ejecuta DFS desde el Poste de las Canchas. Verás cómo se adentra a fondo en cada rama antes de retroceder, descubriendo rápidamente dónde se corta la conexión.",
 					pasos = {
-						[2]  = "El algoritmo avanza por Las Canchas añadiendo vecinos a su Cola FIFO.",
-						[13] = "Algoritmo detenido con cola vacía. Hay casas sin visitar. ¡Acabamos de detectar un Componente Aislado por falta de cables!",
+						[2]  = "DFS apila el Poste de las Canchas y sigue su primer vecino hacia el fondo de la rama.",
+						[12] = "DFS ha llegado al final de una rama. La pila se vacía parcialmente: ¡detectamos un callejón sin salida!",
+						[13] = "DFS termina con nodos sin visitar. Esos nodos forman un Componente Conexo Aislado del grafo principal.",
 					},
 				},
 			},

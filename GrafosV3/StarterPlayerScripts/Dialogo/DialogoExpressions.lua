@@ -20,17 +20,9 @@ local ASSETS_PERSONAJES = {
 		Normal = "rbxassetid://129627081325324",  -- Default: Sonriente
 		Triste = "rbxassetid://102230620154281",   -- Default: Serio
 	},
-	
-	Maria = {
-		Sonriente = "rbxassetid://0",  -- Reemplazar con IDs reales
-		Serio = "rbxassetid://0",
-		Feliz = "rbxassetid://0",
-		Sorprendido = "rbxassetid://0",
-		Normal = "rbxassetid://0",
-	},
-	
+
 	Sistema = {
-		-- Iconos del sistema/tutorial
+		-- Iconos del sistema/tutoriala
 		Nodo = "rbxassetid://74761782067926",
 		Arista = "rbxassetid://134805102079212",
 		NodoPrincipal = "rbxassetid://75399428160533",
@@ -39,7 +31,22 @@ local ASSETS_PERSONAJES = {
 		Arista_conectada = "rbxassetid://140291147333433",
 		Normal = "rbxassetid://74761782067926",  -- Default: Nodo
 	},
-	
+
+	Alcalde = {
+		-- Expresiones disponibles (assets importados)
+		-- NOTA: Reemplazar los rbxassetid://0 con los IDs reales asignados por Roblox
+		-- tras importar las imágenes del Alcalde.
+		Furioso           = "rbxassetid://96025501243273",  -- Furioso.png
+		Sonriente  = "rbxassetid://77759263714014",  -- Sonriente_Alcade.png
+		Malevolo   = "rbxassetid://133110287938449",  -- Malevolo_Alcade.png
+		Codicioso= "rbxassetid://138582522569247",  -- Codicioso_Alcade.png
+		Enojado = "rbxassetid://93747053806224",  -- Enojado_Alcade.png
+		Disgustado= "rbxassetid://86239640126021",  -- Disgustado_Alcade.png
+		Presentacion= "rbxassetid://102820827241401", -- Presentacion_Alcade.png
+		-- Alias de compatibilidad / fallback
+		Normal            = "rbxassetid://102820827241401",  -- Default: Presentacion_Alcade
+	},
+
 	-- Personaje por defecto (fallback)
 	Default = {
 		Normal = "rbxassetid://0",
@@ -58,25 +65,25 @@ local ASSETS_PERSONAJES = {
 -- @return string - AssetId de la imagen
 function DialogoExpressions.GetExpression(nombrePersonaje, expresion)
 	local personaje = ASSETS_PERSONAJES[nombrePersonaje]
-	
+
 	-- Si el personaje no existe, usar default
 	if not personaje then
 		personaje = ASSETS_PERSONAJES.Default
 	end
-	
+
 	-- Buscar la expresión específica
 	local assetId = personaje[expresion]
-	
+
 	-- Si no existe la expresión, usar "Normal" o la primera disponible
 	if not assetId or assetId == "rbxassetid://0" then
 		assetId = personaje.Normal or personaje.Sonriente or personaje.Feliz
 	end
-	
+
 	-- Si sigue sin haber asset, retornar nil
 	if assetId == "rbxassetid://0" then
 		return nil
 	end
-	
+
 	return assetId
 end
 
@@ -120,7 +127,7 @@ function DialogoExpressions.GetDefaultExpression(nombrePersonaje)
 	if not personaje then
 		return ASSETS_PERSONAJES.Default.Normal
 	end
-	
+
 	return personaje.Normal or personaje.Sonriente or personaje.Feliz or "rbxassetid://0"
 end
 

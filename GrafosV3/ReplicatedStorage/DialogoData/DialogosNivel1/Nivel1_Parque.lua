@@ -23,7 +23,7 @@ local DIALOGOS = {
 				Numero    = 1,
 				Actor     = "Carlos",
 				Expresion = "Sonriente",
-				Texto     = "¡El Parque del Barrio! Un espacio con 4 postes de alumbrado, una Fuente Central y un Kiosco. Seis nodos en total. Es la última pieza del rompecabezas. Una vez que los conectes a la red, BFS los cubre todos en solo 2 capas.",
+				Texto     = "¡El Parque del Barrio! El Alcalde nunca llegó hasta aquí en sus 'inspecciones'. Dijo que el Parque estaba 'fuera del alcance prioritario'. Traducción: ni siquiera revisó si estos 6 nodos tenían conexión. Ahora tenemos 4 postes, una Fuente Central y un Kiosco a oscuras. Una vez que los conectes a la red, BFS los cubre todos en solo 2 capas.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					ServicioCamara.moverHaciaObjetivo("Fuente_z4", { altura = 42, angulo = 68, duracion = 1.8 })

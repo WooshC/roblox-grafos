@@ -31,12 +31,27 @@ local DIALOGOS = {
 					EfectosDialogo.resaltarNodo("Poste_Mercado_z2", "ADYACENTE")
 					EfectosDialogo.resaltarNodo("Puesto_Mercado_z2", "SELECCIONADO")
 				end,
+				Siguiente = "emergencia_bfs",
+			},
+			-- ── Emergencia en el Mercado + conexión con BFS ───────────────────
+			{
+				Id        = "emergencia_bfs",
+				Numero    = 2,
+				Actor     = "Carlos",
+				Expresion = "Preocupado",
+				Texto     = "¡Mira eso! El Poste del Mercado está chamuscado. La sobrecarga del Alcalde empezó aquí. Pero hay buenas noticias: BFS es la herramienta perfecta para una emergencia. Al explorar por capas, garantiza que no quede ningún rincón sin revisar. En una crisis eléctrica, eso significa que encontramos el camino más corto en saltos para reconectar cada nodo antes de que el daño se propague.",
+				Evento = function()
+					EfectosDialogo.resaltarNodo("Poste_Mercado_z2", "ERROR")
+					EfectosDialogo.mostrarLabel("Poste_Mercado_z2", "Daño por sobrecarga", "ERROR")
+					EfectosDialogo.resaltarNodo("Puesto_Mercado_z2", "ADYACENTE")
+					EfectosDialogo.resaltarNodo("Parque_z2", "ADYACENTE")
+				end,
 				Siguiente = "concepto_adyacencia",
 			},
 			-- ── Concepto: Adyacencia ──────────────────────────────────────────
 			{
 				Id        = "concepto_adyacencia",
-				Numero    = 2,
+				Numero    = 3,
 				Actor     = "Carlos",
 				Expresion = "Pensativo",
 				Texto     = "Dos nodos son ADYACENTES si existe una arista directa entre ellos. El Poste del Mercado es adyacente al Puesto porque los une el cable que ya está tendido. Pero recuerda: adyacente no significa 'cerca en el mapa', significa 'conectado directamente'.",
@@ -50,7 +65,7 @@ local DIALOGOS = {
 			-- ── Pregunta 1: Adyacencia ────────────────────────────────────────
 			{
 				Id        = "pregunta_adyacencia",
-				Numero    = 3,
+				Numero    = 4,
 				Actor     = "Carlos",
 				Expresion = "Curioso",
 				Texto     = "Escucha bien: si el nodo A está conectado a B, y B está conectado a C, pero A NO tiene cable directo con C… ¿qué relación tiene A con C?",
@@ -62,7 +77,7 @@ local DIALOGOS = {
 			},
 			{
 				Id        = "resp_adyacencia_bien",
-				Numero    = 4,
+				Numero    = 5,
 				Actor     = "Carlos",
 				Expresion = "Sonriente",
 				Texto     = "¡Correcto! La adyacencia requiere arista directa. Pero C sigue siendo alcanzable desde A pasando por B. BFS descubrirá C cuando procese los vecinos de B. Esa es la magia de explorar por capas.",
@@ -78,7 +93,7 @@ local DIALOGOS = {
 			},
 			{
 				Id        = "resp_adyacencia_mal",
-				Numero    = 4,
+				Numero    = 5,
 				Actor     = "Carlos",
 				Expresion = "Serio",
 				Texto     = "No exactamente. Adyacente significa arista DIRECTA. A-C no tienen cable, así que NO son adyacentes. Pero C sí es alcanzable desde A viajando por B. BFS lo encontrará en la siguiente capa de exploración.",
@@ -87,7 +102,7 @@ local DIALOGOS = {
 			-- ── Concepto: Cola FIFO de BFS ────────────────────────────────────
 			{
 				Id        = "concepto_bfs_cola",
-				Numero    = 5,
+				Numero    = 6,
 				Actor     = "Carlos",
 				Expresion = "Pensativo",
 				Texto     = "BFS usa una estructura llamada COLA. Es FIFO: el primero en entrar es el primero en salir. Los vecinos del nodo actual se colocan al final de la cola y se procesan en orden. Por eso nunca salta de nivel: primero termina toda una capa antes de pasar a la siguiente.",
@@ -105,7 +120,7 @@ local DIALOGOS = {
 			-- ── Pregunta 2: Cola FIFO ─────────────────────────────────────────
 			{
 				Id        = "pregunta_bfs_cola",
-				Numero    = 6,
+				Numero    = 7,
 				Actor     = "Carlos",
 				Expresion = "Curioso",
 				Texto     = "Si la cola de BFS tiene [B, C, D] y procesas B descubriendo E y F, ¿cuál es el nuevo estado de la cola?",
@@ -117,7 +132,7 @@ local DIALOGOS = {
 			},
 			{
 				Id        = "resp_cola_bien",
-				Numero    = 7,
+				Numero    = 8,
 				Actor     = "Carlos",
 				Expresion = "Extasiado",
 				Texto     = "¡Perfecto! B salió por el frente (fue procesado), y E y F se añaden al final. La cola queda [C, D, E, F]. Esto garantiza que BFS termine capa por capa, nunca salteando niveles. ¡Así se encuentra la ruta más corta en saltos!",
@@ -133,7 +148,7 @@ local DIALOGOS = {
 			},
 			{
 				Id        = "resp_cola_mal",
-				Numero    = 7,
+				Numero    = 8,
 				Actor     = "Carlos",
 				Expresion = "Triste",
 				Texto     = "Recuerda: FIFO. B sale del frente (ya fue procesado), y los nuevos nodos E y F se añaden al FINAL. C y D siguen esperando su turno. La cola correcta es [C, D, E, F]. Eso mantiene el orden de capas.",
@@ -142,7 +157,7 @@ local DIALOGOS = {
 			-- ── Instrucción final ─────────────────────────────────────────────
 			{
 				Id        = "instruccion",
-				Numero    = 8,
+				Numero    = 9,
 				Actor     = "Sistema",
 				Texto     = "Usa el Analizador BFS para ver la cola en acción. Conecta el Parque del Mercado y el Puesto antes de avanzar hacia las Canchas. Recuerda: cada arista nueva acerca la luz a más familias.",
 				Evento = function()
