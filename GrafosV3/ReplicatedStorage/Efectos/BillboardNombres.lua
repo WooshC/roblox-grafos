@@ -38,10 +38,10 @@ local PRESETS = {
 		conPadding          = true,
 		textoEscalado       = true,
 	},
-	-- Tag flotante sobre cables mostrando peso y costo en dólares
+	-- Tag flotante sobre cables mostrando el costo en dólares
 	CABLE_COSTO = {
-		tamano              = UDim2.new(0, 150, 0, 22),
-		offsetY             = 0.8,
+		tamano              = UDim2.new(0, 90, 0, 22),
+		offsetY             = 1.4,
 		maxDistance         = 80,
 		alwaysOnTop         = true,
 		conFondo            = true,
@@ -61,7 +61,7 @@ local PRESETS = {
 	-- de conectar ese nodo con el nodo activo (peso x CostoPorMetro).
 	NODO_COSTO_PREVIEW = {
 		tamano              = UDim2.new(0, 90, 0, 22),
-		offsetY             = 7.5,   -- por encima del nombre del nodo
+		offsetY             = 10,
 		offsetMundo         = true,
 		maxDistance         = 80,
 		alwaysOnTop         = true,

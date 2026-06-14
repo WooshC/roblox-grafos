@@ -32,6 +32,13 @@ local _nivelActualID = nil
 local _nodosDaniados = {}   -- { nombreNodo → config } desde LevelsConfig
 local _nodosReparadosLocal = {}  -- TG 07: { [nombreNodo] = true } nodos reparados manualmente
 local _tagsCable = {}       -- { clave → BillboardGui } tags de costo en cables
+local _tagsNodoCosto = {}   -- { clave → true } tags de costo previo sobre nodos adyacentes
+
+-- Forward declarations: se redefinen más abajo con la implementación real.
+-- Evitan errores si los handlers se ejecutan antes de que las funciones se carguen.
+local obtenerPesoArista = function() return nil end
+local crearTagCostoNodo = function() end
+local destruirTagsNodoCosto = function() end
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- LEVELS CONFIG (para nombres de nodos)
@@ -204,6 +211,7 @@ local function clearAll()
 
 	-- Destruir billboards gestionados por BillboardNombres
 	BillboardNombres.destruirPorPrefijo("CE_")
+	destruirTagsNodoCosto()
 
 	-- Restaurar partes modificadas
 	for _, state in ipairs(_savedStates) do
@@ -267,12 +275,17 @@ GestorEfectos.registrar("NodoSeleccionado", function(params)
 			end
 		end
 	end
-	EfectosNodo.establecerSeleccion(arg1 and arg1.Name or nil, adyNames)
+	local nomSeleccionado = (typeof(arg1) == "Instance" and arg1.Name) or (type(arg1) == "string" and arg1) or nil
+	EfectosNodo.establecerSeleccion(nomSeleccionado, adyNames)
 	if arg1 then highlightNode(arg1, COLOR_SELECCIONADO) end
 	if type(arg2) == "table" then
 		for _, adjModel in ipairs(arg2) do
 			if adjModel and adjModel ~= arg1 then
+				local nomAdj = (typeof(adjModel) == "Instance" and adjModel.Name) or (type(adjModel) == "string" and adjModel) or nil
 				highlightNode(adjModel, COLOR_ADYACENTE)
+				if nomSeleccionado and nomAdj then
+					crearTagCostoNodo(nomAdj, nomSeleccionado, nomAdj)
+				end
 			end
 		end
 	end
@@ -320,7 +333,10 @@ local function crearTagCosto(nomA, nomB, peso)
 	if not hitbox then return end
 
 	local claveTag = "COSTO_" .. nomA .. "|" .. nomB
-	BillboardNombres.crear(hitbox, formatearDinero(costoTotal), "CABLE_COSTO", claveTag)
+	local texto = string.format("Peso: %d | Costo: %s", peso, formatearDinero(costoTotal))
+	BillboardNombres.crear(hitbox, texto, "CABLE_COSTO", claveTag, {
+		tamano = UDim2.new(0, 220, 0, 22),
+	})
 	_tagsCable[claveTag] = true
 end
 
@@ -332,6 +348,47 @@ local function destruirTagCosto(nomA, nomB)
 	local claveTagInv = "COSTO_" .. nomB .. "|" .. nomA
 	BillboardNombres.destruir(claveTagInv)
 	_tagsCable[claveTagInv] = nil
+end
+
+-- Helper: obtener peso de arista desde LevelsConfig (no dirigida)
+obtenerPesoArista = function(nomA, nomB)
+	if not _nivelActualID then return nil end
+	local cfg = LevelsConfig[_nivelActualID]
+	if not cfg or not cfg.PesosAristas then return nil end
+	local clave1 = nomA .. "|" .. nomB
+	local clave2 = nomB .. "|" .. nomA
+	return cfg.PesosAristas[clave1] or cfg.PesosAristas[clave2]
+end
+
+-- Helper: crear tag de costo previo sobre un nodo adyacente
+crearTagCostoNodo = function(nomNodo, nomA, nomB)
+	if not nomNodo or not nomA or not nomB then return end
+	local peso = obtenerPesoArista(nomA, nomB)
+	if not peso or peso <= 0 then return end
+	if not _nivelActualID then return end
+	local cfg = LevelsConfig[_nivelActualID]
+	local costoPorMetro = (cfg and cfg.CostoPorMetro) or 0
+	if costoPorMetro <= 0 then return end
+
+	local costoTotal = math.floor(peso * costoPorMetro)
+	local nivel = Workspace:FindFirstChild("NivelActual")
+	if not nivel then return end
+	local nodo = nivel:FindFirstChild(nomNodo, true)
+	if not nodo then return end
+	local _, basePart = getSelector(nodo)
+	if not basePart then return end
+
+	local claveTag = "COSTO_NODO_" .. nomA .. "|" .. nomB
+	BillboardNombres.crear(basePart, formatearDinero(costoTotal), "NODO_COSTO_PREVIEW", claveTag)
+	_tagsNodoCosto[claveTag] = true
+end
+
+-- Implementaciones reales de las funciones declaradas arriba.
+destruirTagsNodoCosto = function()
+	for claveTag, _ in pairs(_tagsNodoCosto) do
+		BillboardNombres.destruir(claveTag)
+	end
+	_tagsNodoCosto = {}
 end
 
 -- Conexión completada: efecto VFX en cada Selector + tag de costo
@@ -506,5 +563,6 @@ if nivelDescargadoEv then
 			BillboardNombres.destruir(claveTag)
 		end
 		_tagsCable = {}
+		destruirTagsNodoCosto()
 	end)
 end

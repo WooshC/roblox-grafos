@@ -47,6 +47,38 @@ local function getConceptoPaso(lineaPseudo)
 	return cAlgo.pasos[lineaPseudo]
 end
 
+-- Busca el peso de una arista en PesosAristas (soporta ambos sentidos).
+local function obtenerPesoArista(pesosTabla, nomA, nomB)
+	if not pesosTabla then return nil end
+	local clave1 = nomA .. "|" .. nomB
+	local clave2 = nomB .. "|" .. nomA
+	return pesosTabla[clave1] or pesosTabla[clave2]
+end
+
+-- Formatea "Peso: X  ·  Costo: $Y" si hay costo por metro.
+local function formatearPesoCosto(nomA, nomB)
+	local pesosTabla = E.matrizData and E.matrizData.PesosAristas
+	local peso = obtenerPesoArista(pesosTabla, nomA, nomB)
+	if not peso then return nil end
+	local costoPorMetro = E.matrizData and E.matrizData.CostoPorMetro or 0
+	local costo = costoPorMetro > 0 and math.floor(peso * costoPorMetro) or nil
+	local texto = "Peso: " .. peso
+	if costo then
+		local num = tostring(costo)
+		local resultado = ""
+		local contador = 0
+		for i = #num, 1, -1 do
+			if contador > 0 and contador % 3 == 0 then
+				resultado = "," .. resultado
+			end
+			resultado = num:sub(i, i) .. resultado
+			contador = contador + 1
+		end
+		texto = texto .. "  ·  Costo: $" .. resultado
+	end
+	return texto
+end
+
 -- ════════════════════════════════════════════════════════════════
 -- PILLS
 -- ════════════════════════════════════════════════════════════════
@@ -364,6 +396,17 @@ function PanelEstadoAnalisis.actualizarScrollEstado(step)
 	local visitStr = #visitParts > 0 and table.concat(visitParts, " · ") or "—"
 	crearFilaKV("Visitados", visitStr, Color3.fromRGB(15, 50, 30), altFilaConten, true)
 
+	-- Fila arista nueva con peso/costo (solo Dijkstra / Prim)
+	local aristaNuevaH = 0
+	if (E.algoActual == "dijkstra" or E.algoActual == "prim") and step.aristaNueva then
+		local a, b = step.aristaNueva[1], step.aristaNueva[2]
+		local infoPeso = formatearPesoCosto(a, b)
+		if infoPeso then
+			aristaNuevaH = altFilaConten
+			crearFilaKV(getAlias(a) .. " → " .. getAlias(b), infoPeso, Color3.fromRGB(50, 30, 10), altFilaConten, true)
+		end
+	end
+
 	-- Bloque 💡 concepto pedagógico (si existe)
 	local conceptoTexto = getConceptoPaso(step.lineaPseudo)
 	local conceptoH     = 0
@@ -455,6 +498,7 @@ function PanelEstadoAnalisis.actualizarScrollEstado(step)
 	local alturaTotal =
 		(altSectionHeader + 2)                          -- header sección 1
 		+ (altFilaConten  + 2) * 2                      -- Cola/Pila + Visitados
+		+ (aristaNuevaH > 0 and (aristaNuevaH + 2) or 0) -- arista nueva con peso/costo
 		+ (conceptoH > 0 and (conceptoH + 2) or 0)     -- concepto opcional
 		+ 1 + 2                                         -- separador
 		+ (altSectionHeader + 2)                        -- header sección 2
@@ -473,8 +517,25 @@ function PanelEstadoAnalisis.aplicarPaso(step)
 	if not step then return end
 
 	-- 1. Colorear nodos en viewport
+	-- En Dijkstra, al final solo se resalta de blanco el camino mas corto
+	local caminoSet = {}
+	if E.algoActual == "dijkstra" and E.totalPasos > 0 and E.pasoActual >= E.totalPasos then
+		for _, arista in ipairs(step.aristasRecorridas or {}) do
+			caminoSet[arista[1]] = true
+			caminoSet[arista[2]] = true
+		end
+	end
+
+	local hayCamino = next(caminoSet) ~= nil
 	for nome, part in pairs(E.nodoParts) do
-		if nome == step.nodoActual then
+		if caminoSet[nome] then
+			part.Color    = Color3.new(1, 1, 1)
+			part.Material = Enum.Material.Neon
+		elseif hayCamino then
+			-- Fuera del camino minimo: volver al gris para que solo resalte la ruta blanca
+			part.Color    = C.COL_DEFAULT
+			part.Material = Enum.Material.SmoothPlastic
+		elseif nome == step.nodoActual then
 			part.Color    = C.COL_ACTUAL
 			part.Material = Enum.Material.Neon
 		elseif table.find(step.visitados, nome) then

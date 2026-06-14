@@ -348,12 +348,14 @@ function AlgoritmosGrafo.dfs(nodos, adyacencias, inicio)
 end
 
 -- ═══════════════════════════════════════════════════════════════════════════════
--- DIJKSTRA (pesos todos = 1)
+-- DIJKSTRA con pesos reales
+-- `pesos` es una función opcional pesos(u, v) → number. Si es nil, se asume 1.
 -- ═══════════════════════════════════════════════════════════════════════════════
 
-function AlgoritmosGrafo.dijkstra(nodos, adyacencias, inicio)
+function AlgoritmosGrafo.dijkstra(nodos, adyacencias, inicio, pesos, fin)
 	inicio = inicio or nodos[1]
 	if not inicio then return {} end
+	pesos = pesos or function(_u, _v) return 1 end
 
 	local INF = math.huge
 	local steps = {}
@@ -363,6 +365,20 @@ function AlgoritmosGrafo.dijkstra(nodos, adyacencias, inicio)
 	local extraidos  = {}
 	local extractOrder = {}  -- orden real de extracción (no alfabético)
 	local pred       = {}  -- pred[v] = u  ↔  arista u→v en el árbol de caminos mínimos
+
+	-- Reconstruye el camino mínimo final desde inicio hasta fin usando pred.
+	local function caminoAFin()
+		if not fin or fin == inicio then return {} end
+		local camino = {}
+		local actual = fin
+		while actual and actual ~= inicio do
+			local p = pred[actual]
+			if not p then return {} end
+			table.insert(camino, 1, { p, actual })
+			actual = p
+		end
+		return camino
+	end
 
 	for _, n in ipairs(nodos) do
 		dist[n] = INF
@@ -428,11 +444,12 @@ function AlgoritmosGrafo.dijkstra(nodos, adyacencias, inicio)
 
 		for _, v in ipairs(vecinos) do
 			if enPQ[v] then
-				local alt = dist[u] + 1
+				local w = pesos(u, v)
+				local alt = dist[u] + w
 				if alt < dist[v] then
 					dist[v] = alt
 					pred[v] = u
-					actualizados[#actualizados+1] = v .. "(dist=" .. alt .. ")"
+					actualizados[#actualizados+1] = v .. "(dist=" .. alt .. ", peso=" .. w .. ")"
 				end
 			end
 		end
@@ -455,7 +472,7 @@ function AlgoritmosGrafo.dijkstra(nodos, adyacencias, inicio)
 			lineaPseudo       = 7,
 			struct            = "Cola de prioridad",
 			structConten      = pqComoLista(),
-			aristasRecorridas = buildAristasRecorridas(nodos, pred),
+			aristasRecorridas = {},          -- solo se resalta al final, no paso a paso
 			aristaNueva       = aristaNueva,
 		}
 	end
@@ -465,11 +482,11 @@ function AlgoritmosGrafo.dijkstra(nodos, adyacencias, inicio)
 		visitados         = copiarTabla(extractOrder),       -- ← orden real de extracción
 		pendientes        = {},
 		distancias        = distParaUI(),
-		descripcion       = "PQ vacía — Dijkstra completado. Distancias mínimas calculadas.",
+		descripcion       = "PQ vacía — Dijkstra completado. Camino mínimo encontrado.",
 		lineaPseudo       = 13,
 		struct            = "Cola de prioridad",
 		structConten      = {},
-		aristasRecorridas = buildAristasRecorridas(nodos, pred),
+		aristasRecorridas = caminoAFin(),   -- camino mínimo final inicio → fin
 		aristaNueva       = nil,
 	}
 
@@ -477,12 +494,14 @@ function AlgoritmosGrafo.dijkstra(nodos, adyacencias, inicio)
 end
 
 -- ═══════════════════════════════════════════════════════════════════════════════
--- PRIM (MST, pesos todos = 1)
+-- PRIM con pesos reales (MST)
+-- `pesos` es una función opcional pesos(u, v) → number. Si es nil, se asume 1.
 -- ═══════════════════════════════════════════════════════════════════════════════
 
-function AlgoritmosGrafo.prim(nodos, adyacencias, raiz)
+function AlgoritmosGrafo.prim(nodos, adyacencias, raiz, pesos)
 	raiz = raiz or nodos[1]
 	if not raiz then return {} end
+	pesos = pesos or function(_u, _v) return 1 end
 
 	local INF = math.huge
 	local steps = {}
@@ -549,10 +568,13 @@ function AlgoritmosGrafo.prim(nodos, adyacencias, raiz)
 		local actualizados = {}
 
 		for _, v in ipairs(vecinos) do
-			if enPQ[v] and 1 < key[v] then
-				key[v]   = 1
-				padre[v] = u
-				actualizados[#actualizados+1] = v .. "(padre=" .. u .. ")"
+			if enPQ[v] then
+				local w = pesos(u, v)
+				if w < key[v] then
+					key[v]   = w
+					padre[v] = u
+					actualizados[#actualizados+1] = v .. "(key=" .. w .. ", padre=" .. u .. ")"
+				end
 			end
 		end
 

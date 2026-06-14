@@ -16,9 +16,11 @@
 --   limpiarParticulas() se reserva para el reset completo (cambio de algoritmo / cierre).
 
 local TweenService = game:GetService("TweenService")
+local RS           = game:GetService("ReplicatedStorage")
 
 local E = require(script.Parent.EstadoAnalisis)
 local C = require(script.Parent.ConstantesAnalisis)
+local GrafoHelpers = require(RS:WaitForChild("Compartido"):WaitForChild("GrafoHelpers"))
 
 local ViewportAnalisis = {}
 
@@ -313,13 +315,11 @@ function ViewportAnalisis.reconstruirAristas(step)
 			local esNueva     = (key == nuevaKey)
 			local esRecorrida = recorridasSet[key]
 			
-			local valMatrix = 0
-			local idxA = E.matrizData.Headers and table.find(E.matrizData.Headers, nomA)
-			local idxB = E.matrizData.Headers and table.find(E.matrizData.Headers, nomB)
-			if idxA and idxB and E.matrizData.Matrix[idxA] then
-				valMatrix = E.matrizData.Matrix[idxA][idxB] or 0
-			end
-			local esDefectuosa = (valMatrix == 2)
+			local keyDefectuosa = GrafoHelpers.clavePar(nomA, nomB)
+			local esDefectuosa = E.matrizData.Defectuosos
+				and E.matrizData.Defectuosos[keyDefectuosa] == true
+
+			local esDijkstra = E.algoActual == "dijkstra"
 
 			local color, alpha, mat
 			if esDefectuosa then
@@ -331,7 +331,8 @@ function ViewportAnalisis.reconstruirAristas(step)
 				alpha = 0
 				mat   = Enum.Material.Neon
 			elseif esRecorrida then
-				color = C.COL_ARISTA_VISIT
+				-- Dijkstra: camino minimo en blanco; Prim/MST: verde neon
+				color = esDijkstra and Color3.new(1, 1, 1) or C.COL_ARISTA_VISIT
 				alpha = 0
 				mat   = Enum.Material.Neon
 			else

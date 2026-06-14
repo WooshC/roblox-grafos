@@ -11,6 +11,7 @@ local PanelEstadoAnalisis  = require(script.PanelEstadoAnalisis)
 
 local AlgoritmosGrafo = require(script.Parent.AlgoritmosGrafo)
 local LevelsConfig    = require(RS:WaitForChild("Config"):WaitForChild("LevelsConfig"))
+local GrafoHelpers    = require(RS:WaitForChild("Compartido"):WaitForChild("GrafoHelpers"))
 
 local jugador = Players.LocalPlayer
 
@@ -49,8 +50,12 @@ local function buildAdyacencias(data, soloValidas)
 			for j = 1, n do
 				local val = fila[j] or 0
 				if val > 0 then
-					if soloValidas and val == 2 then
-						continue
+					if soloValidas then
+						local nomB = headers[j]
+						local clave = GrafoHelpers.clavePar(nomA, nomB)
+						if data.Defectuosos and data.Defectuosos[clave] then
+							continue
+						end
 					end
 					table.insert(adj[nomA], headers[j])
 				end
@@ -58,6 +63,14 @@ local function buildAdyacencias(data, soloValidas)
 		end
 	end
 	return adj
+end
+
+-- Busca el peso de una arista en PesosAristas (soporta ambos sentidos).
+local function obtenerPeso(pesosTabla, nomA, nomB)
+	if not pesosTabla then return 1 end
+	local clave1 = nomA .. "|" .. nomB
+	local clave2 = nomB .. "|" .. nomA
+	return pesosTabla[clave1] or pesosTabla[clave2] or 1
 end
 
 -- ════════════════════════════════════════════════════════════════
@@ -190,7 +203,18 @@ local function ejecutarAlgoritmo()
 		inicio = nodos[1]
 	end
 
-	E.pasos      = fn(nodos, E.adyacencias, inicio)
+	local pesosFn = nil
+	if E.algoActual == "dijkstra" or E.algoActual == "prim" then
+		pesosFn = function(a, b) return obtenerPeso(E.matrizData.PesosAristas, a, b) end
+	end
+
+	if E.algoActual == "dijkstra" then
+		E.pasos = fn(nodos, E.adyacencias, inicio, pesosFn, E.nodoFin)
+	elseif pesosFn then
+		E.pasos = fn(nodos, E.adyacencias, inicio, pesosFn)
+	else
+		E.pasos = fn(nodos, E.adyacencias, inicio)
+	end
 	E.totalPasos = #E.pasos
 	E.pasoActual = 1
 
