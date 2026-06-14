@@ -488,22 +488,24 @@ LevelsConfig[1] = {
 
 
 -- ============================================
--- NIVEL 2: LA FABRICA DE SENALES
 -- ============================================
--- Concepto: DFS (Búsqueda en Profundidad) + BFS comparativo.
--- El jugador explora una ciudad grande con calles ramificadas,
--- aprendiendo el uso de la Pila (Stack, LIFO) y el backtracking.
+-- NIVEL 2: LA RUTA MAS CORTA
+-- ============================================
+-- Concepto: Algoritmo de Dijkstra.
+-- El jugador aprende que una red puede tener muchos caminos entre dos nodos,
+-- pero solo uno tiene el menor costo acumulado. Cada arista tiene un peso
+-- (metros de cable) y un costo en dinero.
 -- ============================================
 LevelsConfig[2] = {
-	Nombre           = "La Gran Ciudad",
-	DescripcionCorta = "Explora las calles de la gran ciudad usando DFS. Aprende el backtracking y la diferencia entre BFS y DFS.",
+	Nombre           = "La Ruta Mas Corta",
+	DescripcionCorta = "La ciudad necesita la ruta de cable mas economica. Usa Dijkstra para encontrar el camino de menor costo acumulado.",
 	ImageId          = "rbxassetid://76889299321141",
 	Modelo           = "Nivel2",
 
-	Tag       = "NIVEL 2 · RECORRIDOS",
-	Seccion   = "Busqueda y Conectividad",
-	Algoritmo = "BFS · DFS",
-	Conceptos = { "DFS", "Pila", "Backtracking", "BFS vs DFS" },
+	Tag       = "NIVEL 2 · DIJKSTRA",
+	Seccion   = "Algoritmos de Ruta",
+	Algoritmo = "Dijkstra",
+	Conceptos = { "Dijkstra", "Peso de Arista", "Ruta Minima", "Costo Acumulado" },
 	Generadores = { "Gen_Fabrica_z1" },
 
 	Puntuacion = {
@@ -515,26 +517,18 @@ LevelsConfig[2] = {
 		PuntosPreguntaCorrecta = 100,
 	},
 
-	-- Presupuesto para reparar nodos dañados (en este nivel los cables son gratuitos)
+	-- Presupuesto para construir cables (cada arista consume peso x CostoPorMetro)
 	Presupuesto = {
-		Inicial = 5000,
-		AdvertenciaBajo = 1000,
+		Inicial = 20000,
+		AdvertenciaBajo = 3000,
 	},
 
-	-- Costo de reparación por nodo (en dólares). El generador cuesta más.
-	CostosReparacion = {
-		["Gen_Fabrica_z1"]   = 2500, -- Generador (más caro)
-		["Entrada_z1"]       = 1000, -- Nodo común
-		["Sala_Maquinas_z1"] = 1000, -- Nodo común
-		["Oficina_z3"]       = 500,  -- Nodo común
-	},
-
-	-- En nivel 2 los cables no tienen costo por metro
-	CostoPorMetro = 0,
+	-- Costo por metro de cable (en dolares). El peso de la arista = metros.
+	CostoPorMetro = 500,
 
 	-- Requisito especial para 3 estrellas: responder todas las preguntas correctamente
 	RequiereDialogosCorrectos = true,
-	TotalPreguntasDialogo = 4,  -- 1 (Ciudad Grande) + 1 (Barrio Oeste) + 1 (Oficina) + 1 (Comparativa)
+	TotalPreguntasDialogo = 3,
 
 	Adyacencias = {
 		-- Zona 1: La Ciudad Grande
@@ -543,17 +537,34 @@ LevelsConfig[2] = {
 		["Cruce_z1"]          = {"Gen_Fabrica_z1", "Tunel_Norte_z2", "Tunel_Sur_z2"},
 		["Sala_Maquinas_z1"]  = {"Entrada_z1"},
 
-		-- Zona 2: El Barrio Oeste (SIMPLIFICADO: 5 nodos propios)
+		-- Zona 2: El Barrio Oeste
 		["Tunel_Norte_z2"]    = {"Cruce_z1", "Cisterna_z2", "Almacen_z2"},
 		["Tunel_Sur_z2"]      = {"Cruce_z1", "Puente_z2"},
 		["Cisterna_z2"]       = {"Tunel_Norte_z2", "Puente_z2"},
 		["Almacen_z2"]        = {"Tunel_Norte_z2", "Oficina_z3"},
 		["Puente_z2"]         = {"Tunel_Sur_z2", "Cisterna_z2", "Oficina_z3"},
 
-		-- Zona 3: La Oficina de Análisis
+		-- Zona 3: La Oficina de Analisis
 		["Oficina_z3"]        = {"Almacen_z2", "Puente_z2", "Servidor_z3", "Antena_z3"},
 		["Servidor_z3"]       = {"Oficina_z3"},
 		["Antena_z3"]         = {"Oficina_z3"},
+	},
+
+	-- Pesos de cada arista (metros de cable). Clave canonica "NodoA|NodoB".
+	PesosAristas = {
+		["Gen_Fabrica_z1|Entrada_z1"]     = 2,
+		["Gen_Fabrica_z1|Cruce_z1"]       = 5,
+		["Entrada_z1|Sala_Maquinas_z1"]   = 3,
+		["Cruce_z1|Tunel_Norte_z2"]       = 2,
+		["Cruce_z1|Tunel_Sur_z2"]         = 6,
+		["Tunel_Norte_z2|Cisterna_z2"]    = 4,
+		["Tunel_Norte_z2|Almacen_z2"]     = 7,
+		["Tunel_Sur_z2|Puente_z2"]        = 2,
+		["Cisterna_z2|Puente_z2"]         = 1,
+		["Almacen_z2|Oficina_z3"]         = 3,
+		["Puente_z2|Oficina_z3"]          = 5,
+		["Oficina_z3|Servidor_z3"]        = 2,
+		["Oficina_z3|Antena_z3"]          = 4,
 	},
 
 	Zonas = {
@@ -562,7 +573,6 @@ LevelsConfig[2] = {
 			Descripcion = "La Ciudad Grande",
 			Dialogo = "Nivel2_CiudadGrande",
 			CarpetaLuz = "Zona_luz_1",
-			-- Nodos dañados en esta zona: efecto constante hasta completar la emergencia
 			NodosDaniados = { "Gen_Fabrica_z1", "Entrada_z1", "Sala_Maquinas_z1" },
 		},
 		["Zona_BarrioOeste_2"] = {
@@ -580,7 +590,7 @@ LevelsConfig[2] = {
 		},
 	},
 
-	-- Mapeo explícito de nodos por zona (permite Cruce_z1 en Zona 2 para análisis)
+	-- Mapeo explicito de nodos por zona
 	NodosZona = {
 		["Zona_Laberinto_1"]   = {"Gen_Fabrica_z1", "Entrada_z1", "Cruce_z1", "Sala_Maquinas_z1"},
 		["Zona_BarrioOeste_2"] = {"Cruce_z1", "Tunel_Norte_z2", "Tunel_Sur_z2", "Cisterna_z2", "Almacen_z2", "Puente_z2"},
@@ -605,94 +615,49 @@ LevelsConfig[2] = {
 
 	AnalisisConfig = {
 		["Zona_Laberinto_1"] = {
-			algoritmos = { "bfs", "dfs" },
+			algoritmos = { "dijkstra" },
 			nodoInicio = "Gen_Fabrica_z1",
-			nodoFin    = nil,
+			nodoFin    = "Sala_Maquinas_z1",
 			conceptos  = {
-				bfs = {
-					intro = "BFS explora la ciudad nivel por nivel usando una cola FIFO. Observa cómo visita todos los vecinos directos antes de profundizar.",
+				dijkstra = {
+					intro = "Dijkstra encuentra la ruta de MENOR COSTO acumulado desde el Generador hasta la Sala de Maquinas. No siempre es la ruta con menos saltos.",
 					pasos = {
-						[2]  = "El Generador se encola como nodo inicial.",
-						[7]  = "Procesamos el nodo frontal y encolamos sus vecinos.",
-						[9]  = "Cada vecino nuevo se añade al final de la cola.",
-						[13] = "BFS completó la exploración por niveles de la zona.",
-					},
-				},
-				dfs = {
-					intro = "DFS explora la ciudad en profundidad usando una pila LIFO. Observa cómo se adentra por una calle hasta el fondo antes de retroceder.",
-					pasos = {
-						[2]  = "El Generador se apila como nodo inicial.",
-						[7]  = "Desapilamos el tope y apilamos sus vecinos.",
-						[8]  = "DFS sigue el último vecino apilado: profundiza primero.",
-						[12] = "Pila vacía: DFS recorrió toda la zona en profundidad.",
+						[2]  = "Inicializamos: dist[Generador]=0, todos los demas nodos=∞.",
+						[7]  = "Extraemos el nodo no visitado con menor distancia acumulada.",
+						[9]  = "Relajacion: si llegar por aqui es mas barato, actualizamos la distancia del vecino.",
+						[13] = "Cola vacia — Dijkstra garantiza la ruta minima al destino.",
 					},
 				},
 			},
 		},
 		["Zona_BarrioOeste_2"] = {
-			algoritmos = { "bfs", "dfs" },
+			algoritmos = { "dijkstra" },
 			nodoInicio = "Cruce_z1",
 			nodoFin    = "Puente_z2",
 			conceptos  = {
-				bfs = {
-					intro = "BFS explora el Barrio Oeste nivel por nivel desde el Cruce Principal. Observa cómo ilumina primero todas las calles, luego la Cisterna, Almacén y Puente, y finalmente el Patio, Taller, Vestíbulo y Sótano antes de llegar al Depósito.",
+				dijkstra = {
+					intro = "Desde el Cruce hay dos caminos hacia el Puente. Dijkstra suma los metros de cada arista y elige el camino mas corto en costo total.",
 					pasos = {
-						[2]  = "Nivel 0: el Cruce inicia la cola.",
-						[7]  = "Nivel 1: Avenidas Norte y Sur descubiertas.",
-						[9]  = "Nivel 2: Cisterna, Almacén y Puente en cola.",
-						[13] = "¡Todos los nodos alcanzados en 2 niveles! BFS encuentra el camino más corto.",
-					},
-				},
-				dfs = {
-					intro = "DFS se adentra por una sola rama desde el Cruce hasta el fondo. Observa cómo DFS sigue el Túnel Norte → Cisterna → Puente, mientras ignora la rama Sur hasta que retrocede.",
-					pasos = {
-						[2]  = "Apilamos el Cruce. DFS elige la rama más profunda.",
-						[7]  = "Desapilamos y apilamos vecinos. El último en entrar es el primero en salir.",
-						[8]  = "DFS bucea por el Túnel Norte → Cisterna → Puente.",
-						[12] = "Backtracking: del Puente retrocede al Cruce para explorar la rama Sur.",
+						[2]  = "Cruce inicia con distancia 0. Sus vecinos reciben sus primeros costos.",
+						[7]  = "Procesamos el nodo con menor distancia provisional.",
+						[9]  = "Relajacion: encontramos una forma mas barata de llegar a un nodo.",
+						[13] = "Ruta minima confirmada. El costo acumulado no puede mejorarse.",
 					},
 				},
 			},
 		},
 		["Zona_Oficina_3"] = {
-			algoritmos = { "bfs", "dfs", "dijkstra", "prim" },
-			nodoInicio = "Gen_Fabrica_z1",
+			algoritmos = { "dijkstra" },
+			nodoInicio = "Oficina_z3",
 			nodoFin    = "Antena_z3",
 			conceptos  = {
-				bfs = {
-					intro = "BFS: camino más corto en saltos. Ideal para encontrar la ruta más rápida a la Antena.",
-					pasos = {
-						[2]  = "Generador como raíz. Cola inicializada.",
-						[7]  = "Exploración por niveles hacia la Oficina de Análisis.",
-						[9]  = "Nueva estación descubierta en cada nivel.",
-						[13] = "Antena alcanzada con el mínimo de saltos.",
-					},
-				},
-				dfs = {
-					intro = "DFS: exploración completa en profundidad. Ideal para verificar que no hay ciclos ocultos en la red.",
-					pasos = {
-						[2]  = "Apilamos el Generador. La pila guía la exploración.",
-						[7]  = "DFS adentra por cada túnel hasta el fondo.",
-						[8]  = "Si encuentra un ciclo (nodo ya en la pila), lo detecta.",
-						[12] = "DFS completó la verificación de toda la red.",
-					},
-				},
 				dijkstra = {
-					intro = "Dijkstra: aunque este grafo no tiene pesos, el algoritmo funciona igual. Cada arista tiene costo 1, así que equivale a BFS.",
+					intro = "Dijkstra garantiza el camino mas barato desde la Oficina hasta la Antena. Observa como suma los pesos de cada arista.",
 					pasos = {
-						[2]  = "Inicialización: dist[Generador]=0, resto=∞.",
-						[7]  = "Extraemos el nodo con menor distancia.",
-						[9]  = "Relajamos vecinos: actualizamos distancias.",
-						[13] = "Distancia mínima confirmada a todos los nodos.",
-					},
-				},
-				prim = {
-					intro = "Prim: construye el Árbol de Expansión Mínima. Conecta toda la ciudad con el mínimo de cableado posible.",
-					pasos = {
-						[2]  = "Raíz: Generador con key=0. Resto en ∞.",
-						[8]  = "El nodo con key mínima se integra al MST.",
-						[9]  = "Actualizamos keys de los vecinos no conectados.",
-						[13] = "MST completo: toda la ciudad conectada con 11 aristas.",
+						[2]  = "Oficina inicia con distancia 0. El resto empieza en infinito.",
+						[7]  = "Extraemos el nodo con menor distancia acumulada.",
+						[9]  = "Relajamos aristas: actualizamos si encontramos un camino mas barato.",
+						[13] = "Destino alcanzado con costo minimo garantizado.",
 					},
 				},
 			},
@@ -700,27 +665,27 @@ LevelsConfig[2] = {
 	},
 
 	Misiones = {
-		-- ── Zona 1: Ciudad Grande ─────────────────────────────────────────────────
-		{ ID=201, Zona="Zona_Laberinto_1", Texto="Selecciona el Generador Ciudad",                  Tipo="NODO_SELECCIONADO", Puntos=100, Parametros={ Nodo="Gen_Fabrica_z1" } },
-		{ ID=202, Zona="Zona_Laberinto_1", Texto="Conecta la Entrada al Generador",                    Tipo="ARISTA_CREADA",     Puntos=150, Parametros={ NodoA="Gen_Fabrica_z1", NodoB="Entrada_z1" } },
-		{ ID=203, Zona="Zona_Laberinto_1", Texto="Conecta el Cruce Principal al Generador",              Tipo="ARISTA_CREADA",     Puntos=150, Parametros={ NodoA="Gen_Fabrica_z1", NodoB="Cruce_z1" } },
-		{ ID=204, Zona="Zona_Laberinto_1", Texto="Conecta la Sala de Maquinas desde la Entrada",        Tipo="ARISTA_CREADA",     Puntos=150, Parametros={ NodoA="Entrada_z1",     NodoB="Sala_Maquinas_z1" } },
-		{ ID=205, Zona="Zona_Laberinto_1", Texto="Ilumina toda la zona de la Ciudad (4 nodos)",        Tipo="GRAFO_CONEXO",      Puntos=200, Parametros={ Nodos={"Gen_Fabrica_z1","Entrada_z1","Cruce_z1","Sala_Maquinas_z1"} } },
-		{ ID=299, Zona="Zona_Laberinto_1", Texto="¡EMERGENCIA! Restaura la red en 60 segundos",         Tipo="EMERGENCIA",        Puntos=500, Parametros={ Nodos={"Gen_Fabrica_z1","Entrada_z1","Cruce_z1","Sala_Maquinas_z1"}, TiempoLimite=60 } },
+		-- Zona 1: Ciudad Grande
+		{ ID=201, Zona="Zona_Laberinto_1", Texto="Selecciona el Generador Ciudad",                      Tipo="NODO_SELECCIONADO", Puntos=100, Parametros={ Nodo="Gen_Fabrica_z1" } },
+		{ ID=202, Zona="Zona_Laberinto_1", Texto="Conecta la Entrada al Generador (costo 2)",            Tipo="ARISTA_CREADA",     Puntos=150, Parametros={ NodoA="Gen_Fabrica_z1", NodoB="Entrada_z1" } },
+		{ ID=203, Zona="Zona_Laberinto_1", Texto="Conecta el Cruce al Generador (costo 5)",              Tipo="ARISTA_CREADA",     Puntos=150, Parametros={ NodoA="Gen_Fabrica_z1", NodoB="Cruce_z1" } },
+		{ ID=204, Zona="Zona_Laberinto_1", Texto="Conecta la Sala de Maquinas desde la Entrada (costo 3)", Tipo="ARISTA_CREADA",     Puntos=150, Parametros={ NodoA="Entrada_z1",     NodoB="Sala_Maquinas_z1" } },
+		{ ID=205, Zona="Zona_Laberinto_1", Texto="Ilumina toda la zona de la Ciudad (4 nodos)",          Tipo="GRAFO_CONEXO",      Puntos=200, Parametros={ Nodos={"Gen_Fabrica_z1","Entrada_z1","Cruce_z1","Sala_Maquinas_z1"} } },
+		{ ID=299, Zona="Zona_Laberinto_1", Texto="EMERGENCIA! Restaura la red en 60 segundos",           Tipo="EMERGENCIA",        Puntos=500, Parametros={ Nodos={"Gen_Fabrica_z1","Entrada_z1","Cruce_z1","Sala_Maquinas_z1"}, TiempoLimite=60 } },
 
-		-- ── Zona 2: Barrio Oeste (SIMPLIFICADO: 5 nodos propios) ─────────────
-		{ ID=206, Zona="Zona_BarrioOeste_2", Texto="Tiende cable al Tunnel Norte desde el Cruce",       Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Cruce_z1",       NodoB="Tunel_Norte_z2" } },
-		{ ID=207, Zona="Zona_BarrioOeste_2", Texto="Conecta el Tunnel Sur desde el Cruce",              Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Cruce_z1",       NodoB="Tunel_Sur_z2" } },
-		{ ID=208, Zona="Zona_BarrioOeste_2", Texto="Conecta la Cisterna al Tunnel Norte",               Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Tunel_Norte_z2", NodoB="Cisterna_z2" } },
-		{ ID=209, Zona="Zona_BarrioOeste_2", Texto="Conecta el Almacen al Tunnel Norte",                Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Tunel_Norte_z2", NodoB="Almacen_z2" } },
-		{ ID=210, Zona="Zona_BarrioOeste_2", Texto="Conecta el Puente al Tunnel Sur",                   Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Tunel_Sur_z2",   NodoB="Puente_z2" } },
-		{ ID=211, Zona="Zona_BarrioOeste_2", Texto="Ilumina todo el Barrio Oeste (6 nodos)",            Tipo="GRAFO_CONEXO",  Puntos=400, Parametros={ Nodos={"Cruce_z1","Tunel_Norte_z2","Tunel_Sur_z2","Cisterna_z2","Almacen_z2","Puente_z2"} } },
+		-- Zona 2: Barrio Oeste
+		{ ID=206, Zona="Zona_BarrioOeste_2", Texto="Tiende cable al Tunnel Norte desde el Cruce (costo 2)", Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Cruce_z1",       NodoB="Tunel_Norte_z2" } },
+		{ ID=207, Zona="Zona_BarrioOeste_2", Texto="Conecta el Tunnel Sur desde el Cruce (costo 6)",        Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Cruce_z1",       NodoB="Tunel_Sur_z2" } },
+		{ ID=208, Zona="Zona_BarrioOeste_2", Texto="Conecta la Cisterna al Tunnel Norte (costo 4)",         Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Tunel_Norte_z2", NodoB="Cisterna_z2" } },
+		{ ID=209, Zona="Zona_BarrioOeste_2", Texto="Conecta el Almacen al Tunnel Norte (costo 7)",          Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Tunel_Norte_z2", NodoB="Almacen_z2" } },
+		{ ID=210, Zona="Zona_BarrioOeste_2", Texto="Conecta el Puente al Tunnel Sur (costo 2)",             Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Tunel_Sur_z2",   NodoB="Puente_z2" } },
+		{ ID=211, Zona="Zona_BarrioOeste_2", Texto="Ilumina todo el Barrio Oeste (6 nodos)",                Tipo="GRAFO_CONEXO",  Puntos=400, Parametros={ Nodos={"Cruce_z1","Tunel_Norte_z2","Tunel_Sur_z2","Cisterna_z2","Almacen_z2","Puente_z2"} } },
 
-		-- ── Zona 3: Oficina de Analisis ───────────────────────────────────────
-		{ ID=212, Zona="Zona_Oficina_3", Texto="Conecta la Oficina desde el Almacen",                   Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Almacen_z2", NodoB="Oficina_z3" } },
-		{ ID=213, Zona="Zona_Oficina_3", Texto="Conecta el Servidor Central a la Oficina",              Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Oficina_z3", NodoB="Servidor_z3" } },
-		{ ID=214, Zona="Zona_Oficina_3", Texto="Conecta la Antena a la Oficina",                        Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Oficina_z3", NodoB="Antena_z3" } },
-		{ ID=215, Zona="Zona_Oficina_3", Texto="Ilumina toda la ciudad (12 nodos)",                    Tipo="GRAFO_CONEXO",  Puntos=600, Parametros={ Nodos={"Gen_Fabrica_z1","Entrada_z1","Cruce_z1","Sala_Maquinas_z1","Tunel_Norte_z2","Tunel_Sur_z2","Cisterna_z2","Almacen_z2","Puente_z2","Oficina_z3","Servidor_z3","Antena_z3"} } },
+		-- Zona 3: Oficina de Analisis
+		{ ID=212, Zona="Zona_Oficina_3", Texto="Conecta la Oficina desde el Almacen (costo 3)",         Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Almacen_z2", NodoB="Oficina_z3" } },
+		{ ID=213, Zona="Zona_Oficina_3", Texto="Conecta el Servidor Central a la Oficina (costo 2)",    Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Oficina_z3", NodoB="Servidor_z3" } },
+		{ ID=214, Zona="Zona_Oficina_3", Texto="Conecta la Antena a la Oficina (costo 4)",              Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Oficina_z3", NodoB="Antena_z3" } },
+		{ ID=215, Zona="Zona_Oficina_3", Texto="Ilumina toda la ciudad (12 nodos)",                     Tipo="GRAFO_CONEXO",  Puntos=600, Parametros={ Nodos={"Gen_Fabrica_z1","Entrada_z1","Cruce_z1","Sala_Maquinas_z1","Tunel_Norte_z2","Tunel_Sur_z2","Cisterna_z2","Almacen_z2","Puente_z2","Oficina_z3","Servidor_z3","Antena_z3"} } },
 	},
 
 	Guia = {
@@ -731,32 +696,32 @@ LevelsConfig[2] = {
 }
 
 -- ============================================
--- NIVEL 3: EL CAMINO MAS EFICIENTE
+-- NIVEL 3: EL ARBOL DE EXPANSION MINIMA
 -- ============================================
--- Concepto: Algoritmo de Dijkstra + Presupuesto limitado.
--- Cada arista tiene un peso (costo). El jugador debe conectar la red
--- respetando un presupuesto inicial. Dijkstra ayuda a encontrar las
--- rutas de menor costo acumulado desde el generador.
+-- Concepto: Algoritmo de Prim (MST).
+-- El presupuesto es limitado. El jugador debe conectar TODOS los nodos
+-- gastando la menor cantidad de cable posible. Prim elige siempre la arista
+-- de menor peso que conecte un nodo nuevo a la red ya construida.
 -- ============================================
 LevelsConfig[3] = {
-	Nombre           = "El Camino Mas Eficiente",
-	DescripcionCorta = "El alcalde exige reducir costos. Usa Dijkstra para encontrar las rutas de menor costo y administra el presupuesto del pueblo.",
+	Nombre           = "El Arbol de Expansion Minima",
+	DescripcionCorta = "El presupuesto es ajustado. Usa Prim para conectar toda la red con el minimo tendido de cable.",
 	ImageId          = "rbxassetid://1234567893",
 	Modelo           = "Nivel3",
 
-	Tag       = "NIVEL 3 · DIJKSTRA + PRESUPUESTO",
+	Tag       = "NIVEL 3 · PRIM + MST",
 	Seccion   = "Algoritmos de Ruta",
-	Algoritmo = "Dijkstra",
-	Conceptos = { "Camino Minimo", "Peso de Arista", "Relajacion", "Presupuesto" },
+	Algoritmo = "Prim",
+	Conceptos = { "Prim", "Arbol de Expansion Minima", "Peso", "Conectar todo al minimo costo" },
 	Generadores = { "Gen_Bodega_z1" },
 
-	-- Presupuesto del nivel (en dólares): cada arista consume su peso × CostoPorMetro
+	-- Presupuesto del nivel (en dolares): cada arista consume su peso x CostoPorMetro
 	Presupuesto = {
-		Inicial = 10000,
-		AdvertenciaBajo = 3000,  -- Umbral donde el HUD muestra advertencia
+		Inicial = 18000,
+		AdvertenciaBajo = 3000,
 	},
 
-	-- Costo por metro de cable (en dólares). El peso de la arista = metros.
+	-- Costo por metro de cable (en dolares). El peso de la arista = metros.
 	CostoPorMetro = 500,
 
 	Puntuacion = {
@@ -770,7 +735,7 @@ LevelsConfig[3] = {
 
 	-- Requisito especial para 3 estrellas: responder todas las preguntas correctamente
 	RequiereDialogosCorrectos = true,
-	TotalPreguntasDialogo = 3,  -- 1 (Presupuesto) + 1 (Rutas) + 1 (Control)
+	TotalPreguntasDialogo = 3,
 
 	Adyacencias = {
 		-- Zona 1: Oficina de Presupuesto
@@ -793,8 +758,6 @@ LevelsConfig[3] = {
 	},
 
 	-- Pesos de cada arista (costo en presupuesto).
-	-- Clave: "NodoA|NodoB" (pipe como separador canonico).
-	-- Solo es necesario definir una direccion; el sistema asume simetria.
 	PesosAristas = {
 		["Gen_Bodega_z1|Poste_Norte_z1"]   = 4,
 		["Gen_Bodega_z1|Poste_Sur_z1"]     = 7,
@@ -852,58 +815,49 @@ LevelsConfig[3] = {
 
 	AnalisisConfig = {
 		["Zona_Presupuesto_1"] = {
-			algoritmos = { "dijkstra" },
+			algoritmos = { "prim" },
 			nodoInicio = "Gen_Bodega_z1",
-			nodoFin    = "Poste_Sur_z1",
+			nodoFin    = nil,
 			conceptos  = {
-				dijkstra = {
-					intro = "Dijkstra garantiza la ruta de MENOR COSTO desde el Generador Bodega hasta cualquier nodo. Abre el Panel de Analisis y ejecuta paso a paso para ver la relajacion en accion.",
+				prim = {
+					intro = "Prim construye el Arbol de Expansion Minima (MST): conecta todos los nodos con el menor tendido de cable. Empieza desde el Generador Bodega.",
 					pasos = {
-						[2]  = "Inicializamos: dist[Bodega]=0, todos los demas nodos=∞.",
-						[7]  = "Extraemos el nodo no visitado con menor distancia acumulada.",
-						[9]  = "Relajacion: si llegar por aqui es mas barato, actualizamos la distancia del vecino.",
-						[13] = "Cola vacia — Dijkstra garantiza las rutas minimas a todos los nodos alcanzables.",
+						[2]  = "Raiz: Generador Bodega con key=0. El resto empieza en infinito.",
+						[8]  = "El nodo con key minima se integra al MST.",
+						[9]  = "Actualizamos keys de los vecinos no conectados.",
+						[13] = "MST completo — toda la red conectada con el minimo cable.",
 					},
 				},
 			},
 		},
 		["Zona_Rutas_2"] = {
-			algoritmos = { "dijkstra" },
+			algoritmos = { "prim" },
 			nodoInicio = "Gen_Bodega_z1",
-			nodoFin    = "Plaza_z2",
+			nodoFin    = nil,
 			conceptos  = {
-				dijkstra = {
-					intro = "Ejecuta Dijkstra desde la Bodega hacia la Plaza Central. Observa como el algoritmo descubre que el camino mas barato no siempre es el mas corto en saltos.",
+				prim = {
+					intro = "Ejecuta Prim desde la Bodega. Observa como el algoritmo siempre elige el cable mas barato que conecte un nuevo nodo a la red.",
 					pasos = {
-						[2]  = "Bodega inicia con distancia 0. Sus vecinos reciben sus primeros costos.",
-						[7]  = "Procesamos el nodo con menor distancia provisional.",
-						[9]  = "¡Relajacion! Encontramos un camino mas barato hacia la Plaza pasando por otro nodo.",
-						[13] = "Ruta minima confirmada. El costo acumulado no puede mejorarse.",
+						[2]  = "Bodega inicia con key=0. Sus vecinos reciben sus primeros pesos.",
+						[8]  = "El nodo con key minima se une al MST.",
+						[9]  = "Si este cable es mas barato para llegar a un nodo, actualizamos su key.",
+						[13] = "MST completo para toda la zona de rutas.",
 					},
 				},
 			},
 		},
 		["Zona_Control_3"] = {
-			algoritmos = { "dijkstra", "prim" },
+			algoritmos = { "prim" },
 			nodoInicio = "Gen_Bodega_z1",
-			nodoFin    = "Terminal_z3",
+			nodoFin    = nil,
 			conceptos  = {
-				dijkstra = {
-					intro = "Dijkstra busca el camino minimo desde un origen hacia un destino. Prim, en cambio, busca conectar TODOS los nodos con el menor costo total (MST).",
-					pasos = {
-						[2]  = "Dijkstra: raiz con distancia 0, el resto en infinito.",
-						[7]  = "Extraemos el nodo de menor distancia acumulada desde el origen.",
-						[9]  = "Relajamos aristas: actualizamos si encontramos un camino mas barato.",
-						[13] = "Destino alcanzado con costo minimo garantizado.",
-					},
-				},
 				prim = {
-					intro = "Prim construye el Arbol de Expansion Minima (MST): conecta todos los nodos gastando lo menos posible en cables. Ideal cuando el presupuesto es limitado.",
+					intro = "Prim conecta todos los nodos del pueblo con el minimo costo total. Ideal cuando el presupuesto es limitado.",
 					pasos = {
-						[2]  = "Raiz: Generador Bodega con key=0. El resto empieza en ∞.",
-						[8]  = "El nodo con key minima se integra al MST. Se actualizan sus vecinos.",
-						[9]  = "Si este cable es mas barato para llegar a un nodo, actualizamos su key.",
-						[13] = "MST completo — toda la red conectada con el tendido minimo de cables.",
+						[2]  = "Raiz: Generador Bodega con key=0. El resto en infinito.",
+						[8]  = "El nodo con key minima se integra al MST.",
+						[9]  = "Actualizamos keys de vecinos no conectados.",
+						[13] = "MST completo — toda la red conectada con el tendido minimo.",
 					},
 				},
 			},
@@ -911,18 +865,18 @@ LevelsConfig[3] = {
 	},
 
 	Misiones = {
-		-- ── Zona 1: Oficina de Presupuesto ────────────────────────────────────
+		-- Zona 1: Oficina de Presupuesto
 		{ ID=301, Zona="Zona_Presupuesto_1", Texto="Selecciona el Generador Bodega",                 Tipo="NODO_SELECCIONADO", Puntos=100, Parametros={ Nodo="Gen_Bodega_z1" } },
 		{ ID=302, Zona="Zona_Presupuesto_1", Texto="Conecta el Poste Norte al Generador (costo 4)",  Tipo="ARISTA_CREADA",     Puntos=150, Parametros={ NodoA="Gen_Bodega_z1", NodoB="Poste_Norte_z1" } },
 		{ ID=303, Zona="Zona_Presupuesto_1", Texto="Conecta el Poste Sur al Generador (costo 7)",    Tipo="ARISTA_CREADA",     Puntos=150, Parametros={ NodoA="Gen_Bodega_z1", NodoB="Poste_Sur_z1" } },
 
-		-- ── Zona 2: Rutas de Suministro ───────────────────────────────────────
+		-- Zona 2: Rutas de Suministro
 		{ ID=304, Zona="Zona_Rutas_2", Texto="Tiende cable hacia el Cruce Norte (costo 3)",          Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Poste_Norte_z1", NodoB="Cruce_Norte_z2" } },
 		{ ID=305, Zona="Zona_Rutas_2", Texto="Conecta el Mercado al Cruce Norte (costo 3)",          Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Cruce_Norte_z2", NodoB="Mercado_z2" } },
 		{ ID=306, Zona="Zona_Rutas_2", Texto="Conecta la Plaza al Mercado (costo 2)",                Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Mercado_z2",     NodoB="Plaza_z2" } },
 		{ ID=307, Zona="Zona_Rutas_2", Texto="Ilumina toda la zona de Rutas (5 nodos)",               Tipo="GRAFO_CONEXO",  Puntos=300, Parametros={ Nodos={"Cruce_Norte_z2","Cruce_Sur_z2","Mercado_z2","Taller_z2","Plaza_z2"} } },
 
-		-- ── Zona 3: Centro de Control ─────────────────────────────────────────
+		-- Zona 3: Centro de Control
 		{ ID=308, Zona="Zona_Control_3", Texto="Conecta Centro de Control desde Plaza (costo 5)",    Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Plaza_z2",         NodoB="Centro_Control_z3" } },
 		{ ID=309, Zona="Zona_Control_3", Texto="Conecta la Antena al Centro de Control (costo 3)",   Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Centro_Control_z3", NodoB="Antena_z3" } },
 		{ ID=310, Zona="Zona_Control_3", Texto="Conecta la Terminal desde la Antena (costo 2)",      Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Antena_z3",         NodoB="Terminal_z3" } },
@@ -931,31 +885,12 @@ LevelsConfig[3] = {
 	},
 
 	Guia = {
-		{ ID="carlos",         Label="Hablar con Carlos",        WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="Objetivo_Carlos"           }, DestruirAlCompletar=false },
 		{ ID="presupuesto_1",  Zona="Zona_Presupuesto_1", Label="Ve a la Oficina",      WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Presupuesto" }, DestruirAlCompletar=false },
 		{ ID="rutas_2",        Zona="Zona_Rutas_2",       Label="Ve a las Rutas",       WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Rutas"       }, DestruirAlCompletar=false },
 		{ ID="control_3",      Zona="Zona_Control_3",     Label="Ve al Centro Control", WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Control"     }, DestruirAlCompletar=false },
 	},
 }
 
--- ============================================
--- NIVEL 4: RUTA MINIMA
--- ============================================
-LevelsConfig[4] = {
-	Nombre           = "Ruta Minima",
-	DescripcionCorta = "Encuentra el camino de menor costo con el algoritmo de Dijkstra.",
-	ImageId          = "rbxassetid://1234567894",
-	Modelo           = "Nivel4",
-	Tag       = "NIVEL 4 · RUTAS OPTIMAS",
-	Seccion   = "Algoritmos de Ruta",
-	Algoritmo = "Dijkstra",
-	Conceptos = { "Dijkstra", "Peso", "Ruta minima", "Greedy" },
-	Puntuacion    = { TresEstrellas=8000, DosEstrellas=5000, RecompensaXP=500, PuntosConexion=50, PenaFallo=10 },
-	Adyacencias   = {},
-	Zonas         = {},
-	NombresNodos  = {},
-	AnalisisConfig = {},
-	Misiones      = {},
-}
+
 
 return LevelsConfig

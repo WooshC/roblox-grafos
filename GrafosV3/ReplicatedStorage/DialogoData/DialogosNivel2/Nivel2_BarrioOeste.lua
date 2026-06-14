@@ -1,13 +1,11 @@
 -- ReplicatedStorage/DialogoData/DialogosNivel2/Nivel2_BarrioOeste.lua
--- Diálogo de la Zona 2 (Barrio Oeste) — Nivel 2: La Gran Ciudad
--- Concepto: DFS paso a paso, Backtracking y comparación con BFS (Pila vs Cola).
+-- Diálogo de la Zona 2 (Barrio Oeste) — Nivel 2: La Ruta Más Corta
+-- Concepto: Dijkstra elige la ruta más barata, no la de menos saltos.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LevelsConfig   = require(ReplicatedStorage:WaitForChild("Config"):WaitForChild("LevelsConfig"))
 local EfectosDialogo = require(ReplicatedStorage:WaitForChild("Efectos"):WaitForChild("EfectosDialogo"))
 local ServicioCamara = require(ReplicatedStorage:WaitForChild("Compartido"):WaitForChild("ServicioCamara"))
-
--- Evento para notificar respuestas correctas al servidor
 local Utilidades = require(ReplicatedStorage:WaitForChild("Compartido"):WaitForChild("Utilidades"))
 
 local function notificarRespuestaCorrecta()
@@ -20,20 +18,23 @@ end
 
 local nombres = LevelsConfig[2].NombresNodos
 
-local aliasGen      = nombres["Gen_Fabrica_z1"]   or "Generador"
-local aliasEntrada  = nombres["Entrada_z1"]       or "Entrada"
 local aliasCruce    = nombres["Cruce_z1"]         or "Cruce"
-local aliasTunelN   = nombres["Tunel_Norte_z2"]   or "Túnel Norte"
-local aliasTunelS   = nombres["Tunel_Sur_z2"]     or "Túnel Sur"
-local aliasPuente   = nombres["Puente_z2"]        or "Puente"
+local aliasTunelN   = nombres["Tunel_Norte_z2"]   or "Avenida Norte"
+local aliasTunelS   = nombres["Tunel_Sur_z2"]     or "Avenida Sur"
 local aliasCisterna = nombres["Cisterna_z2"]      or "Cisterna"
 local aliasAlmacen  = nombres["Almacen_z2"]       or "Almacén"
+local aliasPuente   = nombres["Puente_z2"]        or "Puente"
+
+local COSTO_POR_METRO = LevelsConfig[2].CostoPorMetro or 500
+
+local function costo(peso)
+	return peso * COSTO_POR_METRO
+end
 
 local function enfocarNodo(nombreNodo, opciones)
 	ServicioCamara.moverHaciaObjetivo(nombreNodo, opciones or { altura = 26, angulo = 60, duracion = 1.2 })
 end
 
--- Calcula el centroide de varios nodos para enfocar un grupo
 local function enfocarGrupo(nombresNodos, opciones)
 	local nivel = workspace:FindFirstChild("NivelActual")
 	if not nivel then return end
@@ -90,7 +91,7 @@ local DIALOGOS = {
 				Numero    = 1,
 				Actor     = "Carlos",
 				Expresion = "Pensativo",
-				Texto     = "Llegamos al Barrio Oeste. Mira cómo la red se divide desde el Cruce Principal en dos direcciones. DFS va a elegir un camino y seguirlo hasta el fondo.",
+				Texto     = "Llegamos al Barrio Oeste. Desde el " .. aliasCruce .. " hay dos caminos hacia el " .. aliasPuente .. ". Uno parece directo, pero Dijkstra no se deja engañar por la apariencia: suma los metros y elige el más barato.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					enfocarNodo("Cruce_z1", { altura = 30, angulo = 62, duracion = 1.5 })
@@ -98,214 +99,123 @@ local DIALOGOS = {
 					EfectosDialogo.mostrarLabel("Cruce_z1", aliasCruce)
 					EfectosDialogo.resaltarNodo("Tunel_Norte_z2", "ADYACENTE")
 					EfectosDialogo.resaltarNodo("Tunel_Sur_z2", "ADYACENTE")
+					EfectosDialogo.resaltarNodo("Puente_z2", "ADYACENTE")
 				end,
-				Siguiente = "concepto_pila",
+				Siguiente = "ruta_norte",
 			},
 
-			-- ── 2. CONCEPTO: PILA LIFO ──────────────────────────────────
+			-- ── 2. RUTA NORTE ───────────────────────────────────────────
 			{
-				Id        = "concepto_pila",
+				Id        = "ruta_norte",
 				Numero    = 2,
 				Actor     = "Carlos",
-				Expresion = "Presentacion",
-				Texto     = "DFS usa una PILA. Recuerda: LIFO — Last In, First Out. El último en entrar es el primero en salir. Es como una pila de platos: apilas uno arriba del otro, y siempre sacas el de arriba primero.",
+				Expresion = "Serio",
+				Texto     = "Mira la ruta Norte: " .. aliasCruce .. " → " .. aliasTunelN .. " → " .. aliasCisterna .. " → " .. aliasPuente .. ". Tiene 3 saltos, pero sus pesos son 2 + 4 + 1 = 7 metros. Eso cuesta $" .. costo(7) .. ".",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
-					enfocarNodo("Gen_Fabrica_z1", { altura = 26, angulo = 58, duracion = 1.2 })
-					EfectosDialogo.resaltarNodo("Gen_Fabrica_z1", "SELECCIONADO")
-					EfectosDialogo.mostrarLabel("Gen_Fabrica_z1", "PILA: [ ]  (vacía)")
+					enfocarGrupo({"Cruce_z1", "Tunel_Norte_z2", "Cisterna_z2", "Puente_z2"}, { altura = 28, angulo = 60, duracion = 1.5 })
+					EfectosDialogo.resaltarNodo("Cruce_z1", "SELECCIONADO")
+					EfectosDialogo.resaltarNodo("Tunel_Norte_z2", "ADYACENTE")
+					EfectosDialogo.resaltarNodo("Cisterna_z2", "ADYACENTE")
+					EfectosDialogo.resaltarNodo("Puente_z2", "EXITO")
+					task.delay(0.3, function()
+						EfectosDialogo.mostrarArista("Cruce_z1", "Tunel_Norte_z2", "SELECCIONADO", { sinParticulas = true })
+						EfectosDialogo.mostrarArista("Tunel_Norte_z2", "Cisterna_z2", "SELECCIONADO", { sinParticulas = true })
+						EfectosDialogo.mostrarArista("Cisterna_z2", "Puente_z2", "SELECCIONADO", { sinParticulas = true })
+					end)
+					task.delay(0.6, function()
+						EfectosDialogo.mostrarLabel("Cruce_z1", "0 m")
+						EfectosDialogo.mostrarLabel("Tunel_Norte_z2", "2 m")
+						EfectosDialogo.mostrarLabel("Cisterna_z2", "6 m")
+						EfectosDialogo.mostrarLabel("Puente_z2", "7 m")
+					end)
 				end,
-				Siguiente = "dfs_paso1_generador",
+				Siguiente = "ruta_sur",
 			},
 
-			-- ── 3. PASO 1: APILAR GENERADOR ─────────────────────────────
+			-- ── 3. RUTA SUR ─────────────────────────────────────────────
 			{
-				Id        = "dfs_paso1_generador",
+				Id        = "ruta_sur",
 				Numero    = 3,
 				Actor     = "Carlos",
 				Expresion = "Serio",
-				Texto     = "Paso 1: Apilamos el nodo inicial, el " .. aliasGen .. ". Ahora la pila tiene un solo elemento. Él está en el tope, así que es el siguiente que procesaremos.",
+				Texto     = "Ahora la ruta Sur: " .. aliasCruce .. " → " .. aliasTunelS .. " → " .. aliasPuente .. ". Solo 2 saltos, pero pesa 6 + 2 = 8 metros, es decir, $" .. costo(8) .. ". ¡Más corta en saltos, más cara en dinero!",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
-					enfocarNodo("Gen_Fabrica_z1", { altura = 22, angulo = 65, duracion = 1.0 })
-					EfectosDialogo.resaltarNodo("Gen_Fabrica_z1", "SELECCIONADO")
-					EfectosDialogo.mostrarLabel("Gen_Fabrica_z1", "PILA: [Gen]  ← TOPE")
-					EfectosDialogo.blink("Gen_Fabrica_z1", "EXITO", 2)
-				end,
-				Siguiente = "dfs_paso2_desapila_gen",
-			},
-
-			-- ── 4. PASO 2: DESAPILAR GENERADOR, APILAR VECINOS ──────────
-			{
-				Id        = "dfs_paso2_desapila_gen",
-				Numero    = 4,
-				Actor     = "Carlos",
-				Expresion = "Serio",
-				Texto     = "Paso 2: Sacamos el " .. aliasGen .. " de la pila y lo marcamos visitado. Sus vecinos son " .. aliasEntrada .. " y " .. aliasCruce .. ". Los apilamos en orden. Como " .. aliasCruce .. " se apila después, queda arriba... ¡en el tope!",
-				Evento = function()
-					EfectosDialogo.limpiarTodo()
-					enfocarGrupo({"Gen_Fabrica_z1", "Entrada_z1", "Cruce_z1"}, { altura = 28, angulo = 60, duracion = 1.2 })
-					EfectosDialogo.resaltarNodo("Gen_Fabrica_z1", "EXITO")
-					EfectosDialogo.mostrarLabel("Gen_Fabrica_z1", aliasGen .. " ✓ visitado")
+					enfocarGrupo({"Cruce_z1", "Tunel_Sur_z2", "Puente_z2"}, { altura = 28, angulo = 60, duracion = 1.5 })
+					EfectosDialogo.resaltarNodo("Cruce_z1", "SELECCIONADO")
+					EfectosDialogo.resaltarNodo("Tunel_Sur_z2", "ADYACENTE")
+					EfectosDialogo.resaltarNodo("Puente_z2", "ERROR")
 					task.delay(0.3, function()
-						EfectosDialogo.mostrarArista("Gen_Fabrica_z1", "Entrada_z1", "SELECCIONADO", { sinParticulas = true })
-						EfectosDialogo.mostrarArista("Gen_Fabrica_z1", "Cruce_z1", "SELECCIONADO", { sinParticulas = true })
-					end)
-					task.delay(0.6, function()
-						EfectosDialogo.resaltarNodo("Entrada_z1", "ADYACENTE")
-						EfectosDialogo.resaltarNodo("Cruce_z1", "SELECCIONADO")
-						EfectosDialogo.mostrarLabel("Entrada_z1", "PILA: [Ent]  ← abajo")
-						EfectosDialogo.mostrarLabel("Cruce_z1",   "PILA: [Ent, Cruce]  ← TOPE")
-					end)
-				end,
-				Siguiente = "dfs_paso3_cruce",
-			},
-
-			-- ── 5. PASO 3: CRUCE ES EL TOPE ─────────────────────────────
-			{
-				Id        = "dfs_paso3_cruce",
-				Numero    = 5,
-				Actor     = "Carlos",
-				Expresion = "Serio",
-				Texto     = "Paso 3: El tope de la pila es " .. aliasCruce .. ", así que DFS lo saca y lo visita. Sus vecinos son " .. aliasTunelN .. " y " .. aliasTunelS .. ". Se apilan arriba. ¿Quién queda en el tope? El que se apiló último: " .. aliasTunelS .. ".",
-				Evento = function()
-					EfectosDialogo.limpiarTodo()
-					enfocarNodo("Cruce_z1", { altura = 24, angulo = 65, duracion = 1.0 })
-					EfectosDialogo.resaltarNodo("Cruce_z1", "EXITO")
-					EfectosDialogo.mostrarLabel("Cruce_z1", aliasCruce .. " ✓ visitado")
-					task.delay(0.3, function()
-						EfectosDialogo.mostrarArista("Cruce_z1", "Tunel_Norte_z2", "SELECCIONADO", { sinParticulas = true })
 						EfectosDialogo.mostrarArista("Cruce_z1", "Tunel_Sur_z2", "SELECCIONADO", { sinParticulas = true })
-					end)
-					task.delay(0.6, function()
-						EfectosDialogo.resaltarNodo("Tunel_Norte_z2", "ADYACENTE")
-						EfectosDialogo.resaltarNodo("Tunel_Sur_z2", "SELECCIONADO")
-						EfectosDialogo.mostrarLabel("Tunel_Norte_z2", "PILA: [Ent, T.Norte]  ← abajo")
-						EfectosDialogo.mostrarLabel("Tunel_Sur_z2",   "PILA: [Ent, T.Norte, T.Sur]  ← TOPE")
-					end)
-				end,
-				Siguiente = "dfs_paso4_tunel_sur",
-			},
-
-			-- ── 6. PASO 4: TÚNEL SUR ES EL TOPE ─────────────────────────
-			{
-				Id        = "dfs_paso4_tunel_sur",
-				Numero    = 6,
-				Actor     = "Carlos",
-				Expresion = "Serio",
-				Texto     = "Paso 4: DFS saca el tope: " .. aliasTunelS .. ". Lo visita y apila su vecino: " .. aliasPuente .. ". La pila ahora es: [Entrada, Túnel Norte, Puente]. Observa cómo DFS se adentra por la rama Sur sin mirar atrás.",
-				Evento = function()
-					EfectosDialogo.limpiarTodo()
-					enfocarNodo("Tunel_Sur_z2", { altura = 22, angulo = 65, duracion = 1.0 })
-					EfectosDialogo.resaltarNodo("Tunel_Sur_z2", "EXITO")
-					EfectosDialogo.mostrarLabel("Tunel_Sur_z2", aliasTunelS .. " ✓ visitado")
-					task.delay(0.3, function()
 						EfectosDialogo.mostrarArista("Tunel_Sur_z2", "Puente_z2", "SELECCIONADO", { sinParticulas = true })
 					end)
 					task.delay(0.6, function()
-						EfectosDialogo.resaltarNodo("Puente_z2", "SELECCIONADO")
-						EfectosDialogo.mostrarLabel("Puente_z2", "PILA: [Ent, T.Norte, Puente]  ← TOPE")
+						EfectosDialogo.mostrarLabel("Cruce_z1", "0 m")
+						EfectosDialogo.mostrarLabel("Tunel_Sur_z2", "6 m")
+						EfectosDialogo.mostrarLabel("Puente_z2", "8 m ✗")
 					end)
 				end,
-				Siguiente = "dfs_paso5_puente",
+				Siguiente = "comparacion",
 			},
 
-			-- ── 7. PASO 5: PUENTE ES EL TOPE ────────────────────────────
+			-- ── 4. COMPARACIÓN ──────────────────────────────────────────
 			{
-				Id        = "dfs_paso5_puente",
-				Numero    = 7,
+				Id        = "comparacion",
+				Numero    = 4,
 				Actor     = "Carlos",
-				Expresion = "Extasiado",
-				Texto     = "Paso 5: Sacamos el " .. aliasPuente .. ". Desde aquí, DFS ve dos vecinos: la " .. aliasCisterna .. " y el " .. aliasAlmacen .. ". Ambos se apilan. El tope ahora es el " .. aliasAlmacen .. ", porque se apiló después. ¡La pila decide el camino!",
+				Expresion = "Presentacion",
+				Texto     = "Dijkstra elegirá la ruta Norte porque 7 metros < 8 metros. Esto demuestra que Dijkstra no siempre elige el camino con menos saltos: elige el camino con menor costo acumulado. Esa es la diferencia clave con BFS.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
-					enfocarNodo("Puente_z2", { altura = 22, angulo = 65, duracion = 1.0 })
+					enfocarGrupo({"Cruce_z1", "Tunel_Norte_z2", "Cisterna_z2", "Tunel_Sur_z2", "Puente_z2"}, { altura = 32, angulo = 58, duracion = 1.5 })
+					EfectosDialogo.resaltarNodo("Cruce_z1", "SELECCIONADO")
+					EfectosDialogo.resaltarNodo("Tunel_Norte_z2", "ADYACENTE")
+					EfectosDialogo.resaltarNodo("Cisterna_z2", "ADYACENTE")
 					EfectosDialogo.resaltarNodo("Puente_z2", "EXITO")
-					EfectosDialogo.mostrarLabel("Puente_z2", aliasPuente .. " ✓ visitado")
-					task.delay(0.3, function()
-						EfectosDialogo.mostrarArista("Puente_z2", "Cisterna_z2", "SELECCIONADO", { sinParticulas = true })
-						EfectosDialogo.mostrarArista("Puente_z2", "Almacen_z2", "SELECCIONADO", { sinParticulas = true })
+					EfectosDialogo.resaltarNodo("Tunel_Sur_z2", "ERROR")
+					task.delay(0.4, function()
+						EfectosDialogo.mostrarArista("Cruce_z1", "Tunel_Norte_z2", "SELECCIONADO", { sinParticulas = true })
+						EfectosDialogo.mostrarArista("Tunel_Norte_z2", "Cisterna_z2", "SELECCIONADO", { sinParticulas = true })
+						EfectosDialogo.mostrarArista("Cisterna_z2", "Puente_z2", "SELECCIONADO", { sinParticulas = true })
+						EfectosDialogo.mostrarArista("Cruce_z1", "Tunel_Sur_z2", "ERROR", { sinParticulas = true })
+						EfectosDialogo.mostrarArista("Tunel_Sur_z2", "Puente_z2", "ERROR", { sinParticulas = true })
 					end)
-					task.delay(0.6, function()
-						EfectosDialogo.resaltarNodo("Cisterna_z2", "ADYACENTE")
-						EfectosDialogo.resaltarNodo("Almacen_z2", "SELECCIONADO")
-						EfectosDialogo.mostrarLabel("Cisterna_z2", "PILA: [Ent, T.Norte, Cisterna]  ← abajo")
-						EfectosDialogo.mostrarLabel("Almacen_z2",  "PILA: [Ent, T.Norte, Cist, Alm]  ← TOPE")
-					end)
-				end,
-				Siguiente = "dfs_paso6_almacen",
-			},
-
-			-- ── 8. PASO 6: ALMACÉN ES EL TOPE ───────────────────────────
-			{
-				Id        = "dfs_paso6_almacen",
-				Numero    = 8,
-				Actor     = "Carlos",
-				Expresion = "Serio",
-				Texto     = "Paso 6: DFS saca el " .. aliasAlmacen .. ". Pero… ¡no tiene vecinos sin visitar! Es un callejón sin salida. ¿Qué hace la pila ahora? No puede avanzar, así que debe retroceder. Eso se llama BACKTRACKING.",
-				Evento = function()
-					EfectosDialogo.limpiarTodo()
-					enfocarNodo("Almacen_z2", { altura = 20, angulo = 65, duracion = 1.0 })
-					EfectosDialogo.resaltarNodo("Almacen_z2", "ERROR")
-					EfectosDialogo.mostrarLabel("Almacen_z2", aliasAlmacen .. " — ¡sin salida!")
-					task.delay(0.6, function()
-						EfectosDialogo.mostrarLabel("Almacen_z2", "PILA: desapila ← [Ent, T.Norte, Cist]")
-						EfectosDialogo.blink("Almacen_z2", "ERROR", 3)
-					end)
-				end,
-				Siguiente = "dfs_paso7_backtracking",
-			},
-
-			-- ── 9. PASO 7: BACKTRACKING ─────────────────────────────────
-			{
-				Id        = "dfs_paso7_backtracking",
-				Numero    = 9,
-				Actor     = "Carlos",
-				Expresion = "Feliz",
-				Texto     = "Paso 7: DFS desapila y vuelve a la " .. aliasCisterna .. ". Tampoco tiene vecinos nuevos. Desapila de nuevo y vuelve al " .. aliasPuente .. ", luego al " .. aliasTunelS .. "… Retrocede hasta encontrar un nodo con vecinos sin visitar. ¡Esa es la magia del backtracking!",
-				Evento = function()
-					EfectosDialogo.limpiarTodo()
-					enfocarGrupo({"Puente_z2", "Cisterna_z2", "Almacen_z2"}, { altura = 26, angulo = 60, duracion = 1.2 })
-					EfectosDialogo.resaltarNodo("Almacen_z2", "AISLADO")
-					EfectosDialogo.resaltarNodo("Cisterna_z2", "AISLADO")
-					EfectosDialogo.resaltarNodo("Puente_z2", "SELECCIONADO")
-					EfectosDialogo.mostrarLabel("Almacen_z2",  aliasAlmacen  .. " ✗ desapilado")
-					EfectosDialogo.mostrarLabel("Cisterna_z2", aliasCisterna .. " ✗ desapilado")
-					EfectosDialogo.mostrarLabel("Puente_z2",   aliasPuente   .. " — buscando rama…")
 					task.delay(0.8, function()
-						EfectosDialogo.mostrarLabel("Puente_z2", "PILA: [Ent, T.Norte] ← ahora tope")
+						EfectosDialogo.mostrarLabel("Tunel_Norte_z2", "Ruta barata ✓")
+						EfectosDialogo.mostrarLabel("Tunel_Sur_z2", "Más saltos, más cara")
 					end)
 				end,
-				Siguiente = "pregunta_backtracking",
+				Siguiente = "pregunta_ruta",
 			},
 
-			-- ── 10. PREGUNTA DE VALIDACIÓN ──────────────────────────────
+			-- ── 5. PREGUNTA DE VALIDACIÓN ───────────────────────────────
 			{
-				Id        = "pregunta_backtracking",
-				Numero    = 10,
+				Id        = "pregunta_ruta",
+				Numero    = 5,
 				Actor     = "Carlos",
 				Expresion = "Curioso",
-				Texto     = "Pregunta: cuando DFS llega a un nodo sin vecinos sin visitar, ¿qué hace el algoritmo?",
+				Texto     = "Pregunta: desde el " .. aliasCruce .. " hasta el " .. aliasPuente .. ", ¿cuál es la ruta más barata según Dijkstra?",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
-					enfocarNodo("Cruce_z1", { altura = 28, angulo = 60, duracion = 1.0 })
-					EfectosDialogo.resaltarNodo("Cruce_z1", "SELECCIONADO")
-					EfectosDialogo.mostrarLabel("Cruce_z1", "¿Y ahora qué?")
+					enfocarNodo("Puente_z2", { altura = 28, angulo = 60, duracion = 1.0 })
+					EfectosDialogo.resaltarNodo("Puente_z2", "SELECCIONADO")
+					EfectosDialogo.mostrarLabel("Puente_z2", "¿Norte o Sur?")
 				end,
 				Opciones = {
-					{ Texto = "Retrocede al nodo anterior y prueba otra rama disponible.", Siguiente = "resp_back_bien" },
-					{ Texto = "Se detiene y termina la exploración completamente.", Siguiente = "resp_back_mal" },
-					{ Texto = "Salta a un nodo aleatorio del grafo que aún no haya visitado.", Siguiente = "resp_back_mal2" },
+					{ Texto = "Norte: Cruce → Avenida Norte → Cisterna → Puente (7 m, $" .. costo(7) .. ")", Siguiente = "resp_ruta_bien" },
+					{ Texto = "Sur: Cruce → Avenida Sur → Puente (8 m, $" .. costo(8) .. ")", Siguiente = "resp_ruta_mal" },
+					{ Texto = "Ambas cuestan lo mismo.", Siguiente = "resp_ruta_mal2" },
 				},
 			},
 
-			-- ── 11a. RESPUESTA CORRECTA ─────────────────────────────────
+			-- ── 6a. RESPUESTA CORRECTA ──────────────────────────────────
 			{
-				Id        = "resp_back_bien",
-				Numero    = 11,
+				Id        = "resp_ruta_bien",
+				Numero    = 6,
 				Actor     = "Carlos",
 				Expresion = "Feliz",
-				Texto     = "¡Correcto! Eso se llama backtracking. DFS retrocede por la pila hasta encontrar un nodo que tenga vecinos sin visitar. Luego prueba esa nueva rama. Es la esencia de DFS: avanzar hasta no poder más, y entonces retroceder para explorar alternativas.",
+				Texto     = "¡Correcto! La ruta Norte cuesta $" .. costo(7) .. ", mientras que la Sur cuesta $" .. costo(8) .. ". Dijkstra siempre elige la más barata, aunque tenga más saltos.",
 				Evento = function()
 					local jugador = game:GetService("Players").LocalPlayer
 					if jugador then
@@ -314,83 +224,80 @@ local DIALOGOS = {
 					end
 					notificarRespuestaCorrecta()
 					EfectosDialogo.limpiarTodo()
-					enfocarNodo("Cruce_z1", { altura = 26, angulo = 60, duracion = 1.0 })
+					enfocarGrupo({"Cruce_z1", "Tunel_Norte_z2", "Cisterna_z2", "Puente_z2"}, { altura = 28, angulo = 60, duracion = 1.2 })
 					EfectosDialogo.resaltarNodo("Cruce_z1", "EXITO")
-					EfectosDialogo.mostrarLabel("Cruce_z1", "¡Backtracking correcto!")
+					EfectosDialogo.resaltarNodo("Tunel_Norte_z2", "EXITO")
+					EfectosDialogo.resaltarNodo("Cisterna_z2", "EXITO")
+					EfectosDialogo.resaltarNodo("Puente_z2", "EXITO")
+					task.delay(0.3, function()
+						EfectosDialogo.mostrarArista("Cruce_z1", "Tunel_Norte_z2", "EXITO", { sinParticulas = true })
+						EfectosDialogo.mostrarArista("Tunel_Norte_z2", "Cisterna_z2", "EXITO", { sinParticulas = true })
+						EfectosDialogo.mostrarArista("Cisterna_z2", "Puente_z2", "EXITO", { sinParticulas = true })
+					end)
 				end,
-				Opciones = { { Texto = "Continuar", Siguiente = "comparacion_bfs_dfs" } },
+				Opciones = { { Texto = "Continuar", Siguiente = "relajacion_barrio" } },
 			},
 
-			-- ── 11b. RESPUESTA INCORRECTA 1 ─────────────────────────────
+			-- ── 6b. RESPUESTA INCORRECTA 1 ──────────────────────────────
 			{
-				Id        = "resp_back_mal",
-				Numero    = 11,
+				Id        = "resp_ruta_mal",
+				Numero    = 6,
 				Actor     = "Carlos",
 				Expresion = "Serio",
-				Texto     = "No, DFS no termina ahí. Esa es la magia del backtracking: cuando un nodo no tiene más vecinos sin visitar, DFS desapila y retrocede al nodo anterior. Sigue retrocediendo hasta encontrar una rama que aún no haya explorado.",
+				Texto     = "No. La ruta Sur es más cara: 6 + 2 = 8 metros ($" .. costo(8) .. "). Aunque tiene menos saltos, Dijkstra descarta el camino más costoso y se queda con el Norte.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
-					enfocarGrupo({"Puente_z2", "Almacen_z2"}, { altura = 24, angulo = 62, duracion = 1.0 })
-					EfectosDialogo.resaltarNodo("Almacen_z2", "ERROR")
-					EfectosDialogo.resaltarNodo("Puente_z2", "SELECCIONADO")
-					EfectosDialogo.mostrarLabel("Almacen_z2", "Sin salida…")
-					EfectosDialogo.mostrarLabel("Puente_z2", "…retrocede aquí")
+					enfocarGrupo({"Cruce_z1", "Tunel_Sur_z2", "Puente_z2"}, { altura = 26, angulo = 60, duracion = 1.0 })
+					EfectosDialogo.resaltarNodo("Cruce_z1", "SELECCIONADO")
+					EfectosDialogo.resaltarNodo("Tunel_Sur_z2", "ERROR")
+					EfectosDialogo.resaltarNodo("Puente_z2", "ERROR")
+					EfectosDialogo.mostrarLabel("Tunel_Sur_z2", "6 m")
+					EfectosDialogo.mostrarLabel("Puente_z2", "8 m ✗")
 				end,
-				Opciones = { { Texto = "Entendido", Siguiente = "comparacion_bfs_dfs" } },
+				Opciones = { { Texto = "Entendido", Siguiente = "relajacion_barrio" } },
 			},
 
-			-- ── 11c. RESPUESTA INCORRECTA 2 ─────────────────────────────
+			-- ── 6c. RESPUESTA INCORRECTA 2 ──────────────────────────────
 			{
-				Id        = "resp_back_mal2",
-				Numero    = 11,
+				Id        = "resp_ruta_mal2",
+				Numero    = 6,
 				Actor     = "Carlos",
 				Expresion = "Serio",
-				Texto     = "No, DFS nunca salta aleatoriamente. El orden de exploración está completamente determinado por la pila LIFO. Retrocede sistemáticamente por el camino que vino, probando cada rama que quedó pendiente.",
+				Texto     = "No, no cuestan lo mismo. La ruta Norte suma 7 metros ($" .. costo(7) .. ") y la Sur suma 8 metros ($" .. costo(8) .. "). Dijkstra distingue esas diferencias y elige la menor.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
-					enfocarGrupo({"Puente_z2", "Almacen_z2"}, { altura = 24, angulo = 62, duracion = 1.0 })
-					EfectosDialogo.resaltarNodo("Almacen_z2", "ERROR")
-					EfectosDialogo.resaltarNodo("Puente_z2", "SELECCIONADO")
-					EfectosDialogo.mostrarLabel("Almacen_z2", "Sin salida…")
-					EfectosDialogo.mostrarLabel("Puente_z2", "…retrocede aquí")
+					enfocarNodo("Cruce_z1", { altura = 28, angulo = 60, duracion = 1.0 })
+					EfectosDialogo.resaltarNodo("Cruce_z1", "SELECCIONADO")
+					EfectosDialogo.mostrarLabel("Cruce_z1", "Norte 7 m ≠ Sur 8 m")
 				end,
-				Opciones = { { Texto = "Entendido", Siguiente = "comparacion_bfs_dfs" } },
+				Opciones = { { Texto = "Entendido", Siguiente = "relajacion_barrio" } },
 			},
 
-			-- ── 12. COMPARACIÓN: BFS (COLA) vs DFS (PILA) ───────────────
+			-- ── 7. RELAJACIÓN EN ACCIÓN ─────────────────────────────────
 			{
-				Id        = "comparacion_bfs_dfs",
-				Numero    = 12,
+				Id        = "relajacion_barrio",
+				Numero    = 7,
 				Actor     = "Carlos",
 				Expresion = "Pensativo",
-				Texto     = "¿Notas la diferencia con BFS? BFS usa una COLA: FIFO — First In, First Out. El primero en entrar es el primero en salir. El orden BFS desde el Generador sería: Generador, Entrada, Cruce, Sala Máquinas, Túnel Norte, Túnel Sur, Cisterna, Almacén, Puente… En cambio DFS, con su PILA LIFO, se fue directo hasta el fondo de la rama Sur antes de regresar. ¡Dos estructuras, dos comportamientos completamente distintos!",
+				Texto     = "Fíjate cómo funciona la relajación: al llegar al " .. aliasPuente .. " por primera vez desde el Sur, cuesta 8. Pero al encontrar el camino por el Norte, cuesta 7. Como 7 < 8, ¡actualizamos el costo mínimo del Puente!",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
-					enfocarGrupo({"Gen_Fabrica_z1", "Cruce_z1", "Tunel_Sur_z2", "Puente_z2"}, { altura = 32, angulo = 58, duracion = 1.5 })
-					-- Resalta el camino DFS (rama Sur profunda)
-					EfectosDialogo.resaltarNodo("Gen_Fabrica_z1", "EXITO")
-					EfectosDialogo.resaltarNodo("Cruce_z1", "EXITO")
-					EfectosDialogo.resaltarNodo("Tunel_Sur_z2", "EXITO")
-					EfectosDialogo.resaltarNodo("Puente_z2", "EXITO")
-					task.delay(0.4, function()
-						EfectosDialogo.mostrarArista("Gen_Fabrica_z1", "Cruce_z1", "EXITO", { sinParticulas = true })
-						EfectosDialogo.mostrarArista("Cruce_z1", "Tunel_Sur_z2", "EXITO", { sinParticulas = true })
-						EfectosDialogo.mostrarArista("Tunel_Sur_z2", "Puente_z2", "EXITO", { sinParticulas = true })
-					end)
-					task.delay(0.8, function()
-						EfectosDialogo.mostrarLabel("Gen_Fabrica_z1", "BFS: COLA [Gen, Ent, Cruce, …]")
-						EfectosDialogo.mostrarLabel("Puente_z2", "DFS: PILA [Gen, Cruce, T.Sur, Puente]")
+					enfocarNodo("Puente_z2", { altura = 26, angulo = 60, duracion = 1.0 })
+					EfectosDialogo.resaltarNodo("Puente_z2", "SELECCIONADO")
+					EfectosDialogo.blink("Puente_z2", "SELECCIONADO", 4)
+					task.delay(0.3, function()
+						EfectosDialogo.mostrarLabel("Puente_z2", "8 m → 7 m")
 					end)
 				end,
 				Siguiente = "instruccion_final",
 			},
 
-			-- ── 13. INSTRUCCIÓN FINAL ───────────────────────────────────
+			-- ── 8. INSTRUCCIÓN FINAL ────────────────────────────────────
 			{
 				Id        = "instruccion_final",
-				Numero    = 13,
+				Numero    = 8,
 				Actor     = "Sistema",
-				Texto     = "Conecta las calles del Barrio Oeste respetando el orden de ramificación del grafo. Abre el Panel de Análisis con DFS para visualizar el backtracking en acción. Avanza hacia la Oficina de Análisis cuando estés listo.",
+				Texto     = "Conecta el Barrio Oeste eligiendo la ruta más barata. Recuerda: Dijkstra prioriza el costo acumulado, no los saltos. Abre el Panel de Análisis (Tecla Tab) para ver el algoritmo paso a paso.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					ServicioCamara.restaurar(1.2)

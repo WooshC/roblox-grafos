@@ -98,24 +98,36 @@ local function evaluarPropagacion()
 	local redEnergizada = calcularRedEnergizada()
 
 	for zonaID, nodosEnZona in pairs(_zonas) do
-		local energizadosCount = 0
-		local totalCount = 0
+		local porcentaje = 0
 
-		for _, nodo in ipairs(nodosEnZona) do
-			if not _generadores[nodo] then
-				totalCount = totalCount + 1
-				if redEnergizada[nodo] then
-					energizadosCount = energizadosCount + 1
+		-- Zonas Dijkstra: luz al máximo solo cuando el nodo destino está energizado.
+		local cfgAnalisis = _config and _config.AnalisisConfig and _config.AnalisisConfig[zonaID]
+		local esDijkstra = cfgAnalisis
+			and cfgAnalisis.algoritmos
+			and table.find(cfgAnalisis.algoritmos, "dijkstra") ~= nil
+			and cfgAnalisis.nodoFin ~= nil
+
+		if esDijkstra then
+			porcentaje = redEnergizada[cfgAnalisis.nodoFin] and 1 or 0
+		else
+			local energizadosCount = 0
+			local totalCount = 0
+
+			for _, nodo in ipairs(nodosEnZona) do
+				if not _generadores[nodo] then
+					totalCount = totalCount + 1
+					if redEnergizada[nodo] then
+						energizadosCount = energizadosCount + 1
+					end
 				end
+			end
+
+			if totalCount > 0 then
+				porcentaje = math.clamp(energizadosCount / totalCount, 0, 1)
 			end
 		end
 
-		local porcentaje = 0
-		if totalCount > 0 then
-			porcentaje = math.clamp(energizadosCount / totalCount, 0, 1)
-		end
-
-		-- print(string.format("[ServicioEnergia] → Zona %s: %d/%d nodos energizados (%.0f%%)", zonaID, energizadosCount, totalCount, porcentaje * 100))
+		-- print(string.format("[ServicioEnergia] → Zona %s: %.0f%%", zonaID, porcentaje * 100))
 		_eventoProgresoEnergia:FireAllClients(zonaID, porcentaje)
 	end
 end

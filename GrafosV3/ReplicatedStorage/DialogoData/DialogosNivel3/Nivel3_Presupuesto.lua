@@ -1,10 +1,11 @@
 -- ReplicatedStorage/DialogoData/DialogosNivel3/Nivel3_Presupuesto.lua
--- Diálogo de la Zona 1 (Oficina de Presupuesto) — Nivel 3: El Camino Más Eficiente
--- Concepto: ¿Por qué BFS no alcanza? Introducción a Dijkstra y presupuesto.
+-- Diálogo de la Zona 1 (Oficina de Presupuesto) — Nivel 3: El Árbol de Expansión Mínima
+-- Concepto: Introducción a MST, el algoritmo de Prim y gestión del presupuesto.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local EfectosDialogo = require(ReplicatedStorage:WaitForChild("Efectos"):WaitForChild("EfectosDialogo"))
-local ServicioCamara = require(ReplicatedStorage:WaitForChild("Compartido"):WaitForChild("ServicioCamara"))
+local LevelsConfig      = require(ReplicatedStorage:WaitForChild("Config"):WaitForChild("LevelsConfig"))
+local EfectosDialogo    = require(ReplicatedStorage:WaitForChild("Efectos"):WaitForChild("EfectosDialogo"))
+local ServicioCamara    = require(ReplicatedStorage:WaitForChild("Compartido"):WaitForChild("ServicioCamara"))
 
 -- Evento para notificar respuestas correctas al servidor
 local Utilidades = require(ReplicatedStorage:WaitForChild("Compartido"):WaitForChild("Utilidades"))
@@ -13,87 +14,137 @@ local function notificarRespuestaCorrecta()
 	Utilidades.notificarDialogoCorrecto()
 end
 
+-- ════════════════════════════════════════════════════════════════════
+-- ALIASES
+-- ════════════════════════════════════════════════════════════════════
+
+local nombres       = LevelsConfig[3].NombresNodos
+local configNivel   = LevelsConfig[3]
+local costoPorMetro = configNivel.CostoPorMetro
+local presupuesto   = configNivel.Presupuesto.Inicial
+
+local aliasBodega   = nombres["Gen_Bodega_z1"]      or "Generador Bodega"
+local aliasPNorte   = nombres["Poste_Norte_z1"]     or "Poste Norte"
+local aliasPSur     = nombres["Poste_Sur_z1"]       or "Poste Sur"
+local aliasCruceN   = nombres["Cruce_Norte_z2"]     or "Cruce Norte"
+local aliasMercado  = nombres["Mercado_z2"]         or "Mercado Central"
+local aliasPlaza    = nombres["Plaza_z2"]           or "Plaza Central"
+
+-- ════════════════════════════════════════════════════════════════════
+-- DATOS DEL DIÁLOGO
+-- ════════════════════════════════════════════════════════════════════
+
 local DIALOGOS = {
 	["Nivel3_Presupuesto"] = {
 		Zona  = "Zona_Presupuesto_1",
 		Nivel = 3,
 		Lineas = {
+			-- ── 1. PROBLEMA DEL PRESUPUESTO ─────────────────────────────────
 			{
 				Id        = "intro_presupuesto",
 				Numero    = 1,
 				Actor     = "Carlos",
 				Expresion = "Preocupado",
-				Texto     = "Tocino, tenemos un problema grave. El alcalde recibió la factura del mantenimiento de las rutas de suministro... y el costo subió un trescientos por ciento. Nos exige reducir gastos de inmediato.",
+				Texto     = "Tocino, el alcalde nos dio un presupuesto ajustado: $" .. tostring(presupuesto) .. " para tender cables. Cada metro cuesta $" .. tostring(costoPorMetro) .. ", así que cada conexión pesa en el bolsillo. Necesitamos conectar el pueblo gastando el mínimo cable posible. 🪙",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					ServicioCamara.moverHaciaObjetivo("Gen_Bodega_z1", { altura = 25, angulo = 65, duracion = 1.5 })
 					EfectosDialogo.resaltarNodo("Gen_Bodega_z1", "SELECCIONADO")
 				end,
-				Siguiente = "problema_bfs",
+				Siguiente = "concepto_mst",
 			},
+			-- ── 2. ¿QUÉ ES MST? ─────────────────────────────────────────────
 			{
-				Id        = "problema_bfs",
+				Id        = "concepto_mst",
 				Numero    = 2,
 				Actor     = "Carlos",
-				Expresion = "Serio",
-				Texto     = "Ya sabemos explorar el pueblo con BFS y DFS. Pero hay algo que ninguno de los dos considera: los pesos de las aristas. Si de la Bodega a la Plaza Central hay dos rutas, una de tres pasos y otra de dos, BFS te da la de dos pasos. ¿Pero qué pasa si la de tres pasos cuesta nueve y la de dos pasos cuesta veinticinco?",
+				Expresion = "Presentacion",
+				Texto     = "Este problema se llama Árbol de Expansión Mínima, o MST. Significa elegir un conjunto de aristas que conecten TODOS los nodos sin formar ciclos y con el menor costo total. Piensa en él como el plan de tendido más ahorrativo.",
 				Evento = function()
-					EfectosDialogo.mostrarLabel("Gen_Bodega_z1", "Generador Bodega", "SELECCIONADO")
+					EfectosDialogo.limpiarTodo()
+					EfectosDialogo.resaltarNodo("Gen_Bodega_z1", "SELECCIONADO")
 					EfectosDialogo.resaltarNodo("Poste_Norte_z1", "ADYACENTE")
 					EfectosDialogo.resaltarNodo("Poste_Sur_z1", "ADYACENTE")
 				end,
-				Siguiente = "respuesta_tocino",
+				Siguiente = "diferencia_dijkstra",
 			},
+			-- ── 3. DIJKSTRA VS PRIM ─────────────────────────────────────────
 			{
-				Id        = "respuesta_tocino",
+				Id        = "diferencia_dijkstra",
 				Numero    = 3,
-				Actor     = "Tocino",
-				Expresion = "Normal",
-				Texto     = "BFS elegiría la de dos pasos aunque sea mucho más cara...",
-				Siguiente = "explica_dijkstra",
-			},
-			{
-				Id        = "explica_dijkstra",
-				Numero    = 4,
 				Actor     = "Carlos",
 				Expresion = "Pensativo",
-				Texto     = "Exacto. BFS minimiza pasos, no costos. Para grafos ponderados necesitamos un algoritmo que tome decisiones basadas en los pesos. Ahí entra Dijkstra.",
+				Texto     = "No lo confundas con Dijkstra. Dijkstra busca el camino más corto desde un origen a un destino: suma distancias desde el origen. Prim no tiene destino: su meta es conectar todos los nodos al menor costo total. En Prim, la 'key' de cada nodo es el peso de la arista que lo conecta al árbol ya construido.",
+				Evento = function()
+					EfectosDialogo.limpiarTodo()
+					EfectosDialogo.resaltarNodo("Gen_Bodega_z1", "SELECCIONADO")
+					EfectosDialogo.mostrarLabel("Gen_Bodega_z1", "Raíz")
+					EfectosDialogo.mostrarArista("Gen_Bodega_z1", "Poste_Norte_z1", "SELECCIONADO", { sinParticulas = true })
+					EfectosDialogo.mostrarArista("Gen_Bodega_z1", "Poste_Sur_z1", "ADYACENTE", { sinParticulas = true })
+					EfectosDialogo.mostrarLabel("Poste_Norte_z1", "key = 4")
+					EfectosDialogo.mostrarLabel("Poste_Sur_z1", "key = 7")
+				end,
+				Siguiente = "concepto_prim",
+			},
+			-- ── 4. REGLA DE PRIM ────────────────────────────────────────────
+			{
+				Id        = "concepto_prim",
+				Numero    = 4,
+				Actor     = "Carlos",
+				Expresion = "Presentacion",
+				Texto     = "Prim es un algoritmo 'codicioso'. Empieza en un nodo raíz —aquí la " .. aliasBodega .. "— y hace crecer el árbol paso a paso. En cada paso elige la arista de MENOR peso que conecte un nodo NUEVO al árbol que ya tenemos. 🌱",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					EfectosDialogo.resaltarNodo("Gen_Bodega_z1", "SELECCIONADO")
 					EfectosDialogo.mostrarArista("Gen_Bodega_z1", "Poste_Norte_z1", "SELECCIONADO", { sinParticulas = true })
 					EfectosDialogo.mostrarArista("Gen_Bodega_z1", "Poste_Sur_z1", "ADYACENTE", { sinParticulas = true })
-					EfectosDialogo.mostrarLabel("Poste_Norte_z1", "Costo: 4")
-					EfectosDialogo.mostrarLabel("Poste_Sur_z1", "Costo: 7")
+					EfectosDialogo.mostrarLabel("Poste_Norte_z1", "4 m")
+					EfectosDialogo.mostrarLabel("Poste_Sur_z1", "7 m")
 				end,
-				Siguiente = "concepto_dijkstra",
+				Siguiente = "ejemplo_presupuesto",
 			},
+			-- ── 5. EJEMPLO PARCIAL ──────────────────────────────────────────
 			{
-				Id        = "concepto_dijkstra",
+				Id        = "ejemplo_presupuesto",
 				Numero    = 5,
 				Actor     = "Carlos",
-				Expresion = "Presentacion",
-				Texto     = "El Algoritmo de Dijkstra resuelve el Problema del Camino Mínimo: encuentra la ruta de menor costo acumulado desde un nodo origen hacia todos los demás nodos. Solo funciona con pesos no negativos.",
-				Siguiente = "pregunta_pesos_negativos",
+				Expresion = "Serio",
+				Texto     = "Mira este ejemplo parcial: conectar " .. aliasBodega .. " → " .. aliasPNorte .. " (4 m) → " .. aliasCruceN .. " (3 m) → " .. aliasMercado .. " (3 m) → " .. aliasPlaza .. " (2 m) cuesta 4+3+3+2 = 12 metros, es decir $6000. Prim te ayuda a encontrar estas elecciones baratas primero, sin derrochar cable.",
+				Evento = function()
+					EfectosDialogo.limpiarTodo()
+					EfectosDialogo.mostrarArista("Gen_Bodega_z1", "Poste_Norte_z1", "SELECCIONADO", { sinParticulas = true })
+					EfectosDialogo.mostrarArista("Poste_Norte_z1", "Cruce_Norte_z2", "SELECCIONADO", { sinParticulas = true })
+					EfectosDialogo.mostrarArista("Cruce_Norte_z2", "Mercado_z2", "SELECCIONADO", { sinParticulas = true })
+					EfectosDialogo.mostrarArista("Mercado_z2", "Plaza_z2", "SELECCIONADO", { sinParticulas = true })
+					EfectosDialogo.resaltarNodo("Gen_Bodega_z1", "EXITO")
+					EfectosDialogo.resaltarNodo("Poste_Norte_z1", "EXITO")
+					EfectosDialogo.resaltarNodo("Cruce_Norte_z2", "EXITO")
+					EfectosDialogo.resaltarNodo("Mercado_z2", "EXITO")
+					EfectosDialogo.resaltarNodo("Plaza_z2", "EXITO")
+					ServicioCamara.moverHaciaObjetivo("Plaza_z2", { altura = 35, angulo = 70, duracion = 1.5 })
+				end,
+				Siguiente = "pregunta_prim",
 			},
+			-- ── 6. PREGUNTA DE OPCIÓN MÚLTIPLE ──────────────────────────────
 			{
-				Id        = "pregunta_pesos_negativos",
+				Id        = "pregunta_prim",
 				Numero    = 6,
 				Actor     = "Carlos",
 				Expresion = "Curioso",
-				Texto     = "Pregunta rápida: ¿por qué crees que Dijkstra solo funciona con pesos no negativos?",
+				Texto     = "Pregunta rápida: ¿cuál es la diferencia principal entre Dijkstra y Prim?",
 				Opciones = {
-					{ Texto = "Porque con pesos negativos, añadir más aristas podría bajar el costo total y romper la garantía del algoritmo.", Siguiente = "resp_pesos_bien" },
-					{ Texto = "Porque Dijkstra no sabe restar números negativos.", Siguiente = "resp_pesos_mal" },
-					{ Texto = "Porque los pesos negativos no existen en la vida real.", Siguiente = "resp_pesos_mal" },
+					{ Texto = "Dijkstra busca el camino más corto origen-destino; Prim conecta todos los nodos con el menor costo total.", Siguiente = "resp_prim_bien" },
+					{ Texto = "Ambos hacen exactamente lo mismo, solo cambian los nombres.", Siguiente = "resp_prim_mal" },
+					{ Texto = "Dijkstra solo sirve para grafos no ponderados.", Siguiente = "resp_prim_mal2" },
 				},
 			},
+			-- Respuesta correcta
 			{
-				Id        = "resp_pesos_bien",
+				Id        = "resp_prim_bien",
 				Numero    = 7,
 				Actor     = "Carlos",
 				Expresion = "Feliz",
-				Texto     = "¡Correcto! Dijkstra se basa en una garantía crítica: una vez que encuentra el camino mínimo a un nodo, ese costo no puede mejorar. Si hubiera pesos negativos, añadir más aristas podría bajar el costo, rompiendo esa garantía. En la vida real, ningún camino tiene distancia negativa.",
+				Texto     = "¡Exacto! Dijkstra resuelve 'cómo llegar de A a B lo más barato posible'. Prim resuelve 'cómo conectar todos los puntos lo más barato posible'. Son primos, pero con objetivos distintos. 🎯",
 				Evento = function()
 					local jugador = game:GetService("Players").LocalPlayer
 					if jugador then
@@ -102,22 +153,33 @@ local DIALOGOS = {
 					end
 					notificarRespuestaCorrecta()
 				end,
-				Opciones = { { Texto = "Continuar", Siguiente = "presupuesto_intro" } },
+				Opciones = { { Texto = "Continuar", Siguiente = "presupuesto_instruccion" } },
 			},
+			-- Respuesta incorrecta 1
 			{
-				Id        = "resp_pesos_mal",
+				Id        = "resp_prim_mal",
 				Numero    = 7,
 				Actor     = "Carlos",
 				Expresion = "Serio",
-				Texto     = "No exactamente. La razón es que Dijkstra asume que una vez que fija la distancia mínima a un nodo, esa distancia no puede mejorar. Si existieran pesos negativos, podrías encontrar un camino más barato pasando por más aristas, lo que invalidaría todo el algoritmo.",
-				Opciones = { { Texto = "Entendido", Siguiente = "presupuesto_intro" } },
+				Texto     = "Casi, pero no. Dijkstra y Prim sí se parecen en que usan una estructura greedy, pero resuelven problemas distintos. Dijkstra busca camino mínimo origen-destino; Prim busca el árbol de expansión mínima que conecte todo el grafo.",
+				Opciones = { { Texto = "Entendido", Siguiente = "presupuesto_instruccion" } },
 			},
+			-- Respuesta incorrecta 2
 			{
-				Id        = "presupuesto_intro",
+				Id        = "resp_prim_mal2",
+				Numero    = 7,
+				Actor     = "Carlos",
+				Expresion = "Serio",
+				Texto     = "No exactamente. Dijkstra está pensado precisamente para grafos ponderados con pesos no negativos. Su diferencia con Prim es el objetivo: Dijkstra mide distancia acumulada desde un origen, Prim mide el peso de la arista que conecta al árbol.",
+				Opciones = { { Texto = "Entendido", Siguiente = "presupuesto_instruccion" } },
+			},
+			-- ── 8. GESTIÓN DEL PRESUPUESTO ──────────────────────────────────
+			{
+				Id        = "presupuesto_instruccion",
 				Numero    = 8,
 				Actor     = "Carlos",
 				Expresion = "Serio",
-				Texto     = "Ahora, el detalle importante: el alcalde nos dio un presupuesto limitado para tender cables. Cada arista que conectes consume su peso en dinero. Si gastas de más, fallas la misión. Usa Dijkstra en el Panel de Análisis para planificar la ruta más barata antes de gastar.",
+				Texto     = "Ahora, la parte práctica. Tienes $" .. tostring(presupuesto) .. " al empezar y cada metro gasta $" .. tostring(costoPorMetro) .. ". Prim minimiza los metros de cable, pero en una misión real debes decidir qué conexiones son prioritarias. No siempre podrás tender todo de golpe; elige primero lo que más nodos ilumine por menos dinero.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					EfectosDialogo.resaltarNodo("Gen_Bodega_z1", "SELECCIONADO")
@@ -127,11 +189,12 @@ local DIALOGOS = {
 				end,
 				Siguiente = "instruccion_final",
 			},
+			-- ── 9. INSTRUCCIÓN FINAL ────────────────────────────────────────
 			{
 				Id        = "instruccion_final",
 				Numero    = 9,
 				Actor     = "Sistema",
-				Texto     = "Presupuesto inicial: 50 unidades. Cada cable cuesta su peso. Planifica con Dijkstra antes de conectar. Abre el Panel de Análisis (Tecla Tab) para simular el algoritmo paso a paso.",
+				Texto     = "Presupuesto inicial: $" .. tostring(presupuesto) .. ". Costo por metro: $" .. tostring(costoPorMetro) .. ". Planifica con Prim en el Panel de Análisis (Tecla Tab). Elige siempre el cable más barato que conecte un nodo nuevo a la red. 🎮",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					ServicioCamara.restaurar(1.2)
@@ -147,4 +210,5 @@ local DIALOGOS = {
 		end,
 	},
 }
+
 return DIALOGOS

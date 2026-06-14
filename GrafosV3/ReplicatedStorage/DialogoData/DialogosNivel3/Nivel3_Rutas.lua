@@ -1,10 +1,11 @@
 -- ReplicatedStorage/DialogoData/DialogosNivel3/Nivel3_Rutas.lua
--- Diálogo de la Zona 2 (Rutas de Suministro) — Nivel 3: El Camino Más Eficiente
--- Concepto: Dijkstra paso a paso, relajación de aristas y decisión de rutas óptimas.
+-- Diálogo de la Zona 2 (Rutas de Suministro) — Nivel 3: El Árbol de Expansión Mínima
+-- Concepto: Prim paso a paso, regla del corte y elección de aristas mínimas.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local EfectosDialogo = require(ReplicatedStorage:WaitForChild("Efectos"):WaitForChild("EfectosDialogo"))
-local ServicioCamara = require(ReplicatedStorage:WaitForChild("Compartido"):WaitForChild("ServicioCamara"))
+local LevelsConfig      = require(ReplicatedStorage:WaitForChild("Config"):WaitForChild("LevelsConfig"))
+local EfectosDialogo    = require(ReplicatedStorage:WaitForChild("Efectos"):WaitForChild("EfectosDialogo"))
+local ServicioCamara    = require(ReplicatedStorage:WaitForChild("Compartido"):WaitForChild("ServicioCamara"))
 
 -- Evento para notificar respuestas correctas al servidor
 local Utilidades = require(ReplicatedStorage:WaitForChild("Compartido"):WaitForChild("Utilidades"))
@@ -13,107 +14,164 @@ local function notificarRespuestaCorrecta()
 	Utilidades.notificarDialogoCorrecto()
 end
 
+-- ════════════════════════════════════════════════════════════════════
+-- ALIASES
+-- ════════════════════════════════════════════════════════════════════
+
+local nombres       = LevelsConfig[3].NombresNodos
+local configNivel   = LevelsConfig[3]
+local costoPorMetro = configNivel.CostoPorMetro
+local presupuesto   = configNivel.Presupuesto.Inicial
+
+local aliasBodega   = nombres["Gen_Bodega_z1"]      or "Generador Bodega"
+local aliasPNorte   = nombres["Poste_Norte_z1"]     or "Poste Norte"
+local aliasPSur     = nombres["Poste_Sur_z1"]       or "Poste Sur"
+local aliasCruceN   = nombres["Cruce_Norte_z2"]     or "Cruce Norte"
+local aliasCruceS   = nombres["Cruce_Sur_z2"]       or "Cruce Sur"
+local aliasMercado  = nombres["Mercado_z2"]         or "Mercado Central"
+local aliasTaller   = nombres["Taller_z2"]          or "Taller Municipal"
+local aliasPlaza    = nombres["Plaza_z2"]           or "Plaza Central"
+
+-- ════════════════════════════════════════════════════════════════════
+-- DATOS DEL DIÁLOGO
+-- ════════════════════════════════════════════════════════════════════
+
 local DIALOGOS = {
 	["Nivel3_Rutas"] = {
 		Zona  = "Zona_Rutas_2",
 		Nivel = 3,
 		Lineas = {
+			-- ── 1. INTRODUCCIÓN A LAS RUTAS ─────────────────────────────────
 			{
 				Id        = "intro_rutas",
 				Numero    = 1,
 				Actor     = "Carlos",
 				Expresion = "Pensativo",
-				Texto     = "Bienvenido a las Rutas de Suministro. Aquí es donde la teoría se convierte en práctica. Mira este mapa: cada cable tiene un número que representa su costo de instalación.",
+				Texto     = "Bienvenido a las Rutas de Suministro. Aquí vamos a ver cómo Prim elige cables. Cada número en el mapa representa los metros de cable que necesitas para tender entre dos puntos. 📏",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					ServicioCamara.moverHaciaObjetivo("Cruce_Norte_z2", { altura = 28, angulo = 60, duracion = 1.5 })
 					EfectosDialogo.resaltarNodo("Cruce_Norte_z2", "SELECCIONADO")
 					EfectosDialogo.resaltarNodo("Mercado_z2", "ADYACENTE")
 					EfectosDialogo.resaltarNodo("Taller_z2", "ADYACENTE")
+					EfectosDialogo.mostrarArista("Cruce_Norte_z2", "Mercado_z2", "ADYACENTE", { sinParticulas = true })
+					EfectosDialogo.mostrarArista("Cruce_Norte_z2", "Taller_z2", "ADYACENTE", { sinParticulas = true })
 				end,
-				Siguiente = "inicializacion",
+				Siguiente = "raiz_prim",
 			},
+			-- ── 2. PASO 1: ELEGIR LA RAÍZ ───────────────────────────────────
 			{
-				Id        = "inicializacion",
+				Id        = "raiz_prim",
 				Numero    = 2,
 				Actor     = "Carlos",
 				Expresion = "Presentacion",
-				Texto     = "Paso uno de Dijkstra: inicializamos las distancias. La distancia al nodo origen, la Bodega, es cero. La distancia a todos los demás nodos es infinito, porque aún no sabemos cuánto cuestan.",
+				Texto     = "Paso 1 de Prim: elegimos la raíz. En este nivel siempre partimos de la " .. aliasBodega .. ". Ese nodo ya forma parte del árbol que vamos a hacer crecer.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
+					ServicioCamara.moverHaciaObjetivo("Gen_Bodega_z1", { altura = 26, angulo = 60, duracion = 1.2 })
 					EfectosDialogo.resaltarNodo("Gen_Bodega_z1", "SELECCIONADO")
-					EfectosDialogo.mostrarLabel("Gen_Bodega_z1", "dist = 0")
-					EfectosDialogo.mostrarLabel("Poste_Norte_z1", "dist = ∞")
-					EfectosDialogo.mostrarLabel("Poste_Sur_z1", "dist = ∞")
-					EfectosDialogo.mostrarLabel("Cruce_Norte_z2", "dist = ∞")
+					EfectosDialogo.mostrarLabel("Gen_Bodega_z1", "en MST")
 				end,
-				Siguiente = "relajacion",
+				Siguiente = "corte_inicial",
 			},
+			-- ── 3. PASO 2: EL CORTE ─────────────────────────────────────────
 			{
-				Id        = "relajacion",
+				Id        = "corte_inicial",
 				Numero    = 3,
 				Actor     = "Carlos",
 				Expresion = "Pensativo",
-				Texto     = "Paso dos: elegimos el nodo no visitado con la distancia mínima. Al inicio, ese es la Bodega con distancia cero. Paso tres: para cada vecino, calculamos la distancia nueva. Si es menor que la registrada, la actualizamos. Eso se llama relajación de aristas.",
+				Texto     = "Paso 2: miramos todas las aristas que cruzan desde el árbol al resto del grafo. Al inicio solo salen de la " .. aliasBodega .. ": hacia el " .. aliasPNorte .. " (4 m) y el " .. aliasPSur .. " (7 m).",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					EfectosDialogo.resaltarNodo("Gen_Bodega_z1", "SELECCIONADO")
-					EfectosDialogo.mostrarArista("Gen_Bodega_z1", "Poste_Norte_z1", "SELECCIONADO", { sinParticulas = true })
+					EfectosDialogo.mostrarArista("Gen_Bodega_z1", "Poste_Norte_z1", "ADYACENTE", { sinParticulas = true })
 					EfectosDialogo.mostrarArista("Gen_Bodega_z1", "Poste_Sur_z1", "ADYACENTE", { sinParticulas = true })
-					EfectosDialogo.mostrarLabel("Poste_Norte_z1", "dist = 0+4 = 4")
-					EfectosDialogo.mostrarLabel("Poste_Sur_z1", "dist = 0+7 = 7")
+					EfectosDialogo.mostrarLabel("Poste_Norte_z1", "4 m")
+					EfectosDialogo.mostrarLabel("Poste_Sur_z1", "7 m")
 				end,
-				Siguiente = "ejemplo_ruta",
+				Siguiente = "primera_elec",
 			},
+			-- ── 4. PRIMERA ELECCIÓN ─────────────────────────────────────────
 			{
-				Id        = "ejemplo_ruta",
+				Id        = "primera_elec",
 				Numero    = 4,
 				Actor     = "Carlos",
-				Expresion = "Serio",
-				Texto     = "Sigamos. El no visitado con menor distancia es el Poste Norte con cuatro. Desde él llegamos al Cruce Norte con costo tres: distancia acumulada siete. Luego al Mercado con costo tres más: diez. Pero ojo: desde el Mercado a la Plaza cuesta solo dos...",
+				Expresion = "Extasiado",
+				Texto     = "Paso 3: elegimos la arista de MENOR peso. El " .. aliasPNorte .. " gana con 4 metros. Ahora el árbol tiene la " .. aliasBodega .. " y el " .. aliasPNorte .. ".",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
+					EfectosDialogo.resaltarNodo("Gen_Bodega_z1", "EXITO")
 					EfectosDialogo.resaltarNodo("Poste_Norte_z1", "SELECCIONADO")
-					EfectosDialogo.mostrarArista("Poste_Norte_z1", "Cruce_Norte_z2", "SELECCIONADO", { sinParticulas = true })
-					EfectosDialogo.mostrarArista("Cruce_Norte_z2", "Mercado_z2", "ADYACENTE", { sinParticulas = true })
-					EfectosDialogo.mostrarLabel("Cruce_Norte_z2", "dist = 4+3 = 7")
-					EfectosDialogo.mostrarLabel("Mercado_z2", "dist = 7+3 = 10")
+					EfectosDialogo.mostrarArista("Gen_Bodega_z1", "Poste_Norte_z1", "SELECCIONADO", { sinParticulas = true })
+					EfectosDialogo.mostrarArista("Gen_Bodega_z1", "Poste_Sur_z1", "ADYACENTE", { sinParticulas = true })
+					EfectosDialogo.mostrarLabel("Poste_Norte_z1", "en MST")
+					EfectosDialogo.mostrarLabel("Poste_Sur_z1", "key = 7")
 				end,
-				Siguiente = "relajacion_accion",
+				Siguiente = "segunda_elec",
 			},
+			-- ── 5. SEGUNDA ELECCIÓN ─────────────────────────────────────────
 			{
-				Id        = "relajacion_accion",
+				Id        = "segunda_elec",
 				Numero    = 5,
 				Actor     = "Carlos",
-				Expresion = "Extasiado",
-				Texto     = "¡Aquí viene lo bueno! También podemos llegar a la Plaza desde el Taller con costo uno, y al Taller desde el Cruce Sur con costo cuatro. Si comparamos rutas: Bodega → Norte → Cruce Norte → Mercado → Plaza = doce. Pero Bodega → Norte → Cruce Norte → Taller → Plaza = doce también... espera, hay una mejor.",
+				Expresion = "Serio",
+				Texto     = "Volvemos a revisar el corte. Desde el árbol salen: " .. aliasBodega .. " → " .. aliasPSur .. " (7 m) y " .. aliasPNorte .. " → " .. aliasCruceN .. " (3 m). La más barata es el " .. aliasCruceN .. ", así que lo añadimos.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
-					EfectosDialogo.resaltarNodo("Plaza_z2", "SELECCIONADO")
-					EfectosDialogo.mostrarArista("Mercado_z2", "Plaza_z2", "SELECCIONADO", { sinParticulas = true })
-					EfectosDialogo.mostrarArista("Taller_z2", "Plaza_z2", "ADYACENTE", { sinParticulas = true })
-					EfectosDialogo.mostrarLabel("Plaza_z2", "Comparando rutas...")
+					EfectosDialogo.resaltarNodo("Gen_Bodega_z1", "EXITO")
+					EfectosDialogo.resaltarNodo("Poste_Norte_z1", "EXITO")
+					EfectosDialogo.resaltarNodo("Cruce_Norte_z2", "SELECCIONADO")
+					EfectosDialogo.mostrarArista("Gen_Bodega_z1", "Poste_Norte_z1", "SELECCIONADO", { sinParticulas = true })
+					EfectosDialogo.mostrarArista("Poste_Norte_z1", "Cruce_Norte_z2", "SELECCIONADO", { sinParticulas = true })
+					EfectosDialogo.mostrarArista("Gen_Bodega_z1", "Poste_Sur_z1", "ADYACENTE", { sinParticulas = true })
+					EfectosDialogo.mostrarLabel("Cruce_Norte_z2", "en MST")
+					EfectosDialogo.mostrarLabel("Poste_Sur_z1", "key = 7")
 				end,
-				Siguiente = "pregunta_ruta",
+				Siguiente = "tercera_elec",
 			},
+			-- ── 6. TERCERA ELECCIÓN ─────────────────────────────────────────
 			{
-				Id        = "pregunta_ruta",
+				Id        = "tercera_elec",
 				Numero    = 6,
 				Actor     = "Carlos",
-				Expresion = "Curioso",
-				Texto     = "Pregunta: si quieres llegar a la Plaza Central gastando lo menos posible, y ya tienes conectados el Poste Norte y el Cruce Norte... ¿qué arista deberías tender primero?",
-				Opciones = {
-					{ Texto = "Cruce Norte → Taller (costo 8)", Siguiente = "resp_ruta_mal" },
-					{ Texto = "Cruce Norte → Mercado (costo 3), luego Mercado → Plaza (costo 2)", Siguiente = "resp_ruta_bien" },
-					{ Texto = "Cruce Norte → Taller (costo 8), luego Taller → Plaza (costo 1)", Siguiente = "resp_ruta_mal2" },
-				},
+				Expresion = "Pensativo",
+				Texto     = "Sigamos. Desde el árbol actual, las opciones baratas son " .. aliasCruceN .. " → " .. aliasMercado .. " (3 m) y " .. aliasCruceN .. " → " .. aliasTaller .. " (8 m). Prim elige el " .. aliasMercado .. " (3 m). Nota: no importa cuánto cuesten los metros desde la raíz; importa solo el peso de la arista que conecta al árbol.",
+				Evento = function()
+					EfectosDialogo.limpiarTodo()
+					EfectosDialogo.resaltarNodo("Gen_Bodega_z1", "EXITO")
+					EfectosDialogo.resaltarNodo("Poste_Norte_z1", "EXITO")
+					EfectosDialogo.resaltarNodo("Cruce_Norte_z2", "EXITO")
+					EfectosDialogo.resaltarNodo("Mercado_z2", "SELECCIONADO")
+					EfectosDialogo.mostrarArista("Poste_Norte_z1", "Cruce_Norte_z2", "SELECCIONADO", { sinParticulas = true })
+					EfectosDialogo.mostrarArista("Cruce_Norte_z2", "Mercado_z2", "SELECCIONADO", { sinParticulas = true })
+					EfectosDialogo.mostrarArista("Cruce_Norte_z2", "Taller_z2", "ADYACENTE", { sinParticulas = true })
+					EfectosDialogo.mostrarArista("Mercado_z2", "Plaza_z2", "ADYACENTE", { sinParticulas = true })
+					EfectosDialogo.mostrarLabel("Mercado_z2", "en MST")
+					EfectosDialogo.mostrarLabel("Taller_z2", "key = 8")
+					EfectosDialogo.mostrarLabel("Plaza_z2", "key = 2")
+				end,
+				Siguiente = "pregunta_corte",
 			},
+			-- ── 7. PREGUNTA DE OPCIÓN MÚLTIPLE ──────────────────────────────
 			{
-				Id        = "resp_ruta_bien",
+				Id        = "pregunta_corte",
 				Numero    = 7,
 				Actor     = "Carlos",
+				Expresion = "Curioso",
+				Texto     = "El árbol ahora tiene la " .. aliasBodega .. ", el " .. aliasPNorte .. ", el " .. aliasCruceN .. " y el " .. aliasMercado .. ". ¿Qué arista tenderá Prim a continuación?",
+				Opciones = {
+					{ Texto = aliasMercado .. " → " .. aliasPlaza .. " (2 m)", Siguiente = "resp_corte_bien" },
+					{ Texto = aliasCruceN .. " → " .. aliasTaller .. " (8 m)", Siguiente = "resp_corte_mal" },
+					{ Texto = aliasPlaza .. " → Centro de Control (5 m)", Siguiente = "resp_corte_mal2" },
+				},
+			},
+			-- Respuesta correcta
+			{
+				Id        = "resp_corte_bien",
+				Numero    = 8,
+				Actor     = "Carlos",
 				Expresion = "Feliz",
-				Texto     = "¡Exacto! Cruce Norte → Mercado cuesta tres, y Mercado → Plaza cuesta dos. Total acumulado desde la Bodega: cuatro + tres + dos = nueve. Esa es la ruta más barata en este momento. Dijkstra la descubrirá automáticamente al procesar cada nodo por orden de distancia mínima.",
+				Texto     = "¡Correcto! La arista más barata que conecta un nodo nuevo al árbol es " .. aliasMercado .. " → " .. aliasPlaza .. " con solo 2 metros. Prim siempre elige la opción de menor peso en el corte, sin importar la distancia desde la raíz.",
 				Evento = function()
 					local jugador = game:GetService("Players").LocalPlayer
 					if jugador then
@@ -122,44 +180,71 @@ local DIALOGOS = {
 					end
 					notificarRespuestaCorrecta()
 				end,
-				Opciones = { { Texto = "Continuar", Siguiente = "consejo_presupuesto" } },
+				Opciones = { { Texto = "Continuar", Siguiente = "paso_cuatro" } },
 			},
+			-- Respuesta incorrecta 1
 			{
-				Id        = "resp_ruta_mal",
-				Numero    = 7,
-				Actor     = "Carlos",
-				Expresion = "Serio",
-				Texto     = "No exactamente. Cruzar directamente al Taller desde el Cruce Norte cuesta ocho, lo cual es muy caro. Dijkstra nunca elegiría esa arista primero porque hay caminos mucho más baratos disponibles. Recuerda: el algoritmo siempre expande el nodo con la distancia acumulada más pequeña.",
-				Opciones = { { Texto = "Entendido", Siguiente = "consejo_presupuesto" } },
-			},
-			{
-				Id        = "resp_ruta_mal2",
-				Numero    = 7,
-				Actor     = "Carlos",
-				Expresion = "Serio",
-				Texto     = "Casi, pero no. El Taller → Plaza cuesta uno, sí, pero llegar al Taller desde el Cruce Norte cuesta ocho. Eso da un total de trece solo para esas dos aristas. En cambio, ir por el Mercado cuesta tres + dos = cinco. Dijkstra siempre suma el costo ACUMULADO desde el origen, no solo la arista individual.",
-				Opciones = { { Texto = "Entendido", Siguiente = "consejo_presupuesto" } },
-			},
-			{
-				Id        = "consejo_presupuesto",
+				Id        = "resp_corte_mal",
 				Numero    = 8,
 				Actor     = "Carlos",
 				Expresion = "Serio",
-				Texto     = "Recuerda tu presupuesto. Cada cable que tiendes consume dinero real. Si gastas en aristas caras de más, podrías quedarte sin fondos antes de iluminar todo el pueblo. Planifica con Dijkstra, ejecuta con cabeza.",
+				Texto     = "No exactamente. " .. aliasCruceN .. " → " .. aliasTaller .. " cuesta 8 metros, mucho más que otras opciones disponibles. Prim nunca elegiría una arista cara mientras haya una más barata que conecte un nodo nuevo.",
+				Opciones = { { Texto = "Entendido", Siguiente = "paso_cuatro" } },
+			},
+			-- Respuesta incorrecta 2
+			{
+				Id        = "resp_corte_mal2",
+				Numero    = 8,
+				Actor     = "Carlos",
+				Expresion = "Serio",
+				Texto     = "Casi, pero la " .. aliasPlaza .. " aún no está en el árbol, así que no puedes tender desde ella todavía. Prim solo considera aristas que unan un nodo DENTRO del árbol con uno FUERA de él.",
+				Opciones = { { Texto = "Entendido", Siguiente = "paso_cuatro" } },
+			},
+			-- ── 9. CONTINUACIÓN DEL EJEMPLO ─────────────────────────────────
+			{
+				Id        = "paso_cuatro",
+				Numero    = 9,
+				Actor     = "Carlos",
+				Expresion = "Pensativo",
+				Texto     = "Si seguimos, la " .. aliasPlaza .. " se une por 2 metros. Después, desde la red podríamos elegir " .. aliasPlaza .. " → " .. aliasTaller .. " (1 m), luego " .. aliasPlaza .. " → Centro de Control (5 m)... Siempre la arista más barata que traiga un nodo nuevo. Esa es la magia de Prim. ✨",
+				Evento = function()
+					EfectosDialogo.limpiarTodo()
+					EfectosDialogo.resaltarNodo("Gen_Bodega_z1", "EXITO")
+					EfectosDialogo.resaltarNodo("Poste_Norte_z1", "EXITO")
+					EfectosDialogo.resaltarNodo("Cruce_Norte_z2", "EXITO")
+					EfectosDialogo.resaltarNodo("Mercado_z2", "EXITO")
+					EfectosDialogo.resaltarNodo("Plaza_z2", "SELECCIONADO")
+					EfectosDialogo.mostrarArista("Mercado_z2", "Plaza_z2", "SELECCIONADO", { sinParticulas = true })
+					EfectosDialogo.mostrarArista("Plaza_z2", "Taller_z2", "ADYACENTE", { sinParticulas = true })
+					EfectosDialogo.mostrarArista("Plaza_z2", "Centro_Control_z3", "ADYACENTE", { sinParticulas = true })
+					EfectosDialogo.mostrarLabel("Plaza_z2", "en MST")
+					EfectosDialogo.mostrarLabel("Taller_z2", "1 m")
+					EfectosDialogo.mostrarLabel("Centro_Control_z3", "5 m")
+				end,
+				Siguiente = "consejo_presupuesto",
+			},
+			-- ── 10. CONSEJO DE PRESUPUESTO ──────────────────────────────────
+			{
+				Id        = "consejo_presupuesto",
+				Numero    = 10,
+				Actor     = "Carlos",
+				Expresion = "Serio",
+				Texto     = "Recuerda: Prim minimiza los metros totales de cable, pero dentro de cada misión debes administrar los $" .. tostring(presupuesto) .. ". No tires cables caros si unos más baratos iluminan más nodos. Prioriza las conexiones que más aporten por menos dinero.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					EfectosDialogo.resaltarNodo("Plaza_z2", "SELECCIONADO")
-					EfectosDialogo.resaltarNodo("Mercado_z2", "ADYACENTE")
 					EfectosDialogo.resaltarNodo("Taller_z2", "ADYACENTE")
+					EfectosDialogo.resaltarNodo("Centro_Control_z3", "ADYACENTE")
 					ServicioCamara.moverHaciaObjetivo("Plaza_z2", { altura = 30, angulo = 65, duracion = 1.5 })
 				end,
 				Siguiente = "instruccion_final",
 			},
+			-- ── 11. INSTRUCCIÓN FINAL ───────────────────────────────────────
 			{
 				Id        = "instruccion_final",
-				Numero    = 9,
+				Numero    = 11,
 				Actor     = "Sistema",
-				Texto     = "Conecta las rutas de suministro respetando el presupuesto. Usa el Panel de Análisis con Dijkstra para planificar la ruta más económica antes de gastar. Recuerda: el costo acumulado importa más que el costo individual de cada cable.",
+				Texto     = "Conecta las rutas de suministro respetando el presupuesto. Usa el Panel de Análisis con Prim (Tecla Tab) para ver paso a paso cuál cable elegir. Recuerda: Prim prioriza la arista más barata que traiga un nodo nuevo a la red.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					ServicioCamara.restaurar(1.2)
@@ -175,4 +260,5 @@ local DIALOGOS = {
 		end,
 	},
 }
+
 return DIALOGOS

@@ -38,9 +38,9 @@ local PRESETS = {
 		conPadding          = true,
 		textoEscalado       = true,
 	},
-	-- Tag flotante sobre cables mostrando el costo en dólares
+	-- Tag flotante sobre cables mostrando peso y costo en dólares
 	CABLE_COSTO = {
-		tamano              = UDim2.new(0, 90, 0, 22),
+		tamano              = UDim2.new(0, 150, 0, 22),
 		offsetY             = 0.8,
 		maxDistance         = 80,
 		alwaysOnTop         = true,
@@ -50,6 +50,27 @@ local PRESETS = {
 		colorTexto          = Color3.fromRGB(46, 204, 113), -- verde dinero
 		fuente              = Enum.Font.GothamBold,
 		colorBorde          = Color3.fromRGB(46, 204, 113),
+		transparenciaBorde  = 0.2,
+		grosorBorde         = 1,
+		radioBorde          = UDim.new(0, 4),
+		conPadding          = true,
+		textoEscalado       = true,
+	},
+
+	-- Tag flotante sobre un nodo adyacente al seleccionado, mostrando el costo previo
+	-- de conectar ese nodo con el nodo activo (peso x CostoPorMetro).
+	NODO_COSTO_PREVIEW = {
+		tamano              = UDim2.new(0, 90, 0, 22),
+		offsetY             = 7.5,   -- por encima del nombre del nodo
+		offsetMundo         = true,
+		maxDistance         = 80,
+		alwaysOnTop         = true,
+		conFondo            = true,
+		colorFondo          = Color3.fromRGB(20, 20, 20),
+		transparenciaFondo  = 0.35,
+		colorTexto          = Color3.fromRGB(255, 220, 80), -- dorado/advertencia
+		fuente              = Enum.Font.GothamBold,
+		colorBorde          = Color3.fromRGB(255, 220, 80),
 		transparenciaBorde  = 0.2,
 		grosorBorde         = 1,
 		radioBorde          = UDim.new(0, 4),
