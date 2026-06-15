@@ -38,66 +38,9 @@ end
 -- ════════════════════════════════════════════════════════════════
 -- CONSTRUIR ADYACENCIAS DESDE LA MATRIZ
 -- ════════════════════════════════════════════════════════════════
-local function esCableDefectuoso(data, nomA, nomB)
-	local clave = GrafoHelpers.clavePar(nomA, nomB)
-	if data.Defectuosos then
-		return data.Defectuosos[clave] == true
-	end
-	local nivelID = jugador:GetAttribute("CurrentLevelID") or 0
-	local cfg = LevelsConfig[nivelID] or {}
-	if cfg.CablesDefectuosos then
-		for _, par in ipairs(cfg.CablesDefectuosos) do
-			if (par[1] == nomA and par[2] == nomB) or (par[1] == nomB and par[2] == nomA) then
-				return true
-			end
-		end
-	end
-	return false
-end
-
 local function buildAdyacencias(data, soloValidas)
-	local adj     = {}
-	local headers = data.Headers
-	local n       = #headers
-	for i = 1, n do
-		local nomA = headers[i]
-		adj[nomA]  = adj[nomA] or {}
-		local fila = data.Matrix[i]
-		if fila then
-			for j = 1, n do
-				local val = fila[j] or 0
-				if val > 0 then
-					if soloValidas then
-						local nomB = headers[j]
-						if esCableDefectuoso(data, nomA, nomB) then
-							continue
-						end
-					end
-					table.insert(adj[nomA], headers[j])
-				end
-			end
-		end
-	end
-	return adj
-end
-
--- Busca el peso de una arista en PesosAristas (soporta ambos sentidos).
--- Fallback a LevelsConfig si el remote no trae el campo.
-local function obtenerPeso(pesosTabla, nomA, nomB)
-	if pesosTabla then
-		local clave1 = nomA .. "|" .. nomB
-		local clave2 = nomB .. "|" .. nomA
-		local p = pesosTabla[clave1] or pesosTabla[clave2]
-		if p then return p end
-	end
 	local nivelID = jugador:GetAttribute("CurrentLevelID") or 0
-	local cfg = LevelsConfig[nivelID] or {}
-	if cfg.PesosAristas then
-		local clave1 = nomA .. "|" .. nomB
-		local clave2 = nomB .. "|" .. nomA
-		return cfg.PesosAristas[clave1] or cfg.PesosAristas[clave2] or 1
-	end
-	return 1
+	return GrafoHelpers.adjDesdeMatriz(data, not soloValidas, nivelID)
 end
 
 -- ════════════════════════════════════════════════════════════════
@@ -232,7 +175,7 @@ local function ejecutarAlgoritmo()
 
 	local pesosFn = nil
 	if E.algoActual == "dijkstra" or E.algoActual == "prim" then
-		pesosFn = function(a, b) return obtenerPeso(E.matrizData.PesosAristas, a, b) end
+		pesosFn = function(a, b) return GrafoHelpers.obtenerPeso(E.matrizData, a, b, 1) end
 	end
 
 	if E.algoActual == "dijkstra" then

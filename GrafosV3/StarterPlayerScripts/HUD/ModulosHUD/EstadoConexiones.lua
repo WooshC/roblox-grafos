@@ -3,6 +3,7 @@
 -- Se sincroniza mediante eventos del servidor
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local GrafoHelpers = require(ReplicatedStorage:WaitForChild("Compartido"):WaitForChild("GrafoHelpers"))
 
 local EstadoConexiones = {}
 
@@ -17,14 +18,6 @@ local Remotos = Eventos:WaitForChild("Remotos")
 -- ================================================================
 -- UTILIDADES
 -- ================================================================
-
-local function generarClave(nombreA, nombreB)
-	if nombreA < nombreB then
-		return nombreA .. "|" .. nombreB
-	else
-		return nombreB .. "|" .. nombreA
-	end
-end
 
 -- ================================================================
 -- GESTIÓN DE ESTADO
@@ -75,7 +68,7 @@ function EstadoConexiones.registrarConexion(nombreA, nombreB)
 		nombreB = nombreB.Name
 	end
 
-	local clave = generarClave(nombreA, nombreB)
+	local clave = GrafoHelpers.clavePar(nombreA, nombreB)
 	conexionesActivas[clave] = true
 end
 
@@ -87,7 +80,7 @@ function EstadoConexiones.eliminarConexion(nombreA, nombreB)
 		nombreB = nombreB.Name
 	end
 
-	local clave = generarClave(nombreA, nombreB)
+	local clave = GrafoHelpers.clavePar(nombreA, nombreB)
 	conexionesActivas[clave] = nil
 end
 
@@ -96,13 +89,14 @@ end
 -- ================================================================
 
 function EstadoConexiones.estaConectado(nombreA, nombreB)
-	local clave = generarClave(nombreA, nombreB)
+	local clave = GrafoHelpers.clavePar(nombreA, nombreB)
 	return conexionesActivas[clave] == true
 end
 
 function EstadoConexiones.tieneConexiones(nombreNodo)
 	for clave, _ in pairs(conexionesActivas) do
-		if string.find(clave, nombreNodo .. "|", 1, true) or string.find(clave, "|" .. nombreNodo, 1, true) then
+		local nodoA, nodoB = GrafoHelpers.parsearClave(clave)
+		if nodoA == nombreNodo or nodoB == nombreNodo then
 			return true
 		end
 	end
@@ -112,7 +106,7 @@ end
 function EstadoConexiones.obtenerConexiones(nombreNodo)
 	local conectados = {}
 	for clave, _ in pairs(conexionesActivas) do
-		local nodoA, nodoB = string.match(clave, "^(.+)|(.+)$")
+		local nodoA, nodoB = GrafoHelpers.parsearClave(clave)
 		if nodoA == nombreNodo then
 			table.insert(conectados, nodoB)
 		elseif nodoB == nombreNodo then
@@ -125,7 +119,8 @@ end
 function EstadoConexiones.obtenerGrado(nombreNodo)
 	local count = 0
 	for clave, _ in pairs(conexionesActivas) do
-		if string.find(clave, nombreNodo .. "|", 1, true) or string.find(clave, "|" .. nombreNodo, 1, true) then
+		local nodoA, nodoB = GrafoHelpers.parsearClave(clave)
+		if nodoA == nombreNodo or nodoB == nombreNodo then
 			count = count + 1
 		end
 	end

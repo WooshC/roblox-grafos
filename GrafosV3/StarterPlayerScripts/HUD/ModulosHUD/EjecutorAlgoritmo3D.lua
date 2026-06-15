@@ -131,29 +131,7 @@ end
 -- ADYACENCIAS
 -- ════════════════════════════════════════════════════════════════
 local function buildAdyacencias(data, soloValidas)
-	local adj = {}
-	local headers = data.Headers
-	for i = 1, #headers do
-		local nomA = headers[i]
-		adj[nomA]  = adj[nomA] or {}
-		local fila = data.Matrix[i]
-		if fila then
-			for j = 1, #headers do
-				local val = fila[j] or 0
-				if val > 0 then
-					if soloValidas then
-						local nomB = headers[j]
-						local clave = GrafoHelpers.clavePar(nomA, nomB)
-						if data.Defectuosos and data.Defectuosos[clave] then
-							continue
-						end
-					end
-					table.insert(adj[nomA], headers[j])
-				end
-			end
-		end
-	end
-	return adj
+	return GrafoHelpers.adjDesdeMatriz(data, not soloValidas, estado.nivelID)
 end
 
 local function existeArista(nomA, nomB)
@@ -166,49 +144,17 @@ local function existeArista(nomA, nomB)
 end
 
 -- ════════════════════════════════════════════════════════════════
--- PESOS Y CABLES DEFECTUOSOS DESDE LevelsConfig
--- (GetGrafoCompleto no transporta pesos reales; los leemos localmente)
--- ════════════════════════════════════════════════════════════════
-local function obtenerPesoReal(nomA, nomB)
-	local cfg = LevelsConfig[estado.nivelID] or {}
-	if not cfg.PesosAristas then return 1 end
-	local clave1 = nomA .. "|" .. nomB
-	local clave2 = nomB .. "|" .. nomA
-	return cfg.PesosAristas[clave1] or cfg.PesosAristas[clave2] or 1
-end
-
-local function esCableDefectuoso(nomA, nomB)
-	local cfg = LevelsConfig[estado.nivelID] or {}
-	if not cfg.CablesDefectuosos then return false end
-	for _, par in ipairs(cfg.CablesDefectuosos) do
-		if (par[1] == nomA and par[2] == nomB) or (par[1] == nomB and par[2] == nomA) then
-			return true
-		end
-	end
-	return false
-end
-
--- ════════════════════════════════════════════════════════════════
 -- ETIQUETAS DE PESO/COSTO SOBRE ARISTAS
 -- ════════════════════════════════════════════════════════════════
-local function formatearDinero(valor)
-	return "$" .. tostring(math.floor((valor or 0) + 0.5))
-end
-
-local function obtenerPesoArista(nomA, nomB)
-	local peso = obtenerPesoReal(nomA, nomB)
-	return peso > 0 and peso or nil
-end
-
 local function crearTagArista(nomA, nomB, part)
 	if not part then return end
-	local key = nomA < nomB and (nomA .. "|" .. nomB) or (nomB .. "|" .. nomA)
+	local key = GrafoHelpers.clavePar(nomA, nomB)
 	if estado.tagsArista[key] then return end
-	local peso = obtenerPesoArista(nomA, nomB)
-	if not peso then return end
+	local peso = GrafoHelpers.obtenerPeso(estado.nivelID, nomA, nomB, 0)
+	if not peso or peso <= 0 then return end
 	local cfg   = LevelsConfig[estado.nivelID] or {}
-	local costo = peso * (cfg.CostoPorMetro or 500)
-	local texto = "Peso: " .. peso .. " | Costo: " .. formatearDinero(costo)
+	local costo = GrafoHelpers.calcularCosto(peso, cfg.CostoPorMetro or 500)
+	local texto = "Peso: " .. peso .. " | Costo: " .. GrafoHelpers.formatearDinero(costo)
 	local bb = BillboardNombres.crear(
 		part,
 		texto,
@@ -372,7 +318,7 @@ local function construirAristas()
 	for nomA, lista in pairs(estado.adyacencias) do
 		for _, nomB in ipairs(lista) do
 
-			local key = nomA < nomB and (nomA .. "|" .. nomB) or (nomB .. "|" .. nomA)
+			local key = GrafoHelpers.clavePar(nomA, nomB)
 
 			if not esDirigido then
 				if vistosND[key] then continue end
@@ -386,7 +332,7 @@ local function construirAristas()
 			local dist = (posA - posB).Magnitude
 			if dist < 0.1 then continue end
 
-			local esDefectuosa = esCableDefectuoso(nomA, nomB)
+			local esDefectuosa = GrafoHelpers.esCableDefectuoso(estado.nivelID, nomA, nomB)
 
 			local posACil, posBCil = posA, posB
 			if esDirigido then
@@ -456,12 +402,12 @@ local function actualizarAristas(step)
 	if step then
 		for _, arista in ipairs(step.aristasRecorridas or {}) do
 			local a, b = arista[1], arista[2]
-			local key  = a < b and (a .. "|" .. b) or (b .. "|" .. a)
+			local key  = GrafoHelpers.clavePar(a, b)
 			recorridasSet[key] = true
 		end
 		if step.aristaNueva then
 			local a, b = step.aristaNueva[1], step.aristaNueva[2]
-			nuevaKey = a < b and (a .. "|" .. b) or (b .. "|" .. a)
+			nuevaKey = GrafoHelpers.clavePar(a, b)
 		end
 	end
 
@@ -471,7 +417,7 @@ local function actualizarAristas(step)
 		if info.esDefectuosa then continue end
 
 		local nomA, nomB = info.nomA, info.nomB
-		local key = nomA < nomB and (nomA .. "|" .. nomB) or (nomB .. "|" .. nomA)
+		local key = GrafoHelpers.clavePar(nomA, nomB)
 
 		local esNueva     = (key == nuevaKey)
 		local esRecorrida = recorridasSet[key] == true
@@ -572,7 +518,7 @@ local function destacarCaminoFinalDijkstra(step)
 		local a, b = arista[1], arista[2]
 		caminoSet[a] = true
 		caminoSet[b] = true
-		local key = a < b and (a .. "|" .. b) or (b .. "|" .. a)
+		local key = GrafoHelpers.clavePar(a, b)
 		aristasCaminoSet[key] = true
 	end
 
@@ -600,7 +546,7 @@ local function destacarCaminoFinalDijkstra(step)
 	for _, info in pairs(estado.aristaMap) do
 		if info.part and info.part.Parent and not info.esDefectuosa then
 			local nomA, nomB = info.nomA, info.nomB
-			local key = nomA < nomB and (nomA .. "|" .. nomB) or (nomB .. "|" .. nomA)
+			local key = GrafoHelpers.clavePar(nomA, nomB)
 			if not aristasCaminoSet[key] then
 				info.part.Material = MAT_DEFAULT
 				TweenService:Create(info.part, TWEEN_ARISTA, {
@@ -743,7 +689,7 @@ local function iniciarSimulacion(algo)
 		if not fnAlgo then warn("[EjecutorAlgoritmo3D] Algoritmo desconocido:", algo); return end
 
 		local function pesoArista(a, b)
-			local peso = obtenerPesoReal(a, b)
+			local peso = GrafoHelpers.obtenerPeso(estado.nivelID, a, b, 1)
 			return peso > 0 and peso or math.huge
 		end
 

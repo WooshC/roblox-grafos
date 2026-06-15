@@ -13,6 +13,7 @@
 -- limpiarlos todos juntos con limpiarTodo().
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local GrafoHelpers = require(ReplicatedStorage:WaitForChild("Compartido"):WaitForChild("GrafoHelpers"))
 local TweenService      = game:GetService("TweenService")
 local RunService        = game:GetService("RunService")
 
@@ -81,11 +82,6 @@ local function getAttachment(nodo, nombreAtt)
 	att.Parent = sel
 	table.insert(_partsTemporales, att)
 	return att
-end
-
----Genera una clave de par de nodos (orden lexicográfico)
-local function clavePar(a, b)
-	return a < b and (a .. "|" .. b) or (b .. "|" .. a)
 end
 
 -- ════════════════════════════════════════════════════════════════════
@@ -221,7 +217,7 @@ end
 --   sinParticulas: omite la animación de partículas
 --   dirigido: partículas solo A→B (dígrafo); por defecto A↔B (no dirigido)
 function EfectosDialogo.mostrarArista(nombreA, nombreB, colorTipo, opciones)
-	local clave = clavePar(nombreA, nombreB)
+	local clave = GrafoHelpers.clavePar(nombreA, nombreB)
 
 	-- Destruir anterior si existe
 	EfectosDialogo.quitarArista(nombreA, nombreB)
@@ -393,7 +389,7 @@ end
 
 ---Destruye una arista falsa con fade-out
 function EfectosDialogo.quitarArista(nombreA, nombreB)
-	local clave = clavePar(nombreA, nombreB)
+	local clave = GrafoHelpers.clavePar(nombreA, nombreB)
 	local datos = _aristasFalsas[clave]
 	if not datos then return end
 

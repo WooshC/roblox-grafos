@@ -7,6 +7,11 @@
 local GrafoHelpers = {}
 
 -- ════════════════════════════════════════════════════════════════════
+-- DEPENDENCIAS (solo módulos puros compartidos)
+-- ════════════════════════════════════════════════════════════════════
+local LevelsConfig = require(script.Parent.Parent:WaitForChild("Config"):WaitForChild("LevelsConfig"))
+
+-- ════════════════════════════════════════════════════════════════════
 -- SEPARADOR CANÓNICO
 -- ════════════════════════════════════════════════════════════════════
 -- NUNCA usar "_": los nombres de nodo contienen "_" (ej. "Nodo1_z1").
@@ -99,6 +104,147 @@ function GrafoHelpers.detectarDirigido(adyacencias, nodos)
 		end
 	end
 	return false
+end
+
+-- ════════════════════════════════════════════════════════════════════
+-- RESOLVER CONFIG DESDE número (nivelID) o tabla
+-- ════════════════════════════════════════════════════════════════════
+local function resolverConfig(configOrNivelID)
+	if type(configOrNivelID) == "number" then
+		return LevelsConfig[configOrNivelID]
+	elseif type(configOrNivelID) == "table" then
+		return configOrNivelID
+	end
+	return nil
+end
+
+-- ════════════════════════════════════════════════════════════════════
+-- PESO DE ARISTA (bidireccional, con default)
+-- ════════════════════════════════════════════════════════════════════
+function GrafoHelpers.obtenerPeso(configOrNivelID, nomA, nomB, default)
+	default = default or 0
+	local cfg = resolverConfig(configOrNivelID)
+	if not cfg or not cfg.PesosAristas then return default end
+	local clave = GrafoHelpers.clavePar(nomA, nomB)
+	return cfg.PesosAristas[clave]
+		or cfg.PesosAristas[nomB .. SEP .. nomA]
+		or default
+end
+
+-- ════════════════════════════════════════════════════════════════════
+-- CABLE DEFECTUOSO (según config estática o tabla Defectuosos)
+-- ════════════════════════════════════════════════════════════════════
+function GrafoHelpers.esCableDefectuoso(configOrNivelID, nomA, nomB)
+	local cfg = resolverConfig(configOrNivelID)
+	if not cfg then return false end
+	if cfg.Defectuosos then
+		return cfg.Defectuosos[GrafoHelpers.clavePar(nomA, nomB)] == true
+	end
+	if cfg.CablesDefectuosos then
+		for _, par in ipairs(cfg.CablesDefectuosos) do
+			if (par[1] == nomA and par[2] == nomB) or (par[1] == nomB and par[2] == nomA) then
+				return true
+			end
+		end
+	end
+	return false
+end
+
+function GrafoHelpers.defectuososSet(configOrNivelID)
+	local cfg = resolverConfig(configOrNivelID)
+	local set = {}
+	if not cfg then return set end
+	if cfg.Defectuosos then
+		for clave, _ in pairs(cfg.Defectuosos) do
+			set[clave] = true
+		end
+	end
+	if cfg.CablesDefectuosos then
+		for _, par in ipairs(cfg.CablesDefectuosos) do
+			set[GrafoHelpers.clavePar(par[1], par[2])] = true
+		end
+	end
+	return set
+end
+
+-- ════════════════════════════════════════════════════════════════════
+-- CÁLCULO Y FORMATO DE COSTO
+-- ════════════════════════════════════════════════════════════════════
+function GrafoHelpers.calcularCosto(peso, costoPorMetro)
+	if not peso or not costoPorMetro or costoPorMetro <= 0 then return 0 end
+	return math.floor(peso * costoPorMetro)
+end
+
+function GrafoHelpers.formatearDinero(valor)
+	local num = tostring(math.floor((valor or 0) + 0.5))
+	local resultado = ""
+	local contador = 0
+	for i = #num, 1, -1 do
+		if contador > 0 and contador % 3 == 0 then
+			resultado = "," .. resultado
+		end
+		resultado = num:sub(i, i) .. resultado
+		contador = contador + 1
+	end
+	return "$" .. resultado
+end
+
+-- ════════════════════════════════════════════════════════════════════
+-- ADYACENCIAS DESDE RESPUESTA DE MATRIZ
+-- ════════════════════════════════════════════════════════════════════
+function GrafoHelpers.adjDesdeMatriz(data, incluirDefectuosas, configOrNivelID)
+	local adj = {}
+	local headers = data.Headers
+	if not headers then return adj end
+	for i = 1, #headers do
+		local a = headers[i]
+		adj[a] = {}
+		local fila = data.Matrix[i]
+		if fila then
+			for j = 1, #headers do
+				if (fila[j] or 0) > 0 then
+					local b = headers[j]
+					if not incluirDefectuosas then
+						local fuente = configOrNivelID or data
+						if GrafoHelpers.esCableDefectuoso(fuente, a, b) then
+							continue
+						end
+					end
+					table.insert(adj[a], b)
+				end
+			end
+		end
+	end
+	return adj
+end
+
+-- ════════════════════════════════════════════════════════════════════
+-- MATRIZ TEÓRICA DESDE LevelsConfig.Adyacencias
+-- ════════════════════════════════════════════════════════════════════
+function GrafoHelpers.construirMatriz(adyacencias, nodos, esDirigido)
+	local n = #nodos
+	local nameToIdx = {}
+	for i, nom in ipairs(nodos) do nameToIdx[nom] = i end
+
+	local matrix = {}
+	for i = 1, n do
+		matrix[i] = {}
+		for j = 1, n do matrix[i][j] = 0 end
+	end
+
+	for _, nomA in ipairs(nodos) do
+		for _, nomB in ipairs(adyacencias[nomA] or {}) do
+			local idxA = nameToIdx[nomA]
+			local idxB = nameToIdx[nomB]
+			if idxA and idxB then
+				matrix[idxA][idxB] = 1
+				if not esDirigido then
+					matrix[idxB][idxA] = 1
+				end
+			end
+		end
+	end
+	return matrix
 end
 
 return GrafoHelpers

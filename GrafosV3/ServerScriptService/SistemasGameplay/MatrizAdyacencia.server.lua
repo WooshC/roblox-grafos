@@ -30,7 +30,7 @@ local getMatrixFunc = Remotos:WaitForChild("GetAdjacencyMatrix", 10)
 -- ═══════════════════════════════════════════════════════════════════
 
 -- Recolecta conexiones activas buscando Hitbox_* en todas las carpetas Conexiones.
--- Retorna: set { ["NomA|NomB"] = true }
+-- Retorna: set { [clavePar] = true }
 local function recolectarConexiones(nivelActual)
 	local conexiones = {}
 	local grafosFolder = nivelActual:FindFirstChild("Grafos")
@@ -44,7 +44,13 @@ local function recolectarConexiones(nivelActual)
 			-- Hitbox_NomA|NomB  (creado por ConectarCables)
 			local clave = child.Name:match("^Hitbox_(.+)$")
 			if clave then
-				conexiones[clave] = true
+				-- Normalizar la clave para no depender del orden A|B o B|A
+				local a, b = GrafoHelpers.parsearClave(clave)
+				if a and b then
+					conexiones[GrafoHelpers.clavePar(a, b)] = true
+				else
+					conexiones[clave] = true
+				end
 			end
 		end
 	end
@@ -98,13 +104,13 @@ getMatrixFunc.OnServerInvoke = function(player, zonaID)
 	-- 4. Leer conexiones activas del nivel (estado real del jugador)
 	local conexiones = recolectarConexiones(nivelActual)
 
-	-- 5. Llenar la matriz según adyacencias + Hitboxes activos.
+	-- 5. Llenar la matriz según adyacencias + Hitboxes activas.
 	--    Para cada arista A→B definida en LevelsConfig: si hay un Hitbox activo
-	--    (en cualquier orden de nombres) → matrix[A][B] = 1.
+	--    → matrix[A][B] = 1.
 	--    Dígrafo: NO se marca la celda simétrica.
-	--    No dirigido: se marca también matrix[B][A] (la simetría ya viene de la config).
-	--    Los cables defectuosos se consultan al ValidadorConexiones (estado dinámico),
-	--    no a LevelsConfig, para reflejar reemplazos del jugador.
+	--    No dirigido: se marca también matrix[B][A].
+	--    El estado defectuoso va en un campo separado (Defectuosos), no en el peso.
+	local defectuososSet = {}
 	for _, nomA in ipairs(nodos) do
 		local listaA = adyacencias[nomA] or {}
 		local idxA   = nameToIdx[nomA]
@@ -113,19 +119,16 @@ getMatrixFunc.OnServerInvoke = function(player, zonaID)
 			local idxB = nameToIdx[nomB]
 			if not idxB then continue end  -- nomB está fuera de esta zona
 
-			-- ConectarCables puede crear el Hitbox en cualquier orden
-			local claveAB   = nomA .. "|" .. nomB
-			local claveBA   = nomB .. "|" .. nomA
-			local conectado = conexiones[claveAB] or conexiones[claveBA]
+			local clave = GrafoHelpers.clavePar(nomA, nomB)
+			if conexiones[clave] then
+				if ValidadorConexiones.esCableDefectuoso(nomA, nomB) then
+					defectuososSet[clave] = true
+				end
 
-			if conectado then
-				local esDefectuoso = ValidadorConexiones.esCableDefectuoso(nomA, nomB)
-				local val = esDefectuoso and 2 or 1
-				
-				matrix[idxA][idxB] = val
+				local peso = GrafoHelpers.obtenerPeso(config, nomA, nomB, 1)
+				matrix[idxA][idxB] = peso
 				if not esDirigido then
-					-- Grafo no dirigido: la celda simétrica también va a 1 o 2
-					matrix[idxB][idxA] = val
+					matrix[idxB][idxA] = peso
 				end
 			end
 		end
@@ -150,6 +153,9 @@ getMatrixFunc.OnServerInvoke = function(player, zonaID)
 		NombresNodos  = nombresNodos,
 		EsDirigido    = esDirigido,
 		NodosDaniados = nodosDaniados,
+		PesosAristas  = config and config.PesosAristas or {},
+		CostoPorMetro = config and config.CostoPorMetro or 0,
+		Defectuosos   = defectuososSet,
 	}
 end
 

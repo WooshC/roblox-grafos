@@ -4,6 +4,9 @@
 
 local PuntajeHUD = {}
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local GrafoHelpers = require(ReplicatedStorage:WaitForChild("Compartido"):WaitForChild("GrafoHelpers"))
+
 local parentHud = nil
 local etiquetaEstrellas = nil
 local etiquetaPuntos = nil
@@ -100,22 +103,6 @@ function PuntajeHUD.fijarEstrellas(valor)
 	end
 end
 
--- Formatea un número como moneda: 5000 → "$5,000"
-local function formatearDinero(cantidad)
-	local num = math.floor(cantidad or 0)
-	local str = tostring(num)
-	local resultado = ""
-	local contador = 0
-	for i = #str, 1, -1 do
-		if contador > 0 and contador % 3 == 0 then
-			resultado = "," .. resultado
-		end
-		resultado = str:sub(i, i) .. resultado
-		contador = contador + 1
-	end
-	return "$" .. resultado
-end
-
 -- Actualiza el dinero (💰)
 function PuntajeHUD.fijarDinero(valor)
 	if not etiquetaDinero then
@@ -123,7 +110,7 @@ function PuntajeHUD.fijarDinero(valor)
 	end
 	
 	if etiquetaDinero then
-		etiquetaDinero.Text = formatearDinero(valor)
+		etiquetaDinero.Text = GrafoHelpers.formatearDinero(valor)
 	end
 end
 

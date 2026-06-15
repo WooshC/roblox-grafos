@@ -49,14 +49,11 @@ local function chequearCooldownDialogo(userId, segundos)
 end
 
 -- ── Helpers ───────────────────────────────────────────────────────────────────
-local function clavePar(a, b)
-	return GrafoHelpers.clavePar(a, b)
-end
 
 local function contarConexiones(nodo)
 	local count = 0
 	for key, _ in pairs(_cables) do
-		local a, b = key:match("^(.+)|(.+)$")
+		local a, b = GrafoHelpers.parsearClave(key)
 		if a == nodo or b == nodo then count = count + 1 end
 	end
 	return count
@@ -67,7 +64,7 @@ local function esAlcanzable(inicio, meta, visitados)
 	visitados = visitados or {}
 	visitados[inicio] = true
 	for key, _ in pairs(_cables) do
-		local a, b = key:match("^(.+)|(.+)$")
+		local a, b = GrafoHelpers.parsearClave(key)
 		local otro = nil
 		if a == inicio and not visitados[b] then otro = b
 		elseif b == inicio and not visitados[a] then otro = a end
@@ -110,12 +107,12 @@ end
 local Validadores = {}
 
 Validadores.ARISTA_CREADA = function(params)
-	local key = clavePar(params.NodoA, params.NodoB)
+	local key = GrafoHelpers.clavePar(params.NodoA, params.NodoB)
 	return _cables[key] == true
 end
 
 Validadores.ARISTA_DIRIGIDA = function(params)
-	local key = clavePar(params.NodoOrigen, params.NodoDestino)
+	local key = GrafoHelpers.clavePar(params.NodoOrigen, params.NodoDestino)
 	return _cables[key] == true
 end
 
@@ -501,13 +498,13 @@ end
 
 function ServicioMisiones.alCrearCable(nomA, nomB)
 	if not _activo then return end
-	_cables[clavePar(nomA, nomB)] = true
+	_cables[GrafoHelpers.clavePar(nomA, nomB)] = true
 	verificarYNotificar()
 end
 
 function ServicioMisiones.alEliminarCable(nomA, nomB)
 	if not _activo then return end
-	_cables[clavePar(nomA, nomB)] = nil
+	_cables[GrafoHelpers.clavePar(nomA, nomB)] = nil
 	verificarYNotificar()
 end
 

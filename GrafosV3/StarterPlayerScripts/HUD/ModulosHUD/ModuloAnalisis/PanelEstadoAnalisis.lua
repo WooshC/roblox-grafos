@@ -54,61 +54,17 @@ local function getConceptoPaso(lineaPseudo)
 	return cAlgo.pasos[lineaPseudo]
 end
 
-local function formatearDinero(valor)
-	local num = tostring(math.floor((valor or 0) + 0.5))
-	local resultado = ""
-	local contador = 0
-	for i = #num, 1, -1 do
-		if contador > 0 and contador % 3 == 0 then
-			resultado = "," .. resultado
-		end
-		resultado = num:sub(i, i) .. resultado
-		contador = contador + 1
-	end
-	return "$" .. resultado
-end
-
--- Busca el peso de una arista en PesosAristas (soporta ambos sentidos).
--- Fallback a LevelsConfig si el remote no trae el campo.
-local function obtenerPesoArista(pesosTabla, nomA, nomB)
-	if pesosTabla then
-		local clave1 = nomA .. "|" .. nomB
-		local clave2 = nomB .. "|" .. nomA
-		local p = pesosTabla[clave1] or pesosTabla[clave2]
-		if p then return p end
-	end
-	local nivelID = jugador:GetAttribute("CurrentLevelID") or 0
-	local cfg = LevelsConfig[nivelID] or {}
-	if cfg.PesosAristas then
-		local clave1 = nomA .. "|" .. nomB
-		local clave2 = nomB .. "|" .. nomA
-		return cfg.PesosAristas[clave1] or cfg.PesosAristas[clave2]
-	end
-	return nil
-end
-
 -- Formatea "Peso: X  ·  Costo: $Y" si hay costo por metro.
 local function formatearPesoCosto(nomA, nomB)
-	local pesosTabla = E.matrizData and E.matrizData.PesosAristas
-	local peso = obtenerPesoArista(pesosTabla, nomA, nomB)
-	if not peso then return nil end
+	local peso = GrafoHelpers.obtenerPeso(E.matrizData, nomA, nomB, 0)
+	if peso <= 0 then return nil end
+	local nivelID = jugador:GetAttribute("CurrentLevelID") or 0
 	local costoPorMetro = (E.matrizData and E.matrizData.CostoPorMetro)
-		or (LevelsConfig[jugador:GetAttribute("CurrentLevelID") or 0] or {}).CostoPorMetro
+		or (LevelsConfig[nivelID] or {}).CostoPorMetro
 		or 0
-	local costo = costoPorMetro > 0 and math.floor(peso * costoPorMetro) or nil
 	local texto = "Peso: " .. peso
-	if costo then
-		local num = tostring(costo)
-		local resultado = ""
-		local contador = 0
-		for i = #num, 1, -1 do
-			if contador > 0 and contador % 3 == 0 then
-				resultado = "," .. resultado
-			end
-			resultado = num:sub(i, i) .. resultado
-			contador = contador + 1
-		end
-		texto = texto .. "  ·  Costo: $" .. resultado
+	if costoPorMetro > 0 then
+		texto = texto .. "  ·  Costo: " .. GrafoHelpers.formatearDinero(GrafoHelpers.calcularCosto(peso, costoPorMetro))
 	end
 	return texto
 end
@@ -132,8 +88,9 @@ local function calcularPesoAcumulado(step)
 	if (E.algoActual == "dijkstra" or E.algoActual == "prim")
 		and step.aristasRecorridas and #step.aristasRecorridas > 0 then
 		local total = 0
+		local nivelID = jugador:GetAttribute("CurrentLevelID") or 0
 		for _, arista in ipairs(step.aristasRecorridas) do
-			total = total + obtenerPeso(nil, arista[1], arista[2])
+			total = total + GrafoHelpers.obtenerPeso(nivelID, arista[1], arista[2], 1)
 		end
 		return total
 	end
@@ -147,7 +104,7 @@ local function formatearPesoTotal(step)
 	local costoPorMetro = (LevelsConfig[nivelID] or {}).CostoPorMetro or 0
 	local texto = "Peso total: " .. peso
 	if costoPorMetro > 0 then
-		texto = texto .. "  ·  Costo total: " .. formatearDinero(peso * costoPorMetro)
+		texto = texto .. "  ·  Costo total: " .. GrafoHelpers.formatearDinero(GrafoHelpers.calcularCosto(peso, costoPorMetro))
 	end
 	return texto
 end

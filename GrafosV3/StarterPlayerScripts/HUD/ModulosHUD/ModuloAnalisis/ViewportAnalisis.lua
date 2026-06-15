@@ -22,27 +22,10 @@ local RS           = game:GetService("ReplicatedStorage")
 local E = require(script.Parent.EstadoAnalisis)
 local C = require(script.Parent.ConstantesAnalisis)
 local GrafoHelpers = require(RS:WaitForChild("Compartido"):WaitForChild("GrafoHelpers"))
-local LevelsConfig = require(RS:WaitForChild("Config"):WaitForChild("LevelsConfig"))
 
 local jugador = Players.LocalPlayer
 
 local ViewportAnalisis = {}
-
--- ════════════════════════════════════════════════════════════════
--- CABLES DEFECTUOSOS DESDE LevelsConfig
--- (evita depender de que el remote transporte el campo Defectuosos)
--- ════════════════════════════════════════════════════════════════
-local function esCableDefectuoso(nomA, nomB)
-	local nivelID = jugador and jugador:GetAttribute("CurrentLevelID") or 0
-	local cfg = LevelsConfig[nivelID] or {}
-	if not cfg.CablesDefectuosos then return false end
-	for _, par in ipairs(cfg.CablesDefectuosos) do
-		if (par[1] == nomA and par[2] == nomB) or (par[1] == nomB and par[2] == nomA) then
-			return true
-		end
-	end
-	return false
-end
 
 -- ════════════════════════════════════════════════════════════════
 -- POSICIÓN DE NODO EN EL NIVEL 3D
@@ -297,12 +280,12 @@ function ViewportAnalisis.reconstruirAristas(step)
 	if step then
 		for _, arista in ipairs(step.aristasRecorridas or {}) do
 			local a, b = arista[1], arista[2]
-			local key  = a < b and (a .. "|" .. b) or (b .. "|" .. a)
+			local key  = GrafoHelpers.clavePar(a, b)
 			recorridasSet[key] = true
 		end
 		if step.aristaNueva then
 			local a, b = step.aristaNueva[1], step.aristaNueva[2]
-			nuevaKey = a < b and (a .. "|" .. b) or (b .. "|" .. a)
+			nuevaKey = GrafoHelpers.clavePar(a, b)
 		end
 	end
 
@@ -317,7 +300,7 @@ function ViewportAnalisis.reconstruirAristas(step)
 		for _, nomB in ipairs(lista) do
 
 			-- Key canónica (para clasificar estado)
-			local key = nomA < nomB and (nomA .. "|" .. nomB) or (nomB .. "|" .. nomA)
+			local key = GrafoHelpers.clavePar(nomA, nomB)
 
 			-- Para NO dirigido: dibujar solo una vez por par
 			if not esDirigido then
@@ -335,7 +318,8 @@ function ViewportAnalisis.reconstruirAristas(step)
 			local esNueva     = (key == nuevaKey)
 			local esRecorrida = recorridasSet[key]
 			
-			local esDefectuosa = esCableDefectuoso(nomA, nomB)
+			local nivelID = jugador and jugador:GetAttribute("CurrentLevelID") or 0
+			local esDefectuosa = GrafoHelpers.esCableDefectuoso(nivelID, nomA, nomB)
 
 			local esDijkstra = E.algoActual == "dijkstra"
 

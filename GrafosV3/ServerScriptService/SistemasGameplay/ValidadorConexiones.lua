@@ -19,19 +19,6 @@ local conexionEliminada = Instance.new("BindableEvent")
 local estadoCambiado = Instance.new("BindableEvent")
 
 -- ================================================================
--- UTILIDADES INTERNAS
--- ================================================================
-
--- Delegamos a GrafoHelpers para separador canónico "|"
-local function generarClave(nombreA, nombreB)
-	return GrafoHelpers.clavePar(nombreA, nombreB)
-end
-
-local function parsearClave(clave)
-	return GrafoHelpers.parsearClave(clave)
-end
-
--- ================================================================
 -- CONFIGURACIÓN
 -- ================================================================
 
@@ -42,7 +29,7 @@ function ValidadorConexiones.configurar(config)
 	cablesDefectuososClaves = {}
 	if config and config.CablesDefectuosos then
 		for _, par in ipairs(config.CablesDefectuosos) do
-			local clave = generarClave(par[1], par[2])
+			local clave = GrafoHelpers.clavePar(par[1], par[2])
 			cablesDefectuososClaves[clave] = true
 		end
 	end
@@ -126,7 +113,7 @@ end
 function ValidadorConexiones.registrarConexion(nodoA, nodoB, cable)
 	if not nodoA or not nodoB then return false end
 	
-	local clave = generarClave(nodoA.Name, nodoB.Name)
+	local clave = GrafoHelpers.clavePar(nodoA.Name, nodoB.Name)
 	
 	-- Si ya existe, manejar según el tipo
 	if conexiones[clave] then
@@ -168,7 +155,7 @@ end
 	@return boolean - true si se eliminó correctamente
 ]]
 function ValidadorConexiones.eliminarConexion(nombreA, nombreB)
-	local clave = generarClave(nombreA, nombreB)
+	local clave = GrafoHelpers.clavePar(nombreA, nombreB)
 	local data = conexiones[clave]
 	
 	if not data then
@@ -202,7 +189,7 @@ end
 	@return boolean - true si están conectados
 ]]
 function ValidadorConexiones.estaConectado(nombreA, nombreB)
-	local clave = generarClave(nombreA, nombreB)
+	local clave = GrafoHelpers.clavePar(nombreA, nombreB)
 	return conexiones[clave] ~= nil and not cablesDefectuososClaves[clave]
 end
 
@@ -214,7 +201,7 @@ end
 	@return boolean - true si el cable es defectuoso
 ]]
 function ValidadorConexiones.esCableDefectuoso(nombreA, nombreB)
-	local clave = generarClave(nombreA, nombreB)
+	local clave = GrafoHelpers.clavePar(nombreA, nombreB)
 	return cablesDefectuososClaves[clave] == true
 end
 

@@ -45,10 +45,6 @@ local DISTANCIA_CLICK = 50
 -- HELPERS
 -- ═══════════════════════════════════════════════════════════════════════════════
 
-local function clavePar(nomA, nomB)
-	return GrafoHelpers.clavePar(nomA, nomB)
-end
-
 -- El Selector es una Part dentro del Model Nodo
 -- Nombre del nodo = selector.Parent.Name
 local function obtenerNombreNodo(selector)
@@ -100,18 +96,8 @@ local function esBidireccional(nomA, nomB)
 	return esAdyacente(nomA, nomB) and esAdyacente(nomB, nomA)
 end
 
--- Obtener el peso de una arista segun LevelsConfig (para presupuesto Nivel 3+)
-local function obtenerPesoArista(nomA, nomB)
-	if not _nivelID then return 0 end
-	local configNivel = LevelsConfig[_nivelID]
-	if not configNivel or not configNivel.PesosAristas then return 0 end
-	local clave1 = nomA .. "|" .. nomB
-	local clave2 = nomB .. "|" .. nomA
-	return configNivel.PesosAristas[clave1] or configNivel.PesosAristas[clave2] or 0
-end
-
 local function buscarCable(nomA, nomB)
-	local clave = clavePar(nomA, nomB)
+	local clave = GrafoHelpers.clavePar(nomA, nomB)
 	for i, cable in ipairs(_cables) do
 		if cable.clave == clave then return i end
 	end
@@ -264,7 +250,7 @@ end
 local function crearCable(selector1, selector2)
 	local nomA = obtenerNombreNodo(selector1)
 	local nomB = obtenerNombreNodo(selector2)
-	local clave = clavePar(nomA, nomB)
+	local clave = GrafoHelpers.clavePar(nomA, nomB)
 	
 	local att1 = obtenerAttachment(selector1)
 	local att2 = obtenerAttachment(selector2)
@@ -360,7 +346,7 @@ local function crearCable(selector1, selector2)
 	-- Notificar peso al cliente para tags de costo
 	local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
 	if notificarEvento then
-		local peso = obtenerPesoArista(nomA, nomB)
+		local peso = GrafoHelpers.obtenerPeso(_nivelID, nomA, nomB)
 		notificarEvento:FireClient(_jugador, "CableCreadoConPeso", nomA, nomB, peso)
 	end
 	
@@ -454,7 +440,7 @@ local function intentarConectar(jugador, selector1, selector2)
 	-- Verificar adyacencia segun LevelsConfig
 	if esAdyacente(nomA, nomB) then
 		-- Verificar presupuesto antes de crear el cable
-		local peso = obtenerPesoArista(nomA, nomB)
+		local peso = GrafoHelpers.obtenerPeso(_nivelID, nomA, nomB)
 		if peso > 0 and _callbacks and _callbacks.onAntesCrearCable then
 			local permitido = _callbacks.onAntesCrearCable(nomA, nomB, peso)
 			if permitido == false then
@@ -776,7 +762,7 @@ function ConectarCables.conectarNodos(nombreNodoA, nombreNodoB, jugador)
 	end
 	
 	-- Verificar presupuesto antes de crear el cable
-	local peso = obtenerPesoArista(nombreNodoA, nombreNodoB)
+	local peso = GrafoHelpers.obtenerPeso(_nivelID, nombreNodoA, nombreNodoB)
 	if peso > 0 and _callbacks and _callbacks.onAntesCrearCable then
 		local permitido = _callbacks.onAntesCrearCable(nombreNodoA, nombreNodoB, peso)
 		if permitido == false then

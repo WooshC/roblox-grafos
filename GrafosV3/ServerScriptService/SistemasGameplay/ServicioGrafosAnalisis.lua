@@ -42,35 +42,10 @@ getGrafoCompletoFunc.OnServerInvoke = function(player, zonaID)
 
 	local esDirigido = GrafoHelpers.detectarDirigido(adyacencias, nodos)
 
-	local n         = #nodos
-	local headers   = nodos
-	local nameToIdx = {}
-	for i, nom in ipairs(headers) do nameToIdx[nom] = i end
-
-	local matrix = {}
-	for i = 1, n do
-		matrix[i] = {}
-		for j = 1, n do matrix[i][j] = 0 end
-	end
-
-	-- Llenar con TODAS las aristas de LevelsConfig (sin filtrar por Hitboxes)
-	for _, nomA in ipairs(nodos) do
-		local listaA = adyacencias[nomA] or {}
-		local idxA   = nameToIdx[nomA]
-
-		for _, nomB in ipairs(listaA) do
-			local idxB = nameToIdx[nomB]
-			if not idxB then continue end
-
-			matrix[idxA][idxB] = 1
-			if not esDirigido then
-				matrix[idxB][idxA] = 1
-			end
-		end
-	end
+	local matrix = GrafoHelpers.construirMatriz(adyacencias, nodos, esDirigido)
 
 	print(string.format("[ServicioGrafosAnalisis] Grafo completo %dx%d %s – %s (zona=%s)",
-		n, n, esDirigido and "DÍGRAFO" or "NO DIRIGIDO", player.Name, zonaID))
+		#nodos, #nodos, esDirigido and "DÍGRAFO" or "NO DIRIGIDO", player.Name, zonaID))
 
 	-- Nodos danados de esta zona
 	local nodosDaniados = {}
@@ -82,12 +57,18 @@ getGrafoCompletoFunc.OnServerInvoke = function(player, zonaID)
 		end
 	end
 
+	-- Cables defectuosos como set de claves canónicas
+	local defectuososSet = GrafoHelpers.defectuososSet(config)
+
 	return {
-		Headers       = headers,
+		Headers       = nodos,
 		Matrix        = matrix,
 		NombresNodos  = nombresNodos,
 		EsDirigido    = esDirigido,
 		NodosDaniados = nodosDaniados,
+		PesosAristas  = config and config.PesosAristas or {},
+		CostoPorMetro = config and config.CostoPorMetro or 0,
+		Defectuosos   = defectuososSet,
 	}
 end
 

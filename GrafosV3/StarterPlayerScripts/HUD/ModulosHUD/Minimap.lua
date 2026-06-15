@@ -20,6 +20,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local EfectosNodo       = require(ReplicatedStorage.Efectos.EfectosNodo)
 local EstadoConexiones  = require(script.Parent.EstadoConexiones)
 local LevelsConfig      = require(ReplicatedStorage:WaitForChild("Config"):WaitForChild("LevelsConfig"))
+local GrafoHelpers      = require(ReplicatedStorage:WaitForChild("Compartido"):WaitForChild("GrafoHelpers"))
 
 local Minimap = {}
 
@@ -208,7 +209,7 @@ local function actualizarCables()
 		local conectados = EstadoConexiones.obtenerConexiones(nomA)
 		for _, nomB in ipairs(conectados) do
 			-- Deduplicar: solo crear el cable una vez por par
-			local key = nomA < nomB and (nomA .. "|" .. nomB) or (nomB .. "|" .. nomA)
+			local key = GrafoHelpers.clavePar(nomA, nomB)
 			if vistos[key] then continue end
 			vistos[key] = true
 

@@ -12,6 +12,7 @@ local EfectosVideo     = require(Replicado.Efectos.EfectosVideo)
 local EfectosNodo      = require(Replicado.Efectos.EfectosNodo)
 local EfectosDano      = require(Replicado.Efectos.EfectosDano)
 local BillboardNombres = require(Replicado.Efectos.BillboardNombres)
+local GrafoHelpers     = require(Replicado:WaitForChild("Compartido"):WaitForChild("GrafoHelpers"))
 local ControladorAudio = require(script.Parent.Parent
 	:WaitForChild("Compartido")
 	:WaitForChild("ControladorAudio"))
@@ -292,48 +293,28 @@ GestorEfectos.registrar("NodoSeleccionado", function(params)
 end)
 
 -- Helper: formatear dinero como ",XXX"
-local function formatearDinero(cantidad)
-	local num = math.floor(cantidad or 0)
-	local str = tostring(num)
-	local resultado = ""
-	local contador = 0
-	for i = #str, 1, -1 do
-		if contador > 0 and contador % 3 == 0 then
-			resultado = "," .. resultado
-		end
-		resultado = str:sub(i, i) .. resultado
-		contador = contador + 1
-	end
-	return "$" .. resultado
-end
 
 -- Helper: buscar hitbox de un cable en el workspace
 local function buscarHitboxCable(nomA, nomB)
 	local nivel = Workspace:FindFirstChild("NivelActual")
 	if not nivel then return nil end
-	local clave1 = "Hitbox_" .. nomA .. "|" .. nomB
-	local clave2 = "Hitbox_" .. nomB .. "|" .. nomA
-	local hitbox = nivel:FindFirstChild(clave1, true)
-	if not hitbox then
-		hitbox = nivel:FindFirstChild(clave2, true)
-	end
-	return hitbox
+	local clave = "Hitbox_" .. GrafoHelpers.clavePar(nomA, nomB)
+	return nivel:FindFirstChild(clave, true)
 end
 
 -- Helper: crear tag de costo sobre un cable
 local function crearTagCosto(nomA, nomB, peso)
 	if not peso or peso <= 0 then return end
 	if not _nivelActualID then return end
-	local cfg = LevelsConfig[_nivelActualID]
-	local costoPorMetro = (cfg and cfg.CostoPorMetro) or 0
+	local costoPorMetro = (LevelsConfig[_nivelActualID] or {}).CostoPorMetro or 0
 	if costoPorMetro <= 0 then return end
 
-	local costoTotal = math.floor(peso * costoPorMetro)
+	local costoTotal = GrafoHelpers.calcularCosto(peso, costoPorMetro)
 	local hitbox = buscarHitboxCable(nomA, nomB)
 	if not hitbox then return end
 
-	local claveTag = "COSTO_" .. nomA .. "|" .. nomB
-	local texto = string.format("Peso: %d | Costo: %s", peso, formatearDinero(costoTotal))
+	local claveTag = "COSTO_" .. GrafoHelpers.clavePar(nomA, nomB)
+	local texto = string.format("Peso: %d | Costo: %s", peso, GrafoHelpers.formatearDinero(costoTotal))
 	BillboardNombres.crear(hitbox, texto, "CABLE_COSTO", claveTag, {
 		tamano = UDim2.new(0, 220, 0, 22),
 	})
@@ -342,22 +323,14 @@ end
 
 -- Helper: destruir tag de costo de un cable
 local function destruirTagCosto(nomA, nomB)
-	local claveTag = "COSTO_" .. nomA .. "|" .. nomB
+	local claveTag = "COSTO_" .. GrafoHelpers.clavePar(nomA, nomB)
 	BillboardNombres.destruir(claveTag)
 	_tagsCable[claveTag] = nil
-	local claveTagInv = "COSTO_" .. nomB .. "|" .. nomA
-	BillboardNombres.destruir(claveTagInv)
-	_tagsCable[claveTagInv] = nil
 end
 
 -- Helper: obtener peso de arista desde LevelsConfig (no dirigida)
 obtenerPesoArista = function(nomA, nomB)
-	if not _nivelActualID then return nil end
-	local cfg = LevelsConfig[_nivelActualID]
-	if not cfg or not cfg.PesosAristas then return nil end
-	local clave1 = nomA .. "|" .. nomB
-	local clave2 = nomB .. "|" .. nomA
-	return cfg.PesosAristas[clave1] or cfg.PesosAristas[clave2]
+	return GrafoHelpers.obtenerPeso(_nivelActualID, nomA, nomB)
 end
 
 -- Helper: crear tag de costo previo sobre un nodo adyacente
@@ -366,11 +339,10 @@ crearTagCostoNodo = function(nomNodo, nomA, nomB)
 	local peso = obtenerPesoArista(nomA, nomB)
 	if not peso or peso <= 0 then return end
 	if not _nivelActualID then return end
-	local cfg = LevelsConfig[_nivelActualID]
-	local costoPorMetro = (cfg and cfg.CostoPorMetro) or 0
+	local costoPorMetro = (LevelsConfig[_nivelActualID] or {}).CostoPorMetro or 0
 	if costoPorMetro <= 0 then return end
 
-	local costoTotal = math.floor(peso * costoPorMetro)
+	local costoTotal = GrafoHelpers.calcularCosto(peso, costoPorMetro)
 	local nivel = Workspace:FindFirstChild("NivelActual")
 	if not nivel then return end
 	local nodo = nivel:FindFirstChild(nomNodo, true)
@@ -378,8 +350,8 @@ crearTagCostoNodo = function(nomNodo, nomA, nomB)
 	local _, basePart = getSelector(nodo)
 	if not basePart then return end
 
-	local claveTag = "COSTO_NODO_" .. nomA .. "|" .. nomB
-	BillboardNombres.crear(basePart, formatearDinero(costoTotal), "NODO_COSTO_PREVIEW", claveTag)
+	local claveTag = "COSTO_NODO_" .. GrafoHelpers.clavePar(nomA, nomB)
+	BillboardNombres.crear(basePart, GrafoHelpers.formatearDinero(costoTotal), "NODO_COSTO_PREVIEW", claveTag)
 	_tagsNodoCosto[claveTag] = true
 end
 

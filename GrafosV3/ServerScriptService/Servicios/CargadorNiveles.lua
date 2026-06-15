@@ -319,20 +319,11 @@ function CargadorNiveles.cargar(nivelID, jugador)
 						puntajeRef:registrarDesconexion(jugadorRef)
 					end
 					-- Reembolsar costo de la arista si el nivel usa presupuesto
-					local configNivel = LevelsConfig[nivelID]
-					if configNivel and configNivel.PesosAristas then
-						local clave = GrafoHelpers.clavePar(nomA, nomB)
-						local peso = configNivel.PesosAristas[clave]
-						if not peso then
-							local claveInv = nomB .. "|" .. nomA
-							peso = configNivel.PesosAristas[claveInv]
-						end
-						if peso and peso > 0 and puntajeRef then
-							local costoPorMetro = configNivel.CostoPorMetro or 0
-							local costoTotal = math.floor(peso * costoPorMetro)
-							if costoTotal > 0 then
-								puntajeRef:reembolsar(jugadorRef, costoTotal)
-							end
+					local peso = GrafoHelpers.obtenerPeso(nivelID, nomA, nomB, 0)
+					if peso > 0 and puntajeRef then
+						local costoTotal = GrafoHelpers.calcularCosto(peso, (LevelsConfig[nivelID] or {}).CostoPorMetro)
+						if costoTotal > 0 then
+							puntajeRef:reembolsar(jugadorRef, costoTotal)
 						end
 					end
 					-- LUEGO verificar misiones
@@ -369,9 +360,7 @@ function CargadorNiveles.cargar(nivelID, jugador)
 				end,
 				onAntesCrearCable = function(nomA, nomB, peso)
 					if peso and peso > 0 and puntajeRef then
-						local configNivel = LevelsConfig[nivelID]
-						local costoPorMetro = (configNivel and configNivel.CostoPorMetro) or 0
-						local costoTotal = math.floor(peso * costoPorMetro)
+						local costoTotal = GrafoHelpers.calcularCosto(peso, (LevelsConfig[nivelID] or {}).CostoPorMetro)
 						if costoTotal > 0 then
 							local ok = puntajeRef:gastar(jugadorRef, costoTotal)
 							if not ok then
