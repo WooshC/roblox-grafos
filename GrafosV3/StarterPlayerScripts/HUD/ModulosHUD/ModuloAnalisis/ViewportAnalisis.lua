@@ -16,13 +16,33 @@
 --   limpiarParticulas() se reserva para el reset completo (cambio de algoritmo / cierre).
 
 local TweenService = game:GetService("TweenService")
+local Players      = game:GetService("Players")
 local RS           = game:GetService("ReplicatedStorage")
 
 local E = require(script.Parent.EstadoAnalisis)
 local C = require(script.Parent.ConstantesAnalisis)
 local GrafoHelpers = require(RS:WaitForChild("Compartido"):WaitForChild("GrafoHelpers"))
+local LevelsConfig = require(RS:WaitForChild("Config"):WaitForChild("LevelsConfig"))
+
+local jugador = Players.LocalPlayer
 
 local ViewportAnalisis = {}
+
+-- ════════════════════════════════════════════════════════════════
+-- CABLES DEFECTUOSOS DESDE LevelsConfig
+-- (evita depender de que el remote transporte el campo Defectuosos)
+-- ════════════════════════════════════════════════════════════════
+local function esCableDefectuoso(nomA, nomB)
+	local nivelID = jugador and jugador:GetAttribute("CurrentLevelID") or 0
+	local cfg = LevelsConfig[nivelID] or {}
+	if not cfg.CablesDefectuosos then return false end
+	for _, par in ipairs(cfg.CablesDefectuosos) do
+		if (par[1] == nomA and par[2] == nomB) or (par[1] == nomB and par[2] == nomA) then
+			return true
+		end
+	end
+	return false
+end
 
 -- ════════════════════════════════════════════════════════════════
 -- POSICIÓN DE NODO EN EL NIVEL 3D
@@ -315,9 +335,7 @@ function ViewportAnalisis.reconstruirAristas(step)
 			local esNueva     = (key == nuevaKey)
 			local esRecorrida = recorridasSet[key]
 			
-			local keyDefectuosa = GrafoHelpers.clavePar(nomA, nomB)
-			local esDefectuosa = E.matrizData.Defectuosos
-				and E.matrizData.Defectuosos[keyDefectuosa] == true
+			local esDefectuosa = esCableDefectuoso(nomA, nomB)
 
 			local esDijkstra = E.algoActual == "dijkstra"
 

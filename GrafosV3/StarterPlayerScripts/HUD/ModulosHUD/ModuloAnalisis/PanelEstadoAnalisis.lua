@@ -11,8 +11,15 @@ local AlgoritmosGrafo      = require(script.Parent.Parent.AlgoritmosGrafo)
 local ViewportAnalisis     = require(script.Parent.ViewportAnalisis)
 local PseudocodigoAnalisis = require(script.Parent.PseudocodigoAnalisis)
 
+local Players = game:GetService("Players")
+local RS      = game:GetService("ReplicatedStorage")
+
 local E = require(script.Parent.EstadoAnalisis)
 local C = require(script.Parent.ConstantesAnalisis)
+local LevelsConfig = require(RS:WaitForChild("Config"):WaitForChild("LevelsConfig"))
+local GrafoHelpers = require(RS:WaitForChild("Compartido"):WaitForChild("GrafoHelpers"))
+
+local jugador = Players.LocalPlayer
 
 local PanelEstadoAnalisis = {}
 
@@ -48,11 +55,20 @@ local function getConceptoPaso(lineaPseudo)
 end
 
 -- Busca el peso de una arista en PesosAristas (soporta ambos sentidos).
+-- Fallback a LevelsConfig si el remote no trae el campo.
 local function obtenerPesoArista(pesosTabla, nomA, nomB)
-	if not pesosTabla then return nil end
-	local clave1 = nomA .. "|" .. nomB
-	local clave2 = nomB .. "|" .. nomA
-	return pesosTabla[clave1] or pesosTabla[clave2]
+	if pesosTabla then
+		local clave1 = nomA .. "|" .. nomB
+		local clave2 = nomB .. "|" .. nomA
+		local p = pesosTabla[clave1] or pesosTabla[clave2]
+		if p then return p end
+	end
+	local nivelID = jugador:GetAttribute("CurrentLevelID") or 0
+	local cfg = LevelsConfig[nivelID] or {}
+	if cfg.PesosAristas then
+		return cfg.PesosAristas[GrafoHelpers.clavePar(nomA, nomB)]
+	end
+	return nil
 end
 
 -- Formatea "Peso: X  ·  Costo: $Y" si hay costo por metro.
@@ -60,7 +76,9 @@ local function formatearPesoCosto(nomA, nomB)
 	local pesosTabla = E.matrizData and E.matrizData.PesosAristas
 	local peso = obtenerPesoArista(pesosTabla, nomA, nomB)
 	if not peso then return nil end
-	local costoPorMetro = E.matrizData and E.matrizData.CostoPorMetro or 0
+	local costoPorMetro = (E.matrizData and E.matrizData.CostoPorMetro)
+		or (LevelsConfig[jugador:GetAttribute("CurrentLevelID") or 0] or {}).CostoPorMetro
+		or 0
 	local costo = costoPorMetro > 0 and math.floor(peso * costoPorMetro) or nil
 	local texto = "Peso: " .. peso
 	if costo then

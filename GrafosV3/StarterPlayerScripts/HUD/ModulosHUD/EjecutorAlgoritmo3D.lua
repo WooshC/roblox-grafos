@@ -12,8 +12,10 @@ local RS           = game:GetService("ReplicatedStorage")
 local AlgoritmosGrafo    = require(script.Parent.AlgoritmosGrafo)
 local LevelsConfig       = require(RS:WaitForChild("Config"):WaitForChild("LevelsConfig"))
 local PresetTween        = require(RS:WaitForChild("Efectos"):WaitForChild("PresetTween"))
+local BillboardNombres   = require(RS:WaitForChild("Efectos"):WaitForChild("BillboardNombres"))
 local SelectorAlgUI      = require(script.Parent.SelectorAlgUI)
 local ConstantesAnalisis = require(script.Parent.ModuloAnalisis.ConstantesAnalisis)
+local GrafoHelpers       = require(RS:WaitForChild("Compartido"):WaitForChild("GrafoHelpers"))
 
 local jugador = Players.LocalPlayer
 
@@ -29,11 +31,13 @@ local COL_NODO = {
 	INICIO   = ConstantesAnalisis.COL_ACTUAL,    -- naranja
 	VISITADO = ConstantesAnalisis.COL_VISITADO,  -- verde
 	ACTUAL   = ConstantesAnalisis.COL_ACTUAL,    -- naranja
+	CAMINO   = Color3.new(1, 1, 1),              -- blanco para camino mínimo/MST
 }
 
 local COL_ARISTA_DEFAULT = ConstantesAnalisis.COL_ARISTA_DEFAULT
 local COL_ARISTA_VISIT   = ConstantesAnalisis.COL_ARISTA_VISIT
 local COL_ARISTA_NUEVA   = ConstantesAnalisis.COL_ARISTA_NUEVA
+local COL_ARISTA_BLANCO  = Color3.new(1, 1, 1)   -- camino mínimo / MST
 local COL_ARISTA_DEFECT  = Color3.fromRGB(200, 50, 50)
 
 local ALPHA_DEFAULT = 0.55
@@ -77,6 +81,9 @@ local estado = {
 	-- aristaMap[key] = { part, esDefectuosa, nomA, nomB, posA, posB }
 	-- Los cilindros se crean una vez y solo se tween su color/alpha
 	aristaMap       = {},
+
+	-- tags de peso/costo creados sobre aristas del camino/MST
+	tagsArista      = {},
 
 	partActivas     = {},
 
@@ -134,7 +141,13 @@ local function buildAdyacencias(data, soloValidas)
 			for j = 1, #headers do
 				local val = fila[j] or 0
 				if val > 0 then
-					if soloValidas and val == 2 then continue end
+					if soloValidas then
+						local nomB = headers[j]
+						local clave = GrafoHelpers.clavePar(nomA, nomB)
+						if data.Defectuosos and data.Defectuosos[clave] then
+							continue
+						end
+					end
 					table.insert(adj[nomA], headers[j])
 				end
 			end
@@ -150,6 +163,65 @@ local function existeArista(nomA, nomB)
 		if v == nomB then return true end
 	end
 	return false
+end
+
+-- ════════════════════════════════════════════════════════════════
+-- PESOS Y CABLES DEFECTUOSOS DESDE LevelsConfig
+-- (GetGrafoCompleto no transporta pesos reales; los leemos localmente)
+-- ════════════════════════════════════════════════════════════════
+local function obtenerPesoReal(nomA, nomB)
+	local cfg = LevelsConfig[estado.nivelID] or {}
+	if not cfg.PesosAristas then return 1 end
+	return cfg.PesosAristas[GrafoHelpers.clavePar(nomA, nomB)] or 1
+end
+
+local function esCableDefectuoso(nomA, nomB)
+	local cfg = LevelsConfig[estado.nivelID] or {}
+	if not cfg.CablesDefectuosos then return false end
+	for _, par in ipairs(cfg.CablesDefectuosos) do
+		if (par[1] == nomA and par[2] == nomB) or (par[1] == nomB and par[2] == nomA) then
+			return true
+		end
+	end
+	return false
+end
+
+-- ════════════════════════════════════════════════════════════════
+-- ETIQUETAS DE PESO/COSTO SOBRE ARISTAS
+-- ════════════════════════════════════════════════════════════════
+local function formatearDinero(valor)
+	return "$" .. tostring(math.floor((valor or 0) + 0.5))
+end
+
+local function obtenerPesoArista(nomA, nomB)
+	local peso = obtenerPesoReal(nomA, nomB)
+	return peso > 0 and peso or nil
+end
+
+local function crearTagArista(nomA, nomB, part)
+	if not part then return end
+	local key = nomA < nomB and (nomA .. "|" .. nomB) or (nomB .. "|" .. nomA)
+	if estado.tagsArista[key] then return end
+	local peso = obtenerPesoArista(nomA, nomB)
+	if not peso then return end
+	local cfg   = LevelsConfig[estado.nivelID] or {}
+	local costo = peso * (cfg.CostoPorMetro or 500)
+	local texto = "Peso: " .. peso .. " | Costo: " .. formatearDinero(costo)
+	local bb = BillboardNombres.crear(
+		part,
+		texto,
+		"CABLE_COSTO",
+		"TagPesoArista_" .. key,
+		{ tamano = UDim2.new(0, 220, 0, 22) }
+	)
+	estado.tagsArista[key] = bb
+end
+
+local function destruirTagsArista()
+	for key, tag in pairs(estado.tagsArista) do
+		if tag and tag.Parent then tag:Destroy() end
+		estado.tagsArista[key] = nil
+	end
 end
 
 -- ════════════════════════════════════════════════════════════════
@@ -200,7 +272,7 @@ local function encenderNodo(nombre, tipoColor)
 	estado.nodosEncendidos[nombre] = true
 
 	local col  = COL_NODO[tipoColor] or COL_NODO.VISITADO
-	local neon = (tipoColor == "ACTUAL" or tipoColor == "VISITADO" or tipoColor == "INICIO")
+	local neon = (tipoColor == "ACTUAL" or tipoColor == "VISITADO" or tipoColor == "INICIO" or tipoColor == "CAMINO")
 	if neon then sel.Material = PresetTween.MATERIALES.NEON end
 	TweenService:Create(sel, TWEEN_NODO, {
 		Color = col, Transparency = 0.15,
@@ -312,13 +384,7 @@ local function construirAristas()
 			local dist = (posA - posB).Magnitude
 			if dist < 0.1 then continue end
 
-			local valMatrix = 0
-			local idxA = table.find(estado.matrizData.Headers, nomA)
-			local idxB = table.find(estado.matrizData.Headers, nomB)
-			if idxA and idxB and estado.matrizData.Matrix[idxA] then
-				valMatrix = estado.matrizData.Matrix[idxA][idxB] or 0
-			end
-			local esDefectuosa = (valMatrix == 2)
+			local esDefectuosa = esCableDefectuoso(nomA, nomB)
 
 			local posACil, posBCil = posA, posB
 			if esDirigido then
@@ -380,6 +446,7 @@ end
 local function actualizarAristas(step)
 	if not estado.matrizData then return 0 end
 	local esDirigido = estado.matrizData.EsDirigido or false
+	local esDijkstra = estado.algoritmoActual == "dijkstra"
 
 	local recorridasSet = {}
 	local nuevaKey      = nil
@@ -411,7 +478,10 @@ local function actualizarAristas(step)
 		if esNueva then
 			color = COL_ARISTA_NUEVA; alpha = ALPHA_ACTIVA; mat = MAT_NEON
 		elseif esRecorrida then
-			color = COL_ARISTA_VISIT; alpha = ALPHA_ACTIVA; mat = MAT_NEON
+			-- Camino minimo/MST: blanco para Dijkstra, verde neon para el resto
+			color = esDijkstra and COL_ARISTA_BLANCO or COL_ARISTA_VISIT
+			alpha = ALPHA_ACTIVA
+			mat   = MAT_NEON
 		else
 			color = COL_ARISTA_DEFAULT; alpha = ALPHA_DEFAULT; mat = MAT_DEFAULT
 		end
@@ -423,6 +493,10 @@ local function actualizarAristas(step)
 				Color        = color,
 				Transparency = alpha,
 			}):Play()
+		end
+
+		if esRecorrida then
+			crearTagArista(nomA, nomB, part)
 		end
 
 		if esNueva or esRecorrida then
@@ -477,6 +551,65 @@ local function limpiarEfectos3D()
 	end
 	estado.aristaMap = {}
 
+	destruirTagsArista()
+
+	limpiarTodasParticulas()
+end
+
+-- ════════════════════════════════════════════════════════════════
+-- DESTACADO FINAL DEL CAMINO MINIMO (Dijkstra)
+-- ════════════════════════════════════════════════════════════════
+local function destacarCaminoFinalDijkstra(step)
+	if estado.algoritmoActual ~= "dijkstra" or not step then return end
+	local aristas = step.aristasRecorridas or {}
+	if #aristas == 0 then return end
+
+	local caminoSet = {}
+	local aristasCaminoSet = {}
+	for _, arista in ipairs(aristas) do
+		local a, b = arista[1], arista[2]
+		caminoSet[a] = true
+		caminoSet[b] = true
+		local key = a < b and (a .. "|" .. b) or (b .. "|" .. a)
+		aristasCaminoSet[key] = true
+	end
+
+	-- Restaurar nodos visitados que NO forman parte del camino mas corto
+	local aRestaurar = {}
+	for nombre in pairs(estado.nodosEncendidos) do
+		if not caminoSet[nombre] then
+			table.insert(aRestaurar, nombre)
+		end
+	end
+	for _, nombre in ipairs(aRestaurar) do
+		restaurarNodo(nombre)
+	end
+
+	-- Pintar de blanco todos los nodos del camino minimo
+	local aBlanco = {}
+	for nombre in pairs(caminoSet) do
+		table.insert(aBlanco, nombre)
+	end
+	for _, nombre in ipairs(aBlanco) do
+		encenderNodo(nombre, "CAMINO")
+	end
+
+	-- Apagar aristas que NO formen parte del camino mas corto
+	for _, info in pairs(estado.aristaMap) do
+		if info.part and info.part.Parent and not info.esDefectuosa then
+			local nomA, nomB = info.nomA, info.nomB
+			local key = nomA < nomB and (nomA .. "|" .. nomB) or (nomB .. "|" .. nomA)
+			if not aristasCaminoSet[key] then
+				info.part.Material = MAT_DEFAULT
+				TweenService:Create(info.part, TWEEN_ARISTA, {
+					Color        = COL_ARISTA_DEFAULT,
+					Transparency = ALPHA_DEFAULT,
+				}):Play()
+			end
+		end
+	end
+
+	-- Detener particulas: el camino minimo ya esta fijo
 	limpiarTodasParticulas()
 end
 
@@ -502,6 +635,10 @@ local function aplicarPaso3D(step)
 
 	local durAristas = actualizarAristas(step)
 	if durAristas > maxDuracion then maxDuracion = durAristas end
+
+	if estado.algoritmoActual == "dijkstra" and estado.pasoActual == estado.totalPasos then
+		destacarCaminoFinalDijkstra(step)
+	end
 
 	return maxDuracion
 end
@@ -573,6 +710,7 @@ local function iniciarSimulacion(algo)
 	zona = estado.zonaAnclada
 
 	local nivelID     = jugador:GetAttribute("CurrentLevelID") or 0
+	estado.nivelID    = nivelID
 	local config      = LevelsConfig[nivelID]
 	local analisisCfg = config and config.AnalisisConfig and config.AnalisisConfig[zona] or nil
 
@@ -602,7 +740,21 @@ local function iniciarSimulacion(algo)
 		local fnAlgo = AlgoritmosGrafo[algo]
 		if not fnAlgo then warn("[EjecutorAlgoritmo3D] Algoritmo desconocido:", algo); return end
 
-		estado.pasos      = fnAlgo(nodos, estado.adyacencias, nodoInicio)
+		local function pesoArista(a, b)
+			local peso = obtenerPesoReal(a, b)
+			return peso > 0 and peso or math.huge
+		end
+
+		local pasos
+		if algo == "dijkstra" then
+			pasos = fnAlgo(nodos, estado.adyacencias, nodoInicio, pesoArista, estado.nodoFin)
+		elseif algo == "prim" then
+			pasos = fnAlgo(nodos, estado.adyacencias, nodoInicio, pesoArista)
+		else
+			pasos = fnAlgo(nodos, estado.adyacencias, nodoInicio)
+		end
+
+		estado.pasos      = pasos
 		estado.totalPasos = #estado.pasos
 		estado.pasoActual = 1
 		estado.activo     = true

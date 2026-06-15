@@ -28,6 +28,7 @@ local RS      = game:GetService("ReplicatedStorage")
 
 local jugador    = Players.LocalPlayer
 local LevelsConfig = require(RS:WaitForChild("Config"):WaitForChild("LevelsConfig"))
+local GrafoHelpers = require(RS:WaitForChild("Compartido"):WaitForChild("GrafoHelpers"))
 
 local ModuloMatriz = {}
 
@@ -76,6 +77,25 @@ local function addStroke(parent)
 	s.Color = Color3.fromRGB(70, 70, 70)
 	s.Transparency = 0.5
 	s.Parent = parent
+end
+
+-- Determina si una arista está marcada como defectuosa.
+-- Primero consulta el campo servidor; si no existe, lee LevelsConfig.
+local function esCableDefectuoso(rawVal, nomA, nomB)
+	local clave = GrafoHelpers.clavePar(nomA, nomB)
+	if _matrizData and _matrizData.Defectuosos then
+		return _matrizData.Defectuosos[clave] == true
+	end
+	local nivelID = jugador:GetAttribute("CurrentLevelID") or 0
+	local cfg = LevelsConfig[nivelID] or {}
+	if cfg.CablesDefectuosos then
+		for _, par in ipairs(cfg.CablesDefectuosos) do
+			if (par[1] == nomA and par[2] == nomB) or (par[1] == nomB and par[2] == nomA) then
+				return true
+			end
+		end
+	end
+	return rawVal == 2  -- último fallback legacy
 end
 
 -- ════════════════════════════════════════════════════════════════
@@ -219,7 +239,9 @@ local function resaltarEnMatriz(idx)
 		if esDato then
 			local rawVal = (_matrizData.Matrix[cy] and _matrizData.Matrix[cy][cx]) or 0
 			val = rawVal > 0 and 1 or 0
-			esDefectuoso = rawVal == 2
+			local nomA = _matrizData.Headers[cy]
+			local nomB = _matrizData.Headers[cx]
+			esDefectuoso = esCableDefectuoso(rawVal, nomA, nomB)
 		end
 
 		-- TG 07: color base de header segun si el nodo esta danado
@@ -408,7 +430,9 @@ local function renderizarMatriz(data)
 		for colIdx = 1, n do
 			local rawVal = (matrix[rowIdx] and matrix[rowIdx][colIdx]) or 0
 			local val    = rawVal > 0 and 1 or 0
-			local esDefectuoso = rawVal == 2
+			local nomA = headers[rowIdx]
+			local nomB = headers[colIdx]
+			local esDefectuoso = esCableDefectuoso(rawVal, nomA, nomB)
 			local esDiag = (rowIdx == colIdx)
 			
 			local color
