@@ -172,7 +172,9 @@ end
 local function obtenerPesoReal(nomA, nomB)
 	local cfg = LevelsConfig[estado.nivelID] or {}
 	if not cfg.PesosAristas then return 1 end
-	return cfg.PesosAristas[GrafoHelpers.clavePar(nomA, nomB)] or 1
+	local clave1 = nomA .. "|" .. nomB
+	local clave2 = nomB .. "|" .. nomA
+	return cfg.PesosAristas[clave1] or cfg.PesosAristas[clave2] or 1
 end
 
 local function esCableDefectuoso(nomA, nomB)

@@ -93,7 +93,9 @@ local function obtenerPeso(pesosTabla, nomA, nomB)
 	local nivelID = jugador:GetAttribute("CurrentLevelID") or 0
 	local cfg = LevelsConfig[nivelID] or {}
 	if cfg.PesosAristas then
-		return cfg.PesosAristas[GrafoHelpers.clavePar(nomA, nomB)] or 1
+		local clave1 = nomA .. "|" .. nomB
+		local clave2 = nomB .. "|" .. nomA
+		return cfg.PesosAristas[clave1] or cfg.PesosAristas[clave2] or 1
 	end
 	return 1
 end

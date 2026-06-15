@@ -54,6 +54,20 @@ local function getConceptoPaso(lineaPseudo)
 	return cAlgo.pasos[lineaPseudo]
 end
 
+local function formatearDinero(valor)
+	local num = tostring(math.floor((valor or 0) + 0.5))
+	local resultado = ""
+	local contador = 0
+	for i = #num, 1, -1 do
+		if contador > 0 and contador % 3 == 0 then
+			resultado = "," .. resultado
+		end
+		resultado = num:sub(i, i) .. resultado
+		contador = contador + 1
+	end
+	return "$" .. resultado
+end
+
 -- Busca el peso de una arista en PesosAristas (soporta ambos sentidos).
 -- Fallback a LevelsConfig si el remote no trae el campo.
 local function obtenerPesoArista(pesosTabla, nomA, nomB)
@@ -66,7 +80,9 @@ local function obtenerPesoArista(pesosTabla, nomA, nomB)
 	local nivelID = jugador:GetAttribute("CurrentLevelID") or 0
 	local cfg = LevelsConfig[nivelID] or {}
 	if cfg.PesosAristas then
-		return cfg.PesosAristas[GrafoHelpers.clavePar(nomA, nomB)]
+		local clave1 = nomA .. "|" .. nomB
+		local clave2 = nomB .. "|" .. nomA
+		return cfg.PesosAristas[clave1] or cfg.PesosAristas[clave2]
 	end
 	return nil
 end
@@ -93,6 +109,45 @@ local function formatearPesoCosto(nomA, nomB)
 			contador = contador + 1
 		end
 		texto = texto .. "  ·  Costo: $" .. resultado
+	end
+	return texto
+end
+
+-- Peso acumulado del camino/MST hasta este paso.
+local function calcularPesoAcumulado(step)
+	if not step then return nil end
+	if E.algoActual == "dijkstra" and step.distancias then
+		local meta
+		if E.nodoFin then
+			meta = step.distancias[E.nodoFin]
+		end
+		if not meta or meta == "∞" then
+			meta = step.nodoActual and step.distancias[step.nodoActual]
+		end
+		if meta and meta ~= "∞" then
+			local n = tonumber(meta)
+			if n and n < math.huge then return n end
+		end
+	end
+	if (E.algoActual == "dijkstra" or E.algoActual == "prim")
+		and step.aristasRecorridas and #step.aristasRecorridas > 0 then
+		local total = 0
+		for _, arista in ipairs(step.aristasRecorridas) do
+			total = total + obtenerPeso(nil, arista[1], arista[2])
+		end
+		return total
+	end
+	return nil
+end
+
+local function formatearPesoTotal(step)
+	local peso = calcularPesoAcumulado(step)
+	if not peso then return nil end
+	local nivelID = jugador:GetAttribute("CurrentLevelID") or 0
+	local costoPorMetro = (LevelsConfig[nivelID] or {}).CostoPorMetro or 0
+	local texto = "Peso total: " .. peso
+	if costoPorMetro > 0 then
+		texto = texto .. "  ·  Costo total: " .. formatearDinero(peso * costoPorMetro)
 	end
 	return texto
 end
@@ -401,7 +456,13 @@ function PanelEstadoAnalisis.actualizarScrollEstado(step)
 	local structNom   = pseudo and pseudo.structNombre or (step.struct or "—")
 	local contenParts = {}
 	for _, entry in ipairs(step.structConten or {}) do
-		contenParts[#contenParts + 1] = getAlias(nombrePuro(entry))
+		local nom, val = tostring(entry):match("^(.-)=(.+)$")
+		if nom and val then
+			-- Dijkstra/Prim: mostrar alias junto con su distancia/key
+			contenParts[#contenParts + 1] = getAlias(nom) .. " (" .. val .. ")"
+		else
+			contenParts[#contenParts + 1] = getAlias(nombrePuro(entry))
+		end
 	end
 	local contenStr = #contenParts > 0 and table.concat(contenParts, " · ") or "(vacía)"
 	crearFilaKV(structNom, contenStr, Color3.fromRGB(17, 40, 80), altFilaConten, true)
@@ -422,6 +483,16 @@ function PanelEstadoAnalisis.actualizarScrollEstado(step)
 		if infoPeso then
 			aristaNuevaH = altFilaConten
 			crearFilaKV(getAlias(a) .. " → " .. getAlias(b), infoPeso, Color3.fromRGB(50, 30, 10), altFilaConten, true)
+		end
+	end
+
+	-- Fila peso/costo total acumulado (Dijkstra / Prim)
+	local pesoTotalH = 0
+	if E.algoActual == "dijkstra" or E.algoActual == "prim" then
+		local infoTotal = formatearPesoTotal(step)
+		if infoTotal then
+			pesoTotalH = altFilaConten
+			crearFilaKV("Peso total", infoTotal, Color3.fromRGB(30, 30, 60), altFilaConten, true)
 		end
 	end
 
@@ -517,6 +588,7 @@ function PanelEstadoAnalisis.actualizarScrollEstado(step)
 		(altSectionHeader + 2)                          -- header sección 1
 		+ (altFilaConten  + 2) * 2                      -- Cola/Pila + Visitados
 		+ (aristaNuevaH > 0 and (aristaNuevaH + 2) or 0) -- arista nueva con peso/costo
+		+ (pesoTotalH > 0 and (pesoTotalH + 2) or 0)    -- peso/costo total acumulado
 		+ (conceptoH > 0 and (conceptoH + 2) or 0)     -- concepto opcional
 		+ 1 + 2                                         -- separador
 		+ (altSectionHeader + 2)                        -- header sección 2
@@ -603,6 +675,25 @@ function PanelEstadoAnalisis.aplicarPaso(step)
 			recStr = recStr .. "  ·  🎯 " .. getAlias(E.nodoFin)
 		end
 		labelRecorrido.Text = recStr
+		labelRecorrido.TextWrapped = true
+		labelRecorrido.TextTruncate = Enum.TextTruncate.None
+		labelRecorrido.TextYAlignment = Enum.TextYAlignment.Top
+
+		local barra = labelRecorrido.Parent
+		if barra and barra.AbsoluteSize.X > 0 then
+			local pad = barra:FindFirstChildOfClass("UIPadding")
+			local padX = (pad and (pad.PaddingLeft.Offset + pad.PaddingRight.Offset)) or 0
+			local padY = (pad and (pad.PaddingTop.Offset + pad.PaddingBottom.Offset)) or 0
+			local ancho = math.max(1, barra.AbsoluteSize.X - padX)
+			local textSize = game:GetService("TextService"):GetTextSize(
+				recStr,
+				labelRecorrido.TextSize,
+				labelRecorrido.Font,
+				Vector2.new(ancho, 1000)
+			)
+			local nuevaAltura = math.max(22, textSize.Y + padY)
+			barra.Size = UDim2.new(barra.Size.X.Scale, barra.Size.X.Offset, 0, nuevaAltura)
+		end
 	end
 
 	-- 6. Pseudocódigo

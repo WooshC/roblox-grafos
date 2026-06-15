@@ -532,10 +532,10 @@ LevelsConfig[2] = {
 
 	Adyacencias = {
 		-- Zona 1: La Ciudad Grande
-		["Gen_Fabrica_z1"]    = {"Entrada_z1", "Cruce_z1"},
+		["Gen_Fabrica_z1"]    = {"Entrada_z1", "Cruce_z1","Sala_Maquinas_z1"},
 		["Entrada_z1"]        = {"Gen_Fabrica_z1", "Sala_Maquinas_z1"},
 		["Cruce_z1"]          = {"Gen_Fabrica_z1", "Tunel_Norte_z2", "Tunel_Sur_z2"},
-		["Sala_Maquinas_z1"]  = {"Entrada_z1"},
+		["Sala_Maquinas_z1"]  = {"Entrada_z1","Gen_Fabrica_z1"},
 
 		-- Zona 2: El Barrio Oeste
 		["Tunel_Norte_z2"]    = {"Cruce_z1", "Cisterna_z2", "Almacen_z2"},
@@ -550,9 +550,10 @@ LevelsConfig[2] = {
 		["Antena_z3"]         = {"Oficina_z3"},
 	},
 
-	-- Pesos de cada arista (metros de cable). Clave canonica "NodoA|NodoB".
+	-- Pesos de cada arista
 	PesosAristas = {
 		["Gen_Fabrica_z1|Entrada_z1"]     = 2,
+		["Gen_Fabrica_z1|Sala_Maquinas_z1"] = 10,
 		["Gen_Fabrica_z1|Cruce_z1"]       = 5,
 		["Entrada_z1|Sala_Maquinas_z1"]   = 3,
 		["Cruce_z1|Tunel_Norte_z2"]       = 2,
