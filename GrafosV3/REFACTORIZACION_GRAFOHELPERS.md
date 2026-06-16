@@ -45,6 +45,8 @@ GH.calcularCosto(peso, costoPorMetro)
 GH.formatearDinero(valor)
 GH.adjDesdeMatriz(data, incluirDefectuosas, configOrNivelID)
 GH.construirMatriz(adyacencias, nodos, esDirigido)
+GH.nodosAlcanzables(adyacencias, inicio)           -- { [nomNodo] = true }
+GH.nodosNoAlcanzables(adyacencias, inicio, nodos)  -- { [nomNodo] = true }
 ```
 
 `configOrNivelID` acepta tanto un `number` (`nivelID`) como una tabla (`config` o `data` con `PesosAristas`/`CablesDefectuosos`/`Defectuosos`).
@@ -63,6 +65,8 @@ GH.construirMatriz(adyacencias, nodos, esDirigido)
 | `StarterPlayerScripts/HUD/ModulosHUD/EjecutorAlgoritmo3D.lua` | Eliminado `obtenerPesoArista` local; lee pesos/costos/defectuosos desde `GrafoHelpers`. |
 | `StarterPlayerScripts/HUD/ModulosHUD/ModuloMatriz.lua` | Eliminado `esCableDefectuoso` local; usa `GrafoHelpers.esCableDefectuoso`. |
 | `StarterPlayerScripts/HUD/ModulosHUD/ModuloAnalisis/PanelEstadoAnalisis.lua` | Cálculo de peso/costo total acumulado usa `GrafoHelpers`. |
+| `StarterPlayerScripts/HUD/ModulosHUD/ModuloAnalisis/PanelEstadoAnalisis.lua` | Modo validación resalta nodos no alcanzables con `GrafoHelpers.nodosNoAlcanzables`. |
+| `StarterPlayerScripts/HUD/ModulosHUD/ModuloAnalisis.lua` | Modo validación fuerza BFS y usa `GrafoHelpers.nodosNoAlcanzables` para el mensaje final. |
 | `StarterPlayerScripts/HUD/ModulosHUD/ModuloAnalisis/ViewportAnalisis.lua` | Usa `GrafoHelpers.clavePar` y `GrafoHelpers.esCableDefectuoso`. |
 | `StarterPlayerScripts/HUD/ModulosHUD/EstadoConexiones.lua` | Eliminado envoltorio `generarClave`; parseo de claves centralizado en `GrafoHelpers.parsearClave`. |
 | `StarterPlayerScripts/HUD/ModulosHUD/Minimap.lua` | Clave inline reemplazada por `GrafoHelpers.clavePar`. |
@@ -101,6 +105,10 @@ Esto resuelve el bug donde una arista configurada como `Gen_Fabrica|Entrada` no 
 ### 6.4 Tags y hitboxes usan claves canónicas
 
 `ControladorEfectos` ya no genera claves `COSTO_A|B` y `COSTO_B|A`. Usa siempre `GrafoHelpers.clavePar`, eliminando duplicados y bugs por orden invertido.
+
+### 6.5 Validación de nodos aislados con BFS
+
+El modo "Ejecutar/Probar Red" fuerza `E.algoActual = "bfs"` para recorrer la red real del jugador. Al final del BFS, `GrafoHelpers.nodosNoAlcanzables` determina qué nodos no fueron alcanzados desde el origen; esos nodos se pintan de rojo. El algoritmo original del análisis se restaura al terminar o al cerrar el panel.
 
 ## 7. Próximos pasos opcionales
 

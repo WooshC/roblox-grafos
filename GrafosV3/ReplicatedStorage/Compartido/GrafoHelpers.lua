@@ -80,6 +80,38 @@ function GrafoHelpers.nodosDeZona(adyacencias, zonaID, config)
 end
 
 -- ════════════════════════════════════════════════════════════════════
+-- ALCANCE DESDE UN NODO (BFS puro)
+-- ════════════════════════════════════════════════════════════════════
+function GrafoHelpers.nodosAlcanzables(adyacencias, inicio)
+	local alcanzados = {}
+	local cola = {inicio}
+	alcanzados[inicio] = true
+	local idx = 1
+	while idx <= #cola do
+		local u = cola[idx]
+		idx = idx + 1
+		for _, v in ipairs(adyacencias[u] or {}) do
+			if not alcanzados[v] then
+				alcanzados[v] = true
+				table.insert(cola, v)
+			end
+		end
+	end
+	return alcanzados
+end
+
+function GrafoHelpers.nodosNoAlcanzables(adyacencias, inicio, nodos)
+	local alcanzados = GrafoHelpers.nodosAlcanzables(adyacencias, inicio)
+	local set = {}
+	for _, nom in ipairs(nodos) do
+		if not alcanzados[nom] then
+			set[nom] = true
+		end
+	end
+	return set
+end
+
+-- ════════════════════════════════════════════════════════════════════
 -- detectarDirigido: true si el grafo (filtrado a `nodos`) es dirigido
 -- ════════════════════════════════════════════════════════════════════
 -- Un grafo es dirigido si existe A→B (en adyacencias) donde B→A NO existe

@@ -52,4 +52,9 @@ E.camOffsetX = 0   -- desplazamiento X desde el centroide
 E.camOffsetZ = 0   -- desplazamiento Z desde el centroide
 E.camZoom    = 1   -- 1 = default; <1 acerca; >1 aleja
 
+-- ── Modo validación de nodos aislados ────────────────────────────────
+E.modoValidacion         = false  -- true mientras se valida la red real
+E.validacionTerminada    = false  -- true cuando termina la validación
+E.algoOriginalValidacion = nil    -- algoritmo activo antes de forzar BFS
+
 return E

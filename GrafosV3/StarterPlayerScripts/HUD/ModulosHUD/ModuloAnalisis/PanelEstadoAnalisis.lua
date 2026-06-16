@@ -565,11 +565,22 @@ function PanelEstadoAnalisis.aplicarPaso(step)
 
 	-- 1. Colorear nodos en viewport
 	-- En Dijkstra, al final solo se resalta de blanco el camino mas corto
+	local esUltimoPaso = (E.totalPasos and E.totalPasos > 0) and (E.pasoActual and E.pasoActual >= E.totalPasos)
 	local caminoSet = {}
-	if E.algoActual == "dijkstra" and E.totalPasos > 0 and E.pasoActual >= E.totalPasos then
+	if E.algoActual == "dijkstra" and esUltimoPaso then
 		for _, arista in ipairs(step.aristasRecorridas or {}) do
 			caminoSet[arista[1]] = true
 			caminoSet[arista[2]] = true
+		end
+	end
+
+	-- Modo validación: resaltar en rojo solo los nodos realmente no alcanzables
+	local noAlcanzablesSet = {}
+	if (E.modoValidacion or E.validacionTerminada) and esUltimoPaso then
+		local headers = E.matrizData and E.matrizData.Headers or {}
+		local inicio = E.nodoInicio or (E.matrizData and E.matrizData.Headers[1])
+		if inicio then
+			noAlcanzablesSet = GrafoHelpers.nodosNoAlcanzables(E.adyacencias, inicio, headers)
 		end
 	end
 
@@ -577,6 +588,10 @@ function PanelEstadoAnalisis.aplicarPaso(step)
 	for nome, part in pairs(E.nodoParts) do
 		if caminoSet[nome] then
 			part.Color    = Color3.new(1, 1, 1)
+			part.Material = Enum.Material.Neon
+		elseif noAlcanzablesSet[nome] then
+			-- Nodo aislado: no alcanzable desde el origen en la red real
+			part.Color    = Color3.fromRGB(200, 50, 50)
 			part.Material = Enum.Material.Neon
 		elseif hayCamino then
 			-- Fuera del camino minimo: volver al gris para que solo resalte la ruta blanca
@@ -592,13 +607,8 @@ function PanelEstadoAnalisis.aplicarPaso(step)
 			part.Color    = C.COL_PENDIENTE
 			part.Material = Enum.Material.Neon
 		else
-			if (E.modoValidacion or E.validacionTerminada) and (E.totalPasos and E.totalPasos > 0) and (E.pasoActual and E.pasoActual >= E.totalPasos) then
-				part.Color    = Color3.fromRGB(200, 50, 50)
-				part.Material = Enum.Material.Neon
-			else
-				part.Color    = C.COL_DEFAULT
-				part.Material = Enum.Material.SmoothPlastic
-			end
+			part.Color    = C.COL_DEFAULT
+			part.Material = Enum.Material.SmoothPlastic
 		end
 	end
 

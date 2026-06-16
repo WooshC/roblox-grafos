@@ -112,24 +112,11 @@ local function iniciarAutoPlay()
 		if E.autoPlaying and E.modoValidacion then
 			-- Finalizó el auto-play de validación exitosamente
 			local inicio = E.nodoInicio or E.matrizData.Headers[1]
-			local alcanzados = {}
-			local cola = {inicio}
-			alcanzados[inicio] = true
-			local idx = 1
-			while idx <= #cola do
-				local u = cola[idx]
-				idx = idx + 1
-				for _, v in ipairs(E.adyacencias[u] or {}) do
-					if not alcanzados[v] then
-						alcanzados[v] = true
-						table.insert(cola, v)
-					end
-				end
-			end
+			local aisladosSet = GrafoHelpers.nodosNoAlcanzables(E.adyacencias, inicio, E.matrizData.Headers)
 			
 			local aislados = {}
 			for _, n in ipairs(E.matrizData.Headers) do
-				if not alcanzados[n] then
+				if aisladosSet[n] then
 					table.insert(aislados, E.matrizData.NombresNodos[n] or n)
 				end
 			end
@@ -147,6 +134,14 @@ local function iniciarAutoPlay()
 			E.validacionTerminada = true
 			-- Forzamos re-dibujo para reflejar los nodos aislados en la UI
 			PanelEstadoAnalisis.actualizarScrollEstado(E.pasos[E.pasoActual])
+
+			-- Restaurar el algoritmo original del análisis
+			if E.algoOriginalValidacion then
+				E.algoActual = E.algoOriginalValidacion
+				E.algoOriginalValidacion = nil
+				PanelEstadoAnalisis.actualizarPills(E.algoActual)
+				PseudocodigoAnalisis.reconstruirPseudocodigo(E.algoActual)
+			end
 		end
 		detenerAutoPlay()
 	end)
@@ -203,6 +198,14 @@ end
 -- SELECCIONAR ALGORITMO
 -- ════════════════════════════════════════════════════════════════
 local function seleccionarAlgo(algo)
+	-- Si el usuario cambia manualmente de algoritmo durante una validación,
+	-- cancelamos el modo validación para no restaurar un algoritmo obsoleto al cerrar.
+	if E.algoOriginalValidacion then
+		E.modoValidacion         = false
+		E.validacionTerminada    = false
+		E.algoOriginalValidacion = nil
+	end
+
 	E.algoActual = algo
 	PanelEstadoAnalisis.actualizarPills(algo)
 	PseudocodigoAnalisis.reconstruirPseudocodigo(algo)
@@ -451,6 +454,10 @@ function ModuloAnalisis.inicializar(hudGui)
 				local ok, realData = pcall(function() return rf:InvokeServer(zona) end)
 				
 				if ok and realData and not realData.SinZona then
+					-- Guardar algoritmo activo y forzar BFS para la validación de conectividad
+					E.algoOriginalValidacion = E.algoActual
+					E.algoActual             = "bfs"
+
 					E.modoValidacion      = true
 					E.validacionTerminada = false
 					E.matrizData          = realData
@@ -463,7 +470,7 @@ function ModuloAnalisis.inicializar(hudGui)
 					
 					ViewportAnalisis.construirViewport()
 					
-					-- Re-ejecutamos el algoritmo sobre las adyacencias reales (manteniendo los headers globales)
+					-- Ejecutamos BFS sobre las adyacencias reales para detectar nodos aislados
 					ejecutarAlgoritmo()
 					PanelEstadoAnalisis.mostrarMensajeDesc("Validando nodos aislados a partir de tus conexiones...")
 					iniciarAutoPlay()
@@ -612,6 +619,15 @@ end
 
 function ModuloAnalisis.cerrar()
 	detenerAutoPlay()
+
+	-- Si se cierra durante una validación, restaurar el algoritmo original
+	if E.algoOriginalValidacion then
+		E.algoActual = E.algoOriginalValidacion
+		E.algoOriginalValidacion = nil
+		PanelEstadoAnalisis.actualizarPills(E.algoActual)
+		PseudocodigoAnalisis.reconstruirPseudocodigo(E.algoActual)
+	end
+
 	E.abierto = false
 	if E.overlay then E.overlay.Visible = false end
 	print("[ModuloAnalisis] Cerrado")
