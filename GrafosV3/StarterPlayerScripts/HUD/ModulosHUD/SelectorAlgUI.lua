@@ -17,6 +17,9 @@ local estado = {
 	pillsFrame  = nil,
 	pills       = {},
 	enPantalla  = false,
+	modoGuiado  = true,
+	btnToggle   = nil,
+	onToggleModo = nil,
 }
 
 local PILL_NAMES = {
@@ -41,6 +44,9 @@ local TWEEN_APARECER  = TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDi
 local TWEEN_DESAPARECER = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 local TWEEN_HOVER_IN  = TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local TWEEN_HOVER_OUT = TweenInfo.new(0.2,  Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+local COL_MODO_GUIADO     = Color3.fromRGB(59, 130, 246)  -- azul
+local COL_MODO_EJECUCION  = Color3.fromRGB(100, 116, 139) -- gris
 
 -- ════════════════════════════════════════════════════════════════
 -- HELPERS
@@ -103,6 +109,71 @@ local function estilizarPanel()
 	for _, child in ipairs(panel:GetChildren()) do
 		if child:IsA("UIListLayout") then child:Destroy() end
 	end
+end
+
+-- ════════════════════════════════════════════════════════════════
+-- TOGGLE MODO GUIADO / EJECUCION
+-- ════════════════════════════════════════════════════════════════
+local function actualizarTextoToggle()
+	if not estado.btnToggle then return end
+	estado.btnToggle.Text = estado.modoGuiado and "Modo: Guiado" or "Modo: Ejecución"
+	estado.btnToggle.BackgroundColor3 = estado.modoGuiado and COL_MODO_GUIADO or COL_MODO_EJECUCION
+end
+
+local function crearToggleModo()
+	if not estado.panel then return end
+
+	local btn = estado.panel:FindFirstChild("BtnToggleModo")
+	if not btn then
+		btn = Instance.new("TextButton")
+		btn.Name = "BtnToggleModo"
+		btn.Parent = estado.panel
+	end
+
+	btn.Size = UDim2.new(1, -28, 0, 28)
+	btn.Position = UDim2.new(0, 14, 0, 10)
+	btn.BackgroundTransparency = 0.15
+	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	btn.TextSize = 13
+	btn.Font = Enum.Font.GothamBold
+	btn.AutoButtonColor = false
+	btn.BorderSizePixel = 0
+	btn.ZIndex = 2
+
+	local corner = btn:FindFirstChildOfClass("UICorner")
+	if not corner then
+		corner = Instance.new("UICorner")
+		corner.Parent = btn
+	end
+	corner.CornerRadius = UDim.new(0, 8)
+
+	local stroke = btn:FindFirstChildOfClass("UIStroke")
+	if not stroke then
+		stroke = Instance.new("UIStroke")
+		stroke.Parent = btn
+	end
+	stroke.Color = Color3.fromRGB(255, 255, 255)
+	stroke.Transparency = 0.5
+	stroke.Thickness = 1
+
+	actualizarTextoToggle()
+
+	btn.MouseButton1Click:Connect(function()
+		estado.modoGuiado = not estado.modoGuiado
+		actualizarTextoToggle()
+		if estado.onToggleModo then
+			estado.onToggleModo(estado.modoGuiado)
+		end
+	end)
+
+	btn.MouseEnter:Connect(function()
+		TweenService:Create(btn, TWEEN_HOVER_IN, { BackgroundTransparency = 0.05 }):Play()
+	end)
+	btn.MouseLeave:Connect(function()
+		TweenService:Create(btn, TWEEN_HOVER_OUT, { BackgroundTransparency = 0.15 }):Play()
+	end)
+
+	estado.btnToggle = btn
 end
 
 -- ════════════════════════════════════════════════════════════════
@@ -315,6 +386,7 @@ function SelectorAlgUI.inicializar(hudGui)
 	estado.selectorAlg.BackgroundTransparency = 1
 
 	estilizarPanel()
+	crearToggleModo()
 	estilizarEncabezado()
 	estilizarPills()
 
@@ -357,6 +429,10 @@ function SelectorAlgUI.mostrar(algoritmos)
 	for _, pill in pairs(estado.pills) do
 		if pill and pill.Visible then pillsVisibles = pillsVisibles + 1 end
 	end
+	-- Resetear a modo guiado cada vez que se abre el selector
+	estado.modoGuiado = true
+	actualizarTextoToggle()
+
 	local pos, nuevoSize = calcularPosicionResponsiva(pillsVisibles)
 
 	-- Animacion de entrada
@@ -412,6 +488,19 @@ function SelectorAlgUI.conectarPill(algo, callback)
 	if pill and callback then
 		pill.MouseButton1Click:Connect(callback)
 	end
+end
+
+function SelectorAlgUI.estaModoGuiado()
+	return estado.modoGuiado
+end
+
+function SelectorAlgUI.establecerModoGuiado(valor)
+	estado.modoGuiado = (valor ~= false)
+	actualizarTextoToggle()
+end
+
+function SelectorAlgUI.conectarToggle(callback)
+	estado.onToggleModo = callback
 end
 
 return SelectorAlgUI

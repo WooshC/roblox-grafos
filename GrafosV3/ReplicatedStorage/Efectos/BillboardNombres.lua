@@ -98,6 +98,29 @@ local PRESETS = {
 		conPadding          = false,
 		textoEscalado       = true,
 	},
+
+	-- Tag flotante con flecha + texto, usado en modo guiado de algoritmos 3D
+	NODO_GUIA = {
+		tamano              = UDim2.new(0, 130, 0, 55),
+		offsetY             = 6,
+		offsetMundo         = true,
+		maxDistance         = 0,
+		alwaysOnTop         = true,
+		conFondo            = true,
+		colorFondo          = Color3.fromRGB(15, 23, 42),
+		transparenciaFondo  = 0.45,
+		colorTexto          = Color3.fromRGB(255, 255, 255),
+		fuente              = Enum.Font.GothamBold,
+		colorBorde          = Color3.fromRGB(0, 212, 255),
+		transparenciaBorde  = 0,
+		grosorBorde         = 2,
+		radioBorde          = UDim.new(0, 6),
+		conPadding          = false,
+		textoEscalado       = true,
+		conFlecha           = true,
+		textoFlecha         = "▼",
+		animarFlotacion     = true,
+	},
 }
 
 -- ═══════════════════════════════════════════════════════════════════════════════
@@ -188,6 +211,22 @@ function BillboardNombres.crear(adornee, texto, preset, nombreClave, opcs)
 			padding.Parent        = frame
 		end
 
+		if cfg.conFlecha then
+			frame.Size     = UDim2.new(1, 0, 0.65, 0)
+			frame.Position = UDim2.new(0, 0, 0.35, 0)
+
+			local flecha = Instance.new("TextLabel")
+			flecha.Name                = "Flecha"
+			flecha.Text                = cfg.textoFlecha or "⬇"
+			flecha.Size                = UDim2.new(1, 0, 0.35, 0)
+			flecha.Position            = UDim2.new(0, 0, 0, 0)
+			flecha.BackgroundTransparency = 1
+			flecha.TextColor3          = cfg.colorTexto
+			flecha.TextScaled          = true
+			flecha.Font                = cfg.fuente or Enum.Font.GothamBold
+			flecha.Parent              = billboard
+		end
+
 		local label = Instance.new("TextLabel")
 		label.Name                = "TextoNombre"
 		label.Size                = UDim2.new(1, 0, 1, 0)
@@ -216,6 +255,16 @@ function BillboardNombres.crear(adornee, texto, preset, nombreClave, opcs)
 			label.TextStrokeColor3       = cfg.colorStroke or Color3.new(0, 0, 0)
 		end
 		label.Parent = billboard
+	end
+
+	-- Animacion de flotacion (arriba-abajo) para guias
+	if cfg.animarFlotacion then
+		local TweenService = game:GetService("TweenService")
+		local offsetActual = cfg.offsetMundo and billboard.StudsOffsetWorldSpace or billboard.StudsOffset
+		local offsetFinal  = offsetActual + Vector3.new(0, -0.6, 0)
+		local prop         = cfg.offsetMundo and "StudsOffsetWorldSpace" or "StudsOffset"
+		local twInfo       = TweenInfo.new(0.7, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
+		TweenService:Create(billboard, twInfo, { [prop] = offsetFinal }):Play()
 	end
 
 	billboardsActivos[nombreClave] = billboard

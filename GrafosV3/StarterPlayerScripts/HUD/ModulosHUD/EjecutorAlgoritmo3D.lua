@@ -16,8 +16,17 @@ local BillboardNombres   = require(RS:WaitForChild("Efectos"):WaitForChild("Bill
 local SelectorAlgUI      = require(script.Parent.SelectorAlgUI)
 local ConstantesAnalisis = require(script.Parent.ModuloAnalisis.ConstantesAnalisis)
 local GrafoHelpers       = require(RS:WaitForChild("Compartido"):WaitForChild("GrafoHelpers"))
+local EfectosHighlight   = require(RS:WaitForChild("Efectos"):WaitForChild("EfectosHighlight"))
+local GestorEfectos      = require(script.Parent.Parent.Parent:WaitForChild("SistemasGameplay"):WaitForChild("GestorEfectos"))
+local EstadoConexiones   = require(script.Parent:WaitForChild("EstadoConexiones"))
 
 local jugador = Players.LocalPlayer
+
+-- Remote usado para desconectar aristas incorrectas en modo guiado
+local ConectarDesdeMapa = RS:WaitForChild("EventosGrafosV3"):WaitForChild("Remotos"):FindFirstChild("ConectarDesdeMapa")
+if not ConectarDesdeMapa then
+    warn("[EjecutorAlgoritmo3D] ConectarDesdeMapa no encontrado — no se podrá desconectar aristas incorrectas")
+end
 
 local EjecutorAlgoritmo3D = {}
 
@@ -91,6 +100,10 @@ local estado = {
 	btnEjecutar     = nil,
 	selectorAlg     = nil,
 	pills           = {},
+
+	modoGuiado      = false,
+	esperandoArista = false,
+	aristaEsperada  = nil,
 }
 
 -- ════════════════════════════════════════════════════════════════
@@ -301,6 +314,73 @@ local function limpiarTodasParticulas()
 end
 
 -- ════════════════════════════════════════════════════════════════
+-- MODO GUIADO: helpers
+-- ════════════════════════════════════════════════════════════════
+local function keyEnAristaMap(nomA, nomB)
+    local esDirigido = estado.matrizData and estado.matrizData.EsDirigido or false
+    if esDirigido then
+        return nomA .. "->" .. nomB
+    end
+    return GrafoHelpers.clavePar(nomA, nomB)
+end
+
+local function claveArista(a, b)
+    return GrafoHelpers.clavePar(a, b)
+end
+
+local function sonAristasIguales(a1, b1, a2, b2)
+    return claveArista(a1, b1) == claveArista(a2, b2)
+end
+
+local function obtenerAristaEsperadaDelPaso(step)
+    if step and step.aristaNueva then
+        return { step.aristaNueva[1], step.aristaNueva[2] }
+    end
+    return nil
+end
+
+local function displayNameNodo(nombre)
+    local cfg = LevelsConfig[estado.nivelID]
+    local nombres = cfg and cfg.NombresNodos
+    return (nombres and nombres[nombre]) or nombre
+end
+
+local function resaltarAristaEsperada(nomA, nomB)
+    -- Usar los mismos colores del sistema de seleccion de nodos:
+    -- nodo origen = cyan (SELECCIONADO), nodo destino = dorado (ADYACENTE).
+    -- La arista ya se resalta como "nueva" (naranja) mediante aplicarPaso3D.
+    local nodoA = buscarNodoWorkspace(nomA)
+    local nodoB = buscarNodoWorkspace(nomB)
+    if nodoA then
+        EfectosHighlight.crear("AlgGuia_Nodo_" .. nomA, nodoA, "SELECCIONADO")
+    end
+    if nodoB then
+        EfectosHighlight.crear("AlgGuia_Nodo_" .. nomB, nodoB, "ADYACENTE")
+    end
+
+    -- Billboards encima de cada nodo indicando que debe clickearlos
+    local selA = obtenerSelector(nodoA)
+    local selB = obtenerSelector(nodoB)
+    if selA then
+        BillboardNombres.crear(selA, "Click: " .. displayNameNodo(nomA), "NODO_GUIA",
+            "AlgGuia_BB_" .. nomA,
+            { colorTexto = Color3.fromRGB(0, 212, 255), colorBorde = Color3.fromRGB(0, 212, 255) })
+    end
+    if selB then
+        BillboardNombres.crear(selB, "Click: " .. displayNameNodo(nomB), "NODO_GUIA",
+            "AlgGuia_BB_" .. nomB,
+            { colorTexto = Color3.fromRGB(255, 200, 50), colorBorde = Color3.fromRGB(255, 200, 50) })
+    end
+end
+
+local function quitarResalteAristaEsperada(nomA, nomB)
+    EfectosHighlight.destruir("AlgGuia_Nodo_" .. nomA)
+    EfectosHighlight.destruir("AlgGuia_Nodo_" .. nomB)
+    BillboardNombres.destruir("AlgGuia_BB_" .. nomA)
+    BillboardNombres.destruir("AlgGuia_BB_" .. nomB)
+end
+
+-- ════════════════════════════════════════════════════════════════
 -- CONSTRUIR ARISTAS — una sola vez al iniciar
 -- ════════════════════════════════════════════════════════════════
 local function construirAristas()
@@ -485,6 +565,9 @@ end
 local function limpiarEfectos3D()
 	estado.autoPlaying   = false
 	estado.tareaAutoPlay = nil
+	estado.modoGuiado    = false
+	estado.esperandoArista = false
+	estado.aristaEsperada  = nil
 
 	for nombre in pairs(estado.nodosEncendidos) do restaurarNodo(nombre) end
 	for _, luz in pairs(estado.lucesTemporales) do
@@ -500,6 +583,19 @@ local function limpiarEfectos3D()
 	estado.aristaMap = {}
 
 	destruirTagsArista()
+
+	-- Limpiar billboards y highlights del modo guiado
+	BillboardNombres.destruirPorPrefijo("AlgGuia_BB_")
+	local todosHighlights = EfectosHighlight.obtenerTodos()
+	local aEliminar = {}
+	for nombre in pairs(todosHighlights) do
+		if nombre:sub(1, #"AlgGuia_Nodo_") == "AlgGuia_Nodo_" then
+			table.insert(aEliminar, nombre)
+		end
+	end
+	for _, nombre in ipairs(aEliminar) do
+		EfectosHighlight.destruir(nombre)
+	end
 
 	limpiarTodasParticulas()
 end
@@ -596,6 +692,9 @@ end
 -- ════════════════════════════════════════════════════════════════
 local function detenerAutoPlay()
 	estado.autoPlaying = false
+	estado.modoGuiado = false
+	estado.esperandoArista = false
+	estado.aristaEsperada = nil
 	if estado.btnEjecutar then estado.btnEjecutar.Text = "Ejecutar Algoritmo" end
 end
 
@@ -642,6 +741,99 @@ local function iniciarAutoPlay()
 			end)
 		end
 	end)
+end
+
+-- ════════════════════════════════════════════════════════════════
+-- MODO GUIADO: el jugador conecta para avanzar
+-- ════════════════════════════════════════════════════════════════
+local procesarPasoGuiado, avanzarPasoGuiado, alConectarJugador
+
+local function iniciarModoGuiado()
+    estado.autoPlaying = false
+    estado.modoGuiado = true
+    estado.esperandoArista = false
+    estado.aristaEsperada = nil
+    estado.pasoActual = 1
+    if estado.btnEjecutar then estado.btnEjecutar.Text = "Modo Guiado Activo" end
+    procesarPasoGuiado()
+end
+
+function procesarPasoGuiado()
+    if not estado.modoGuiado then return end
+    local step = estado.pasos[estado.pasoActual]
+    if not step then
+        estado.modoGuiado = false
+        return
+    end
+
+    local miPaso = estado.pasoActual
+    local durAnim = aplicarPaso3D(step)
+    local aristaEsperada = obtenerAristaEsperadaDelPaso(step)
+
+    if aristaEsperada then
+        -- Si el jugador ya conecto esta arista previamente, avanzar solo
+        if EstadoConexiones.estaConectado(aristaEsperada[1], aristaEsperada[2]) then
+            estado.esperandoArista = false
+            estado.aristaEsperada = nil
+            task.wait(math.max(VEL_PASO_SEGUNDOS, durAnim))
+            if estado.modoGuiado and estado.pasoActual == miPaso then
+                avanzarPasoGuiado()
+            end
+        else
+            estado.esperandoArista = true
+            estado.aristaEsperada = aristaEsperada
+            resaltarAristaEsperada(aristaEsperada[1], aristaEsperada[2])
+        end
+    else
+        estado.esperandoArista = false
+        estado.aristaEsperada = nil
+        task.wait(math.max(VEL_PASO_SEGUNDOS, durAnim))
+        if estado.modoGuiado and estado.pasoActual == miPaso then
+            avanzarPasoGuiado()
+        end
+    end
+end
+
+function avanzarPasoGuiado()
+    if not estado.modoGuiado then return end
+    estado.pasoActual = estado.pasoActual + 1
+    if estado.pasoActual > estado.totalPasos then
+        estado.modoGuiado = false
+        estado.esperandoArista = false
+        estado.aristaEsperada = nil
+        if estado.btnEjecutar then estado.btnEjecutar.Text = "Ejecutar Algoritmo" end
+        task.delay(3, function()
+            if not estado.activo and not estado.modoGuiado and not estado.autoPlaying then
+                limpiarEfectos3D()
+                estado.activo = false; estado.pasos = {}
+                estado.pasoActual = 0; estado.totalPasos = 0
+                estado.zonaAnclada = nil
+            end
+        end)
+        return
+    end
+    procesarPasoGuiado()
+end
+
+function alConectarJugador(nomA, nomB)
+    if not estado.modoGuiado or not estado.esperandoArista or not estado.aristaEsperada then return end
+
+    if sonAristasIguales(nomA, nomB, estado.aristaEsperada[1], estado.aristaEsperada[2]) then
+        quitarResalteAristaEsperada(estado.aristaEsperada[1], estado.aristaEsperada[2])
+        avanzarPasoGuiado()
+    else
+        warn(string.format("[EjecutorAlgoritmo3D] Arista incorrecta: %s-%s (esperada: %s-%s)",
+            tostring(nomA), tostring(nomB),
+            tostring(estado.aristaEsperada[1]), tostring(estado.aristaEsperada[2])))
+        -- Desconectar automaticamente la arista incorrecta para obligar al jugador
+        if ConectarDesdeMapa then
+            ConectarDesdeMapa:FireServer(nomA, nomB)
+        end
+        local nodoA = buscarNodoWorkspace(nomA)
+        local nodoB = buscarNodoWorkspace(nomB)
+        if nodoA then EfectosHighlight.flashErrorNodo(nodoA, 0.35) end
+        if nodoB then EfectosHighlight.flashErrorNodo(nodoB, 0.35) end
+    end
 end
 
 -- ════════════════════════════════════════════════════════════════
@@ -712,7 +904,11 @@ local function iniciarSimulacion(algo)
 
 		construirAristas()   -- una sola vez, con tween de aparicion
 		task.wait(0.8)         -- pequena pausa para que el jugador vea la red formarse
-		iniciarAutoPlay()
+		if SelectorAlgUI.estaModoGuiado() then
+			iniciarModoGuiado()
+		else
+			iniciarAutoPlay()
+		end
 	end)
 end
 
@@ -733,7 +929,7 @@ local function mostrarSelector()
 end
 
 local function toggleSelector()
-	if estado.activo or estado.autoPlaying then
+	if estado.activo or estado.autoPlaying or estado.modoGuiado then
 		limpiarEfectos3D()
 		estado.activo = false; estado.pasos = {}
 		estado.pasoActual = 0; estado.totalPasos = 0
@@ -768,13 +964,22 @@ function EjecutorAlgoritmo3D.inicializar(hudGui)
 		SelectorAlgUI.ocultar()
 	end)
 
+	-- Escuchar conexiones del jugador para el modo guiado
+	GestorEfectos.registrar("ConexionCompletada", function(params)
+		local nomA = params.arg1
+		local nomB = params.arg2
+		if type(nomA) == "string" and type(nomB) == "string" then
+			alConectarJugador(nomA, nomB)
+		end
+	end)
+
 	local pillNames = {
 		bfs = "PillBFS", dfs = "PillDFS",
 		dijkstra = "PillDijkstra", prim = "PillPrim",
 	}
 	for algo, _ in pairs(pillNames) do
 		SelectorAlgUI.conectarPill(algo, function()
-			if estado.activo or estado.autoPlaying then
+			if estado.activo or estado.autoPlaying or estado.modoGuiado then
 				limpiarEfectos3D()
 				estado.activo = false; estado.pasos = {}
 				estado.pasoActual = 0; estado.totalPasos = 0
@@ -787,7 +992,7 @@ function EjecutorAlgoritmo3D.inicializar(hudGui)
 
 	-- Actualizar pills en tiempo real si el jugador cambia de zona mientras el selector esta abierto
 	jugador:GetAttributeChangedSignal("ZonaActual"):Connect(function()
-		if estado.activo or estado.autoPlaying then return end
+		if estado.activo or estado.autoPlaying or estado.modoGuiado then return end
 		if SelectorAlgUI.estaVisible() then
 			mostrarSelector()
 		end
