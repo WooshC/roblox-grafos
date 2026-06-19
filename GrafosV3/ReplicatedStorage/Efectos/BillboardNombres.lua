@@ -121,6 +121,52 @@ local PRESETS = {
 		textoFlecha         = "▼",
 		animarFlotacion     = true,
 	},
+
+	-- Advertencia sobre nodo dañado durante ejecución de algoritmos
+	NODO_DANIADO = {
+		tamano              = UDim2.new(0, 150, 0, 55),
+		offsetY             = 6,
+		offsetMundo         = true,
+		maxDistance         = 0,
+		alwaysOnTop         = true,
+		conFondo            = true,
+		colorFondo          = Color3.fromRGB(40, 10, 10),
+		transparenciaFondo  = 0.45,
+		colorTexto          = Color3.fromRGB(255, 80, 80),
+		fuente              = Enum.Font.GothamBlack,
+		colorBorde          = Color3.fromRGB(255, 80, 80),
+		transparenciaBorde  = 0,
+		grosorBorde         = 2,
+		radioBorde          = UDim.new(0, 6),
+		conPadding          = false,
+		textoEscalado       = true,
+		conFlecha           = true,
+		textoFlecha         = "▼",
+		animarFlotacion     = true,
+	},
+
+	-- Advertencia sobre arista/cable defectuoso durante ejecución de algoritmos
+	ARISTA_DANIADA = {
+		tamano              = UDim2.new(0, 170, 0, 55),
+		offsetY             = 1.2,
+		offsetMundo         = true,
+		maxDistance         = 0,
+		alwaysOnTop         = true,
+		conFondo            = true,
+		colorFondo          = Color3.fromRGB(40, 10, 10),
+		transparenciaFondo  = 0.45,
+		colorTexto          = Color3.fromRGB(255, 80, 80),
+		fuente              = Enum.Font.GothamBlack,
+		colorBorde          = Color3.fromRGB(255, 80, 80),
+		transparenciaBorde  = 0,
+		grosorBorde         = 2,
+		radioBorde          = UDim.new(0, 6),
+		conPadding          = false,
+		textoEscalado       = true,
+		conFlecha           = true,
+		textoFlecha         = "▼",
+		animarFlotacion     = true,
+	},
 }
 
 -- ═══════════════════════════════════════════════════════════════════════════════

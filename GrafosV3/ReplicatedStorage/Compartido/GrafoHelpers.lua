@@ -157,10 +157,32 @@ function GrafoHelpers.obtenerPeso(configOrNivelID, nomA, nomB, default)
 	default = default or 0
 	local cfg = resolverConfig(configOrNivelID)
 	if not cfg or not cfg.PesosAristas then return default end
-	local clave = GrafoHelpers.clavePar(nomA, nomB)
-	return cfg.PesosAristas[clave]
-		or cfg.PesosAristas[nomB .. SEP .. nomA]
-		or default
+
+	-- 1) búsqueda rápida con separador canónico en ambos sentidos
+	local claves = {
+		GrafoHelpers.clavePar(nomA, nomB),
+		nomA .. SEP .. nomB,
+		nomB .. SEP .. nomA,
+	}
+	for _, clave in ipairs(claves) do
+		local peso = cfg.PesosAristas[clave]
+		if peso ~= nil then return peso end
+	end
+
+	-- 2) búsqueda tolerante al separador usado en config
+	for clave, peso in pairs(cfg.PesosAristas) do
+		local a, b = clave:match("^(.-)|(.+)$")
+		if not a then
+			a, b = clave:match("^(.-)_(.+)$")
+		end
+		if a and b then
+			if (a == nomA and b == nomB) or (a == nomB and b == nomA) then
+				return peso
+			end
+		end
+	end
+
+	return default
 end
 
 -- ════════════════════════════════════════════════════════════════════
@@ -170,7 +192,14 @@ function GrafoHelpers.esCableDefectuoso(configOrNivelID, nomA, nomB)
 	local cfg = resolverConfig(configOrNivelID)
 	if not cfg then return false end
 	if cfg.Defectuosos then
-		return cfg.Defectuosos[GrafoHelpers.clavePar(nomA, nomB)] == true
+		local claves = {
+			GrafoHelpers.clavePar(nomA, nomB),
+			nomA .. SEP .. nomB,
+			nomB .. SEP .. nomA,
+		}
+		for _, clave in ipairs(claves) do
+			if cfg.Defectuosos[clave] == true then return true end
+		end
 	end
 	if cfg.CablesDefectuosos then
 		for _, par in ipairs(cfg.CablesDefectuosos) do
@@ -228,9 +257,16 @@ function GrafoHelpers.adjDesdeMatriz(data, incluirDefectuosas, configOrNivelID)
 	local adj = {}
 	local headers = data.Headers
 	if not headers then return adj end
+	local esDirigido = data.EsDirigido or false
+
+	local sets = {}
+	for _, a in ipairs(headers) do
+		adj[a] = {}
+		sets[a] = {}
+	end
+
 	for i = 1, #headers do
 		local a = headers[i]
-		adj[a] = {}
 		local fila = data.Matrix[i]
 		if fila then
 			for j = 1, #headers do
@@ -242,7 +278,14 @@ function GrafoHelpers.adjDesdeMatriz(data, incluirDefectuosas, configOrNivelID)
 							continue
 						end
 					end
-					table.insert(adj[a], b)
+					if not sets[a][b] then
+						table.insert(adj[a], b)
+						sets[a][b] = true
+					end
+					if not esDirigido and not sets[b][a] then
+						table.insert(adj[b], a)
+						sets[b][a] = true
+					end
 				end
 			end
 		end

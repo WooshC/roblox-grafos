@@ -1,9 +1,7 @@
--- StarterPlayerScripts/HUD/ModulosHUD/EjecutorAlgoritmo3D.lua
--- Orquesta la simulacion de algoritmos directamente sobre los nodos 3D del workspace.
---
--- Aristas: se construyen UNA SOLA VEZ al iniciar la simulacion.
--- En cada paso solo se actualiza Color/Material/Transparency via tween.
--- Particulas: sistema de versiones identico a ViewportAnalisis (sin duplicados).
+-- EjecutorAlgoritmo3D.lua
+-- Orquesta la simulación de algoritmos directamente sobre los nodos 3D del workspace.
+-- Soporta modo automático (auto‑play) con validación guiada de conexiones reales.
+-- Integra el PanelAlgoritmo3D para mostrar información y mensajes contextuales.
 
 local Players      = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -14,6 +12,7 @@ local LevelsConfig       = require(RS:WaitForChild("Config"):WaitForChild("Level
 local PresetTween        = require(RS:WaitForChild("Efectos"):WaitForChild("PresetTween"))
 local BillboardNombres   = require(RS:WaitForChild("Efectos"):WaitForChild("BillboardNombres"))
 local SelectorAlgUI      = require(script.Parent.SelectorAlgUI)
+local PanelAlgoritmo3D   = require(script.Parent.PanelAlgoritmo3D)
 local ConstantesAnalisis = require(script.Parent.ModuloAnalisis.ConstantesAnalisis)
 local GrafoHelpers       = require(RS:WaitForChild("Compartido"):WaitForChild("GrafoHelpers"))
 local EfectosHighlight   = require(RS:WaitForChild("Efectos"):WaitForChild("EfectosHighlight"))
@@ -22,31 +21,37 @@ local EstadoConexiones   = require(script.Parent:WaitForChild("EstadoConexiones"
 
 local jugador = Players.LocalPlayer
 
--- Remote usado para desconectar aristas incorrectas en modo guiado
+-- Remotes
 local ConectarDesdeMapa = RS:WaitForChild("EventosGrafosV3"):WaitForChild("Remotos"):FindFirstChild("ConectarDesdeMapa")
 if not ConectarDesdeMapa then
-    warn("[EjecutorAlgoritmo3D] ConectarDesdeMapa no encontrado — no se podrá desconectar aristas incorrectas")
+	warn("[EjecutorAlgoritmo3D] ConectarDesdeMapa no encontrado — no se podrá desconectar aristas incorrectas")
+end
+
+local GetAdjacencyMatrix = RS:WaitForChild("EventosGrafosV3"):WaitForChild("Remotos"):FindFirstChild("GetAdjacencyMatrix")
+if not GetAdjacencyMatrix then
+	warn("[EjecutorAlgoritmo3D] GetAdjacencyMatrix no encontrado — no se podrá validar aristas")
 end
 
 local EjecutorAlgoritmo3D = {}
 
 -- ════════════════════════════════════════════════════════════════
--- CONFIGURACION
+-- CONFIGURACIÓN
 -- ════════════════════════════════════════════════════════════════
-local VEL_PASO_SEGUNDOS = 1.5  -- tiempo base entre pasos (ahora respeta tambien la animacion)
+local VEL_PASO_SEGUNDOS = 1.5
+local CACHE_TOPOLOGIA_SEG = 1.0
 local _simVersion       = 0
 
 local COL_NODO = {
 	INICIO   = ConstantesAnalisis.COL_ACTUAL,    -- naranja
 	VISITADO = ConstantesAnalisis.COL_VISITADO,  -- verde
 	ACTUAL   = ConstantesAnalisis.COL_ACTUAL,    -- naranja
-	CAMINO   = Color3.new(1, 1, 1),              -- blanco para camino mínimo/MST
+	CAMINO   = Color3.new(1, 1, 1),
 }
 
 local COL_ARISTA_DEFAULT = ConstantesAnalisis.COL_ARISTA_DEFAULT
 local COL_ARISTA_VISIT   = ConstantesAnalisis.COL_ARISTA_VISIT
 local COL_ARISTA_NUEVA   = ConstantesAnalisis.COL_ARISTA_NUEVA
-local COL_ARISTA_BLANCO  = Color3.new(1, 1, 1)   -- camino mínimo / MST
+local COL_ARISTA_BLANCO  = Color3.new(1, 1, 1)
 local COL_ARISTA_DEFECT  = Color3.fromRGB(200, 50, 50)
 
 local ALPHA_DEFAULT = 0.55
@@ -87,24 +92,23 @@ local estado = {
 	nodosEncendidos = {},
 	lucesTemporales = {},
 
-	-- aristaMap[key] = { part, esDefectuosa, nomA, nomB, posA, posB }
-	-- Los cilindros se crean una vez y solo se tween su color/alpha
 	aristaMap       = {},
-
-	-- tags de peso/costo creados sobre aristas del camino/MST
 	tagsArista      = {},
-
 	partActivas     = {},
 
 	hudGui          = nil,
 	btnEjecutar     = nil,
-	selectorAlg     = nil,
-	pills           = {},
 
 	modoGuiado        = false,
 	esperandoArista   = false,
 	aristaEsperada    = nil,
-	aristasProcesadas = {}, -- set de aristas cuyos efectos de algoritmo ya fueron aplicados
+	aristasProcesadas = {},
+
+	ultimaTopologia     = nil,
+	ultimaConsultaTime  = 0,
+	guiaAristaActual    = nil,
+	aristaDefectuosaKey = nil,
+	billboardsEjecucion = {},
 }
 
 -- ════════════════════════════════════════════════════════════════
@@ -142,7 +146,7 @@ local function buscarPosNodo(nombre)
 end
 
 -- ════════════════════════════════════════════════════════════════
--- ADYACENCIAS
+-- ADYACENCIAS Y ARISTAS
 -- ════════════════════════════════════════════════════════════════
 local function buildAdyacencias(data, soloValidas)
 	return GrafoHelpers.adjDesdeMatriz(data, not soloValidas, estado.nivelID)
@@ -157,12 +161,21 @@ local function existeArista(nomA, nomB)
 	return false
 end
 
+local function claveArista(a, b)
+	return GrafoHelpers.clavePar(a, b)
+end
+
+local function keyAristaMap(nomA, nomB)
+	local esDirigido = estado.matrizData and estado.matrizData.EsDirigido or false
+	return esDirigido and (nomA .. "->" .. nomB) or claveArista(nomA, nomB)
+end
+
 -- ════════════════════════════════════════════════════════════════
--- ETIQUETAS DE PESO/COSTO SOBRE ARISTAS
+-- ETIQUETAS DE PESO/COSTO
 -- ════════════════════════════════════════════════════════════════
 local function crearTagArista(nomA, nomB, part)
 	if not part then return end
-	local key = GrafoHelpers.clavePar(nomA, nomB)
+	local key = claveArista(nomA, nomB)
 	if estado.tagsArista[key] then return end
 	local peso = GrafoHelpers.obtenerPeso(estado.nivelID, nomA, nomB, 0)
 	if not peso or peso <= 0 then return end
@@ -187,6 +200,124 @@ local function destruirTagsArista()
 end
 
 -- ════════════════════════════════════════════════════════════════
+-- BILLBOARDS DE GUÍA (nodo inicio / destino en modo guiado)
+-- ════════════════════════════════════════════════════════════════
+local function destruirBillboardsGuia()
+	BillboardNombres.destruirPorPrefijo("AlgGuia_BB_NodoInicio_")
+	BillboardNombres.destruirPorPrefijo("AlgGuia_BB_NodoDestino_")
+end
+
+local function crearBillboardsGuia(nomA, nomB)
+	destruirBillboardsGuia()
+
+	local selA = obtenerSelector(buscarNodoWorkspace(nomA))
+	local selB = obtenerSelector(buscarNodoWorkspace(nomB))
+
+	if selA then
+		BillboardNombres.crear(selA, "INICIO", "NODO_GUIA", "AlgGuia_BB_NodoInicio_" .. nomA, {
+			colorTexto = Color3.fromRGB(255, 170, 0),
+			colorBorde = Color3.fromRGB(255, 170, 0),
+			textoFlecha = "▲",
+		})
+	end
+
+	if selB then
+		BillboardNombres.crear(selB, "DESTINO", "NODO_GUIA", "AlgGuia_BB_NodoDestino_" .. nomB, {
+			colorTexto = Color3.fromRGB(105, 219, 124),
+			colorBorde = Color3.fromRGB(105, 219, 124),
+		})
+	end
+end
+
+local function actualizarBillboardsGuia(aristaEsperada)
+	if not aristaEsperada then
+		if estado.guiaAristaActual then
+			destruirBillboardsGuia()
+			estado.guiaAristaActual = nil
+		end
+		return
+	end
+
+	local key = aristaEsperada[1] .. "->" .. aristaEsperada[2]
+	if estado.guiaAristaActual == key then return end
+
+	estado.guiaAristaActual = key
+	crearBillboardsGuia(aristaEsperada[1], aristaEsperada[2])
+end
+
+-- ════════════════════════════════════════════════════════════════
+-- BILLBOARDS DE EJECUCIÓN VISUAL (modo no guiado)
+-- ════════════════════════════════════════════════════════════════
+local function limpiarBillboardsEjecucion()
+	for _, key in ipairs(estado.billboardsEjecucion) do
+		BillboardNombres.destruir(key)
+	end
+	estado.billboardsEjecucion = {}
+end
+
+local function crearBillboardNodoActual(nombre)
+	limpiarBillboardsEjecucion()
+	local sel = obtenerSelector(buscarNodoWorkspace(nombre))
+	if not sel then return end
+	local alias = PanelAlgoritmo3D.getAlias(nombre) or nombre
+	local key = "AlgEjec_BB_NodoActual_" .. nombre
+	BillboardNombres.crear(sel, "Visitando nodo\n" .. alias, "NODO_GUIA", key, {
+		colorTexto = Color3.fromRGB(255, 220, 80),
+		colorBorde = Color3.fromRGB(255, 220, 80),
+		textoFlecha = "▼",
+	})
+	table.insert(estado.billboardsEjecucion, key)
+end
+
+local function marcarRutaCortaDijkstra(step)
+	if estado.algoritmoActual ~= "dijkstra" then return end
+	if not step or not step.aristasRecorridas or #step.aristasRecorridas == 0 then return end
+
+	limpiarBillboardsEjecucion()
+	local setNodos = {}
+	for _, arista in ipairs(step.aristasRecorridas) do
+		setNodos[arista[1]] = true
+		setNodos[arista[2]] = true
+	end
+	for nombre in pairs(setNodos) do
+		local sel = obtenerSelector(buscarNodoWorkspace(nombre))
+		if sel then
+			local alias = PanelAlgoritmo3D.getAlias(nombre) or nombre
+			local key = "AlgEjec_BB_RutaCorta_" .. nombre
+			BillboardNombres.crear(sel, "Ruta más corta\n" .. alias, "NODO_GUIA", key, {
+				colorTexto = Color3.fromRGB(255, 215, 0),
+				colorBorde = Color3.fromRGB(255, 215, 0),
+				textoFlecha = "★",
+			})
+			table.insert(estado.billboardsEjecucion, key)
+		end
+	end
+end
+
+local function ocultarBillboardAristaDefectuosa()
+	if estado.aristaDefectuosaKey then
+		BillboardNombres.destruir(estado.aristaDefectuosaKey)
+		estado.aristaDefectuosaKey = nil
+	end
+end
+
+local function mostrarBillboardAristaDefectuosa(nomA, nomB)
+	local mapKey = keyAristaMap(nomA, nomB)
+	local info = estado.aristaMap[mapKey]
+	if not info or not info.part then
+		ocultarBillboardAristaDefectuosa()
+		return
+	end
+
+	local key = "AlgGuia_BB_AristaDefectuosa_" .. mapKey
+	if estado.aristaDefectuosaKey == key then return end
+
+	ocultarBillboardAristaDefectuosa()
+	BillboardNombres.crear(info.part, "⚠️ DEFECTUOSO", "ARISTA_DANIADA", key)
+	estado.aristaDefectuosaKey = key
+end
+
+-- ════════════════════════════════════════════════════════════════
 -- REMOTE FUNCTION
 -- ════════════════════════════════════════════════════════════════
 local _grafoCompletoFunc = nil
@@ -203,7 +334,7 @@ local function getGrafoCompletoFunc()
 end
 
 -- ════════════════════════════════════════════════════════════════
--- NODOS
+-- NODOS (efectos 3D)
 -- ════════════════════════════════════════════════════════════════
 local function guardarEstadoOriginal(sel, nombre)
 	if estado.originalNodos[nombre] then return end
@@ -249,11 +380,11 @@ local function encenderNodo(nombre, tipoColor)
 	TweenService:Create(luz, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 		{ Brightness = 6, Range = 24 }):Play()
 
-	return 0.5  -- duracion maxima del tween de nodo/luz
+	return 0.5
 end
 
 -- ════════════════════════════════════════════════════════════════
--- PARTICULAS
+-- PARTÍCULAS
 -- ════════════════════════════════════════════════════════════════
 local function spawnParticula(posA, posB, color)
 	local dist = (posA - posB).Magnitude
@@ -315,125 +446,7 @@ local function limpiarTodasParticulas()
 end
 
 -- ════════════════════════════════════════════════════════════════
--- MODO GUIADO: helpers
--- ════════════════════════════════════════════════════════════════
-local function keyEnAristaMap(nomA, nomB)
-    local esDirigido = estado.matrizData and estado.matrizData.EsDirigido or false
-    if esDirigido then
-        return nomA .. "->" .. nomB
-    end
-    return GrafoHelpers.clavePar(nomA, nomB)
-end
-
-local function claveArista(a, b)
-    return GrafoHelpers.clavePar(a, b)
-end
-
--- Key usada en estado.aristaMap (direccional para grafos dirigidos)
-local function keyAristaMap(nomA, nomB)
-    local esDirigido = estado.matrizData and estado.matrizData.EsDirigido or false
-    return esDirigido and (nomA .. "->" .. nomB) or claveArista(nomA, nomB)
-end
-
-local function sonAristasIguales(a1, b1, a2, b2)
-    return claveArista(a1, b1) == claveArista(a2, b2)
-end
-
-local function obtenerAristaEsperadaDelPaso(step)
-    if step and step.aristaNueva then
-        return { step.aristaNueva[1], step.aristaNueva[2] }
-    end
-    return nil
-end
-
--- Devuelve true si la arista ya fue procesada en la simulacion actual con el rol indicado
-local function aristaYaProcesada(key, rol)
-    return estado.aristasProcesadas[key] == rol
-end
-
--- Devuelve una lista de aristas del paso que aun no han sido procesadas,
--- junto con el rol visual que les corresponde ("nueva" o "recorrida").
--- "nueva" tiene prioridad sobre "recorrida" para la misma arista.
-local function obtenerAristasPendientesDelPaso(step)
-    local pendientes = {}
-    if not step then return pendientes end
-
-    local esDirigido = estado.matrizData and estado.matrizData.EsDirigido or false
-    local dict = {}
-
-    for _, arista in ipairs(step.aristasRecorridas or {}) do
-        local a, b = arista[1], arista[2]
-        local key = claveArista(a, b)
-        local mapKey = keyAristaMap(a, b)
-        if not dict[key] and not aristaYaProcesada(key, "recorrida") then
-            dict[key] = { nomA = a, nomB = b, key = key, mapKey = mapKey, rol = "recorrida", dirigido = esDirigido }
-        end
-    end
-
-    if step.aristaNueva then
-        local a, b = step.aristaNueva[1], step.aristaNueva[2]
-        local key = claveArista(a, b)
-        local mapKey = keyAristaMap(a, b)
-        if not aristaYaProcesada(key, "nueva") then
-            -- "nueva" tiene prioridad sobre "recorrida" si la misma arista aparece en ambas listas
-            dict[key] = { nomA = a, nomB = b, key = key, mapKey = mapKey, rol = "nueva", dirigido = esDirigido }
-        end
-    end
-
-    for _, data in pairs(dict) do
-        table.insert(pendientes, data)
-    end
-
-    return pendientes
-end
-
-local function marcarAristaProcesada(key, rol)
-    estado.aristasProcesadas[key] = rol
-end
-
-local function displayNameNodo(nombre)
-    local cfg = LevelsConfig[estado.nivelID]
-    local nombres = cfg and cfg.NombresNodos
-    return (nombres and nombres[nombre]) or nombre
-end
-
-local function resaltarAristaEsperada(nomA, nomB)
-    -- Usar los mismos colores del sistema de seleccion de nodos:
-    -- nodo origen = cyan (SELECCIONADO), nodo destino = dorado (ADYACENTE).
-    -- La arista ya se resalta como "nueva" (naranja) mediante aplicarPaso3D.
-    local nodoA = buscarNodoWorkspace(nomA)
-    local nodoB = buscarNodoWorkspace(nomB)
-    if nodoA then
-        EfectosHighlight.crear("AlgGuia_Nodo_" .. nomA, nodoA, "SELECCIONADO")
-    end
-    if nodoB then
-        EfectosHighlight.crear("AlgGuia_Nodo_" .. nomB, nodoB, "ADYACENTE")
-    end
-
-    -- Billboards encima de cada nodo indicando que debe clickearlos
-    local selA = obtenerSelector(nodoA)
-    local selB = obtenerSelector(nodoB)
-    if selA then
-        BillboardNombres.crear(selA, "Click: " .. displayNameNodo(nomA), "NODO_GUIA",
-            "AlgGuia_BB_" .. nomA,
-            { colorTexto = Color3.fromRGB(0, 212, 255), colorBorde = Color3.fromRGB(0, 212, 255) })
-    end
-    if selB then
-        BillboardNombres.crear(selB, "Click: " .. displayNameNodo(nomB), "NODO_GUIA",
-            "AlgGuia_BB_" .. nomB,
-            { colorTexto = Color3.fromRGB(255, 200, 50), colorBorde = Color3.fromRGB(255, 200, 50) })
-    end
-end
-
-local function quitarResalteAristaEsperada(nomA, nomB)
-    EfectosHighlight.destruir("AlgGuia_Nodo_" .. nomA)
-    EfectosHighlight.destruir("AlgGuia_Nodo_" .. nomB)
-    BillboardNombres.destruir("AlgGuia_BB_" .. nomA)
-    BillboardNombres.destruir("AlgGuia_BB_" .. nomB)
-end
-
--- ════════════════════════════════════════════════════════════════
--- CONSTRUIR ARISTAS — una sola vez al iniciar
+-- CONSTRUIR / ACTUALIZAR ARISTAS 3D
 -- ════════════════════════════════════════════════════════════════
 local function construirAristas()
 	for _, info in pairs(estado.aristaMap) do
@@ -449,9 +462,7 @@ local function construirAristas()
 
 	for nomA, lista in pairs(estado.adyacencias) do
 		for _, nomB in ipairs(lista) do
-
-			local key = GrafoHelpers.clavePar(nomA, nomB)
-
+			local key = claveArista(nomA, nomB)
 			if not esDirigido then
 				if vistosND[key] then continue end
 				vistosND[key] = true
@@ -488,9 +499,9 @@ local function construirAristas()
 			part.CastShadow   = false
 			part.Size         = Vector3.new(dist, TAM_ARISTA, TAM_ARISTA)
 			part.CFrame       = CFrame.fromMatrix(centro, ejeX, ejeY, ejeZ)
-			part.Material     = esDefectuosa and MAT_NEON    or MAT_DEFAULT
+			part.Material     = esDefectuosa and MAT_NEON or MAT_DEFAULT
 			part.Color        = esDefectuosa and COL_ARISTA_DEFECT or COL_ARISTA_DEFAULT
-			part.Transparency = 1           -- empieza invisible para aparecer con tween
+			part.Transparency = 1
 			part.Parent       = parentFolder
 
 			local mesh = Instance.new("SpecialMesh")
@@ -498,7 +509,6 @@ local function construirAristas()
 			mesh.Scale    = Vector3.new(1, 1, 1)
 			mesh.Parent   = part
 
-			-- Aparecer gradualmente (no de golpe) para que la red no se construya instantaneamente
 			local alphaFinal = esDefectuosa and ALPHA_ACTIVA or ALPHA_DEFAULT
 			TweenService:Create(part, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 				{ Transparency = alphaFinal }):Play()
@@ -515,14 +525,39 @@ local function construirAristas()
 		end
 	end
 
-	local count = 0
-	for _ in pairs(estado.aristaMap) do count = count + 1 end
-	print(string.format("[EjecutorAlgoritmo3D] %d aristas construidas", count))
 end
 
--- ════════════════════════════════════════════════════════════════
--- ACTUALIZAR ARISTAS — solo tween color/alpha, SIN destruir/crear
--- ════════════════════════════════════════════════════════════════
+local function obtenerAristasPendientesDelPaso(step)
+	local pendientes = {}
+	if not step then return pendientes end
+
+	local esDirigido = estado.matrizData and estado.matrizData.EsDirigido or false
+	local dict = {}
+
+	for _, arista in ipairs(step.aristasRecorridas or {}) do
+		local a, b = arista[1], arista[2]
+		local key = claveArista(a, b)
+		local mapKey = keyAristaMap(a, b)
+		if not dict[key] and estado.aristasProcesadas[key] ~= "recorrida" then
+			dict[key] = { nomA = a, nomB = b, key = key, mapKey = mapKey, rol = "recorrida" }
+		end
+	end
+
+	if step.aristaNueva then
+		local a, b = step.aristaNueva[1], step.aristaNueva[2]
+		local key = claveArista(a, b)
+		local mapKey = keyAristaMap(a, b)
+		if estado.aristasProcesadas[key] ~= "nueva" then
+			dict[key] = { nomA = a, nomB = b, key = key, mapKey = mapKey, rol = "nueva" }
+		end
+	end
+
+	for _, data in pairs(dict) do
+		table.insert(pendientes, data)
+	end
+	return pendientes
+end
+
 local function actualizarAristas(step)
 	if not estado.matrizData then return 0 end
 	local esDirigido = estado.matrizData.EsDirigido or false
@@ -542,7 +577,6 @@ local function actualizarAristas(step)
 		if rol == "nueva" then
 			color = COL_ARISTA_NUEVA; alpha = ALPHA_ACTIVA; mat = MAT_NEON
 		else -- "recorrida"
-			-- Camino minimo/MST: blanco para Dijkstra, verde neon para el resto
 			color = esDijkstra and COL_ARISTA_BLANCO or COL_ARISTA_VISIT
 			alpha = ALPHA_ACTIVA
 			mat   = MAT_NEON
@@ -561,13 +595,13 @@ local function actualizarAristas(step)
 			crearTagArista(nomA, nomB, part)
 		end
 
-		marcarAristaProcesada(data.key, rol)
+		estado.aristasProcesadas[data.key] = rol
 
 		local pid = esDirigido and (nomA .. "_>" .. nomB) or idConexion(nomA, nomB)
 		nuevoSetPart[pid] = info
 	end
 
-	-- Incluir aristas ya procesadas del paso actual para mantener sus particulas activas
+	-- Mantener partículas activas para aristas ya procesadas
 	if step then
 		for _, arista in ipairs(step.aristasRecorridas or {}) do
 			local a, b = arista[1], arista[2]
@@ -589,7 +623,6 @@ local function actualizarAristas(step)
 		end
 	end
 
-	-- Sincronizar particulas
 	for id in pairs(estado.partActivas) do
 		if not nuevoSetPart[id] then detenerParticulasId(id) end
 	end
@@ -599,25 +632,11 @@ local function actualizarAristas(step)
 		end
 	end
 
-	return TWEEN_ARISTA.Time  -- duracion de la animacion de aristas
-end
-
-local function resetearAristas()
-	for _, info in pairs(estado.aristaMap) do
-		if not info.esDefectuosa and info.part and info.part.Parent then
-			info.part.Material = MAT_DEFAULT
-			TweenService:Create(info.part, TWEEN_ARISTA, {
-				Color        = COL_ARISTA_DEFAULT,
-				Transparency = ALPHA_DEFAULT,
-			}):Play()
-		end
-	end
-	limpiarTodasParticulas()
-	table.clear(estado.aristasProcesadas)
+	return TWEEN_ARISTA.Time
 end
 
 -- ════════════════════════════════════════════════════════════════
--- LIMPIAR TODO
+-- LIMPIEZA
 -- ════════════════════════════════════════════════════════════════
 local function limpiarEfectos3D()
 	estado.autoPlaying   = false
@@ -642,7 +661,6 @@ local function limpiarEfectos3D()
 
 	destruirTagsArista()
 
-	-- Limpiar billboards y highlights del modo guiado
 	BillboardNombres.destruirPorPrefijo("AlgGuia_BB_")
 	local todosHighlights = EfectosHighlight.obtenerTodos()
 	local aEliminar = {}
@@ -656,63 +674,11 @@ local function limpiarEfectos3D()
 	end
 
 	limpiarTodasParticulas()
-end
-
--- ════════════════════════════════════════════════════════════════
--- DESTACADO FINAL DEL CAMINO MINIMO (Dijkstra)
--- ════════════════════════════════════════════════════════════════
-local function destacarCaminoFinalDijkstra(step)
-	if estado.algoritmoActual ~= "dijkstra" or not step then return end
-	local aristas = step.aristasRecorridas or {}
-	if #aristas == 0 then return end
-
-	local caminoSet = {}
-	local aristasCaminoSet = {}
-	for _, arista in ipairs(aristas) do
-		local a, b = arista[1], arista[2]
-		caminoSet[a] = true
-		caminoSet[b] = true
-		local key = GrafoHelpers.clavePar(a, b)
-		aristasCaminoSet[key] = true
-	end
-
-	-- Restaurar nodos visitados que NO forman parte del camino mas corto
-	local aRestaurar = {}
-	for nombre in pairs(estado.nodosEncendidos) do
-		if not caminoSet[nombre] then
-			table.insert(aRestaurar, nombre)
-		end
-	end
-	for _, nombre in ipairs(aRestaurar) do
-		restaurarNodo(nombre)
-	end
-
-	-- Pintar de blanco todos los nodos del camino minimo
-	local aBlanco = {}
-	for nombre in pairs(caminoSet) do
-		table.insert(aBlanco, nombre)
-	end
-	for _, nombre in ipairs(aBlanco) do
-		encenderNodo(nombre, "CAMINO")
-	end
-
-	-- Apagar aristas que NO formen parte del camino mas corto
-	for _, info in pairs(estado.aristaMap) do
-		if info.part and info.part.Parent and not info.esDefectuosa then
-			local nomA, nomB = info.nomA, info.nomB
-			local key = GrafoHelpers.clavePar(nomA, nomB)
-			if not aristasCaminoSet[key] then
-				info.part.Material = MAT_DEFAULT
-				TweenService:Create(info.part, TWEEN_ARISTA, {
-					Color        = COL_ARISTA_DEFAULT,
-					Transparency = ALPHA_DEFAULT,
-				}):Play()
-			end
-		end
-	end
-
-	-- Detener particulas: el camino minimo ya esta fijo
-	limpiarTodasParticulas()
+	destruirBillboardsGuia()
+	estado.guiaAristaActual = nil
+	ocultarBillboardAristaDefectuosa()
+	limpiarBillboardsEjecucion()
+	PanelAlgoritmo3D.ocultar()
 end
 
 -- ════════════════════════════════════════════════════════════════
@@ -739,61 +705,224 @@ local function aplicarPaso3D(step)
 	if durAristas > maxDuracion then maxDuracion = durAristas end
 
 	if estado.algoritmoActual == "dijkstra" and estado.pasoActual == estado.totalPasos then
+		-- Destacar camino final (implementación existente)
+		local function destacarCaminoFinalDijkstra(step)
+			if estado.algoritmoActual ~= "dijkstra" or not step then return end
+			local aristas = step.aristasRecorridas or {}
+			if #aristas == 0 then return end
+			local caminoSet = {}
+			local aristasCaminoSet = {}
+			for _, arista in ipairs(aristas) do
+				local a, b = arista[1], arista[2]
+				caminoSet[a] = true; caminoSet[b] = true
+				local key = claveArista(a, b)
+				aristasCaminoSet[key] = true
+			end
+			local aRestaurar = {}
+			for nombre in pairs(estado.nodosEncendidos) do
+				if not caminoSet[nombre] then
+					table.insert(aRestaurar, nombre)
+				end
+			end
+			for _, nombre in ipairs(aRestaurar) do
+				restaurarNodo(nombre)
+			end
+			local aBlanco = {}
+			for nombre in pairs(caminoSet) do
+				table.insert(aBlanco, nombre)
+			end
+			for _, nombre in ipairs(aBlanco) do
+				encenderNodo(nombre, "CAMINO")
+			end
+			for _, info in pairs(estado.aristaMap) do
+				if info.part and info.part.Parent and not info.esDefectuosa then
+					local nomA, nomB = info.nomA, info.nomB
+					local key = claveArista(nomA, nomB)
+					if not aristasCaminoSet[key] then
+						info.part.Material = MAT_DEFAULT
+						TweenService:Create(info.part, TWEEN_ARISTA, {
+							Color        = COL_ARISTA_DEFAULT,
+							Transparency = ALPHA_DEFAULT,
+						}):Play()
+					end
+				end
+			end
+			limpiarTodasParticulas()
+		end
 		destacarCaminoFinalDijkstra(step)
 	end
 
+	PanelAlgoritmo3D.aplicarPaso(step, estado.pasoActual, estado.totalPasos)
 	return maxDuracion
 end
 
 -- ════════════════════════════════════════════════════════════════
--- AUTO-PLAY
+-- CONSULTA DE TOPOLOGÍA REAL
 -- ════════════════════════════════════════════════════════════════
-local function detenerAutoPlay()
-	estado.autoPlaying = false
-	estado.modoGuiado = false
-	estado.esperandoArista = false
-	estado.aristaEsperada = nil
-	if estado.btnEjecutar then estado.btnEjecutar.Text = "Ejecutar Algoritmo" end
+local function consultarTopologiaReal()
+	if not GetAdjacencyMatrix then
+		warn("[EjecutorAlgoritmo3D] GetAdjacencyMatrix no disponible")
+		return { conectada = false, aristaDefectuosa = false, nodosDaniados = {} }
+	end
+	local ahora = tick()
+	if estado.ultimaTopologia and (ahora - estado.ultimaConsultaTime) < CACHE_TOPOLOGIA_SEG then
+		return estado.ultimaTopologia
+	end
+
+	local zona = estado.zonaAnclada or jugador:GetAttribute("ZonaActual") or ""
+	local ok, realData = pcall(function() return GetAdjacencyMatrix:InvokeServer(zona) end)
+	if not ok then
+		warn("[EjecutorAlgoritmo3D] Error al consultar topología:", tostring(realData))
+		return { conectada = false, aristaDefectuosa = false, nodosDaniados = {} }
+	end
+	if not realData or realData.SinZona then
+		warn("[EjecutorAlgoritmo3D] Topología sin zona:", zona)
+		return { conectada = false, aristaDefectuosa = false, nodosDaniados = {} }
+	end
+
+	local resultado = {
+		Headers = realData.Headers or {},
+		Matrix = realData.Matrix or {},
+		NodosDaniados = realData.NodosDaniados or {},
+	}
+	estado.ultimaTopologia = resultado
+	estado.ultimaConsultaTime = tick()
+	return resultado
 end
 
-local function iniciarAutoPlay()
-	if estado.autoPlaying then detenerAutoPlay(); return end
+local function verificarAristaEnTopologia(topologia, nomA, nomB)
+	local headers = topologia.Headers or {}
+	local matrix  = topologia.Matrix or {}
+	local idxA, idxB = nil, nil
+	for i, h in ipairs(headers) do
+		if h == nomA then idxA = i end
+		if h == nomB then idxB = i end
+	end
+	if not idxA or not idxB then
+		warn("[EjecutorAlgoritmo3D] Arista no encontrada en headers:", nomA, nomB)
+		return false
+	end
+	local valAB = matrix[idxA] and matrix[idxA][idxB]
+	local valBA = matrix[idxB] and matrix[idxB][idxA]
+	local conectada = (valAB and valAB > 0) or (valBA and valBA > 0)
+	if not conectada then return false end
+	local defectuosa = GrafoHelpers.esCableDefectuoso(estado.nivelID, nomA, nomB)
+	return true, defectuosa
+end
+
+local function invalidarCacheTopologia()
+	estado.ultimaTopologia = nil
+	estado.ultimaConsultaTime = 0
+end
+
+-- ════════════════════════════════════════════════════════════════
+-- MODO AUTO‑PLAY CON VALIDACIÓN GUIADA
+-- ════════════════════════════════════════════════════════════════
+local function obtenerAristaEsperadaDelPaso(step)
+	if step and step.aristaNueva then
+		return { step.aristaNueva[1], step.aristaNueva[2] }
+	end
+	return nil
+end
+
+local function iniciarValidacionGuiada()
+	if estado.autoPlaying then return end
 	if estado.totalPasos == 0 then return end
 	estado.autoPlaying = true
-	if estado.btnEjecutar then estado.btnEjecutar.Text = "Detener Algoritmo" end
+	estado.guiaAristaActual = nil
+	if estado.btnEjecutar then estado.btnEjecutar.Text = "Validando conexiones" end
+
+	local miVersion = _simVersion
 
 	estado.tareaAutoPlay = task.spawn(function()
-		if estado.pasoActual >= estado.totalPasos then
-			estado.pasoActual = 1
-			-- Reinicio: resetear aristas a gris y nodos a su color original
-			resetearAristas()
-			for nombre in pairs(estado.nodosEncendidos) do restaurarNodo(nombre) end
-			for _, luz in pairs(estado.lucesTemporales) do
-				if luz and luz.Parent then luz:Destroy() end
-			end
-			estado.lucesTemporales = {}
-			estado.nodosEncendidos = {}
-			estado.originalNodos   = {}
-		end
+		while estado.autoPlaying and estado.pasoActual <= estado.totalPasos and _simVersion == miVersion do
+			local step = estado.pasos[estado.pasoActual]
 
-		while estado.autoPlaying and estado.pasoActual <= estado.totalPasos do
-			local durAnim = aplicarPaso3D(estado.pasos[estado.pasoActual])
-			-- Esperamos lo que dure la animacion del paso o el tiempo base,
-			-- lo que sea MAYOR, para que no se solapen pasos ni se vea todo de golpe.
-			task.wait(math.max(VEL_PASO_SEGUNDOS, durAnim))
-			if not estado.autoPlaying then break end
+			aplicarPaso3D(step)
+
+			-- ====== VERIFICAR NODO ACTUAL ======
+			if step.nodoActual then
+				while estado.autoPlaying and _simVersion == miVersion and PanelAlgoritmo3D.nodoEstaDaniado(step.nodoActual) do
+					local selector = obtenerSelector(buscarNodoWorkspace(step.nodoActual))
+					PanelAlgoritmo3D.mostrarMensajeNodoDaniado(step.nodoActual, selector)
+					local topologia = consultarTopologiaReal()
+					estado.nodosDaniados = topologia.NodosDaniados or {}
+					PanelAlgoritmo3D.actualizarNodosDaniados(estado.nodosDaniados)
+					PanelAlgoritmo3D.aplicarPaso(step, estado.pasoActual, estado.totalPasos)
+					task.wait(0.5)
+				end
+				if not estado.autoPlaying or _simVersion ~= miVersion then break end
+			end
+			-- Nodo actual ya reparado: permitir que el panel refleje el paso
+			PanelAlgoritmo3D.desactivarModoEspera()
+
+			-- ====== VERIFICAR ARISTA ESPERADA ======
+			local aristaEsperada = obtenerAristaEsperadaDelPaso(step)
+			actualizarBillboardsGuia(aristaEsperada)
+
+			if aristaEsperada then
+				local avanzo = false
+				local a, b = aristaEsperada[1], aristaEsperada[2]
+
+				while estado.autoPlaying and _simVersion == miVersion and not avanzo do
+					local topologia = consultarTopologiaReal()
+					estado.nodosDaniados = topologia.NodosDaniados or {}
+					PanelAlgoritmo3D.actualizarNodosDaniados(estado.nodosDaniados)
+					PanelAlgoritmo3D.aplicarPaso(step, estado.pasoActual, estado.totalPasos)
+
+					-- Verificar si alguno de los dos nodos está dañado (usando el panel que considera reparaciones)
+					local nodoDanado = nil
+					if PanelAlgoritmo3D.nodoEstaDaniado(a) then
+						nodoDanado = a
+					elseif PanelAlgoritmo3D.nodoEstaDaniado(b) then
+						nodoDanado = b
+					end
+
+					if nodoDanado then
+						local selector = obtenerSelector(buscarNodoWorkspace(nodoDanado))
+						PanelAlgoritmo3D.mostrarMensajeNodoDaniado(nodoDanado, selector)
+						ocultarBillboardAristaDefectuosa()
+					else
+						-- Ambos nodos están bien: verificar la arista
+						local conectada, defectuosa = verificarAristaEnTopologia(topologia, a, b)
+						if conectada then
+							if defectuosa then
+								PanelAlgoritmo3D.mostrarMensajeDefectuoso(aristaEsperada)
+								mostrarBillboardAristaDefectuosa(a, b)
+							else
+								PanelAlgoritmo3D.mostrarMensajeCorrecto(aristaEsperada)
+								ocultarBillboardAristaDefectuosa()
+								task.wait(1.2)
+								avanzo = true
+							end
+						else
+							PanelAlgoritmo3D.mostrarMensajeEspera(aristaEsperada)
+							ocultarBillboardAristaDefectuosa()
+						end
+					end
+
+					if not avanzo then task.wait(0.5) end
+				end
+			else
+				-- Paso sin arista nueva: esperar y avanzar
+				ocultarBillboardAristaDefectuosa()
+				task.wait(math.max(VEL_PASO_SEGUNDOS, 0.5))
+			end
+
+			if not estado.autoPlaying or _simVersion ~= miVersion then break end
 			estado.pasoActual = estado.pasoActual + 1
 		end
 
-		if estado.autoPlaying and estado.pasoActual > estado.totalPasos then
+		if estado.autoPlaying and _simVersion == miVersion and estado.pasoActual > estado.totalPasos then
 			if estado.btnEjecutar then estado.btnEjecutar.Text = "Ejecutar Algoritmo" end
 			estado.autoPlaying = false
-			-- Esperar 3 segundos para que el jugador vea el resultado final, luego limpiar todo
 			task.delay(3, function()
-				if not estado.activo and not estado.autoPlaying then
+				if not estado.activo and not estado.autoPlaying and _simVersion == miVersion then
 					limpiarEfectos3D()
-					estado.activo = false; estado.pasos = {}
-					estado.pasoActual = 0; estado.totalPasos = 0
+					estado.activo = false
+					estado.pasos = {}
+					estado.pasoActual = 0
+					estado.totalPasos = 0
 					estado.zonaAnclada = nil
 				end
 			end)
@@ -802,100 +931,57 @@ local function iniciarAutoPlay()
 end
 
 -- ════════════════════════════════════════════════════════════════
--- MODO GUIADO: el jugador conecta para avanzar
+-- MODO EJECUCIÓN VISUAL (auto‑play sin validación de conexiones)
 -- ════════════════════════════════════════════════════════════════
-local procesarPasoGuiado, avanzarPasoGuiado, alConectarJugador
+local function iniciarEjecucionVisual()
+	if estado.autoPlaying then return end
+	if estado.totalPasos == 0 then return end
+	estado.autoPlaying = true
+	estado.modoGuiado = false
+	if estado.btnEjecutar then estado.btnEjecutar.Text = "Ejecutando visualización" end
 
-local function iniciarModoGuiado()
-    estado.autoPlaying = false
-    estado.modoGuiado = true
-    estado.esperandoArista = false
-    estado.aristaEsperada = nil
-    estado.pasoActual = 1
-    if estado.btnEjecutar then estado.btnEjecutar.Text = "Modo Guiado Activo" end
-    procesarPasoGuiado()
-end
+	local miVersion = _simVersion
 
-function procesarPasoGuiado()
-    if not estado.modoGuiado then return end
-    local step = estado.pasos[estado.pasoActual]
-    if not step then
-        estado.modoGuiado = false
-        return
-    end
+	estado.tareaAutoPlay = task.spawn(function()
+		while estado.autoPlaying and estado.pasoActual <= estado.totalPasos and _simVersion == miVersion do
+			local step = estado.pasos[estado.pasoActual]
 
-    local miPaso = estado.pasoActual
-    local durAnim = aplicarPaso3D(step)
-    local aristaEsperada = obtenerAristaEsperadaDelPaso(step)
+			aplicarPaso3D(step)
 
-    if aristaEsperada then
-        -- Si el jugador ya conecto esta arista previamente, avanzar solo
-        if EstadoConexiones.estaConectado(aristaEsperada[1], aristaEsperada[2]) then
-            estado.esperandoArista = false
-            estado.aristaEsperada = nil
-            task.wait(math.max(VEL_PASO_SEGUNDOS, durAnim))
-            if estado.modoGuiado and estado.pasoActual == miPaso then
-                avanzarPasoGuiado()
-            end
-        else
-            estado.esperandoArista = true
-            estado.aristaEsperada = aristaEsperada
-            resaltarAristaEsperada(aristaEsperada[1], aristaEsperada[2])
-        end
-    else
-        estado.esperandoArista = false
-        estado.aristaEsperada = nil
-        task.wait(math.max(VEL_PASO_SEGUNDOS, durAnim))
-        if estado.modoGuiado and estado.pasoActual == miPaso then
-            avanzarPasoGuiado()
-        end
-    end
-end
+			if step.nodoActual then
+				crearBillboardNodoActual(step.nodoActual)
+			end
 
-function avanzarPasoGuiado()
-    if not estado.modoGuiado then return end
-    estado.pasoActual = estado.pasoActual + 1
-    if estado.pasoActual > estado.totalPasos then
-        estado.modoGuiado = false
-        estado.esperandoArista = false
-        estado.aristaEsperada = nil
-        if estado.btnEjecutar then estado.btnEjecutar.Text = "Ejecutar Algoritmo" end
-        task.delay(3, function()
-            if not estado.activo and not estado.modoGuiado and not estado.autoPlaying then
-                limpiarEfectos3D()
-                estado.activo = false; estado.pasos = {}
-                estado.pasoActual = 0; estado.totalPasos = 0
-                estado.zonaAnclada = nil
-            end
-        end)
-        return
-    end
-    procesarPasoGuiado()
-end
+			task.wait(math.max(VEL_PASO_SEGUNDOS, 1.0))
 
-function alConectarJugador(nomA, nomB)
-    if not estado.modoGuiado or not estado.esperandoArista or not estado.aristaEsperada then return end
+			if not estado.autoPlaying or _simVersion ~= miVersion then break end
+			estado.pasoActual = estado.pasoActual + 1
+		end
 
-    if sonAristasIguales(nomA, nomB, estado.aristaEsperada[1], estado.aristaEsperada[2]) then
-        quitarResalteAristaEsperada(estado.aristaEsperada[1], estado.aristaEsperada[2])
-        avanzarPasoGuiado()
-    else
-        warn(string.format("[EjecutorAlgoritmo3D] Arista incorrecta: %s-%s (esperada: %s-%s)",
-            tostring(nomA), tostring(nomB),
-            tostring(estado.aristaEsperada[1]), tostring(estado.aristaEsperada[2])))
-        -- Desconectar automaticamente la arista incorrecta para obligar al jugador
-        if ConectarDesdeMapa then
-            ConectarDesdeMapa:FireServer(nomA, nomB)
-        end
-        local nodoA = buscarNodoWorkspace(nomA)
-        local nodoB = buscarNodoWorkspace(nomB)
-        if nodoA then EfectosHighlight.flashErrorNodo(nodoA, 0.35) end
-        if nodoB then EfectosHighlight.flashErrorNodo(nodoB, 0.35) end
-    end
+		if estado.autoPlaying and _simVersion == miVersion and estado.pasoActual > estado.totalPasos then
+			local stepFinal = estado.pasos[estado.totalPasos]
+			if estado.algoritmoActual == "dijkstra" and stepFinal then
+				marcarRutaCortaDijkstra(stepFinal)
+			end
+
+			if estado.btnEjecutar then estado.btnEjecutar.Text = "Ejecutar Algoritmo" end
+			estado.autoPlaying = false
+			task.delay(4, function()
+				if not estado.activo and not estado.autoPlaying and _simVersion == miVersion then
+					limpiarEfectos3D()
+					estado.activo = false
+					estado.pasos = {}
+					estado.pasoActual = 0
+					estado.totalPasos = 0
+					estado.zonaAnclada = nil
+				end
+			end)
+		end
+	end)
 end
 
 -- ════════════════════════════════════════════════════════════════
--- INICIAR SIMULACION
+-- INICIAR SIMULACIÓN
 -- ════════════════════════════════════════════════════════════════
 local function iniciarSimulacion(algo)
 	limpiarEfectos3D()
@@ -903,27 +989,33 @@ local function iniciarSimulacion(algo)
 	local miVersion = _simVersion
 
 	local zona = estado.zonaAnclada or jugador:GetAttribute("ZonaActual") or ""
-	if zona == "" then warn("[EjecutorAlgoritmo3D] No hay zona anclada ni actual"); return end
+	if zona == "" then
+		warn("[EjecutorAlgoritmo3D] No hay zona anclada ni actual")
+		return
+	end
 	if not estado.zonaAnclada then estado.zonaAnclada = zona end
-	zona = estado.zonaAnclada
 
-	local nivelID     = jugador:GetAttribute("CurrentLevelID") or 0
-	estado.nivelID    = nivelID
-	local config      = LevelsConfig[nivelID]
+	local nivelID = jugador:GetAttribute("CurrentLevelID") or 0
+	estado.nivelID = nivelID
+	local config = LevelsConfig[nivelID]
 	local analisisCfg = config and config.AnalisisConfig and config.AnalisisConfig[zona] or nil
 
-	local nodoInicio       = analisisCfg and analisisCfg.nodoInicio or nil
-	estado.nodoFin         = analisisCfg and analisisCfg.nodoFin or nil
+	local nodoInicio = analisisCfg and analisisCfg.nodoInicio or nil
+	estado.nodoFin   = analisisCfg and analisisCfg.nodoFin or nil
 	estado.algoritmoActual = algo
 
 	local fn = getGrafoCompletoFunc()
-	if not fn then warn("[EjecutorAlgoritmo3D] GetGrafoCompleto no disponible"); return end
+	if not fn then
+		warn("[EjecutorAlgoritmo3D] GetGrafoCompleto no disponible")
+		return
+	end
 
 	task.spawn(function()
 		local ok, datos = pcall(function() return fn:InvokeServer(zona) end)
 		if _simVersion ~= miVersion then return end
 		if not ok or not datos or datos.SinZona or #datos.Headers == 0 then
-			warn("[EjecutorAlgoritmo3D] Sin datos para zona:", zona); return
+			warn("[EjecutorAlgoritmo3D] Sin datos para zona:", zona)
+			return
 		end
 
 		estado.matrizData  = datos
@@ -936,7 +1028,10 @@ local function iniciarSimulacion(algo)
 		estado.nodoInicio = nodoInicio
 
 		local fnAlgo = AlgoritmosGrafo[algo]
-		if not fnAlgo then warn("[EjecutorAlgoritmo3D] Algoritmo desconocido:", algo); return end
+		if not fnAlgo then
+			warn("[EjecutorAlgoritmo3D] Algoritmo desconocido:", algo)
+			return
+		end
 
 		local function pesoArista(a, b)
 			local peso = GrafoHelpers.obtenerPeso(estado.nivelID, a, b, 1)
@@ -960,18 +1055,21 @@ local function iniciarSimulacion(algo)
 		print(string.format("[EjecutorAlgoritmo3D] %s desde '%s' — %d pasos sobre %d nodos (zona: %s)",
 			algo:upper(), nodoInicio, estado.totalPasos, #nodos, zona))
 
-		construirAristas()   -- una sola vez, con tween de aparicion
-		task.wait(0.8)         -- pequena pausa para que el jugador vea la red formarse
+		PanelAlgoritmo3D.mostrar(algo, nodoInicio, estado.nodoFin, estado.matrizData, estado.adyacencias)
+
+		construirAristas()
+		task.wait(0.8)  -- pausa para que el jugador vea la red
+
 		if SelectorAlgUI.estaModoGuiado() then
-			iniciarModoGuiado()
+			iniciarValidacionGuiada()
 		else
-			iniciarAutoPlay()
+			iniciarEjecucionVisual()
 		end
 	end)
 end
 
 -- ════════════════════════════════════════════════════════════════
--- GUI (delegado a SelectorAlgUI)
+-- SELECTOR DE ALGORITMOS (GUI)
 -- ════════════════════════════════════════════════════════════════
 local function mostrarSelector()
 	local zona        = jugador:GetAttribute("ZonaActual") or ""
@@ -982,15 +1080,17 @@ local function mostrarSelector()
 	if algoritmos and #algoritmos > 0 then
 		SelectorAlgUI.mostrar(algoritmos)
 	else
-		SelectorAlgUI.mostrar({})  -- oculta todas las pills si la zona no tiene algoritmos
+		SelectorAlgUI.mostrar({})
 	end
 end
 
 local function toggleSelector()
 	if estado.activo or estado.autoPlaying or estado.modoGuiado then
 		limpiarEfectos3D()
-		estado.activo = false; estado.pasos = {}
-		estado.pasoActual = 0; estado.totalPasos = 0
+		estado.activo = false
+		estado.pasos = {}
+		estado.pasoActual = 0
+		estado.totalPasos = 0
 		estado.zonaAnclada = nil
 		SelectorAlgUI.ocultar()
 		if estado.btnEjecutar then estado.btnEjecutar.Text = "Ejecutar Algoritmo" end
@@ -1004,7 +1104,7 @@ local function toggleSelector()
 end
 
 -- ════════════════════════════════════════════════════════════════
--- API PUBLICA
+-- API PÚBLICA
 -- ════════════════════════════════════════════════════════════════
 function EjecutorAlgoritmo3D.inicializar(hudGui)
 	estado.hudGui = hudGui
@@ -1016,31 +1116,66 @@ function EjecutorAlgoritmo3D.inicializar(hudGui)
 		estado.btnEjecutar.MouseButton1Click:Connect(toggleSelector)
 	end
 
-	-- Inicializar UI del selector (estilizado, animado, responsivo)
 	SelectorAlgUI.inicializar(hudGui)
+	PanelAlgoritmo3D.inicializar(hudGui)
+	PanelAlgoritmo3D.setCerrarCallback(function()
+		limpiarEfectos3D()
+		PanelAlgoritmo3D.ocultar()
+		estado.activo = false
+		estado.pasos = {}
+		estado.pasoActual = 0
+		estado.totalPasos = 0
+		estado.zonaAnclada = nil
+		if estado.btnEjecutar then estado.btnEjecutar.Text = "Ejecutar Algoritmo" end
+	end)
 	SelectorAlgUI.conectarCerrar(function()
 		SelectorAlgUI.ocultar()
 	end)
 
-	-- Escuchar conexiones del jugador para el modo guiado
+	-- Escuchar conexiones del jugador (para modo guiado, si se implementa)
 	GestorEfectos.registrar("ConexionCompletada", function(params)
 		local nomA = params.arg1
 		local nomB = params.arg2
 		if type(nomA) == "string" and type(nomB) == "string" then
-			alConectarJugador(nomA, nomB)
+			invalidarCacheTopologia()
+			-- Aquí se podría implementar el modo guiado (paso a paso)
+			-- pero por ahora solo se usa auto‑play con validación.
 		end
 	end)
 
+	-- Escuchar reparación de nodos
+	local ok2, remotos = pcall(function()
+		return RS:WaitForChild("EventosGrafosV3", 10):WaitForChild("Remotos", 5)
+	end)
+	if ok2 and remotos then
+		local notifyEvent = remotos:FindFirstChild("NotificarSeleccionNodo")
+		if notifyEvent then
+			notifyEvent.OnClientEvent:Connect(function(tipo, arg1)
+				if tipo == "NodoReparado" then
+					local nombre = type(arg1) == "string" and arg1 or nil
+					if nombre then
+						PanelAlgoritmo3D.marcarNodoReparado(nombre)
+						invalidarCacheTopologia()
+					end
+				end
+			end)
+		end
+	end
+
 	local pillNames = {
-		bfs = "PillBFS", dfs = "PillDFS",
-		dijkstra = "PillDijkstra", prim = "PillPrim",
+		bfs = "PillBFS",
+		dfs = "PillDFS",
+		dijkstra = "PillDijkstra",
+		prim = "PillPrim",
 	}
 	for algo, _ in pairs(pillNames) do
 		SelectorAlgUI.conectarPill(algo, function()
 			if estado.activo or estado.autoPlaying or estado.modoGuiado then
 				limpiarEfectos3D()
-				estado.activo = false; estado.pasos = {}
-				estado.pasoActual = 0; estado.totalPasos = 0
+				estado.activo = false
+				estado.pasos = {}
+				estado.pasoActual = 0
+				estado.totalPasos = 0
 			end
 			estado.zonaAnclada = jugador:GetAttribute("ZonaActual") or ""
 			SelectorAlgUI.ocultar()
@@ -1048,7 +1183,6 @@ function EjecutorAlgoritmo3D.inicializar(hudGui)
 		end)
 	end
 
-	-- Actualizar pills en tiempo real si el jugador cambia de zona mientras el selector esta abierto
 	jugador:GetAttributeChangedSignal("ZonaActual"):Connect(function()
 		if estado.activo or estado.autoPlaying or estado.modoGuiado then return end
 		if SelectorAlgUI.estaVisible() then
@@ -1062,12 +1196,18 @@ end
 
 function EjecutorAlgoritmo3D.limpiar()
 	limpiarEfectos3D()
-	estado.activo = false; estado.pasos = {}
-	estado.pasoActual = 0; estado.totalPasos = 0
-	estado.zonaAnclada = nil; estado.matrizData = nil
+	estado.activo = false
+	estado.pasos = {}
+	estado.pasoActual = 0
+	estado.totalPasos = 0
+	estado.zonaAnclada = nil
+	estado.matrizData = nil
 	estado.adyacencias = {}
+	estado.ultimaTopologia = nil
+	estado.ultimaConsultaTime = 0
 	if estado.btnEjecutar then estado.btnEjecutar.Text = "Ejecutar Algoritmo" end
 	SelectorAlgUI.ocultar()
+	PanelAlgoritmo3D.ocultar()
 end
 
 return EjecutorAlgoritmo3D
