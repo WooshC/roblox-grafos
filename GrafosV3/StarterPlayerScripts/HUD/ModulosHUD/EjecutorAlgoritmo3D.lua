@@ -101,9 +101,10 @@ local estado = {
 	selectorAlg     = nil,
 	pills           = {},
 
-	modoGuiado      = false,
-	esperandoArista = false,
-	aristaEsperada  = nil,
+	modoGuiado        = false,
+	esperandoArista   = false,
+	aristaEsperada    = nil,
+	aristasProcesadas = {}, -- set de aristas cuyos efectos de algoritmo ya fueron aplicados
 }
 
 -- ════════════════════════════════════════════════════════════════
@@ -328,6 +329,12 @@ local function claveArista(a, b)
     return GrafoHelpers.clavePar(a, b)
 end
 
+-- Key usada en estado.aristaMap (direccional para grafos dirigidos)
+local function keyAristaMap(nomA, nomB)
+    local esDirigido = estado.matrizData and estado.matrizData.EsDirigido or false
+    return esDirigido and (nomA .. "->" .. nomB) or claveArista(nomA, nomB)
+end
+
 local function sonAristasIguales(a1, b1, a2, b2)
     return claveArista(a1, b1) == claveArista(a2, b2)
 end
@@ -337,6 +344,51 @@ local function obtenerAristaEsperadaDelPaso(step)
         return { step.aristaNueva[1], step.aristaNueva[2] }
     end
     return nil
+end
+
+-- Devuelve true si la arista ya fue procesada en la simulacion actual con el rol indicado
+local function aristaYaProcesada(key, rol)
+    return estado.aristasProcesadas[key] == rol
+end
+
+-- Devuelve una lista de aristas del paso que aun no han sido procesadas,
+-- junto con el rol visual que les corresponde ("nueva" o "recorrida").
+-- "nueva" tiene prioridad sobre "recorrida" para la misma arista.
+local function obtenerAristasPendientesDelPaso(step)
+    local pendientes = {}
+    if not step then return pendientes end
+
+    local esDirigido = estado.matrizData and estado.matrizData.EsDirigido or false
+    local dict = {}
+
+    for _, arista in ipairs(step.aristasRecorridas or {}) do
+        local a, b = arista[1], arista[2]
+        local key = claveArista(a, b)
+        local mapKey = keyAristaMap(a, b)
+        if not dict[key] and not aristaYaProcesada(key, "recorrida") then
+            dict[key] = { nomA = a, nomB = b, key = key, mapKey = mapKey, rol = "recorrida", dirigido = esDirigido }
+        end
+    end
+
+    if step.aristaNueva then
+        local a, b = step.aristaNueva[1], step.aristaNueva[2]
+        local key = claveArista(a, b)
+        local mapKey = keyAristaMap(a, b)
+        if not aristaYaProcesada(key, "nueva") then
+            -- "nueva" tiene prioridad sobre "recorrida" si la misma arista aparece en ambas listas
+            dict[key] = { nomA = a, nomB = b, key = key, mapKey = mapKey, rol = "nueva", dirigido = esDirigido }
+        end
+    end
+
+    for _, data in pairs(dict) do
+        table.insert(pendientes, data)
+    end
+
+    return pendientes
+end
+
+local function marcarAristaProcesada(key, rol)
+    estado.aristasProcesadas[key] = rol
 end
 
 local function displayNameNodo(nombre)
@@ -476,42 +528,24 @@ local function actualizarAristas(step)
 	local esDirigido = estado.matrizData.EsDirigido or false
 	local esDijkstra = estado.algoritmoActual == "dijkstra"
 
-	local recorridasSet = {}
-	local nuevaKey      = nil
-
-	if step then
-		for _, arista in ipairs(step.aristasRecorridas or {}) do
-			local a, b = arista[1], arista[2]
-			local key  = GrafoHelpers.clavePar(a, b)
-			recorridasSet[key] = true
-		end
-		if step.aristaNueva then
-			local a, b = step.aristaNueva[1], step.aristaNueva[2]
-			nuevaKey = GrafoHelpers.clavePar(a, b)
-		end
-	end
-
+	local pendientes = obtenerAristasPendientesDelPaso(step)
 	local nuevoSetPart = {}
 
-	for _, info in pairs(estado.aristaMap) do
-		if info.esDefectuosa then continue end
+	for _, data in ipairs(pendientes) do
+		local info = estado.aristaMap[data.mapKey]
+		if not info or info.esDefectuosa then continue end
 
-		local nomA, nomB = info.nomA, info.nomB
-		local key = GrafoHelpers.clavePar(nomA, nomB)
-
-		local esNueva     = (key == nuevaKey)
-		local esRecorrida = recorridasSet[key] == true
+		local nomA, nomB = data.nomA, data.nomB
+		local rol = data.rol
 
 		local color, alpha, mat
-		if esNueva then
+		if rol == "nueva" then
 			color = COL_ARISTA_NUEVA; alpha = ALPHA_ACTIVA; mat = MAT_NEON
-		elseif esRecorrida then
+		else -- "recorrida"
 			-- Camino minimo/MST: blanco para Dijkstra, verde neon para el resto
 			color = esDijkstra and COL_ARISTA_BLANCO or COL_ARISTA_VISIT
 			alpha = ALPHA_ACTIVA
 			mat   = MAT_NEON
-		else
-			color = COL_ARISTA_DEFAULT; alpha = ALPHA_DEFAULT; mat = MAT_DEFAULT
 		end
 
 		local part = info.part
@@ -523,13 +557,35 @@ local function actualizarAristas(step)
 			}):Play()
 		end
 
-		if esRecorrida then
+		if rol == "recorrida" then
 			crearTagArista(nomA, nomB, part)
 		end
 
-		if esNueva or esRecorrida then
-			local pid = esDirigido and (nomA .. "_>" .. nomB) or idConexion(nomA, nomB)
-			nuevoSetPart[pid] = info
+		marcarAristaProcesada(data.key, rol)
+
+		local pid = esDirigido and (nomA .. "_>" .. nomB) or idConexion(nomA, nomB)
+		nuevoSetPart[pid] = info
+	end
+
+	-- Incluir aristas ya procesadas del paso actual para mantener sus particulas activas
+	if step then
+		for _, arista in ipairs(step.aristasRecorridas or {}) do
+			local a, b = arista[1], arista[2]
+			local mapKey = keyAristaMap(a, b)
+			local info = estado.aristaMap[mapKey]
+			if info and not info.esDefectuosa then
+				local pid = esDirigido and (a .. "_>" .. b) or idConexion(a, b)
+				nuevoSetPart[pid] = info
+			end
+		end
+		if step.aristaNueva then
+			local a, b = step.aristaNueva[1], step.aristaNueva[2]
+			local mapKey = keyAristaMap(a, b)
+			local info = estado.aristaMap[mapKey]
+			if info and not info.esDefectuosa then
+				local pid = esDirigido and (a .. "_>" .. b) or idConexion(a, b)
+				nuevoSetPart[pid] = info
+			end
 		end
 	end
 
@@ -557,6 +613,7 @@ local function resetearAristas()
 		end
 	end
 	limpiarTodasParticulas()
+	table.clear(estado.aristasProcesadas)
 end
 
 -- ════════════════════════════════════════════════════════════════
@@ -576,6 +633,7 @@ local function limpiarEfectos3D()
 	estado.lucesTemporales = {}
 	estado.nodosEncendidos = {}
 	estado.originalNodos   = {}
+	table.clear(estado.aristasProcesadas)
 
 	for _, info in pairs(estado.aristaMap) do
 		if info.part and info.part.Parent then info.part:Destroy() end

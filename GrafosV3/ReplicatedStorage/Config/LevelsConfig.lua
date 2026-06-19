@@ -315,13 +315,15 @@ LevelsConfig[1] = {
 	Adyacencias = {
 		-- Zona 1: Estación Plana
 		["Gen_Estacion_z1"] = {"Casa_Estacion1_z1", "Casa_Estacion2_z1"},
-		["Casa_Estacion1_z1"] = {"Gen_Estacion_z1","Parque_z1"},
+		["Casa_Estacion1_z1"] = {"Casa_Estacion3_z1","Casa_Estacion4_z1"},
+		["Casa_Estacion4_z1"] = {"Poste2_z4","Casa_Estacion3_z1"},
+		["Casa_Estacion3_z1"] = {"Casa_Estacion2_z1","Poste2_z4","Parque_z1"},
 		["Casa_Estacion2_z1"] = {"Gen_Estacion_z1","Parque_z1","Parque_z2"},
-		["Parque_z1"] = {"Casa_Estacion1_z1","Casa_Estacion2_z1", "Poste_Mercado_z2"},
+		["Parque_z1"] = {"Casa_Estacion2_z1", "Poste_Mercado_z2","Casa_Estacion3_z1"},
 
 		-- Zona 2: Mercado Central
-		["Poste_Mercado_z2"]  = {"Parque_z1", "Puesto_Mercado_z2","Parque_z2"},
-		["Puesto_Mercado_z2"] = {"Poste_Mercado_z2", "Poste_Canchas_z3"},
+		["Poste_Mercado_z2"]  = {"Parque_z1", "Puesto_Mercado_z2","Parque_z2","Poste_Canchas_z3"},
+		["Puesto_Mercado_z2"] = {"Poste_Mercado_z2", "Poste_Canchas_z3","Entrada_Tunel_z2","Poste_aux_z2"},
 		["Parque_z2"]={"Poste_Mercado_z2","Casa_Estacion1_z1"},
 
 		-- Zona 3: Las Canchas
@@ -534,15 +536,15 @@ LevelsConfig[2] = {
 		-- Zona 1: La Ciudad Grande
 		["Gen_Fabrica_z1"]    = {"Entrada_z1", "Cruce_z1","Sala_Maquinas_z1"},
 		["Entrada_z1"]        = {"Gen_Fabrica_z1", "Sala_Maquinas_z1"},
-		["Cruce_z1"]          = {"Gen_Fabrica_z1", "Tunel_Norte_z2", "Tunel_Sur_z2"},
+		["Cruce_z1"]          = {"Gen_Fabrica_z1", "Tunel_Norte_z2", "Paso_Sur_z2"},
 		["Sala_Maquinas_z1"]  = {"Entrada_z1","Gen_Fabrica_z1"},
 
 		-- Zona 2: El Barrio Oeste
 		["Tunel_Norte_z2"]    = {"Cruce_z1", "Cisterna_z2", "Almacen_z2"},
-		["Tunel_Sur_z2"]      = {"Cruce_z1", "Puente_z2"},
+		["Paso_Sur_z2"]      = {"Cruce_z1", "Puente_z2"},
 		["Cisterna_z2"]       = {"Tunel_Norte_z2", "Puente_z2"},
 		["Almacen_z2"]        = {"Tunel_Norte_z2", "Oficina_z3"},
-		["Puente_z2"]         = {"Tunel_Sur_z2", "Cisterna_z2", "Oficina_z3"},
+		["Puente_z2"]         = {"Paso_Sur_z2", "Cisterna_z2", "Oficina_z3"},
 
 		-- Zona 3: La Oficina de Analisis
 		["Oficina_z3"]        = {"Almacen_z2", "Puente_z2", "Servidor_z3", "Antena_z3"},
@@ -557,10 +559,10 @@ LevelsConfig[2] = {
 		["Gen_Fabrica_z1|Cruce_z1"]       = 5,
 		["Entrada_z1|Sala_Maquinas_z1"]   = 3,
 		["Cruce_z1|Tunel_Norte_z2"]       = 2,
-		["Cruce_z1|Tunel_Sur_z2"]         = 6,
+		["Cruce_z1|Paso_Sur_z2"]         = 6,
 		["Tunel_Norte_z2|Cisterna_z2"]    = 4,
 		["Tunel_Norte_z2|Almacen_z2"]     = 7,
-		["Tunel_Sur_z2|Puente_z2"]        = 2,
+		["Paso_Sur_z2|Puente_z2"]        = 2,
 		["Cisterna_z2|Puente_z2"]         = 1,
 		["Almacen_z2|Oficina_z3"]         = 3,
 		["Puente_z2|Oficina_z3"]          = 5,
@@ -594,7 +596,7 @@ LevelsConfig[2] = {
 	-- Mapeo explicito de nodos por zona
 	NodosZona = {
 		["Zona_Laberinto_1"]   = {"Gen_Fabrica_z1", "Entrada_z1", "Cruce_z1", "Sala_Maquinas_z1"},
-		["Zona_BarrioOeste_2"] = {"Cruce_z1", "Tunel_Norte_z2", "Tunel_Sur_z2", "Cisterna_z2", "Almacen_z2", "Puente_z2"},
+		["Zona_BarrioOeste_2"] = {"Cruce_z1", "Tunel_Norte_z2", "Paso_Sur_z2", "Cisterna_z2", "Almacen_z2", "Puente_z2"},
 		["Zona_Oficina_3"]     = {"Oficina_z3", "Servidor_z3", "Antena_z3"},
 	},
 
@@ -604,7 +606,7 @@ LevelsConfig[2] = {
 		["Cruce_z1"]          = "Cruce Principal",
 		["Sala_Maquinas_z1"]  = "Sala de Maquinas",
 		["Tunel_Norte_z2"]    = "Avenida Norte",
-		["Tunel_Sur_z2"]      = "Avenida Sur",
+		["Paso_Sur_z2"]      = "Avenida Sur",
 		["Cisterna_z2"]       = "Cisterna",
 		["Almacen_z2"]        = "Almacen",
 		["Puente_z2"]         = "Puente Metalico",
@@ -676,17 +678,17 @@ LevelsConfig[2] = {
 
 		-- Zona 2: Barrio Oeste
 		{ ID=206, Zona="Zona_BarrioOeste_2", Texto="Tiende cable al Tunnel Norte desde el Cruce (costo 2)", Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Cruce_z1",       NodoB="Tunel_Norte_z2" } },
-		{ ID=207, Zona="Zona_BarrioOeste_2", Texto="Conecta el Tunnel Sur desde el Cruce (costo 6)",        Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Cruce_z1",       NodoB="Tunel_Sur_z2" } },
+		{ ID=207, Zona="Zona_BarrioOeste_2", Texto="Conecta el Tunnel Sur desde el Cruce (costo 6)",        Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Cruce_z1",       NodoB="Paso_Sur_z2" } },
 		{ ID=208, Zona="Zona_BarrioOeste_2", Texto="Conecta la Cisterna al Tunnel Norte (costo 4)",         Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Tunel_Norte_z2", NodoB="Cisterna_z2" } },
 		{ ID=209, Zona="Zona_BarrioOeste_2", Texto="Conecta el Almacen al Tunnel Norte (costo 7)",          Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Tunel_Norte_z2", NodoB="Almacen_z2" } },
-		{ ID=210, Zona="Zona_BarrioOeste_2", Texto="Conecta el Puente al Tunnel Sur (costo 2)",             Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Tunel_Sur_z2",   NodoB="Puente_z2" } },
-		{ ID=211, Zona="Zona_BarrioOeste_2", Texto="Ilumina todo el Barrio Oeste (6 nodos)",                Tipo="GRAFO_CONEXO",  Puntos=400, Parametros={ Nodos={"Cruce_z1","Tunel_Norte_z2","Tunel_Sur_z2","Cisterna_z2","Almacen_z2","Puente_z2"} } },
+		{ ID=210, Zona="Zona_BarrioOeste_2", Texto="Conecta el Puente al Tunnel Sur (costo 2)",             Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Paso_Sur_z2",   NodoB="Puente_z2" } },
+		{ ID=211, Zona="Zona_BarrioOeste_2", Texto="Ilumina todo el Barrio Oeste (6 nodos)",                Tipo="GRAFO_CONEXO",  Puntos=400, Parametros={ Nodos={"Cruce_z1","Tunel_Norte_z2","Paso_Sur_z2","Cisterna_z2","Almacen_z2","Puente_z2"} } },
 
 		-- Zona 3: Oficina de Analisis
 		{ ID=212, Zona="Zona_Oficina_3", Texto="Conecta la Oficina desde el Almacen (costo 3)",         Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Almacen_z2", NodoB="Oficina_z3" } },
 		{ ID=213, Zona="Zona_Oficina_3", Texto="Conecta el Servidor Central a la Oficina (costo 2)",    Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Oficina_z3", NodoB="Servidor_z3" } },
 		{ ID=214, Zona="Zona_Oficina_3", Texto="Conecta la Antena a la Oficina (costo 4)",              Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Oficina_z3", NodoB="Antena_z3" } },
-		{ ID=215, Zona="Zona_Oficina_3", Texto="Ilumina toda la ciudad (12 nodos)",                     Tipo="GRAFO_CONEXO",  Puntos=600, Parametros={ Nodos={"Gen_Fabrica_z1","Entrada_z1","Cruce_z1","Sala_Maquinas_z1","Tunel_Norte_z2","Tunel_Sur_z2","Cisterna_z2","Almacen_z2","Puente_z2","Oficina_z3","Servidor_z3","Antena_z3"} } },
+		{ ID=215, Zona="Zona_Oficina_3", Texto="Ilumina toda la ciudad (12 nodos)",                     Tipo="GRAFO_CONEXO",  Puntos=600, Parametros={ Nodos={"Gen_Fabrica_z1","Entrada_z1","Cruce_z1","Sala_Maquinas_z1","Tunel_Norte_z2","Paso_Sur_z2","Cisterna_z2","Almacen_z2","Puente_z2","Oficina_z3","Servidor_z3","Antena_z3"} } },
 	},
 
 	Guia = {

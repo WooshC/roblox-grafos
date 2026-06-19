@@ -28,11 +28,42 @@ local PanelEstadoAnalisis = {}
 -- ════════════════════════════════════════════════════════════════
 
 local function getAlias(nome)
+	if not nome then return "--" end
+	-- 1. Alias enviado por el servidor junto con la matriz
 	if E.matrizData and E.matrizData.NombresNodos then
 		local alias = E.matrizData.NombresNodos[nome]
 		if alias and alias ~= "" then return alias end
 	end
+	-- 2. Fallback: LevelConfig local
+	local nivelID = jugador:GetAttribute("CurrentLevelID") or 0
+	local cfg = LevelsConfig[nivelID]
+	if cfg and cfg.NombresNodos then
+		local alias = cfg.NombresNodos[nome]
+		if alias and alias ~= "" then return alias end
+	end
 	return nome
+end
+
+-- Reemplaza los nombres internos de nodos por sus alias legibles en un texto.
+-- Ordena por longitud descendente para evitar que un nombre sea substring de otro.
+local function localizarDescripcion(texto)
+	if not texto or texto == "" then return texto end
+	if not E.matrizData or not E.matrizData.Headers then return texto end
+
+	local pares = {}
+	for _, nome in ipairs(E.matrizData.Headers) do
+		local alias = getAlias(nome)
+		if alias and alias ~= nome then
+			pares[#pares + 1] = { nome = nome, alias = alias }
+		end
+	end
+	table.sort(pares, function(a, b) return #a.nome > #b.nome end)
+
+	local resultado = texto
+	for _, par in ipairs(pares) do
+		resultado = resultado:gsub(par.nome, par.alias)
+	end
+	return resultado
 end
 
 local function esNodoPendiente(pendientes, nome)
@@ -619,7 +650,7 @@ function PanelEstadoAnalisis.aplicarPaso(step)
 	local numPasoLbl  = C.buscar(E.overlay, "NumPaso")
 	local descPasoLbl = C.buscar(E.overlay, "DescPaso")
 	if numPasoLbl  then numPasoLbl.Text  = "PASO " .. E.pasoActual .. " / " .. E.totalPasos end
-	if descPasoLbl then descPasoLbl.Text = step.descripcion or "" end
+	if descPasoLbl then descPasoLbl.Text = localizarDescripcion(step.descripcion or "") end
 
 	-- 4. Concepto pedagógico del paso (LabelConcepto)
 	local conceptoLbl = C.buscar(E.overlay, "LabelConcepto")
