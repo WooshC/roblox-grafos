@@ -87,7 +87,7 @@ local DIALOGOS = {
 				Numero    = 1,
 				Actor     = "Carlos",
 				Expresion = "Sonriente",
-				Texto     = "Bienvenido a la Zona 3. Hasta ahora las aristas no tenían dirección. Aquí aprenderás qué pasa cuando sí la tienen.",
+				Texto     = "Bienvenido a la Zona 3. Hasta ahora las aristas no tenían dirección. Aquí aprenderás qué pasa cuando sí la tienen. En Villa Conexa muchos problemas vienen de ignorar el sentido correcto del flujo: semáforos, cables y rutas mal orientados.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					enfocarNodo("NodoA_z3", { altura = 22, angulo = 60, duracion = 1.5 })
@@ -143,7 +143,7 @@ local DIALOGOS = {
 				Numero    = 4,
 				Actor     = "Carlos",
 				Expresion = "Serio",
-				Texto     = "La dirección importa. Si solo existe la flecha " .. aliasA .. " → " .. aliasB .. ", el " .. aliasA .. " puede enviar al " .. aliasB .. ", pero el " .. aliasB .. " NO puede enviar al " .. aliasA .. ".",
+				Texto     = "La dirección importa. Si solo existe la flecha " .. aliasA .. " → " .. aliasB .. ", el " .. aliasA .. " puede enviar al " .. aliasB .. ", pero el " .. aliasB .. " NO puede enviar al " .. aliasA .. ". Ese tipo de errores es lo que provoca atascos y cortes: el alcalde diseñó rutas que parecían dobles, pero solo funcionaban en un sentido.",
 				-- sin Evento: se mantiene el estado visual de la línea anterior
 				Siguiente = "concepto_camino",
 			},
@@ -178,7 +178,7 @@ local DIALOGOS = {
 				Numero    = 6,
 				Actor     = "Carlos",
 				Expresion = "Sorprendido",
-				Texto     = "En el dígrafo " .. aliasA .. " → " .. aliasB .. " → " .. aliasC .. ", ¿puede el " .. aliasB .. " enviar datos directamente al " .. aliasA .. "?",
+				Texto     = "En el dígrafo " .."que va de " .. aliasA .. " a " .. aliasB .. " a " .. aliasC .. ", ¿puede el " .. aliasB .. " enviar datos directamente al " .. aliasA .. "?",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					EfectosDialogo.resaltarNodo("NodoA_z3", "SELECCIONADO")
@@ -273,7 +273,7 @@ local DIALOGOS = {
 				Numero    = 10,
 				Actor     = "Carlos",
 				Expresion = "Feliz",
-				Texto     = "¡Excelente! Has construido el camino dirigido " .. aliasA .. " → " .. aliasB .. " → " .. aliasC .. ". Eso es un dígrafo en acción.",
+				Texto     = "¡Excelente! Has construido el camino dirigido " .. aliasA .. " → " .. aliasB .. " → " .. aliasC .. ". Eso es un dígrafo en acción. Entender el sentido del flujo te permitirá detectar por qué la red del alcalde falla aunque en los papeles parezca completa.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					task.delay(0.3, function()

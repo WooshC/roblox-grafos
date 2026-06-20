@@ -598,7 +598,11 @@ local function desactivar()
 	local panel = getPanel()
 	if panel then panel.Visible = false end
 	setMinimapVisible(true)    -- ← restaurar minimapa al cerrar la matriz
-	setLeyendaVisible(true)    -- ← restaurar leyenda al cerrar la matriz
+
+	-- Restaurar la leyenda SOLO si el mapa cenital sigue abierto.
+	-- Si el mapa está cerrado, la leyenda no debe aparecer nunca.
+	local mapaAbierto = jugador:GetAttribute("MapaAbierto") == true
+	setLeyendaVisible(mapaAbierto)
 
 	_nodoSelecIdx = nil
 	_matrizData   = nil

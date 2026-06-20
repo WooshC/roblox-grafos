@@ -60,19 +60,37 @@ local DIALOGOS = {
 
 				Siguiente = "explicacion",
 			},
-			-- 4. Qué aprenderá
+			-- 4. Qué aprenderá + contexto narrativo
 			{
 				Id        = "explicacion",
 				Numero    = 4,
 				Actor     = "Sistema",
 				Expresion = "Normal",
 				Texto     = "Aquí aprenderás los fundamentos de la teoría de grafos: nodos, aristas, conectividad y mucho más.",
+				Siguiente = "contexto_laboratorio",
+			},
+			-- 4b. Contexto del laboratorio
+			{
+				Id        = "contexto_laboratorio",
+				Numero    = 5,
+				Actor     = "Sistema",
+				Expresion = "Enojado",
+				Texto     = "Estas instalaciones de pruebas de la Empresa Eléctrica fueron creadas para simular lo que el alcalde hizo mal en la ciudad: conexiones forzadas, innecesarias y caras.",
+				Siguiente = "contexto_verdad",
+			},
+			-- 4c. Propósito de descubrir la verdad
+			{
+				Id        = "contexto_verdad",
+				Numero    = 6,
+				Actor     = "Sistema",
+				Expresion = "Procesando",
+				Texto     = "Cada ejercicio que completes aquí te prepara para detectar cables mal tendidos y rutas inútiles. Esa es la evidencia que Redes y Caminos necesita para exponer los contratos inflados.",
 				Siguiente = "hud_misiones",
 			},
 			-- 5. Tutorial: Misiones
 			{
 				Id        = "hud_misiones",
-				Numero    = 5,
+				Numero    = 7,
 				Actor     = "Sistema",
 				Expresion = "Normal",
 				Texto     = "Presiona el botón de Misiones para ver tus objetivos. Completa cada misión para avanzar a la siguiente zona.",
@@ -95,7 +113,7 @@ local DIALOGOS = {
 			-- 6. Tutorial: Minimapa
 			{
 				Id        = "hud_minimapa",
-				Numero    = 6,
+				Numero    = 8,
 				Actor     = "Sistema",
 				Expresion = "Normal",
 				Texto     = "En la esquina inferior izquierda verás el minimapa. Te ayuda a orientarte dentro del nivel.",
@@ -104,7 +122,7 @@ local DIALOGOS = {
 			-- 7. Tutorial: Flecha de guía
 			{
 				Id        = "hud_guia",
-				Numero    = 7,
+				Numero    = 9,
 				Actor     = "Sistema",
 				Expresion = "Normal",
 				Texto     = "Sigue la flecha amarilla que sale de tu personaje. Te indicará el camino hacia tu próximo objetivo.",
@@ -113,16 +131,16 @@ local DIALOGOS = {
 			-- 8. Tutorial: Botón de Ayuda
 			{
 				Id        = "hud_ayuda",
-				Numero    = 8,
+				Numero    = 10,
 				Actor     = "Sistema",
 				Expresion = "Normal",
-				Texto     = "Si necesitas recordar qué hace cada botón, presiona el botón de Ayuda. Siempre está disponible en la barra superior.",
+				Texto     = "Si necesitas recordar qué hace cada botón, presiona el botón de Ayuda. Siempre está disponible en la barra superior derecha",
 				Siguiente = "mostrar_carlos",
 			},
 			-- 9. Enfocar cámara en Carlos
 			{
 				Id        = "mostrar_carlos",
-				Numero    = 9,
+				Numero    = 11,
 				Actor     = "Sistema",
 				Expresion = "Normal",
 				Texto     = "Carlos es tu instructor. Te espera cerca de la entrada.",
@@ -150,7 +168,7 @@ local DIALOGOS = {
 			-- 10. Instrucción final + activar guía
 			{
 				Id        = "instruccion_final",
-				Numero    = 10,
+				Numero    = 12,
 				Actor     = "Sistema",
 				Expresion = "Normal",
 				Texto     = "Ve a hablar con él para comenzar tu entrenamiento. ¡Suerte!",

@@ -23,13 +23,11 @@ local ASSETS_PERSONAJES = {
 
 	Sistema = {
 		-- Iconos del sistema/tutoriala
-		Nodo = "rbxassetid://74761782067926",
-		Arista = "rbxassetid://134805102079212",
-		NodoPrincipal = "rbxassetid://75399428160533",
-		Generador = "rbxassetid://90803355152419",
-		Arista_energizada = "rbxassetid://112790520179693",
-		Arista_conectada = "rbxassetid://140291147333433",
-		Normal = "rbxassetid://74761782067926",  -- Default: Nodo
+		Enojado = "rbxassetid://116157325481414",
+		Feliz = "rbxassetid://108134062312748",
+		Triste = "rbxassetid://85993189155191",
+		Procesando = "rbxassetid://110634170044610",
+		Normal = "rbxassetid://108134062312748", 
 	},
 
 	Alcalde = {

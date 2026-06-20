@@ -74,7 +74,7 @@ local DIALOGOS = {
 				Numero    = 1,
 				Actor     = "Carlos",
 				Expresion = "Sonriente",
-				Texto     = "Bienvenido a la Zona 1. Aquí aprenderás qué es un nodo y qué es una conexión.",
+				Texto     = "Bienvenido a la Zona 1. Aquí aprenderás qué es un nodo y qué es una conexión. Son los primeros pasos para detectar un cable mal tendido.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					enfocarNodo("Nodo1_z1", { altura = 22, angulo = 60, duracion = 1.5 })
@@ -104,7 +104,7 @@ local DIALOGOS = {
 				Numero    = 3,
 				Actor     = "Carlos",
 				Expresion = "Serio",
-				Texto     = "Un nodo puede representar cualquier cosa: una persona, una ciudad, una computadora… Lo importante es que es un punto que puede conectarse con otros.",
+				Texto     = "Un nodo puede representar cualquier cosa: una persona, una ciudad, una computadora… o un poste de luz en Villa Conexa. Lo importante es que es un punto que puede conectarse con otros.",
 				-- sin Evento: se mantiene el estado visual de la línea anterior
 				Siguiente = "nodo_aislado",
 			},
@@ -115,7 +115,7 @@ local DIALOGOS = {
 				Numero    = 4,
 				Actor     = "Carlos",
 				Expresion = "Serio",
-				Texto     = "Un nodo sin conexiones está aislado. No forma parte de ninguna red.",
+				Texto     = "Un nodo sin conexiones está aislado. No forma parte de ninguna red. El alcalde dejó muchos postes así: existen en el papel, pero no reciben ni entregan nada.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					-- Ambos en rojo: sin conexión = aislados
@@ -134,7 +134,7 @@ local DIALOGOS = {
 				Numero    = 5,
 				Actor     = "Carlos",
 				Expresion = "Serio",
-				Texto     = "Cuando conectas dos nodos, creas una ARISTA. La arista es la relación entre ellos.",
+				Texto     = "Cuando conectas dos nodos, creas una ARISTA. La arista es la relación entre ellos. Pero ojo: una arista innecesaria es un cable que alguien cobró y que no aporta nada a la red.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					-- Ambos cyan: relacionados
@@ -244,7 +244,7 @@ local DIALOGOS = {
 				Numero    = 11,
 				Actor     = "Carlos",
 				Expresion = "Feliz",
-				Texto     = "Así crearás una arista entre dos nodos. ¡Bien hecho!",
+				Texto     = "Así crearás una arista entre dos nodos. ¡Bien hecho! Cada conexión correcta es una prueba de que se puede hacer mejor —y más barato— que los contratos inflados del alcalde.",
 				Evento = function()
 					-- Limpia highlights del diálogo; el cable real del gameplay permanece
 					EfectosDialogo.limpiarTodo()
@@ -263,7 +263,7 @@ local DIALOGOS = {
 				Numero    = 12,
 				Actor     = "Sistema",
 				Expresion = "Normal",
-				Texto     = "Para eliminar una arista, simplemente haz clic sobre el cable que se ha creado. ¡Inténtalo!",
+				Texto     = "Para eliminar una arista, simplemente haz clic sobre el cable que se ha creado. ¡Inténtalo! Aprender a quitar lo sobrante es tan importante como aprender a conectar.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					-- Destacar visualmente el cable para que el jugador lo vea

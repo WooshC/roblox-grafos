@@ -1,6 +1,7 @@
 -- ReplicatedStorage/DialogoData/Bienvenida_1.lua
 -- Diálogo de bienvenida de Carlos - Tutorial del Nivel 0
 -- Adaptado del sistema antiguo al nuevo sistema de diálogos
+-- NARRATIVA: Se introduce la corrupción del alcalde y la misión de descubrir la verdad.
 
 local Workspace = game:GetService("Workspace")
 
@@ -64,39 +65,110 @@ local DIALOGOS = {
 			-- 2. SALUDO
 			{
 				Id = "saludo_tocino",
-				Numero = 2,
+				Numero = 3,
 				Actor = "Carlos",
 				Expresion = "Presentacion",
-				Texto = "Qué bien que hayas venido. Necesitamos formar a alguien que entienda cómo funcionan las redes.",
+				Texto = "Qué bien que hayas venido. Necesitamos formar a alguien que entienda cómo funcionan las redes de verdad.",
+				Siguiente = "contexto_alcalde"
+			},
+
+			-- 3. CONTEXTO: EL ALCALDE Y LA CORRUPCIÓN
+			{
+				Id = "contexto_alcalde",
+				Numero = 4,
+				Actor = "Carlos",
+				Expresion = "Serio",
+				Texto = "Villa Conexa está hecha un desastre. El alcalde aprobó proyectos mal planificados durante años, favoreciendo contratos costosos que solo empeoraron el caos.",
+				Siguiente = "contexto_contratos"
+			},
+
+			{
+				Id = "contexto_contratos",
+				Numero = 5,
+				Actor = "Carlos",
+				Expresion = "Serio",
+				Texto = "Dicen que gastaron millones en cableado 'de primera', pero si miras bien verás postes sobrecargados, cables mal tendidos y rutas que no llevan a ninguna parte. Eso huele a dinero mal invertido.",
+				Siguiente = "carlos_intro_alcalde"
+			},
+
+			-- 4b. CARLOS INTRODUCE LO QUE DIJO EL ALCALDE
+			{
+				Id = "carlos_intro_alcalde",
+				Numero = 6,
+				Actor = "Carlos",
+				Expresion = "Serio",
+				Texto = "El alcalde me llamó personalmente. Esto es más o menos lo que dijo...",
+				Siguiente = "alcalde_dice_1"
+			},
+			{
+				Id = "alcalde_dice_1",
+				Numero = 7,
+				Actor = "Alcalde",
+				Expresion = "Codicioso",
+				Texto = "Veo que ustedes son una empresa eléctrica nueva... y bastante económica. Me interesa contratarlos para unos 'ajustes' en la red. Claro, el presupuesto oficial ya está comprometido, así que espero que su propuesta sea... competitiva.",
+				Siguiente = "alcalde_dice_2"
+			},
+			{
+				Id = "alcalde_dice_2",
+				Numero = 8,
+				Actor = "Alcalde",
+				Expresion = "Enojado",
+				Texto = "Hay muchos opositores que están saboteando mi arduo trabajo y quiero que ustedes arreglen unos cables. No creo que cueste mucho, ¿cierto? Solo sigan mis indicaciones y no se metan donde no les importa.",
+				Siguiente = "alcalde_dice_3"
+			},
+			{
+				Id = "alcalde_dice_3",
+				Numero = 9,
+				Actor = "Alcalde",
+				Expresion = "Malevolo",
+				Texto = "Estaré en contacto. Les enviaré una factura por los 'materiales administrativos' y otros gastos de gestión. Son cosas normales en cualquier obra pública... muy normales.",
+				Siguiente = "carlos_resume_alcalde"
+			},
+			{
+				Id = "carlos_resume_alcalde",
+				Numero = 10,
+				Actor = "Carlos",
+				Expresion = "Serio",
+				Texto = "Y eso es lo que dijo el alcalde. No lo dijo directamente, pero escuché claramente: quiere trabajo barato, facturas sin explicación y, sobre todo, que nadie revise los números.",
+				Siguiente = "mision_descubrir"
+			},
+
+			-- 4c. MISIÓN: DESCUBRIR LA VERDAD
+			{
+				Id = "mision_descubrir",
+				Numero = 11,
+				Actor = "Carlos",
+				Expresion = "Serio",
+				Texto = "Mi empresa, Redes y Caminos, fue contratada para arreglar esto. Pero no solo vamos a conectar cables: cada nodo que organices correctamente nos acerca a la verdad de esos contratos inflados.",
 				Siguiente = "fundamentos"
 			},
 
-			-- 3. FUNDAMENTOS (Línea larga dividida)
+			-- 5. FUNDAMENTOS (Línea larga dividida)
 			{
 				Id = "fundamentos",
-				Numero = 3,
+				Numero = 12,
 				Actor = "Carlos",
 				Expresion = "Serio",
-				Texto = "Antes de resolver cualquier problema real, debes aprender los fundamentos básicos de los grafos.",
+				Texto = "Antes de salir a las calles caóticas, debes aprender los fundamentos de los grafos. Sin comprender la estructura, no podrás distinguir una conexión útil de un cable mal tendido.",
 				Siguiente = "fundamentos_2"
 			},
 
 			{
 				Id = "fundamentos_2",
-				Numero = 4,
+				Numero = 13,
 				Actor = "Carlos",
 				Expresion = "Serio",
-				Texto = "Sin comprender la estructura, no podrás analizar ninguna red.",
+				Texto = "En este laboratorio seguro aprenderás a identificar nodos, aristas, direcciones y conectividad. Esa es tu herramienta para desenmascarar el desorden del alcalde.",
 				Siguiente = "zona_1"
 			},
 
-			-- 4. ZONA 1 (Con efectos visuales - CÁMARA SE MUEVE AQUÍ)
+			-- 6. ZONA 1 (Con efectos visuales - CÁMARA SE MUEVE AQUÍ)
 			{
 				Id = "zona_1",
-				Numero = 5,
-				Actor = "Carlos",
-				Expresion = "Serio",
-				Texto = "Dirígete a la Zona 1. Allí comenzarás con los primeros conceptos: nodos y conexiones.",
+				Numero = 14,
+				Actor = "Sistema",
+				Expresion = "Procesando",
+				Texto = "Dirígete a la Zona 1. Allí comenzarás con los primeros conceptos: nodos y conexiones. Recuerda: no basta con conectar, hay que conectar con sentido.",
 
 				-- Este evento se ejecuta cuando se muestra esta línea
 				Evento = function(gui, metadata)
@@ -125,13 +197,13 @@ local DIALOGOS = {
 				Siguiente = "confirmacion_final"
 			},
 
-			-- 5. CONFIRMACIÓN FINAL
+			-- 7. CONFIRMACIÓN FINAL
 			{
 				Id = "confirmacion_final",
-				Numero = 6,
+				Numero = 15,
 				Actor = "Carlos",
 				Expresion = "Sonriente",
-				Texto = "¡Confío en ti. Suerte!",
+				Texto = "¡Confío en ti. Aprende bien, porque cada conexión correcta será una prueba contra el caos!",
 
 				Evento = function(gui, metadata)
 					print("[Evento] Restaurando...")

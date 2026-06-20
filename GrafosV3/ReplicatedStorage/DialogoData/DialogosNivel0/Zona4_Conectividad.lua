@@ -120,13 +120,92 @@ local DIALOGOS = {
 
 		Lineas = {
 
-			-- ── 1-2. BIENVENIDA / CONTEXTO ───────────────────────────
+			-- ── 1-7. LLAMADA TELEFÓNICA: EL ALCALDE CONTRATA A CARLOS ─
+			{
+				Id        = "llamada_inicio",
+				Numero    = 1,
+				Actor     = "Sistema",
+				Expresion = "Normal",
+				Texto     = "El teléfono de Carlos suena. Es el Alcalde...",
+				Evento = function()
+					EfectosDialogo.limpiarTodo()
+					-- Reproducir sonido de teléfono sonando
+					local StarterPlayerScripts = game:GetService("StarterPlayer").StarterPlayerScripts
+					local moduloAudio = StarterPlayerScripts:FindFirstChild("Compartido", true)
+					if moduloAudio then
+						moduloAudio = moduloAudio:FindFirstChild("ControladorAudio")
+					end
+					if moduloAudio then
+						local exito, ControladorAudio = pcall(function()
+							return require(moduloAudio)
+						end)
+						if exito and ControladorAudio and ControladorAudio.playSFX then
+							ControladorAudio.playSFX("TelefonoSonando")
+						else
+							warn("[Zona4] No se pudo reproducir TelefonoSonando:", ControladorAudio)
+						end
+					else
+						warn("[Zona4] ControladorAudio no encontrado para reproducir TelefonoSonando")
+					end
+				end,
+				Siguiente = "alcalde_llamada_1",
+			},
+			{
+				Id        = "alcalde_llamada_1",
+				Numero    = 2,
+				Actor     = "Alcalde",
+				Expresion = "Enojado",
+				Texto     = "¡Carlos! La zona central está a oscuras. Los cables se han derretido por el alto voltaje. ¡Esto es un desastre!",
+				Siguiente = "carlos_respuesta_1",
+			},
+			{
+				Id        = "carlos_respuesta_1",
+				Numero    = 3,
+				Actor     = "Carlos",
+				Expresion = "Serio",
+				Texto     = "Señor Alcalde, los cables se derriten cuando las conexiones están mal calculadas o cuando se usan materiales de baja calidad para ahorrar en contratos...",
+				Siguiente = "alcalde_llamada_2",
+			},
+			{
+				Id        = "alcalde_llamada_2",
+				Numero    = 4,
+				Actor     = "Alcalde",
+				Expresion = "Furioso",
+				Texto     = "No me vengas con excusas técnicas. Arregla esto rápido y, sobre todo, barato. La gente está protestando y necesito que todo se vea bien.",
+				Siguiente = "carlos_respuesta_2",
+			},
+			{
+				Id        = "carlos_respuesta_2",
+				Numero    = 5,
+				Actor     = "Carlos",
+				Expresion = "Serio",
+				Texto     = "Barato... como todos los 'ahorros' que dejaron esta red en ruinas. Está bien, acepto el trabajo. Pero no porque usted lo ordene: porque la ciudad necesita luz.",
+				Siguiente = "carlos_respuesta_3",
+			},
+			{
+				Id        = "carlos_respuesta_3",
+				Numero    = 6,
+				Actor     = "Carlos",
+				Expresion = "Presentacion",
+				Texto     = "Cada cable que reconecte dejará claro por qué falló. Esta red tiene algo que contar... y yo voy a escucharla. Con este contrato se va a descubrir la verdad de sus negocios ilícitos.",
+				Siguiente = "carlos_explica_zona",
+			},
+			{
+				Id        = "carlos_explica_zona",
+				Numero    = 7,
+				Actor     = "Carlos",
+				Expresion = "Serio",
+				Texto     = "Tocino, esto es un ejemplo de lo que pasa en Villa Conexa: conexiones defectuosas, cables derretidos y un alcalde que quiere tapar todo. Vamos a demostrar que se puede arreglar sin contratos inflados.",
+				Siguiente = "inicio_a",
+			},
+
+			-- ── 8-9. BIENVENIDA / CONTEXTO ───────────────────────────
 			{
 				Id        = "inicio_a",
-				Numero    = 1,
+				Numero    = 8,
 				Actor     = "Carlos",
-				Expresion = "Sonriente",
-				Texto     = "¡Bienvenido a la Zona 4! La red eléctrica del Metro de Quito está incompleta. Las estaciones ya existen, pero nadie las ha cableado todavía.",
+				Expresion = "Serio",
+				Texto     = "Mira este desastre. La red eléctrica del Metro de Quito está incompleta: estaciones sin cablear, cables derretidos... El alcalde cobró millones por 'electrificar' esta zona, y sin embargo la mayoría está a oscuras.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					for _, nom in ipairs({"NodoE_z4","NodoA_z4","NodoB_z4","NodoC_z4","NodoF_z4","NodoD_z4"}) do
@@ -141,17 +220,17 @@ local DIALOGOS = {
 			},
 			{
 				Id        = "inicio_b",
-				Numero    = 2,
+				Numero    = 9,
 				Actor     = "Carlos",
 				Expresion = "Sonriente",
-				Texto     = "Sin conexión no hay luz, y sin luz no hay metro. Tu trabajo es unir toda la red y lograr que la electricidad llegue hasta cada estación.",
+				Texto     = "Sin conexión no hay luz, y sin luz no hay metro. Tu trabajo es unir toda la red y lograr que la electricidad llegue hasta cada estación. Cada estación que enciendas será una prueba de que el contrato original era inflado.",
 				Siguiente = "concepto_conexo_a",
 			},
 
 			-- ── 3-4. CONCEPTO: GRAFO CONEXO ──────────────────────────
 			{
 				Id        = "concepto_conexo_a",
-				Numero    = 3,
+				Numero    = 10,
 				Actor     = "Carlos",
 				Expresion = "Feliz",
 				Texto     = "Cuando hay un camino entre cualquier par de nodos de una red, los matemáticos la llaman GRAFO CONEXO.",
@@ -176,7 +255,7 @@ local DIALOGOS = {
 			},
 			{
 				Id        = "concepto_conexo_b",
-				Numero    = 4,
+				Numero    = 11,
 				Actor     = "Carlos",
 				Expresion = "Feliz",
 				Texto     = "En nuestro caso, si el grafo es conexo, la energía que sale de la Empresa Eléctrica puede llegar hasta cada estación del metro.",
@@ -186,10 +265,10 @@ local DIALOGOS = {
 			-- ── 5-6. CONCEPTO: GRAFO DESCONECTADO ────────────────────
 			{
 				Id        = "concepto_desconexo_a",
-				Numero    = 5,
+				Numero    = 12,
 				Actor     = "Carlos",
 				Expresion = "Serio",
-				Texto     = "Ahora bien, si falta algún cable, el grafo queda DESCONECTADO. La red se divide en grupos aislados, que llamamos COMPONENTES CONEXAS.",
+				Texto     = "Ahora bien, si falta algún cable, el grafo queda DESCONECTADO. La red se divide en grupos aislados, que llamamos COMPONENTES CONEXAS. Esas componentes son las pruebas tangibles de que alguien cobró por un trabajo que no hizo.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					for _, nom in ipairs({"NodoE_z4","NodoA_z4","NodoB_z4","NodoC_z4","NodoF_z4","NodoD_z4"}) do
@@ -202,7 +281,7 @@ local DIALOGOS = {
 			},
 			{
 				Id        = "concepto_desconexo_b",
-				Numero    = 6,
+				Numero    = 13,
 				Actor     = "Carlos",
 				Expresion = "Serio",
 				Texto     = "La electricidad no puede saltar de un grupo al otro. Simplemente se detiene donde termina el cable.",
@@ -212,7 +291,7 @@ local DIALOGOS = {
 			-- ── 7-8. EJEMPLO: DOS COMPONENTES ────────────────────────
 			{
 				Id        = "ejemplo_a",
-				Numero    = 7,
+				Numero    = 14,
 				Actor     = "Carlos",
 				Expresion = "Serio",
 				Texto     = "Mira este ejemplo. La fuente, " .. aliasE .. ", solo llega hasta " .. aliasA .. ". Al norte, " .. aliasF .. " llega hasta " .. aliasD .. ".",
@@ -242,17 +321,17 @@ local DIALOGOS = {
 			},
 			{
 				Id        = "ejemplo_b",
-				Numero    = 8,
+				Numero    = 15,
 				Actor     = "Carlos",
 				Expresion = "Serio",
-				Texto     = "Los dos grupos existen, pero no hay ningún cable que los una. Son dos componentes separadas, y la energía no puede cruzar de una a la otra.",
+				Texto     = "Los dos grupos existen, pero no hay ningún cable que los una. Son dos componentes separadas, y la energía no puede cruzar de una a la otra. Eso es exactamente lo que el alcalde niega: en sus papeles todo está 'conectado', pero en la realidad no es así.",
 				Siguiente = "pregunta_setup",
 			},
 
 			-- ── 9-10. PREGUNTA DE VALIDACIÓN ─────────────────────────
 			{
 				Id        = "pregunta_setup",
-				Numero    = 9,
+				Numero    = 16,
 				Actor     = "Carlos",
 				Expresion = "Sorprendido",
 				Texto     = "Los dos grupos están aislados. " .. aliasE .. " y " .. aliasA .. " forman una componente al sur. " .. aliasF .. " y " .. aliasD .. " forman otra al norte. No hay ningún cable entre ellas.",
@@ -278,7 +357,7 @@ local DIALOGOS = {
 			},
 			{
 				Id        = "pregunta",
-				Numero    = 10,
+				Numero    = 17,
 				Actor     = "Carlos",
 				Expresion = "Sorprendido",
 				Texto     = "¿Crees que la electricidad puede llegar desde " .. aliasE .. " hasta " .. aliasD .. ", si entre los dos grupos no hay ningún cable?",
@@ -291,10 +370,10 @@ local DIALOGOS = {
 			-- ── 11. RESPUESTA CORRECTA ────────────────────────────────
 			{
 				Id        = "respuesta_correcta",
-				Numero    = 11,
+				Numero    = 18,
 				Actor     = "Carlos",
 				Expresion = "Feliz",
-				Texto     = "¡Exacto! Sin un cable que una los dos grupos, la corriente no tiene por dónde llegar hasta " .. aliasD .. ". Hay dos componentes separadas sin ningún puente entre ellas. Para solucionarlo necesitas tender los cables que faltan.",
+				Texto     = "¡Exacto! Sin un cable que una los dos grupos, la corriente no tiene por dónde llegar hasta " .. aliasD .. ". Hay dos componentes separadas sin ningún puente entre ellas. Esa desconexión es una prueba más de que el dinero del mantenimiento nunca llegó aquí.",
 				Opciones = {
 					{ Texto = "¡Entendido, a conectar!", Siguiente = "instruccion_ea" },
 				},
@@ -303,7 +382,7 @@ local DIALOGOS = {
 			-- ── 12-13. RESPUESTA INCORRECTA ───────────────────────────
 			{
 				Id        = "respuesta_incorrecta_a",
-				Numero    = 12,
+				Numero    = 19,
 				Actor     = "Carlos",
 				Expresion = "Serio",
 				Texto     = "En realidad no. La electricidad solo viaja por donde hay cables, igual que en un grafo: solo puede recorrer las aristas que existen.",
@@ -311,7 +390,7 @@ local DIALOGOS = {
 			},
 			{
 				Id        = "respuesta_incorrecta_b",
-				Numero    = 13,
+				Numero    = 20,
 				Actor     = "Carlos",
 				Expresion = "Serio",
 				Texto     = "Si no hay un camino continuo de " .. aliasE .. " a " .. aliasD .. ", la energía simplemente no llega. Eso es lo que significa un grafo desconectado.",
@@ -323,7 +402,7 @@ local DIALOGOS = {
 			-- ── 14. INSTRUCCIÓN: CONECTAR E — A ───────────────────────
 			{
 				Id        = "instruccion_ea",
-				Numero    = 14,
+				Numero    = 21,
 				Actor     = "Sistema",
 				Expresion = "Normal",
 				Texto     = "Empecemos por el principio. Conecta " .. aliasE .. " con " .. aliasA .. "; ese es el cable de entrada, la fuente de energía de todo el metro. Haz clic en " .. aliasE .. " primero, y luego en " .. aliasA .. ".",
@@ -347,7 +426,7 @@ local DIALOGOS = {
 			-- ── 15. INSTRUCCIÓN: CONECTAR F — D ───────────────────────
 			{
 				Id        = "instruccion_fd",
-				Numero    = 15,
+				Numero    = 22,
 				Actor     = "Sistema",
 				Expresion = "Normal",
 				Texto     = "¡Bien hecho! Ahora ve al extremo norte y tiende el cable entre " .. aliasF .. " y " .. aliasD .. ". Haz clic en " .. aliasF .. " primero, y luego en " .. aliasD .. ".",
@@ -377,7 +456,7 @@ local DIALOGOS = {
 			-- ── 16-17. RESULTADO ──────────────────────────────────────
 			{
 				Id        = "resultado_a",
-				Numero    = 16,
+				Numero    = 23,
 				Actor     = "Carlos",
 				Expresion = "Feliz",
 				Texto     = "¡Muy bien! Ya cableaste los dos extremos: " .. aliasE .. " con " .. aliasA .. " al sur, y " .. aliasF .. " con " .. aliasD .. " al norte.",
@@ -401,10 +480,10 @@ local DIALOGOS = {
 			},
 			{
 				Id        = "resultado_b",
-				Numero    = 17,
+				Numero    = 24,
 				Actor     = "Carlos",
 				Expresion = "Feliz",
-				Texto     = aliasB .. " y " .. aliasC .. " todavía están sin conexión. Conecta las estaciones restantes para que el grafo sea completamente conexo y la luz de la zona se encienda.",
+				Texto     = aliasB .. " y " .. aliasC .. " todavía están sin conexión. Conecta las estaciones restantes para que el grafo sea completamente conexo y la luz de la zona se encienda. Cuando termines, no solo habrás arreglado la red: habrás descubierto parte de la verdad que el alcalde intenta ocultar.",
 				Siguiente = "FIN",
 			},
 		},

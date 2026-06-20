@@ -11,6 +11,8 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Utilidades = require(ReplicatedStorage:WaitForChild("Compartido"):WaitForChild("Utilidades"))
+local EfectosDialogo = require(ReplicatedStorage:WaitForChild("Efectos"):WaitForChild("EfectosDialogo"))
+local ServicioCamara = require(ReplicatedStorage:WaitForChild("Compartido"):WaitForChild("ServicioCamara"))
 
 local DialogoGUISystem = {}
 DialogoGUISystem.__index = DialogoGUISystem
@@ -576,6 +578,25 @@ function DialogoGUISystem:Skip()
 		self.narrator:Reiniciar()
 	end
 
+	-- Limpieza inmediata de efectos visuales y cámara al saltar
+	-- (Close() también ejecuta esta limpieza, pero aquí se hace de forma explícita
+	-- para que el jugador vea el resultado instantáneo al presionar Saltar)
+	local ok1, err1 = pcall(function()
+		EfectosDialogo.limpiarTodo()
+	end)
+	if not ok1 then
+		warn("[DialogoGUISystem] Error limpiando efectos al saltar:", err1)
+	end
+
+	local ok2, err2 = pcall(function()
+		if ServicioCamara.tieneEstadoGuardado() then
+			ServicioCamara.restaurar(0.3)
+		end
+	end)
+	if not ok2 then
+		warn("[DialogoGUISystem] Error restaurando cámara al saltar:", err2)
+	end
+
 	self:Close()
 end
 
@@ -645,6 +666,25 @@ function DialogoGUISystem:Close()
 	-- Ejecutar limpieza de efectos definida en el dialogo (EventoSalida)
 	if self.currentDialogue and self.currentDialogue.EventoSalida then
 		pcall(self.currentDialogue.EventoSalida)
+	end
+
+	-- LIMPIEZA GENERAL: efectos visuales y cámara al cerrar el diálogo.
+	-- Esto garantiza que, al saltar o finalizar, no queden resaltados,
+	-- aristas falsas, labels ni la cámara bloqueada en una vista de diálogo.
+	local ok1, err1 = pcall(function()
+		EfectosDialogo.limpiarTodo()
+	end)
+	if not ok1 then
+		warn("[DialogoGUISystem] Error limpiando efectos al cerrar:", err1)
+	end
+
+	local ok2, err2 = pcall(function()
+		if ServicioCamara.tieneEstadoGuardado() then
+			ServicioCamara.restaurar(0.3)
+		end
+	end)
+	if not ok2 then
+		warn("[DialogoGUISystem] Error restaurando cámara al cerrar:", err2)
 	end
 
 	if self.onClose then

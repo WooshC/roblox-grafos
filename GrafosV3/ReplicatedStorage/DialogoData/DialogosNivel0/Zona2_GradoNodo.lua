@@ -89,7 +89,7 @@ local DIALOGOS = {
 				Numero    = 1,
 				Actor     = "Carlos",
 				Expresion = "Sonriente",
-				Texto     = "Bienvenido a la Zona 2. Aquí vas a aprender una propiedad fundamental de los nodos: el GRADO.",
+				Texto     = "Bienvenido a la Zona 2. Aquí vas a aprender una propiedad fundamental de los nodos: el GRADO. Saber contar conexiones te ayudará a descubrir si un poste está sobrecargado por mala planificación.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					enfocarNodo("NodoCentro_z2", { altura = 24, angulo = 60, duracion = 1.5 })
@@ -119,7 +119,7 @@ local DIALOGOS = {
 				Numero    = 3,
 				Actor     = "Carlos",
 				Expresion = "Serio",
-				Texto     = "Sin ninguna conexión, el grado es CERO. El nodo existe en la red, pero está completamente aislado: no puede enviar ni recibir nada.",
+				Texto     = "Sin ninguna conexión, el grado es CERO. El nodo existe en la red, pero está completamente aislado: no puede enviar ni recibir nada. En los informes del alcalde quizás figure como 'electrificado', pero la realidad es otra.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					EfectosDialogo.resaltarNodo("NodoCentro_z2", "AISLADO")
@@ -156,7 +156,7 @@ local DIALOGOS = {
 				Numero    = 5,
 				Actor     = "Carlos",
 				Expresion = "Feliz",
-				Texto     = "Con cuatro vecinos conectados, el grado es CUATRO. Este tipo de grafo —un nodo central conectado a todos los demás— se llama GRAFO ESTRELLA.",
+				Texto     = "Con cuatro vecinos conectados, el grado es CUATRO. Este tipo de grafo —un nodo central conectado a todos los demás— se llama GRAFO ESTRELLA. Es eficiente si está bien pensado; el alcalde, en cambio, creó estrellas innecesarias solo para cobrar más materiales.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					EfectosDialogo.resaltarNodo("NodoCentro_z2", "EXITO")
@@ -268,7 +268,7 @@ local DIALOGOS = {
 				Numero    = 10,
 				Actor     = "Sistema",
 				Expresion = "Normal",
-				Texto     = "Observa la fila del " .. aliasCentro .. " en la matriz. El número de unos en esa fila es exactamente su grado: 4. La matriz te ayuda a verificar el grado de cualquier nodo de forma rápida.",
+				Texto     = "Observa la fila del " .. aliasCentro .. " en la matriz. El número de unos en esa fila es exactamente su grado: 4. La matriz te ayuda a verificar el grado de cualquier nodo de forma rápida. Con ella podrás contrastar lo que dice el informe con lo que realmente está conectado.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					enfocarEstrella({ altura = 28, angulo = 60, duracion = 1.0 })
@@ -303,7 +303,7 @@ local DIALOGOS = {
 				Numero    = 12,
 				Actor     = "Carlos",
 				Expresion = "Feliz",
-				Texto     = "¡Bien hecho! Ya creaste la primera arista. Conecta los tres vecinos restantes para completar la misión y alcanzar grado 4.",
+				Texto     = "¡Bien hecho! Ya creaste la primera arista. Conecta los tres vecinos restantes para completar la misión y alcanzar grado 4. Una red ordenada no necesita cables de más: eso es justo lo contrario a los contratos inflados.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					task.delay(0.3, function()

@@ -121,6 +121,15 @@ ConfigAudio.Sonidos = {
 			Ruta = "SFX/NodoReparar",
 			Descripcion = "Sonido al reparar un nodo danado"
 		},
+		TelefonoSonando = {
+			Nombre = "TelefonoSonando",
+			Categoria = "SFX",
+			Volumen = 0.8,
+			Pitch = 1.0,
+			Loop = false,
+			Ruta = "SFX/TelefonoSonando",
+			Descripcion = "Sonido de telefono sonando durante la llamada del Alcalde"
+		},
 	},
 	
 	-- ============================================
