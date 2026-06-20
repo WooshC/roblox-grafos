@@ -70,6 +70,12 @@ LevelsConfig[0] = {
 
 	},
 
+	LimitesGrado = {
+		-- Zona 4: La Carolina tiene un transformador viejo que solo soporta 2 conexiones.
+		-- Al superar el límite el nodo se sobrecarga, explota y queda dañado.
+		["NodoC_z4"] = { GradoMaximo = 2 },
+	},
+
 	Zonas = {
 		["Zona_Estacion_1"] = { Trigger = "ZonaTrigger_Estacion1", Descripcion = "Nodos y Aristas",  Dialogo = "Zona1_NodosAristas"   },
 		["Zona_Estacion_2"] = { Trigger = "ZonaTrigger_Estacion2", Descripcion = "Grado de Nodo",    Dialogo = "Zona2_GradoNodo",       CarpetaLuz = "Zona_luz_2" },
@@ -248,6 +254,8 @@ LevelsConfig[0] = {
 		{ ID=9,  Zona="Zona_Estacion_4", Texto="Conecta Empresa Eléctrica con Est. El Ejido",         Tipo="ARISTA_CREADA", Puntos=100, Parametros={ NodoA="NodoE_z4", NodoB="NodoA_z4" } },
 		{ ID=10, Zona="Zona_Estacion_4", Texto="Conecta Est. Iñaquito con Est. El Labrador",          Tipo="ARISTA_CREADA", Puntos=100, Parametros={ NodoA="NodoF_z4", NodoB="NodoD_z4" } },
 		{ ID=11, Zona="Zona_Estacion_4", Texto="Haz el grafo completamente conexo (6 nodos)",         Tipo="GRAFO_CONEXO",  Puntos=300, Parametros={ Nodos={"NodoE_z4","NodoA_z4","NodoB_z4","NodoC_z4","NodoF_z4","NodoD_z4"} } },
+		{ ID=12, Zona="Zona_Estacion_4", Texto="Observa la sobrecarga en La Carolina",                Tipo="SOBRECARGA_EXPERIMENTADA", Puntos=100, Parametros={ Nodo="NodoC_z4" } },
+		{ ID=13, Zona="Zona_Estacion_4", Texto="Repara La Carolina tras la explosion",                Tipo="NODO_REPARADO", Puntos=150, Parametros={ Nodo="NodoC_z4" } },
 	},
 
 	Guia = {

@@ -130,6 +130,15 @@ ConfigAudio.Sonidos = {
 			Ruta = "SFX/TelefonoSonando",
 			Descripcion = "Sonido de telefono sonando durante la llamada del Alcalde"
 		},
+		Explosion = {
+			Nombre = "Explosion",
+			Categoria = "SFX",
+			Volumen = 0.8,
+			Pitch = 1.0,
+			Loop = false,
+			Ruta = "SFX/Explosion",
+			Descripcion = "Sonido de explosion por sobrecarga de nodo"
+		},
 	},
 	
 	-- ============================================

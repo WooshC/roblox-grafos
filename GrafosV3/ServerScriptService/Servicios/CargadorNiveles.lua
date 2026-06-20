@@ -358,6 +358,11 @@ function CargadorNiveles.cargar(nivelID, jugador)
 					end
 					return true
 				end,
+				onNodoSobrecargado = function(nombreNodo)
+					if misionesRef and misionesRef.alSobrecargarNodo then
+						misionesRef.alSobrecargarNodo(nombreNodo)
+					end
+				end,
 				onAntesCrearCable = function(nomA, nomB, peso)
 					if peso and peso > 0 and puntajeRef then
 						local costoTotal = GrafoHelpers.calcularCosto(peso, (LevelsConfig[nivelID] or {}).CostoPorMetro)

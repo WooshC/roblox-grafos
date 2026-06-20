@@ -29,6 +29,7 @@ local _eventoActualizarMisiones = nil
 local _eventoNivelCompletado    = nil
 local _estrellasLimitadasPorDialogos = false  -- true si se limitaron estrellas por diálogos incorrectos
 local _nodosReparados = {}  -- TG 07: { [nombreNodo] = true } nodos reparados manualmente
+local _nodosSobrecargados = {}  -- { [nombreNodo] = true } nodos que sufrieron sobrecarga de grado
 
 -- ── Timer de emergencia (instancia delegada) ──────────────────────────────────
 local _timerEmergencia = nil
@@ -166,6 +167,14 @@ Validadores.EMERGENCIA = function(params)
 		return false
 	end
 	return true
+end
+
+Validadores.SOBRECARGA_EXPERIMENTADA = function(params)
+	return _nodosSobrecargados[params.Nodo] == true
+end
+
+Validadores.NODO_REPARADO = function(params)
+	return _nodosReparados[params.Nodo] == true
 end
 
 -- ── Notificar cliente ─────────────────────────────────────────────────────────
@@ -485,6 +494,7 @@ function ServicioMisiones.desactivar()
 	_servicioDatos = nil
 	_config = nil
 	_nodosReparados = {}
+	_nodosSobrecargados = {}
 
 	-- Limpiar conexiones de diálogo y timer para evitar fugas entre niveles
 	if _dialogoIniciadoConn then _dialogoIniciadoConn:Disconnect(); _dialogoIniciadoConn = nil end
@@ -565,6 +575,12 @@ function ServicioMisiones.alRepararNodo(nombreNodo)
 	if not nombreNodo then return end
 	_nodosReparados[nombreNodo] = true
 	-- Re-verificar misiones inmediatamente (puede desbloquear emergencia)
+	verificarYNotificar()
+end
+
+function ServicioMisiones.alSobrecargarNodo(nombreNodo)
+	if not nombreNodo then return end
+	_nodosSobrecargados[nombreNodo] = true
 	verificarYNotificar()
 end
 

@@ -521,6 +521,23 @@ if notificarEvento then
 			end
 			-- Sonido de error
 			ControladorAudio.playSFX("ConnectionFailed")
+
+		elseif tipo == "NodoSobrecargado" then
+			local nombreNodo = type(arg1) == "string" and arg1 or nil
+			if nombreNodo then
+				-- Sonido de explosion
+				ControladorAudio.playSFX("Explosion")
+				-- Activar efectos de fuego/humo
+				EfectosDano.activar(nombreNodo)
+				-- Flash rojo intenso en el nodo
+				local nivel = Workspace:FindFirstChild("NivelActual")
+				if nivel then
+					local nodo = nivel:FindFirstChild(nombreNodo, true)
+					if nodo then
+						flashModel(nodo, Color3.fromRGB(255, 0, 0), 0.6)
+					end
+				end
+			end
 		end
 	end)
 end

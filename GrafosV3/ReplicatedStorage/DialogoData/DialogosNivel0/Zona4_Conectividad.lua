@@ -120,7 +120,7 @@ local DIALOGOS = {
 
 		Lineas = {
 
-			-- ── 1-7. LLAMADA TELEFÓNICA: EL ALCALDE CONTRATA A CARLOS ─
+			-- ── 1-7. LLAMADA TELEFÓNICA: EL ALCALDE AVISA SOBRE EL BARRIO ANTIGUO ─
 			{
 				Id        = "llamada_inicio",
 				Numero    = 1,
@@ -155,7 +155,7 @@ local DIALOGOS = {
 				Numero    = 2,
 				Actor     = "Alcalde",
 				Expresion = "Enojado",
-				Texto     = "¡Carlos! La zona central está a oscuras. Los cables se han derretido por el alto voltaje. ¡Esto es un desastre!",
+				Texto     = "¡Carlos! El Barrio Antiguo está a oscuras. Yo mandé a cablear todo correctamente, pero los opositores no dejan de sabotear mis conexiones. ¡Un transformador acaba de explotar!",
 				Siguiente = "carlos_respuesta_1",
 			},
 			{
@@ -163,7 +163,7 @@ local DIALOGOS = {
 				Numero    = 3,
 				Actor     = "Carlos",
 				Expresion = "Serio",
-				Texto     = "Señor Alcalde, los cables se derriten cuando las conexiones están mal calculadas o cuando se usan materiales de baja calidad para ahorrar en contratos...",
+				Texto     = "Señor Alcalde, si el barrio está a oscuras no es por sabotaje: es porque el grafo eléctrico no es conexo. La corriente no llega a todos los nodos.",
 				Siguiente = "alcalde_llamada_2",
 			},
 			{
@@ -171,7 +171,7 @@ local DIALOGOS = {
 				Numero    = 4,
 				Actor     = "Alcalde",
 				Expresion = "Furioso",
-				Texto     = "No me vengas con excusas técnicas. Arregla esto rápido y, sobre todo, barato. La gente está protestando y necesito que todo se vea bien.",
+				Texto     = "No me venga con excusas técnicas. Arregle eso rápido y barato. La gente está protestando y necesito que todo se vea bien antes de la rueda de prensa.",
 				Siguiente = "carlos_respuesta_2",
 			},
 			{
@@ -179,7 +179,7 @@ local DIALOGOS = {
 				Numero    = 5,
 				Actor     = "Carlos",
 				Expresion = "Serio",
-				Texto     = "Barato... como todos los 'ahorros' que dejaron esta red en ruinas. Está bien, acepto el trabajo. Pero no porque usted lo ordene: porque la ciudad necesita luz.",
+				Texto     = "Está bien, iremos al Barrio Antiguo. Pero primero termino aquí con mi aprendiz. Este laboratorio es una simulación segura; aquí le mostraré exactamente por qué una red mal conectada deja zonas a oscuras.",
 				Siguiente = "carlos_respuesta_3",
 			},
 			{
@@ -187,7 +187,7 @@ local DIALOGOS = {
 				Numero    = 6,
 				Actor     = "Carlos",
 				Expresion = "Presentacion",
-				Texto     = "Cada cable que reconecte dejará claro por qué falló. Esta red tiene algo que contar... y yo voy a escucharla. Con este contrato se va a descubrir la verdad de sus negocios ilícitos.",
+				Texto     = "Tocino, lo que pasa afuera es lo mismo que veremos en esta sala: nodos aislados, componentes desconectadas y un alcalde que niega lo evidente. Vamos a aprender a leer la red antes de enfrentarnos a la realidad.",
 				Siguiente = "carlos_explica_zona",
 			},
 			{
@@ -195,7 +195,7 @@ local DIALOGOS = {
 				Numero    = 7,
 				Actor     = "Carlos",
 				Expresion = "Serio",
-				Texto     = "Tocino, esto es un ejemplo de lo que pasa en Villa Conexa: conexiones defectuosas, cables derretidos y un alcalde que quiere tapar todo. Vamos a demostrar que se puede arreglar sin contratos inflados.",
+				Texto     = "Esto es un modelo del Metro de Quito. Si logramos que el grafo sea completamente conexo, la luz llegará a todas las estaciones. Cuando terminemos, nos dirigimos de inmediato al Barrio Antiguo.",
 				Siguiente = "inicio_a",
 			},
 
@@ -483,7 +483,15 @@ local DIALOGOS = {
 				Numero    = 24,
 				Actor     = "Carlos",
 				Expresion = "Feliz",
-				Texto     = aliasB .. " y " .. aliasC .. " todavía están sin conexión. Conecta las estaciones restantes para que el grafo sea completamente conexo y la luz de la zona se encienda. Cuando termines, no solo habrás arreglado la red: habrás descubierto parte de la verdad que el alcalde intenta ocultar.",
+				Texto     = aliasB .. " y " .. aliasC .. " todavía están sin conexión. Conecta las estaciones restantes para que el grafo sea completamente conexo y la luz de la zona se encienda.",
+				Siguiente = "advertencia_sobrecarga",
+			},
+			{
+				Id        = "advertencia_sobrecarga",
+				Numero    = 25,
+				Actor     = "Sistema",
+				Expresion = "Normal",
+				Texto     = "Advertencia: el transformador de " .. aliasC .. " es viejo. Si le conectas más de dos cables, se sobrecargará, explotará y quedará dañado. Repararlo costará tiempo. Planifica bien tus conexiones.",
 				Siguiente = "FIN",
 			},
 		},

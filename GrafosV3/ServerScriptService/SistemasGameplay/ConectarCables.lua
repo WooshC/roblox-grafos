@@ -31,10 +31,12 @@ local _conexiones = {}
 local _lookupAdyacencias = nil
 local _nivelID = nil
 local _callbacks = nil  -- Callbacks para notificar a otros sistemas
+local _limitesGrado = nil  -- Cache de LevelsConfig[nivelID].LimitesGrado
 
 -- Estado de reparacion de nodos danados (TG 07)
 local _clicsReparacion = {}  -- { [nombreNodo] = numeroDeClics }
 local _nodosReparados  = {}  -- { [nombreNodo] = true }
+local _nodosDaniadosDinamicos = {}  -- { [nombreNodo] = true } nodos dañados por sobrecarga de grado
 
 -- Constantes
 local COLOR_CABLE = Color3.fromRGB(0, 200, 255)
@@ -175,6 +177,7 @@ end
 -- sin importar en qué zona se encuentre el jugador actualmente.
 local function esNodoDaniado(nombreNodo)
 	if _nodosReparados[nombreNodo] then return false end
+	if _nodosDaniadosDinamicos[nombreNodo] then return true end
 	local config = _nivelID and LevelsConfig[_nivelID]
 	if not config or not config.Zonas then return false end
 	for _, zonaCfg in pairs(config.Zonas) do
@@ -185,6 +188,64 @@ local function esNodoDaniado(nombreNodo)
 		end
 	end
 	return false
+end
+
+-- Sobrecarga de grado: si un nodo supera su límite de conexiones, explota.
+local function obtenerLimiteGrado(nombreNodo)
+	if not _limitesGrado then return nil end
+	local cfg = _limitesGrado[nombreNodo]
+	return cfg and cfg.GradoMaximo
+end
+
+local function procesarSobrecarga(nombreNodo)
+	if _nodosReparados[nombreNodo] then return end -- límite ya relajado tras reparación
+
+	print(string.format("[ConectarCables] 💥 Sobrecarga en %s — eliminando conexiones", nombreNodo))
+
+	-- Eliminar todos los cables conectados a este nodo
+	local vecinos = ValidadorConexiones.obtenerConexiones(nombreNodo)
+	for _, vecino in ipairs(vecinos) do
+		local clave = GrafoHelpers.clavePar(nombreNodo, vecino)
+		local indice = buscarCable(nombreNodo, vecino)
+		if indice then
+			local cable = _cables[indice]
+			if cable and cable.hitbox and cable.hitbox.Parent then
+				cable.hitbox:Destroy()
+			end
+			table.remove(_cables, indice)
+		end
+		ValidadorConexiones.eliminarConexion(nombreNodo, vecino)
+		if _callbacks and _callbacks.onCableEliminado then
+			_callbacks.onCableEliminado(nombreNodo, vecino)
+		end
+	end
+
+	-- Marcar nodo como dañado
+	_nodosDaniadosDinamicos[nombreNodo] = true
+
+	-- Notificar al cliente
+	local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
+	if notificarEvento then
+		notificarEvento:FireClient(_jugador, "NodoSobrecargado", nombreNodo)
+	end
+
+	-- Callback para misiones/efectos
+	if _callbacks and _callbacks.onNodoSobrecargado then
+		_callbacks.onNodoSobrecargado(nombreNodo)
+	end
+end
+
+local function verificarSobrecarga(nomA, nomB)
+	if not _limitesGrado then return end
+	for _, nombreNodo in ipairs({nomA, nomB}) do
+		local limite = obtenerLimiteGrado(nombreNodo)
+		if limite and not _nodosReparados[nombreNodo] then
+			local grado = ValidadorConexiones.obtenerGrado(nombreNodo)
+			if grado > limite then
+				procesarSobrecarga(nombreNodo)
+			end
+		end
+	end
 end
 
 local function manejarClicReparacion(jugador, selector)
@@ -227,6 +288,7 @@ local function manejarClicReparacion(jugador, selector)
 
 		-- Reparacion completada
 		_nodosReparados[nombreNodo] = true
+		_nodosDaniadosDinamicos[nombreNodo] = nil
 		_clicsReparacion[nombreNodo] = nil
 
 		if notificarEvento then
@@ -454,6 +516,7 @@ local function intentarConectar(jugador, selector1, selector2)
 		end
 		
 		crearCable(selector1, selector2)
+		verificarSobrecarga(nomA, nomB)
 		
 		local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
 		if notificarEvento then
@@ -560,6 +623,8 @@ function ConectarCables.activar(nivel, adyacencias, jugador, nivelID, callbacks)
 	_lookupAdyacencias = construirLookupAdyacencias(adyacencias)
 	_callbacks = callbacks or {}
 	_activo = true
+	_nodosDaniadosDinamicos = {}
+	_limitesGrado = (_nivelID and LevelsConfig[_nivelID] and LevelsConfig[_nivelID].LimitesGrado) or nil
 	
 	-- Configurar validador centralizado
 	ValidadorConexiones.configurar({ 
@@ -614,6 +679,8 @@ function ConectarCables.desactivar()
 	_nodoSeleccionado = nil
 	_clicsReparacion = {}
 	_nodosReparados = {}
+	_nodosDaniadosDinamicos = {}
+	_limitesGrado = nil
 	
 	-- Desconectar listeners
 	for _, conn in ipairs(_conexiones) do
@@ -776,6 +843,7 @@ function ConectarCables.conectarNodos(nombreNodoA, nombreNodoB, jugador)
 	
 	-- Crear la conexión
 	crearCable(selectorA, selectorB)
+	verificarSobrecarga(nombreNodoA, nombreNodoB)
 	
 	local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
 	if notificarEvento then
