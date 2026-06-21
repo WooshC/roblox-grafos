@@ -5,6 +5,7 @@ local Players = game:GetService("Players")
 local Replicado = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local TweenService = game:GetService("TweenService")
+local CollectionService = game:GetService("CollectionService")
 
 local player = Players.LocalPlayer
 local EfectosHighlight = require(Replicado.Efectos.EfectosHighlight)
@@ -13,6 +14,8 @@ local EfectosNodo      = require(Replicado.Efectos.EfectosNodo)
 local EfectosDano      = require(Replicado.Efectos.EfectosDano)
 local BillboardNombres = require(Replicado.Efectos.BillboardNombres)
 local GrafoHelpers     = require(Replicado:WaitForChild("Compartido"):WaitForChild("GrafoHelpers"))
+local ServicioCamara   = require(Replicado:WaitForChild("Compartido"):WaitForChild("ServicioCamara"))
+local LevelsConfig     = require(Replicado:WaitForChild("Config"):WaitForChild("LevelsConfig"))
 local ControladorAudio = require(script.Parent.Parent
 	:WaitForChild("Compartido")
 	:WaitForChild("ControladorAudio"))
@@ -34,6 +37,8 @@ local _nodosDaniados = {}   -- { nombreNodo → config } desde LevelsConfig
 local _nodosReparadosLocal = {}  -- TG 07: { [nombreNodo] = true } nodos reparados manualmente
 local _tagsCable = {}       -- { clave → BillboardGui } tags de costo en cables
 local _tagsNodoCosto = {}   -- { clave → true } tags de costo previo sobre nodos adyacentes
+local _efectosConexionRecientes = {}  -- { { clon = Instance, nodo = string, tiempo = number } }
+local _dialogosReparacionMostrados = {}  -- { [nombreNodo] = true }
 
 -- Forward declarations: se redefinen más abajo con la implementación real.
 -- Evitan errores si los handlers se ejecutan antes de que las funciones se carguen.
@@ -367,10 +372,55 @@ end
 GestorEfectos.registrar("ConexionCompletada", function(params)
 	local nomA, nomB, peso = params.arg1, params.arg2, params.arg3
 	clearAll()
-	if nomA then EfectosVideo.reproducirConexion(nomA, "EfectoConexion", 5, 2) end
-	if nomB then EfectosVideo.reproducirConexion(nomB, "EfectoConexion", 5, 2) end
+	local ahora = tick()
+	if nomA then
+		local clon = EfectosVideo.reproducirConexion(nomA, "EfectoConexion", 5, 2)
+		if clon then
+			table.insert(_efectosConexionRecientes, { clon = clon, nodo = nomA, tiempo = ahora })
+		end
+	end
+	if nomB then
+		local clon = EfectosVideo.reproducirConexion(nomB, "EfectoConexion", 5, 2)
+		if clon then
+			table.insert(_efectosConexionRecientes, { clon = clon, nodo = nomB, tiempo = ahora })
+		end
+	end
 	crearTagCosto(nomA, nomB, peso)
+
+	-- Limpiar entradas antiguas (> 5 segundos)
+	local limite = ahora - 5
+	local filtrados = {}
+	for _, e in ipairs(_efectosConexionRecientes) do
+		if e.tiempo > limite and e.clon and e.clon.Parent then
+			table.insert(filtrados, e)
+		end
+	end
+	_efectosConexionRecientes = filtrados
 end)
+
+-- Destruir efectos de conexión asociados a un nodo (para evitar partículas flotantes tras sobrecarga)
+local function destruirEfectosConexionRecientes(nombreNodo)
+	local ahora = tick()
+	local limite = ahora - 2
+	local filtrados = {}
+	for _, e in ipairs(_efectosConexionRecientes) do
+		if e.nodo == nombreNodo and e.tiempo > limite and e.clon and e.clon.Parent then
+			pcall(function() e.clon:Destroy() end)
+		else
+			if e.clon and e.clon.Parent then
+				table.insert(filtrados, e)
+			end
+		end
+	end
+	_efectosConexionRecientes = filtrados
+
+	-- Limpieza adicional: destruir cualquier VFX_Conexion con el atributo del nodo
+	for _, inst in ipairs(CollectionService:GetTagged("VFX_Conexion")) do
+		if inst:GetAttribute("NodoVFX") == nombreNodo and inst.Parent then
+			pcall(function() inst:Destroy() end)
+		end
+	end
+end
 
 -- Cable creado por el servidor (precargados al inicio del nivel)
 GestorEfectos.registrar("CableCreadoConPeso", function(params)
@@ -415,6 +465,8 @@ if nivelDescargadoEv then
 		_nodosDaniados = {}
 		_nodosReparadosLocal = {}
 		_nivelActualID = nil
+		_efectosConexionRecientes = {}
+		_dialogosReparacionMostrados = {}
 	end)
 end
 
@@ -463,10 +515,37 @@ if notificarEvento then
 				ControladorAudio.playSonidoArreglando()
 				-- Pequeno flash dorado en el nodo
 				local nivel = Workspace:FindFirstChild("NivelActual")
+				local nodo = nil
+				local basePart = nil
 				if nivel then
-					local nodo = nivel:FindFirstChild(nombreNodo, true)
+					nodo = nivel:FindFirstChild(nombreNodo, true)
 					if nodo then
 						flashModel(nodo, Color3.fromRGB(255, 220, 50), 0.15)
+						basePart = getSelector(nodo)
+					end
+				end
+
+				-- Al primer clic, informar si la reparación quita o mantiene el límite de grado
+				if restantes == 2 and not _dialogosReparacionMostrados[nombreNodo] then
+					_dialogosReparacionMostrados[nombreNodo] = true
+					local nivelID = player:GetAttribute("CurrentLevelID") or 0
+					local cfgNodo = LevelsConfig[nivelID]
+						    and LevelsConfig[nivelID].LimitesGrado
+						    and LevelsConfig[nivelID].LimitesGrado[nombreNodo]
+					local quitaLimite = cfgNodo and cfgNodo.QuitarLimiteAlReparar == true
+					local claveDialogo = quitaLimite and "Feedback_RepararQuitaLimite" or "Feedback_RepararMantieneLimite"
+
+					if _G.ControladorDialogo and not _G.ControladorDialogo.estaActivo() then
+						_G.ControladorDialogo.iniciar(claveDialogo, {
+							promptPart = basePart,
+							ocultarHUD = false,
+							restricciones = {
+								bloquearMovimiento = false,
+								bloquearSalto = false,
+								apuntarCamara = false,
+								permitirConexiones = true,
+							},
+						})
 					end
 				end
 			end
@@ -524,20 +603,55 @@ if notificarEvento then
 
 		elseif tipo == "NodoSobrecargado" then
 			local nombreNodo = type(arg1) == "string" and arg1 or nil
-			if nombreNodo then
-				-- Sonido de explosion
-				ControladorAudio.playSFX("Explosion")
-				-- Activar efectos de fuego/humo
-				EfectosDano.activar(nombreNodo)
-				-- Flash rojo intenso en el nodo
-				local nivel = Workspace:FindFirstChild("NivelActual")
-				if nivel then
-					local nodo = nivel:FindFirstChild(nombreNodo, true)
-					if nodo then
-						flashModel(nodo, Color3.fromRGB(255, 0, 0), 0.6)
-					end
-				end
+			if not nombreNodo then return end
+
+			local nivel = Workspace:FindFirstChild("NivelActual")
+			local nodo = nivel and nivel:FindFirstChild(nombreNodo, true)
+			local _, basePart = nodo and getSelector(nodo)
+			local claveBB = "SOBRECARGA_" .. nombreNodo
+
+			-- 1. Guardar estado y mover cámara al nodo afectado
+			ServicioCamara.guardarEstado()
+			ServicioCamara.moverHaciaObjetivo(nombreNodo, {
+				altura = 18,
+				angulo = 65,
+				duracion = 0.8,
+			})
+
+			-- 2. Billboard temporal
+			if basePart then
+				BillboardNombres.crear(basePart, "NODO SOBRECARGADO", "NODO_DANIADO", claveBB)
 			end
+
+			-- 3. Sonido, efectos de daño y flash
+			ControladorAudio.playSFX("Explosion")
+			EfectosDano.activar(nombreNodo)
+			if nodo then
+				flashModel(nodo, Color3.fromRGB(255, 0, 0), 0.6)
+			end
+
+			-- 4. Limpiar efectos de conexión recientes para evitar partículas flotantes
+			destruirEfectosConexionRecientes(nombreNodo)
+
+			-- 5. Esperar, quitar billboard, restaurar cámara e iniciar diálogo de feedback
+			task.delay(2.5, function()
+				BillboardNombres.destruir(claveBB)
+				ServicioCamara.restaurar(0.6)
+				task.delay(0.7, function()
+					if _G.ControladorDialogo and not _G.ControladorDialogo.estaActivo() then
+						_G.ControladorDialogo.iniciar("Feedback_NodoSobrecargado", {
+							promptPart = basePart,
+							ocultarHUD = false,
+							restricciones = {
+								bloquearMovimiento = false,
+								bloquearSalto = false,
+								apuntarCamara = false,
+								permitirConexiones = true,
+							},
+						})
+					end
+				end)
+			end)
 		end
 	end)
 end

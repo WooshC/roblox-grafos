@@ -331,6 +331,18 @@ function CargadorNiveles.cargar(nivelID, jugador)
 						misionesRef.alEliminarCable(nomA, nomB)
 					end
 				end,
+				onCableEliminadoPorSobrecarga = function(nomA, nomB)
+					-- Registrar desconexión en puntaje (contador de cables activos)
+					if puntajeRef then
+						puntajeRef:registrarDesconexion(jugadorRef)
+					end
+					-- NO reembolsar: el cable se quemó en la explosión.
+					-- En niveles con CostoPorMetro el dinero gastado se pierde.
+					-- LUEGO verificar misiones
+					if misionesRef and misionesRef.estaActivo() then
+						misionesRef.alEliminarCable(nomA, nomB)
+					end
+				end,
 				onNodoSeleccionado = function(nomNodo)
 					if misionesRef and misionesRef.estaActivo() then
 						misionesRef.alSeleccionarNodo(nomNodo)
@@ -346,10 +358,19 @@ function CargadorNiveles.cargar(nivelID, jugador)
 					end
 				end,
 				onNodoReparado = function(nombreNodo, costo)
-					if costo and costo > 0 and puntajeRef then
+					if costo and costo > 0 then
+						if not puntajeRef then
+							warn(string.format("[CargadorNiveles] No hay ServicioPuntaje: reparacion de %s bloqueada", nombreNodo))
+							return false
+						end
+						local saldo = puntajeRef:obtenerDinero(jugadorRef)
 						local ok = puntajeRef:gastar(jugadorRef, costo)
-						if not ok then
-							return false -- Bloquear reparacion: no hay dinero suficiente
+						if ok then
+							print(string.format("[CargadorNiveles] Reparacion pagada con dinero: %s (costo %d, saldo restante %d)", nombreNodo, costo, puntajeRef:obtenerDinero(jugadorRef)))
+						else
+							-- Sin presupuesto: descontar del puntaje de mision y permitir la reparacion
+							puntajeRef:descontarPuntajeMision(jugadorRef, costo)
+							print(string.format("[CargadorNiveles] Reparacion sin presupuesto: %s (costo %d descontado del puntaje, saldo %d)", nombreNodo, costo, saldo))
 						end
 					end
 					-- Notificar a misiones si implementan reparaciones en el futuro

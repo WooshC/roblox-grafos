@@ -120,7 +120,7 @@ local DIALOGOS = {
 
 		Lineas = {
 
-			-- ── 1-7. LLAMADA TELEFÓNICA: EL ALCALDE AVISA SOBRE EL BARRIO ANTIGUO ─
+			-- ── 1. LLAMADA DEL ALCALDE SOBRE EL BARRIO ANTIGUO ─
 			{
 				Id        = "llamada_inicio",
 				Numero    = 1,
@@ -129,7 +129,6 @@ local DIALOGOS = {
 				Texto     = "El teléfono de Carlos suena. Es el Alcalde...",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
-					-- Reproducir sonido de teléfono sonando
 					local StarterPlayerScripts = game:GetService("StarterPlayer").StarterPlayerScripts
 					local moduloAudio = StarterPlayerScripts:FindFirstChild("Compartido", true)
 					if moduloAudio then
@@ -141,11 +140,7 @@ local DIALOGOS = {
 						end)
 						if exito and ControladorAudio and ControladorAudio.playSFX then
 							ControladorAudio.playSFX("TelefonoSonando")
-						else
-							warn("[Zona4] No se pudo reproducir TelefonoSonando:", ControladorAudio)
 						end
-					else
-						warn("[Zona4] ControladorAudio no encontrado para reproducir TelefonoSonando")
 					end
 				end,
 				Siguiente = "alcalde_llamada_1",
@@ -154,8 +149,8 @@ local DIALOGOS = {
 				Id        = "alcalde_llamada_1",
 				Numero    = 2,
 				Actor     = "Alcalde",
-				Expresion = "Enojado",
-				Texto     = "¡Carlos! El Barrio Antiguo está a oscuras. Yo mandé a cablear todo correctamente, pero los opositores no dejan de sabotear mis conexiones. ¡Un transformador acaba de explotar!",
+				Expresion = "Furioso",
+				Texto     = "¡Carlos! El Barrio Antiguo está a oscuras. Mandé a cablear todo, pero los opositores sabotearon mis conexiones y un transformador explotó.",
 				Siguiente = "carlos_respuesta_1",
 			},
 			{
@@ -163,77 +158,17 @@ local DIALOGOS = {
 				Numero    = 3,
 				Actor     = "Carlos",
 				Expresion = "Serio",
-				Texto     = "Señor Alcalde, si el barrio está a oscuras no es por sabotaje: es porque el grafo eléctrico no es conexo. La corriente no llega a todos los nodos.",
-				Siguiente = "alcalde_llamada_2",
+				Texto     = "Señor Alcalde, si el barrio está a oscuras es porque el grafo eléctrico no es conexo. La corriente no llega a todos los nodos. Iremos, pero primero termino esta simulación con mi aprendiz.",
+				Siguiente = "concepto_conexo",
 			},
+
+			-- ── 2. CONCEPTO: COMPONENTES CONEXAS Y GRAFO CONEXO ─
 			{
-				Id        = "alcalde_llamada_2",
+				Id        = "concepto_conexo",
 				Numero    = 4,
-				Actor     = "Alcalde",
-				Expresion = "Furioso",
-				Texto     = "No me venga con excusas técnicas. Arregle eso rápido y barato. La gente está protestando y necesito que todo se vea bien antes de la rueda de prensa.",
-				Siguiente = "carlos_respuesta_2",
-			},
-			{
-				Id        = "carlos_respuesta_2",
-				Numero    = 5,
-				Actor     = "Carlos",
-				Expresion = "Serio",
-				Texto     = "Está bien, iremos al Barrio Antiguo. Pero primero termino aquí con mi aprendiz. Este laboratorio es una simulación segura; aquí le mostraré exactamente por qué una red mal conectada deja zonas a oscuras.",
-				Siguiente = "carlos_respuesta_3",
-			},
-			{
-				Id        = "carlos_respuesta_3",
-				Numero    = 6,
-				Actor     = "Carlos",
-				Expresion = "Presentacion",
-				Texto     = "Tocino, lo que pasa afuera es lo mismo que veremos en esta sala: nodos aislados, componentes desconectadas y un alcalde que niega lo evidente. Vamos a aprender a leer la red antes de enfrentarnos a la realidad.",
-				Siguiente = "carlos_explica_zona",
-			},
-			{
-				Id        = "carlos_explica_zona",
-				Numero    = 7,
-				Actor     = "Carlos",
-				Expresion = "Serio",
-				Texto     = "Esto es un modelo del Metro de Quito. Si logramos que el grafo sea completamente conexo, la luz llegará a todas las estaciones. Cuando terminemos, nos dirigimos de inmediato al Barrio Antiguo.",
-				Siguiente = "inicio_a",
-			},
-
-			-- ── 8-9. BIENVENIDA / CONTEXTO ───────────────────────────
-			{
-				Id        = "inicio_a",
-				Numero    = 8,
-				Actor     = "Carlos",
-				Expresion = "Serio",
-				Texto     = "Mira este desastre. La red eléctrica del Metro de Quito está incompleta: estaciones sin cablear, cables derretidos... El alcalde cobró millones por 'electrificar' esta zona, y sin embargo la mayoría está a oscuras.",
-				Evento = function()
-					EfectosDialogo.limpiarTodo()
-					for _, nom in ipairs({"NodoE_z4","NodoA_z4","NodoB_z4","NodoC_z4","NodoF_z4","NodoD_z4"}) do
-						EfectosDialogo.resaltarNodo(nom, "AISLADO")
-					end
-					EfectosDialogo.mostrarLabel("NodoE_z4", aliasE, "AISLADO")
-					EfectosDialogo.mostrarLabel("NodoA_z4", aliasA, "AISLADO")
-					EfectosDialogo.mostrarLabel("NodoD_z4", aliasD, "AISLADO")
-					enfocarRed({ altura = 80, angulo = 58, duracion = 1.2 })
-				end,
-				Siguiente = "inicio_b",
-			},
-			{
-				Id        = "inicio_b",
-				Numero    = 9,
-				Actor     = "Carlos",
-				Expresion = "Sonriente",
-				Texto     = "Sin conexión no hay luz, y sin luz no hay metro. Tu trabajo es unir toda la red y lograr que la electricidad llegue hasta cada estación. Cada estación que enciendas será una prueba de que el contrato original era inflado.",
-				Siguiente = "concepto_conexo_a",
-			},
-
-			-- ── 3-4. CONCEPTO: GRAFO CONEXO ──────────────────────────
-			{
-				Id        = "concepto_conexo_a",
-				Numero    = 10,
 				Actor     = "Carlos",
 				Expresion = "Feliz",
-				Texto     = "Cuando hay un camino entre cualquier par de nodos de una red, los matemáticos la llaman GRAFO CONEXO.",
+				Texto     = "Mira esta red. Cuando todos los nodos están unidos por al menos un camino, el grafo es CONEXO y la energía llega a todas las estaciones.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					for _, nom in ipairs({"NodoE_z4","NodoA_z4","NodoB_z4","NodoC_z4","NodoF_z4","NodoD_z4"}) do
@@ -243,32 +178,50 @@ local DIALOGOS = {
 					task.delay(0.2, function()
 						EfectosDialogo.mostrarArista("NodoE_z4", "NodoA_z4", "CONECTADO", { dirigido = false })
 						EfectosDialogo.mostrarArista("NodoA_z4", "NodoB_z4", "CONECTADO", { dirigido = false })
-						EfectosDialogo.mostrarArista("NodoA_z4", "NodoC_z4", "CONECTADO", { dirigido = false })
 						EfectosDialogo.mostrarArista("NodoB_z4", "NodoC_z4", "CONECTADO", { dirigido = false })
-						EfectosDialogo.mostrarArista("NodoB_z4", "NodoD_z4", "CONECTADO", { dirigido = false })
 						EfectosDialogo.mostrarArista("NodoC_z4", "NodoF_z4", "CONECTADO", { dirigido = false })
 						EfectosDialogo.mostrarArista("NodoF_z4", "NodoD_z4", "CONECTADO", { dirigido = false })
 					end)
 					enfocarRed({ altura = 80, angulo = 60, duracion = 0.9 })
 				end,
-				Siguiente = "concepto_conexo_b",
+				Siguiente = "concepto_desconexo",
 			},
 			{
-				Id        = "concepto_conexo_b",
-				Numero    = 11,
-				Actor     = "Carlos",
-				Expresion = "Feliz",
-				Texto     = "En nuestro caso, si el grafo es conexo, la energía que sale de la Empresa Eléctrica puede llegar hasta cada estación del metro.",
-				Siguiente = "concepto_desconexo_a",
-			},
-
-			-- ── 5-6. CONCEPTO: GRAFO DESCONECTADO ────────────────────
-			{
-				Id        = "concepto_desconexo_a",
-				Numero    = 12,
+				Id        = "concepto_desconexo",
+				Numero    = 5,
 				Actor     = "Carlos",
 				Expresion = "Serio",
-				Texto     = "Ahora bien, si falta algún cable, el grafo queda DESCONECTADO. La red se divide en grupos aislados, que llamamos COMPONENTES CONEXAS. Esas componentes son las pruebas tangibles de que alguien cobró por un trabajo que no hizo.",
+				Texto     = "Si falta algún cable, el grafo queda DESCONECTADO y se forman COMPONENTES CONEXAS aisladas. La energía no puede saltar de una componente a otra.",
+				Evento = function()
+					EfectosDialogo.limpiarTodo()
+					EfectosDialogo.resaltarNodo("NodoE_z4", "SELECCIONADO")
+					EfectosDialogo.resaltarNodo("NodoA_z4", "SELECCIONADO")
+					EfectosDialogo.mostrarLabel("NodoE_z4", aliasE .. "  (comp. 1)")
+					EfectosDialogo.mostrarLabel("NodoA_z4", aliasA .. "  (comp. 1)")
+					EfectosDialogo.resaltarNodo("NodoF_z4", "ADYACENTE")
+					EfectosDialogo.resaltarNodo("NodoD_z4", "ADYACENTE")
+					EfectosDialogo.mostrarLabel("NodoF_z4", aliasF .. "  (comp. 2)")
+					EfectosDialogo.mostrarLabel("NodoD_z4", aliasD .. "  (comp. 2)")
+					EfectosDialogo.resaltarNodo("NodoB_z4", "AISLADO")
+					EfectosDialogo.resaltarNodo("NodoC_z4", "AISLADO")
+					EfectosDialogo.mostrarLabel("NodoB_z4", aliasB, "AISLADO")
+					EfectosDialogo.mostrarLabel("NodoC_z4", aliasC, "AISLADO")
+					task.delay(0.2, function()
+						EfectosDialogo.mostrarArista("NodoE_z4", "NodoA_z4", "SELECCIONADO", { dirigido = false })
+						EfectosDialogo.mostrarArista("NodoF_z4", "NodoD_z4", "ADYACENTE", { dirigido = false })
+					end)
+					enfocarRed({ altura = 80, angulo = 60, duracion = 0.9 })
+				end,
+				Siguiente = "sigue_misiones",
+			},
+
+			-- ── 3. INDICACIÓN DE MISIONES ─
+			{
+				Id        = "sigue_misiones",
+				Numero    = 6,
+				Actor     = "Sistema",
+				Expresion = "Normal",
+				Texto     = "Sigue las misiones del panel de misiones. Tu objetivo es conectar toda la red y hacer que el grafo sea completamente conexo.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					for _, nom in ipairs({"NodoE_z4","NodoA_z4","NodoB_z4","NodoC_z4","NodoF_z4","NodoD_z4"}) do
@@ -277,221 +230,16 @@ local DIALOGOS = {
 					end
 					enfocarRed({ altura = 80, angulo = 60, duracion = 0.9 })
 				end,
-				Siguiente = "concepto_desconexo_b",
-			},
-			{
-				Id        = "concepto_desconexo_b",
-				Numero    = 13,
-				Actor     = "Carlos",
-				Expresion = "Serio",
-				Texto     = "La electricidad no puede saltar de un grupo al otro. Simplemente se detiene donde termina el cable.",
-				Siguiente = "ejemplo_a",
-			},
-
-			-- ── 7-8. EJEMPLO: DOS COMPONENTES ────────────────────────
-			{
-				Id        = "ejemplo_a",
-				Numero    = 14,
-				Actor     = "Carlos",
-				Expresion = "Serio",
-				Texto     = "Mira este ejemplo. La fuente, " .. aliasE .. ", solo llega hasta " .. aliasA .. ". Al norte, " .. aliasF .. " llega hasta " .. aliasD .. ".",
-				Evento = function()
-					EfectosDialogo.limpiarTodo()
-					EfectosDialogo.resaltarNodo("NodoE_z4", "SELECCIONADO")
-					EfectosDialogo.resaltarNodo("NodoA_z4", "SELECCIONADO")
-					EfectosDialogo.mostrarLabel("NodoE_z4", aliasE .. "  (comp. 1)")
-					EfectosDialogo.mostrarLabel("NodoA_z4", aliasA .. "  (comp. 1)")
-					task.delay(0.2, function()
-						EfectosDialogo.mostrarArista("NodoE_z4", "NodoA_z4", "SELECCIONADO", { dirigido = false })
-					end)
-					EfectosDialogo.resaltarNodo("NodoF_z4", "ADYACENTE")
-					EfectosDialogo.resaltarNodo("NodoD_z4", "ADYACENTE")
-					EfectosDialogo.mostrarLabel("NodoF_z4", aliasF .. "  (comp. 2)")
-					EfectosDialogo.mostrarLabel("NodoD_z4", aliasD .. "  (comp. 2)")
-					task.delay(0.3, function()
-						EfectosDialogo.mostrarArista("NodoF_z4", "NodoD_z4", "ADYACENTE", { dirigido = false })
-					end)
-					EfectosDialogo.resaltarNodo("NodoB_z4", "AISLADO")
-					EfectosDialogo.resaltarNodo("NodoC_z4", "AISLADO")
-					EfectosDialogo.mostrarLabel("NodoB_z4", aliasB, "AISLADO")
-					EfectosDialogo.mostrarLabel("NodoC_z4", aliasC, "AISLADO")
-					enfocarRed({ altura = 80, angulo = 60, duracion = 0.9 })
-				end,
-				Siguiente = "ejemplo_b",
-			},
-			{
-				Id        = "ejemplo_b",
-				Numero    = 15,
-				Actor     = "Carlos",
-				Expresion = "Serio",
-				Texto     = "Los dos grupos existen, pero no hay ningún cable que los una. Son dos componentes separadas, y la energía no puede cruzar de una a la otra. Eso es exactamente lo que el alcalde niega: en sus papeles todo está 'conectado', pero en la realidad no es así.",
-				Siguiente = "pregunta_setup",
-			},
-
-			-- ── 9-10. PREGUNTA DE VALIDACIÓN ─────────────────────────
-			{
-				Id        = "pregunta_setup",
-				Numero    = 16,
-				Actor     = "Carlos",
-				Expresion = "Sorprendido",
-				Texto     = "Los dos grupos están aislados. " .. aliasE .. " y " .. aliasA .. " forman una componente al sur. " .. aliasF .. " y " .. aliasD .. " forman otra al norte. No hay ningún cable entre ellas.",
-				Evento = function()
-					EfectosDialogo.limpiarTodo()
-					EfectosDialogo.resaltarNodo("NodoE_z4", "SELECCIONADO")
-					EfectosDialogo.resaltarNodo("NodoA_z4", "SELECCIONADO")
-					EfectosDialogo.resaltarNodo("NodoF_z4", "ADYACENTE")
-					EfectosDialogo.resaltarNodo("NodoD_z4", "ADYACENTE")
-					EfectosDialogo.resaltarNodo("NodoB_z4", "AISLADO")
-					EfectosDialogo.resaltarNodo("NodoC_z4", "AISLADO")
-					EfectosDialogo.mostrarLabel("NodoE_z4", aliasE)
-					EfectosDialogo.mostrarLabel("NodoA_z4", aliasA)
-					EfectosDialogo.mostrarLabel("NodoF_z4", aliasF)
-					EfectosDialogo.mostrarLabel("NodoD_z4", aliasD)
-					task.delay(0.2, function()
-						EfectosDialogo.mostrarArista("NodoE_z4", "NodoA_z4", "SELECCIONADO", { dirigido = false })
-						EfectosDialogo.mostrarArista("NodoF_z4", "NodoD_z4", "ADYACENTE",   { dirigido = false })
-					end)
-					enfocarRed({ altura = 80, angulo = 60, duracion = 0.9 })
-				end,
-				Siguiente = "pregunta",
-			},
-			{
-				Id        = "pregunta",
-				Numero    = 17,
-				Actor     = "Carlos",
-				Expresion = "Sorprendido",
-				Texto     = "¿Crees que la electricidad puede llegar desde " .. aliasE .. " hasta " .. aliasD .. ", si entre los dos grupos no hay ningún cable?",
-				Opciones = {
-					{ Texto = "No, el grafo está desconectado",             Siguiente = "respuesta_correcta"     },
-					{ Texto = "Sí, la electricidad siempre encuentra paso", Siguiente = "respuesta_incorrecta_a" },
-				},
-			},
-
-			-- ── 11. RESPUESTA CORRECTA ────────────────────────────────
-			{
-				Id        = "respuesta_correcta",
-				Numero    = 18,
-				Actor     = "Carlos",
-				Expresion = "Feliz",
-				Texto     = "¡Exacto! Sin un cable que una los dos grupos, la corriente no tiene por dónde llegar hasta " .. aliasD .. ". Hay dos componentes separadas sin ningún puente entre ellas. Esa desconexión es una prueba más de que el dinero del mantenimiento nunca llegó aquí.",
-				Opciones = {
-					{ Texto = "¡Entendido, a conectar!", Siguiente = "instruccion_ea" },
-				},
-			},
-
-			-- ── 12-13. RESPUESTA INCORRECTA ───────────────────────────
-			{
-				Id        = "respuesta_incorrecta_a",
-				Numero    = 19,
-				Actor     = "Carlos",
-				Expresion = "Serio",
-				Texto     = "En realidad no. La electricidad solo viaja por donde hay cables, igual que en un grafo: solo puede recorrer las aristas que existen.",
-				Siguiente = "respuesta_incorrecta_b",
-			},
-			{
-				Id        = "respuesta_incorrecta_b",
-				Numero    = 20,
-				Actor     = "Carlos",
-				Expresion = "Serio",
-				Texto     = "Si no hay un camino continuo de " .. aliasE .. " a " .. aliasD .. ", la energía simplemente no llega. Eso es lo que significa un grafo desconectado.",
-				Opciones = {
-					{ Texto = "Entendido", Siguiente = "instruccion_ea" },
-				},
-			},
-
-			-- ── 14. INSTRUCCIÓN: CONECTAR E — A ───────────────────────
-			{
-				Id        = "instruccion_ea",
-				Numero    = 21,
-				Actor     = "Sistema",
-				Expresion = "Normal",
-				Texto     = "Empecemos por el principio. Conecta " .. aliasE .. " con " .. aliasA .. "; ese es el cable de entrada, la fuente de energía de todo el metro. Haz clic en " .. aliasE .. " primero, y luego en " .. aliasA .. ".",
-				Evento = function()
-					EfectosDialogo.limpiarTodo()
-					EfectosDialogo.resaltarNodo("NodoE_z4", "EXITO")
-					EfectosDialogo.resaltarNodo("NodoA_z4", "ADYACENTE")
-					for _, nom in ipairs({"NodoB_z4","NodoC_z4","NodoF_z4","NodoD_z4"}) do
-						EfectosDialogo.resaltarNodo(nom, "AISLADO")
-					end
-					EfectosDialogo.mostrarLabel("NodoE_z4", aliasE .. "  ·  1º clic")
-					EfectosDialogo.mostrarLabel("NodoA_z4", aliasA .. "  ·  2º clic")
-					EfectosDialogo.blink("NodoE_z4", "EXITO",     3)
-					EfectosDialogo.blink("NodoA_z4", "ADYACENTE", 3)
-					enfocarPar("NodoE_z4", "NodoA_z4", { altura = 64, angulo = 64, duracion = 0.8 })
-				end,
-				EsperarAccion = { tipo = "conectarNodos", nodoA = "NodoE_z4", nodoB = "NodoA_z4" },
-				Siguiente = "instruccion_fd",
-			},
-
-			-- ── 15. INSTRUCCIÓN: CONECTAR F — D ───────────────────────
-			{
-				Id        = "instruccion_fd",
-				Numero    = 22,
-				Actor     = "Sistema",
-				Expresion = "Normal",
-				Texto     = "¡Bien hecho! Ahora ve al extremo norte y tiende el cable entre " .. aliasF .. " y " .. aliasD .. ". Haz clic en " .. aliasF .. " primero, y luego en " .. aliasD .. ".",
-				Evento = function()
-					EfectosDialogo.limpiarTodo()
-					EfectosDialogo.resaltarNodo("NodoE_z4", "CONECTADO")
-					EfectosDialogo.resaltarNodo("NodoA_z4", "CONECTADO")
-					EfectosDialogo.resaltarNodo("NodoF_z4", "EXITO")
-					EfectosDialogo.resaltarNodo("NodoD_z4", "ADYACENTE")
-					EfectosDialogo.resaltarNodo("NodoB_z4", "AISLADO")
-					EfectosDialogo.resaltarNodo("NodoC_z4", "AISLADO")
-					EfectosDialogo.mostrarLabel("NodoE_z4", aliasE)
-					EfectosDialogo.mostrarLabel("NodoA_z4", aliasA)
-					EfectosDialogo.mostrarLabel("NodoF_z4", aliasF .. "  ·  1º clic")
-					EfectosDialogo.mostrarLabel("NodoD_z4", aliasD .. "  ·  2º clic")
-					EfectosDialogo.blink("NodoF_z4", "EXITO",     3)
-					EfectosDialogo.blink("NodoD_z4", "ADYACENTE", 3)
-					task.delay(0.15, function()
-						EfectosDialogo.mostrarArista("NodoE_z4", "NodoA_z4", "CONECTADO", { dirigido = false, sinParticulas = true })
-					end)
-					enfocarPar("NodoF_z4", "NodoD_z4", { altura = 64, angulo = 64, duracion = 0.8 })
-				end,
-				EsperarAccion = { tipo = "conectarNodos", nodoA = "NodoF_z4", nodoB = "NodoD_z4" },
-				Siguiente = "resultado_a",
-			},
-
-			-- ── 16-17. RESULTADO ──────────────────────────────────────
-			{
-				Id        = "resultado_a",
-				Numero    = 23,
-				Actor     = "Carlos",
-				Expresion = "Feliz",
-				Texto     = "¡Muy bien! Ya cableaste los dos extremos: " .. aliasE .. " con " .. aliasA .. " al sur, y " .. aliasF .. " con " .. aliasD .. " al norte.",
-				Evento = function()
-					EfectosDialogo.limpiarTodo()
-					EfectosDialogo.resaltarNodo("NodoE_z4", "EXITO")
-					EfectosDialogo.resaltarNodo("NodoA_z4", "EXITO")
-					EfectosDialogo.resaltarNodo("NodoF_z4", "EXITO")
-					EfectosDialogo.resaltarNodo("NodoD_z4", "EXITO")
-					EfectosDialogo.resaltarNodo("NodoB_z4", "AISLADO")
-					EfectosDialogo.resaltarNodo("NodoC_z4", "AISLADO")
-					EfectosDialogo.mostrarLabel("NodoB_z4", aliasB .. "  ← falta", "AISLADO")
-					EfectosDialogo.mostrarLabel("NodoC_z4", aliasC .. "  ← falta", "AISLADO")
-					task.delay(0.3, function()
-						EfectosDialogo.mostrarArista("NodoE_z4", "NodoA_z4", "EXITO", { dirigido = false, sinParticulas = true })
-						EfectosDialogo.mostrarArista("NodoF_z4", "NodoD_z4", "EXITO", { dirigido = false, sinParticulas = true })
-					end)
-					enfocarRed({ altura = 80, angulo = 60, duracion = 0.9 })
-				end,
-				Siguiente = "resultado_b",
-			},
-			{
-				Id        = "resultado_b",
-				Numero    = 24,
-				Actor     = "Carlos",
-				Expresion = "Feliz",
-				Texto     = aliasB .. " y " .. aliasC .. " todavía están sin conexión. Conecta las estaciones restantes para que el grafo sea completamente conexo y la luz de la zona se encienda.",
 				Siguiente = "advertencia_sobrecarga",
 			},
+
+			-- ── 4. ADVERTENCIA DE SOBRECARGA ─
 			{
 				Id        = "advertencia_sobrecarga",
-				Numero    = 25,
+				Numero    = 7,
 				Actor     = "Sistema",
 				Expresion = "Normal",
-				Texto     = "Advertencia: el transformador de " .. aliasC .. " es viejo. Si le conectas más de dos cables, se sobrecargará, explotará y quedará dañado. Repararlo costará tiempo. Planifica bien tus conexiones.",
+				Texto     = "Advertencia: el transformador de " .. aliasC .. " es viejo. Si le conectas más de dos cables, se sobrecargará, explotará y quedará dañado. Repararlo costará dinero. Planifica bien tus conexiones.",
 				Siguiente = "FIN",
 			},
 		},

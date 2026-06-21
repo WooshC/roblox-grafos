@@ -93,6 +93,117 @@ local DIALOGOS = {
 			cerrarMapa         = false,
 		},
 	},
+
+	-- ════════════════════════════════════════════════════════════════════
+	-- ERROR 3: Nodo sobrecargado
+	-- ════════════════════════════════════════════════════════════════════
+	["Feedback_NodoSobrecargado"] = {
+		Zona  = nil,
+		Nivel = nil,
+
+		Lineas = {
+			{
+				Id        = "inicio",
+				Numero    = 1,
+				Actor     = "Carlos",
+				Expresion = "Serio",
+				Texto     = "El nodo se ha dañado por sobrecarga. Repáralo dando clic 3 veces sobre el nodo.",
+				Siguiente = "FIN",
+			},
+		},
+
+		Metadata = {
+			TiempoDeEspera      = 0,
+			VelocidadTypewriter = 0.025,
+			PuedeOmitir         = true,
+			OcultarHUD          = false,
+			UsarTTS             = true,
+		},
+
+		Configuracion = {
+			bloquearMovimiento = false,
+			bloquearSalto      = false,
+			bloquearCarrera    = false,
+			apuntarCamara      = false,
+			permitirConexiones = true,
+			ocultarTechos      = false,
+			cerrarMapa         = false,
+		},
+	},
+
+	-- ════════════════════════════════════════════════════════════════════
+	-- REPARACIÓN: quita el límite de grado
+	-- ════════════════════════════════════════════════════════════════════
+	["Feedback_RepararQuitaLimite"] = {
+		Zona  = nil,
+		Nivel = nil,
+
+		Lineas = {
+			{
+				Id        = "inicio",
+				Numero    = 1,
+				Actor     = "Carlos",
+				Expresion = "Normal",
+				Texto     = "Reparar este nodo quitará el límite de grado y podrás conectar varios cables sin problema.",
+				Siguiente = "FIN",
+			},
+		},
+
+		Metadata = {
+			TiempoDeEspera      = 0,
+			VelocidadTypewriter = 0.025,
+			PuedeOmitir         = true,
+			OcultarHUD          = false,
+			UsarTTS             = true,
+		},
+
+		Configuracion = {
+			bloquearMovimiento = false,
+			bloquearSalto      = false,
+			bloquearCarrera    = false,
+			apuntarCamara      = false,
+			permitirConexiones = true,
+			ocultarTechos      = false,
+			cerrarMapa         = false,
+		},
+	},
+
+	-- ════════════════════════════════════════════════════════════════════
+	-- REPARACIÓN: mantiene el límite de grado
+	-- ════════════════════════════════════════════════════════════════════
+	["Feedback_RepararMantieneLimite"] = {
+		Zona  = nil,
+		Nivel = nil,
+
+		Lineas = {
+			{
+				Id        = "inicio",
+				Numero    = 1,
+				Actor     = "Carlos",
+				Expresion = "Serio",
+				Texto     = "Reparar este nodo no quitará el límite, ya que es un nodo muy viejo y no soporta más conexiones de las permitidas.",
+				Siguiente = "FIN",
+			},
+		},
+
+		Metadata = {
+			TiempoDeEspera      = 0,
+			VelocidadTypewriter = 0.025,
+			PuedeOmitir         = true,
+			OcultarHUD          = false,
+			UsarTTS             = true,
+		},
+
+		Configuracion = {
+			bloquearMovimiento = false,
+			bloquearSalto      = false,
+			bloquearCarrera    = false,
+			apuntarCamara      = false,
+			permitirConexiones = true,
+			ocultarTechos      = false,
+			cerrarMapa         = false,
+		},
+	},
 }
 
 return DIALOGOS

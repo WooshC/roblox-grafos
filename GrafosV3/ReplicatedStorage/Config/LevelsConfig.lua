@@ -41,6 +41,15 @@ LevelsConfig[0] = {
 		PenaFallo      = 10,
 	},
 
+	Presupuesto = {
+		Inicial = 250,
+		AdvertenciaBajo = 50,
+	},
+
+	CostosReparacion = {
+		["NodoC_z4"] = 200,
+	},
+
 	Adyacencias = {
 		-- Zona 1: Nodos y Aristas — grafo simple de 2 nodos
 		["Nodo1_z1"] = {"Nodo2_z1"},
@@ -73,7 +82,8 @@ LevelsConfig[0] = {
 	LimitesGrado = {
 		-- Zona 4: La Carolina tiene un transformador viejo que solo soporta 2 conexiones.
 		-- Al superar el límite el nodo se sobrecarga, explota y queda dañado.
-		["NodoC_z4"] = { GradoMaximo = 2 },
+		-- MaxEntrada/MaxSalida permiten extender la mecánica a dígrafos en el futuro.
+		["NodoC_z4"] = { GradoMaximo = 2, MaxEntrada = 2, MaxSalida = 2, QuitarLimiteAlReparar = false },
 	},
 
 	Zonas = {

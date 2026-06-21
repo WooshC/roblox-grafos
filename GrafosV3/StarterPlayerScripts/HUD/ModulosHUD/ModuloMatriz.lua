@@ -43,6 +43,7 @@ local _getMatrixFunc = nil   -- RemoteFunction (lazy)
 local _inicializado  = false
 local _refreshPending = false
 local _esDirigido    = false
+-- local _labelLimite   = nil   -- legacy: ahora la fila de límite vive dentro de MarcoInfoNodo
 
 -- TG 07: nodos reparados localmente (persiste durante la sesion)
 local _nodosReparadosLocal = {}  -- { [nombreNodo] = true }
@@ -150,9 +151,23 @@ local function esNodoDaniadoVisible(nodeName)
 end
 
 -- ════════════════════════════════════════════════════════════════
+-- LÍMITES DE GRADO (desde LevelsConfig)
+-- ════════════════════════════════════════════════════════════════
+local function obtenerLimitesGrado(nombreNodo)
+	if not nombreNodo then return nil, nil end
+	local nivelID = jugador:GetAttribute("CurrentLevelID") or 0
+	local cfg = LevelsConfig[nivelID]
+	local limite = cfg and cfg.LimitesGrado and cfg.LimitesGrado[nombreNodo]
+	if not limite then return nil, nil end
+	local maxE = limite.MaxEntrada or limite.GradoMaximo
+	local maxS = limite.MaxSalida  or limite.GradoMaximo
+	return maxE, maxS
+end
+
+-- ════════════════════════════════════════════════════════════════
 -- INFORMACIÓN DE NODO (MarcoInfoNodo)
 -- ════════════════════════════════════════════════════════════════
-local function actualizarInfoNodo(nombreInterno, gTotal, gEntrada, gSalida)
+local function actualizarInfoNodo(nombreInterno, gTotal, gEntrada, gSalida, maxEntrada, maxSalida)
 	local panel = getPanel()
 	if not panel then return end
 	local marco = panel:FindFirstChild("MarcoInfoNodo")
@@ -160,16 +175,104 @@ local function actualizarInfoNodo(nombreInterno, gTotal, gEntrada, gSalida)
 
 	local alias = nombreInterno and getAlias(nombreInterno) or "--"
 
-	local function setValor(frameName, text)
+	local function setValor(frameName, text, alerta)
 		local frame = marco:FindFirstChild(frameName)
 		local valor = frame and frame:FindFirstChild("Valor")
-		if valor then valor.Text = text end
+		if valor then
+			valor.Text = text
+			if alerta then
+				valor.TextColor3 = Color3.fromRGB(255, 80, 80)
+			else
+				valor.TextColor3 = Color3.fromRGB(255, 255, 255)
+			end
+		end
 	end
 
-	setValor("FilaNodo",    alias)
-	setValor("FilaGrado",   tostring(gTotal   or 0))
-	setValor("FilaEntrada", tostring(gEntrada or 0))
-	setValor("FilaSalida",  tostring(gSalida  or 0))
+	local alertaGrado   = maxEntrada and (gTotal   >= maxEntrada) or false
+	local alertaEntrada = maxEntrada and (gEntrada >= maxEntrada) or false
+	local alertaSalida  = maxSalida  and (gSalida  >= maxSalida)  or false
+
+	setValor("FilaNodo",        alias)
+	setValor("FilaGrado",       tostring(gTotal   or 0), alertaGrado)
+	setValor("FilaEntrada",     tostring(gEntrada or 0), alertaEntrada)
+	setValor("FilaSalida",      tostring(gSalida  or 0), alertaSalida)
+
+	-- Fila interna con los límites máximos del nodo
+	if maxEntrada or maxSalida then
+		setValor("FilaLimite", string.format("Máx. G:%s E:%s S:%s",
+			tostring(maxEntrada or "--"),
+			tostring(maxEntrada or "--"),
+			tostring(maxSalida  or "--")))
+	else
+		setValor("FilaLimite", "--")
+	end
+end
+
+-- Ajusta el panel de matriz y agrega una fila de límite dentro de MarcoInfoNodo
+local function configurarInfoNodo(panel)
+	if not panel then return end
+	-- Agrandar panel de matriz
+	panel.Size = UDim2.new(0, 520, 0, 420)
+
+	-- Agrandar título y botón cerrar
+	local header = panel:FindFirstChild("MatrizHeader")
+	if header then
+		local titulo = header:FindFirstChild("TituloMatriz")
+		if titulo and titulo:IsA("TextLabel") then titulo.TextSize = 18 end
+		local btnCerrar = header:FindFirstChild("BtnCerrarMatriz")
+		if btnCerrar and btnCerrar:IsA("TextButton") then btnCerrar.TextSize = 16 end
+	end
+
+	local marco = panel:FindFirstChild("MarcoInfoNodo")
+	if not marco then return end
+
+	-- Eliminar label hermano legacy si existe (ahora el límite es una fila dentro del marco)
+	local labelAnterior = panel:FindFirstChild("LabelLimiteNodo")
+	if labelAnterior then
+		labelAnterior:Destroy()
+	end
+
+	-- Ajustar layout del marco a lista vertical para acomodar 5 filas
+	local grid = marco:FindFirstChildOfClass("UIGridLayout")
+	if grid then grid:Destroy() end
+	if not marco:FindFirstChildOfClass("UIListLayout") then
+		local list = Instance.new("UIListLayout")
+		list.SortOrder = Enum.SortOrder.LayoutOrder
+		list.Padding = UDim.new(0, 2)
+		list.Parent = marco
+	end
+
+	-- Agrandar marco para 5 filas
+	marco.Size = UDim2.new(0, 220, 0, 150)
+
+	-- Ordenar filas existentes
+	local orden = { "FilaNodo", "FilaGrado", "FilaEntrada", "FilaSalida" }
+	for i, nombre in ipairs(orden) do
+		local fila = marco:FindFirstChild(nombre)
+		if fila then fila.LayoutOrder = i end
+	end
+
+	-- Crear fila de límite si no existe
+	if not marco:FindFirstChild("FilaLimite") then
+		local base = marco:FindFirstChild("FilaSalida") or marco:FindFirstChild("FilaEntrada") or marco:FindFirstChild("FilaGrado")
+		if base then
+			local nueva = base:Clone()
+			nueva.Name = "FilaLimite"
+			nueva.LayoutOrder = 5
+			nueva.Size = UDim2.new(1, 0, 0, 22)
+			local k = nueva:FindFirstChild("K")
+			local v = nueva:FindFirstChild("Valor")
+			if k then
+				k.Text = "Límite"
+				k.TextSize = 13
+			end
+			if v then
+				v.Text = "--"
+				v.TextSize = 13
+			end
+			nueva.Parent = marco
+		end
+	end
 end
 
 -- ════════════════════════════════════════════════════════════════
@@ -287,7 +390,7 @@ local function seleccionarNodo(nodeName)
 	local idx = getHeaderIdx(nodeName)
 	if not idx then
 		_nodoSelecIdx = nil
-		actualizarInfoNodo(nil, 0, 0, 0)
+		actualizarInfoNodo(nil, 0, 0, 0, nil, nil)
 		resaltarEnMatriz(nil)
 		return
 	end
@@ -295,14 +398,15 @@ local function seleccionarNodo(nodeName)
 	_nodoSelecIdx = idx
 	local n = #_matrizData.Headers
 	local gT, gE, gS = calcularGrados(_matrizData.Matrix, idx, n)
-	actualizarInfoNodo(nodeName, gT, gE, gS)
+	local maxE, maxS = obtenerLimitesGrado(nodeName)
+	actualizarInfoNodo(nodeName, gT, gE, gS, maxE, maxS)
 	resaltarEnMatriz(idx)
 end
 
 -- ════════════════════════════════════════════════════════════════
 -- RENDERIZAR MATRIZ — tamaño de celda ADAPTATIVO
 -- Las celdas llenan el espacio disponible del ScrollingFrame.
--- Si hay demasiados nodos, se activa el scroll (mínimo 14px/celda).
+-- Si hay demasiados nodos, se activa el scroll (mínimo 18px/celda).
 -- ════════════════════════════════════════════════════════════════
 local function renderizarMatriz(data)
 	local scroll = getScroll()
@@ -341,7 +445,7 @@ local function renderizarMatriz(data)
 	local fitX = math.floor((sX - padding) / (n + 1)) - padding
 	local fitY = math.floor((sY - padding) / (n + 1)) - padding
 	local maxFit  = math.min(fitX, fitY)
-	local cellSize = math.max(14, math.min(maxFit, 60))  -- clamp: 14..60 px
+	local cellSize = math.max(18, math.min(maxFit, 70))  -- clamp: 18..70 px
 
 	local paso  = cellSize + padding
 	local total = (n + 1) * paso + padding
@@ -375,7 +479,7 @@ local function renderizarMatriz(data)
 		btn.Text    = alias
 		btn.TextColor3 = Color3.new(1, 1, 1)
 		btn.Font    = Enum.Font.GothamBold
-		btn.TextSize = 11; btn.TextScaled = true
+		btn.TextSize = 13; btn.TextScaled = true
 		btn.AutoButtonColor = false
 		btn.Parent  = scroll
 		addCorner(btn, 4); addStroke(btn)
@@ -399,7 +503,7 @@ local function renderizarMatriz(data)
 		btnFila.Text  = alias
 		btnFila.TextColor3 = Color3.new(1, 1, 1)
 		btnFila.Font  = Enum.Font.GothamBold
-		btnFila.TextSize = 11; btnFila.TextScaled = true
+		btnFila.TextSize = 13; btnFila.TextScaled = true
 		btnFila.AutoButtonColor = false
 		btnFila.Parent = scroll
 		addCorner(btnFila, 4); addStroke(btnFila)
@@ -437,7 +541,7 @@ local function renderizarMatriz(data)
 			cell.Text  = texto
 			cell.TextColor3 = Color3.new(1, 1, 1)
 			cell.Font  = Enum.Font.Code
-			cell.TextSize = 14; cell.TextScaled = true
+			cell.TextSize = 16; cell.TextScaled = true
 			cell.Parent = scroll
 			addCorner(cell, 4); addStroke(cell)
 		end
@@ -465,7 +569,7 @@ local function mostrarMensaje(texto)
 	lbl.Text             = texto
 	lbl.TextColor3       = Color3.fromRGB(176, 190, 197)
 	lbl.Font             = Enum.Font.Gotham
-	lbl.TextSize         = 14
+	lbl.TextSize         = 16
 	lbl.TextWrapped      = true
 	lbl.TextXAlignment   = Enum.TextXAlignment.Center
 	lbl.Parent           = scroll
@@ -488,7 +592,7 @@ local function solicitarMatriz(zonaID)
 		end
 	end
 
-	actualizarInfoNodo(nil, 0, 0, 0)
+	actualizarInfoNodo(nil, 0, 0, 0, nil, nil)
 
 	task.spawn(function()
 		local ok, resultado = pcall(function()
@@ -538,11 +642,12 @@ local function solicitarMatriz(zonaID)
 					_nodoSelecIdx = nuevoIdx
 					local n = #resultado.Headers
 					local gT, gE, gS = calcularGrados(resultado.Matrix, nuevoIdx, n)
-					actualizarInfoNodo(nombrePrevio, gT, gE, gS)
+					local maxE, maxS = obtenerLimitesGrado(nombrePrevio)
+					actualizarInfoNodo(nombrePrevio, gT, gE, gS, maxE, maxS)
 					resaltarEnMatriz(nuevoIdx)
 				else
 					_nodoSelecIdx = nil
-					actualizarInfoNodo(nil, 0, 0, 0)
+					actualizarInfoNodo(nil, 0, 0, 0, nil, nil)
 				end
 			end
 		else
@@ -576,7 +681,7 @@ local function activar()
 	setLeyendaVisible(false)   -- ← ocultar leyenda al abrir la matriz
 
 	_nodoSelecIdx = nil
-	actualizarInfoNodo(nil, 0, 0, 0)
+	actualizarInfoNodo(nil, 0, 0, 0, nil, nil)
 
 	local zona = jugador:GetAttribute("ZonaActual") or ""
 	if zona == "" then
@@ -619,7 +724,10 @@ function ModuloMatriz.inicializar(hudGui)
 	_hudGui = hudGui
 
 	local panel = getPanel()
-	if panel then panel.Visible = false end
+	if panel then
+		panel.Visible = false
+		configurarInfoNodo(panel)
+	end
 
 	-- Botones SelectorModos
 	local selectorModos = hudGui:FindFirstChild("SelectorModos", true)
@@ -665,7 +773,7 @@ function ModuloMatriz.inicializar(hudGui)
 				elseif tipo == "SeleccionCancelada" then
 					if not isVisible() then return end
 					_nodoSelecIdx = nil
-					actualizarInfoNodo(nil, 0, 0, 0)
+					actualizarInfoNodo(nil, 0, 0, 0, nil, nil)
 					resaltarEnMatriz(nil)
 
 				elseif tipo == "ClicReparacion" then
@@ -708,7 +816,7 @@ function ModuloMatriz.inicializar(hudGui)
 			_matrizData   = nil
 			_esDirigido   = false
 			_nodoSelecIdx = nil
-			actualizarInfoNodo(nil, 0, 0, 0)
+			actualizarInfoNodo(nil, 0, 0, 0, nil, nil)
 			mostrarMensaje("Entra en una zona para ver su matriz")
 		else
 			solicitarMatriz(zona)
@@ -740,7 +848,7 @@ end
 function ModuloMatriz.cancelarSeleccion()
 	if not isVisible() then return end
 	_nodoSelecIdx = nil
-	actualizarInfoNodo(nil, 0, 0, 0)
+	actualizarInfoNodo(nil, 0, 0, 0, nil, nil)
 	resaltarEnMatriz(nil)
 end
 

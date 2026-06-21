@@ -259,6 +259,20 @@ local function detenerFlujoParticulas(idConexion)
 	-- print("[ParticulasConexion] Flujo detenido:", idConexion)
 end
 
+-- Detener todos los flujos que pasan por un nodo (usado al sobrecargar)
+local function detenerFlujosDeNodo(nombreNodo)
+	local ids = {}
+	for idConexion, conexion in pairs(conexionesActivas) do
+		if conexion.nodoA == nombreNodo or conexion.nodoB == nombreNodo then
+			table.insert(ids, idConexion)
+		end
+	end
+	for _, id in ipairs(ids) do
+		detenerFlujoParticulas(id)
+		detenerFlujoParticulas(id:gsub("^(.+)_(.+)$", "%2_%1"))
+	end
+end
+
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- EVENTOS (via GestorEfectos — sin conexión directa al RemoteEvent)
 -- ═══════════════════════════════════════════════════════════════════════════════
@@ -281,6 +295,13 @@ GestorEfectos.registrar("CableDesconectado", function(params)
 	-- print("[ParticulasConexion] Conexión eliminada:", nodoA, "->", nodoB)
 	detenerFlujoParticulas(idConexion)
 	detenerFlujoParticulas(nodoB .. "_" .. nodoA)
+end)
+
+GestorEfectos.registrar("NodoSobrecargado", function(params)
+	local nombreNodo = params.arg1
+	if not nombreNodo then return end
+	-- print("[ParticulasConexion] Nodo sobrecargado, limpiando partículas:", nombreNodo)
+	detenerFlujosDeNodo(nombreNodo)
 end)
 
 print("[ParticulasConexion] Sistema listo")

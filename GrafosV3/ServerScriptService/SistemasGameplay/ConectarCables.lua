@@ -37,6 +37,7 @@ local _limitesGrado = nil  -- Cache de LevelsConfig[nivelID].LimitesGrado
 local _clicsReparacion = {}  -- { [nombreNodo] = numeroDeClics }
 local _nodosReparados  = {}  -- { [nombreNodo] = true }
 local _nodosDaniadosDinamicos = {}  -- { [nombreNodo] = true } nodos dañados por sobrecarga de grado
+local _nodosLimiteRelajado = {}  -- { [nombreNodo] = true } límite de grado quitado tras reparar
 
 -- Constantes
 local COLOR_CABLE = Color3.fromRGB(0, 200, 255)
@@ -176,8 +177,10 @@ end
 -- Devuelve true si el nodo está dañado en CUALQUIER zona del nivel,
 -- sin importar en qué zona se encuentre el jugador actualmente.
 local function esNodoDaniado(nombreNodo)
-	if _nodosReparados[nombreNodo] then return false end
+	-- Un nodo dañado dinámicamente por sobrecarga tiene prioridad:
+	-- puede volver a dañarse aunque haya sido reparado antes.
 	if _nodosDaniadosDinamicos[nombreNodo] then return true end
+	if _nodosReparados[nombreNodo] then return false end
 	local config = _nivelID and LevelsConfig[_nivelID]
 	if not config or not config.Zonas then return false end
 	for _, zonaCfg in pairs(config.Zonas) do
@@ -198,7 +201,8 @@ local function obtenerLimiteGrado(nombreNodo)
 end
 
 local function procesarSobrecarga(nombreNodo)
-	if _nodosReparados[nombreNodo] then return end -- límite ya relajado tras reparación
+	-- Si el límite fue quitado al reparar, no volver a explotar
+	if _nodosLimiteRelajado[nombreNodo] then return end
 
 	print(string.format("[ConectarCables] 💥 Sobrecarga en %s — eliminando conexiones", nombreNodo))
 
@@ -215,8 +219,8 @@ local function procesarSobrecarga(nombreNodo)
 			table.remove(_cables, indice)
 		end
 		ValidadorConexiones.eliminarConexion(nombreNodo, vecino)
-		if _callbacks and _callbacks.onCableEliminado then
-			_callbacks.onCableEliminado(nombreNodo, vecino)
+		if _callbacks and _callbacks.onCableEliminadoPorSobrecarga then
+			_callbacks.onCableEliminadoPorSobrecarga(nombreNodo, vecino)
 		end
 	end
 
@@ -238,11 +242,13 @@ end
 local function verificarSobrecarga(nomA, nomB)
 	if not _limitesGrado then return end
 	for _, nombreNodo in ipairs({nomA, nomB}) do
-		local limite = obtenerLimiteGrado(nombreNodo)
-		if limite and not _nodosReparados[nombreNodo] then
-			local grado = ValidadorConexiones.obtenerGrado(nombreNodo)
-			if grado > limite then
-				procesarSobrecarga(nombreNodo)
+		if not _nodosLimiteRelajado[nombreNodo] then
+			local limite = obtenerLimiteGrado(nombreNodo)
+			if limite then
+				local grado = ValidadorConexiones.obtenerGrado(nombreNodo)
+				if grado > limite then
+					procesarSobrecarga(nombreNodo)
+				end
 			end
 		end
 	end
@@ -272,7 +278,7 @@ local function manejarClicReparacion(jugador, selector)
 		end
 
 		local permitido = true
-		if costo > 0 and _callbacks and _callbacks.onNodoReparado then
+		if _callbacks and _callbacks.onNodoReparado then
 			permitido = _callbacks.onNodoReparado(nombreNodo, costo) ~= false
 		end
 
@@ -291,16 +297,20 @@ local function manejarClicReparacion(jugador, selector)
 		_nodosDaniadosDinamicos[nombreNodo] = nil
 		_clicsReparacion[nombreNodo] = nil
 
+		-- ¿Quitar el límite de grado tras reparar? (configurable por nodo)
+		if _limitesGrado and _limitesGrado[nombreNodo] then
+			local cfgLimite = _limitesGrado[nombreNodo]
+			if cfgLimite.QuitarLimiteAlReparar == true then
+				_nodosLimiteRelajado[nombreNodo] = true
+				print(string.format("[ConectarCables] Límite de grado quitado para %s tras reparar", nombreNodo))
+			end
+		end
+
 		if notificarEvento then
 			notificarEvento:FireClient(jugador, "NodoReparado", nombreNodo)
 		end
 
-		-- Callback para otros sistemas (sin costo, ya fue gestionado arriba)
-		if _callbacks and _callbacks.onNodoReparado then
-			_callbacks.onNodoReparado(nombreNodo, 0)
-		end
-
-		-- print(string.format("[ConectarCables] Nodo reparado: %s", nombreNodo))
+		print(string.format("[ConectarCables] Nodo reparado: %s", nombreNodo))
 	end
 	return true  -- Consumir el clic: la reparacion es independiente de la seleccion de cable
 end
@@ -680,6 +690,7 @@ function ConectarCables.desactivar()
 	_clicsReparacion = {}
 	_nodosReparados = {}
 	_nodosDaniadosDinamicos = {}
+	_nodosLimiteRelajado = {}
 	_limitesGrado = nil
 	
 	-- Desconectar listeners

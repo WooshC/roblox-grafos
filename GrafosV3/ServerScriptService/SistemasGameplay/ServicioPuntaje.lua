@@ -107,6 +107,27 @@ function ServicioPuntaje:fijarPuntajeMision(jugador, puntos, estrellas)
 	self:_notificar(jugador)
 end
 
+-- Intenta gastar puntos de misión. Devuelve true si se pudo.
+function ServicioPuntaje:gastarPuntajeMision(jugador, cantidad)
+	local d = _datos[jugador.UserId]
+	if not d then return false end
+	if (d.puntajeMision or 0) < cantidad then return false end
+	d.puntajeMision = d.puntajeMision - cantidad
+	self:_notificar(jugador)
+	return true
+end
+
+-- Descuenta puntos de misión SIN bloquear por saldo insuficiente.
+-- Permite puntaje negativo para situaciones de emergencia (ej. reparar sin presupuesto).
+function ServicioPuntaje:descontarPuntajeMision(jugador, cantidad)
+	local d = _datos[jugador.UserId]
+	if not d then return false end
+	cantidad = cantidad or 0
+	d.puntajeMision = (d.puntajeMision or 0) - cantidad
+	self:_notificar(jugador)
+	return true
+end
+
 -- Devuelve snapshot completo. Llamado por ServicioMisiones al completar nivel.
 function ServicioPuntaje:finalizar(jugador)
 	local d = _datos[jugador.UserId]

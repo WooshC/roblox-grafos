@@ -4,6 +4,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace         = game:GetService("Workspace")
+local CollectionService = game:GetService("CollectionService")
 
 local EfectosVideo = {}
 
@@ -68,8 +69,9 @@ end
 -- @param parte        BasePart - Part donde se reproduce (Selector del nodo)
 -- @param multiplicadorTamano number - Factor de escala (default 3)
 -- @param duracion     number  - Segundos hasta destruir (default 1)
--- @return Instance|nil - El clon creado
-function EfectosVideo.reproducirEnParte(nombreEfecto, parte, multiplicadorTamano, duracion)
+-- @param nombreNodo   string? - Nombre del nodo para limpieza por sobrecarga (opcional)
+-- @return Instance|nil - El clon creado (o su contenedor temporal)
+function EfectosVideo.reproducirEnParte(nombreEfecto, parte, multiplicadorTamano, duracion, nombreNodo)
 	if not parte or not parte.Parent then return nil end
 
 	local carpeta = getCarpetaVFX()
@@ -121,8 +123,50 @@ function EfectosVideo.reproducirEnParte(nombreEfecto, parte, multiplicadorTamano
 		clon.Parent = Workspace
 
 	else
-		-- ── Fallback: ParticleEmitter, BillboardGui, etc. — anclar al Selector ──
-		clon.Parent = parte
+		-- ── Fallback: ParticleEmitter, BillboardGui, etc. ──
+		-- Se crea una parte temporal propia para que al destruirla desaparezcan
+		-- también las partículas activas (evita efectos flotando en el espacio).
+		local contenedor = Instance.new("Part")
+		contenedor.Name = "ContenedorVFX"
+		contenedor.Anchored = true
+		contenedor.CanCollide = false
+		contenedor.CanQuery = false
+		contenedor.CanTouch = false
+		contenedor.Transparency = 1
+		contenedor.Size = Vector3.new(1, 1, 1)
+		contenedor.CFrame = parte.CFrame
+		contenedor.Parent = Workspace
+		contenedor:SetAttribute("NodoVFX", nombreNodo or "")
+		CollectionService:AddTag(contenedor, "VFX_Conexion")
+
+		local attachment = Instance.new("Attachment")
+		attachment.Parent = contenedor
+
+		if clon:IsA("ParticleEmitter") then
+			clon.Parent = attachment
+		else
+			clon.Parent = contenedor
+		end
+
+		-- Apagar ParticleEmitters a mitad de la duración para que terminen naturalmente
+		task.delay(duracion * 0.5, function()
+			if contenedor and contenedor.Parent then
+				for _, desc in ipairs(contenedor:GetDescendants()) do
+					if desc:IsA("ParticleEmitter") then
+						desc.Enabled = false
+					end
+				end
+			end
+		end)
+
+		-- Destruir el contenedor completo tras la duración
+		task.delay(duracion, function()
+			if contenedor and contenedor.Parent then
+				contenedor:Destroy()
+			end
+		end)
+
+		return contenedor
 	end
 
 	-- Apagar ParticleEmitters a mitad de la duración para que terminen naturalmente
@@ -169,7 +213,7 @@ function EfectosVideo.reproducirConexion(nombreNodo, nombreEfecto, multiplicador
 		return nil
 	end
 
-	return EfectosVideo.reproducirEnParte(nombreEfecto, selector, multiplicadorTamano, duracion)
+	return EfectosVideo.reproducirEnParte(nombreEfecto, selector, multiplicadorTamano, duracion, nombreNodo)
 end
 
 ---Clona "SignoObjetivo" y lo coloca encima de una Part sin auto-destruirlo.
