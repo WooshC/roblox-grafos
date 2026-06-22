@@ -46,7 +46,7 @@ local DIALOGOS = {
 					EfectosDialogo.resaltarNodo("Puesto_Mercado_z2", "ADYACENTE")
 					EfectosDialogo.resaltarNodo("Parque_z2", "ADYACENTE")
 				end,
-				Siguiente = "concepto_adyacencia",
+				Siguiente = "explicacion_error",
 			},
 			-- ── Concepto: Adyacencia ──────────────────────────────────────────
 			{
@@ -54,11 +54,10 @@ local DIALOGOS = {
 				Numero    = 3,
 				Actor     = "Carlos",
 				Expresion = "Pensativo",
-				Texto     = "Dos nodos son ADYACENTES si existe una arista directa entre ellos. El Poste del Mercado es adyacente al Puesto porque los une el cable que ya está tendido. Pero recuerda: adyacente no significa 'cerca en el mapa', significa 'conectado directamente'.",
+				Texto     = "'Tal parece que el nodo Poste del Mercado esta dañado por la sobrecarga que tuvo. Solo puede tener un grado 3: uno Entrada y Dos de salida",
 				Evento = function()
-					EfectosDialogo.mostrarArista("Poste_Mercado_z2", "Puesto_Mercado_z2", "SELECCIONADO", { sinParticulas = true })
-					EfectosDialogo.mostrarLabel("Poste_Mercado_z2", "Poste del Mercado")
-					EfectosDialogo.mostrarLabel("Puesto_Mercado_z2", "Puesto del Mercado")
+					ServicioCamara.moverHaciaObjetivo("Poste_Mercado_z2", { altura = 28, angulo = 60, duracion = 1.5 })
+
 				end,
 				Siguiente = "pregunta_adyacencia",
 			},
@@ -66,8 +65,8 @@ local DIALOGOS = {
 			{
 				Id        = "pregunta_adyacencia",
 				Numero    = 4,
-				Actor     = "Carlos",
-				Expresion = "Curioso",
+				Actor     = "Sistema",
+				Expresion = "Procesando",
 				Texto     = "Escucha bien: si el nodo A está conectado a B, y B está conectado a C, pero A NO tiene cable directo con C… ¿qué relación tiene A con C?",
 				Opciones = {
 					{ Texto = "A y C son adyacentes.",             Siguiente = "resp_adyacencia_mal"  },
@@ -78,8 +77,8 @@ local DIALOGOS = {
 			{
 				Id        = "resp_adyacencia_bien",
 				Numero    = 5,
-				Actor     = "Carlos",
-				Expresion = "Sonriente",
+				Actor     = "Sistema",
+				Expresion = "Feliz",
 				Texto     = "¡Correcto! La adyacencia requiere arista directa. Pero C sigue siendo alcanzable desde A pasando por B. BFS descubrirá C cuando procese los vecinos de B. Esa es la magia de explorar por capas.",
 				Evento = function()
 					local jugador = game:GetService("Players").LocalPlayer

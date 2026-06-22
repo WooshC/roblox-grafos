@@ -306,6 +306,20 @@ LevelsConfig[1] = {
 		IluminacionExteriores = Color3.fromRGB(10, 10, 25),
 		LinternaJugador = true -- Activa la luz cálida que sigue al jugador
 	},
+	
+	Presupuesto = {
+		Inicial = 250,
+		AdvertenciaBajo = 50,
+	},
+
+	CostosReparacion = {
+		["NodoC_z4"] = 200,
+	},
+	
+	LimitesGrado = {
+		["Poste_Mercado_z2"] = { GradoMaximo = 3, MaxEntrada = 1, MaxSalida = 2, QuitarLimiteAlReparar = false },
+	},
+
 
 	CablesIniciales = {
 		-- Conexiones que estarán pre-creadas y son válidas
