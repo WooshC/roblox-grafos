@@ -49,7 +49,7 @@ end
 local _valoresOriginales = {}
 
 local FALLBACK_LUZ = {
-	PointLight   = { Brightness = 5, Range = 20 },
+	PointLight   = { Brightness = 15, Range = 20 },
 	SpotLight    = { Brightness = 5, Range = 20 },
 	SurfaceLight = { Brightness = 3, Range = 12 },
 }
@@ -109,14 +109,15 @@ local function crearPartEmergencia(zonaID, triggerPart)
 
 	local part = Instance.new("Part")
 	part.Name = "Emergencia_Visual"
-	part.Size = Vector3.new(6, 6, 6)
+	part.Size = Vector3.new(16, 16, 16)
+	part.Shape = Enum.PartType.Ball
 	part.Material = Enum.Material.Neon
 	part.Anchored = true
 	part.CanCollide = false
 	part.CastShadow = false
 	part.Color = COLOR_ROJO
 	part.Transparency = 0
-	part.Position = triggerPart.Position + Vector3.new(0, 50, 0)
+	part.Position = triggerPart.Position + Vector3.new(0, 80, 0)
 	part.Parent = workspace
 
 	local pointLight = Instance.new("PointLight")
@@ -257,7 +258,7 @@ local function procesarComponente(obj, zonaID)
 		end
 		return 0, 0, 1
 	end
-	
+
 	return 0, 0, 0
 end
 
@@ -337,7 +338,7 @@ end
 
 local function actualizarProgresoZona(zonaID, porcentaje)
 	-- print(string.format("[SistemaEnergia] 📡 Recibido ProgresoEnergia: zonaID=%s porcentaje=%.2f", tostring(zonaID), porcentaje))
-	
+
 	local nombreCarpeta = _mapaZonas[zonaID]
 	if not nombreCarpeta then
 		-- warn(string.format("[SistemaEnergia] ⚠ zonaID '%s' no está en _mapaZonas. Zonas conocidas:", tostring(zonaID)))

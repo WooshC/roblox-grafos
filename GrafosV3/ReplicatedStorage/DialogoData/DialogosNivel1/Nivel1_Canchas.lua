@@ -24,7 +24,7 @@ local DIALOGOS = {
 				Numero    = 1,
 				Actor     = "Carlos",
 				Expresion = "Preocupado",
-				Texto     = "Las Canchas... El alcalde juró que incluso los vecindarios más alejados tenían luz. Pero la sobrecarga que originó en el Mercado viajó por los cables como una onda expansiva. Dos postes quedaron aislados y la Casa de las Canchas sigue completamente a oscuras. Ejecuta DFS desde el Poste de las Canchas y verás exactamente dónde se rompe la cadena.",
+				Texto     = "“Las Canchas… El alcalde juró que incluso los vecindarios más alejados tendrían electricidad. Pero la red no soportó la demanda: varios nodos se sobrecargaron, el voltaje se disparó y las estaciones terminaron explotando una tras otra",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					ServicioCamara.moverHaciaObjetivo("Poste_Canchas_z3", { altura = 32, angulo = 58, duracion = 1.5 })
@@ -50,8 +50,8 @@ local DIALOGOS = {
 			{
 				Id        = "pregunta_pila",
 				Numero    = 3,
-				Actor     = "Carlos",
-				Expresion = "Curioso",
+				Actor     = "Sistema",
+				Expresion = "Feliz",
 				Texto     = "Pregunta rápida: DFS usa una estructura llamada PILA. ¿Qué significa LIFO, la regla que gobierna una pila?",
 				Opciones = {
 					{ Texto = "Last In, First Out: el último en entrar es el primero en salir.", Siguiente = "resp_correcta" },
@@ -64,7 +64,7 @@ local DIALOGOS = {
 			{
 				Id        = "resp_correcta",
 				Numero    = 4,
-				Actor     = "Carlos",
+				Actor     = "Sistema",
 				Expresion = "Feliz",
 				Texto     = "¡Exacto! LIFO = Last In, First Out. Cuando DFS apila los vecinos de un nodo, el último vecino añadido será el primero en procesarse. Por eso DFS se adentra tan profundo: siempre sigue el camino más reciente antes de volver atrás.",
 				Evento = function()
@@ -94,7 +94,7 @@ local DIALOGOS = {
 				Numero    = 5,
 				Actor     = "Carlos",
 				Expresion = "Serio",
-				Texto     = "Cuando DFS agota su pila sin visitar todos los nodos, significa que llegó al final de una rama y no encontró más conexiones. En teoría de grafos, esos nodos no visitados forman un Componente Conexo Aislado: un 'islote' sin puentes hacia el grafo principal.",
+				Texto     = "Cuando DFS agota su pila sin visitar todos los nodos, significa que llegó al final de una rama y no encontró más conexiones",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					EfectosDialogo.resaltarNodo("Poste_Canchas_z3", "SELECCIONADO")
@@ -102,20 +102,7 @@ local DIALOGOS = {
 					EfectosDialogo.mostrarLabel("Poste_Canchas_z3", "DFS inicia aquí")
 					EfectosDialogo.mostrarLabel("Casa_Canchas_z3", "Componente aislado", "ERROR")
 				end,
-				Siguiente = "instruccion",
-			},
-
-			-- ── 6. INSTRUCCIÓN FINAL ────────────────────────────────────
-			{
-				Id        = "instruccion",
-				Numero    = 6,
-				Actor     = "Sistema",
-				Expresion = "Normal",
-				Texto     = "Conecta el Segundo Poste de las Canchas e ilumina la zona completa. Luego tiende el cable hacia el Parque para rescatar el componente aislado. DFS ya te mostró dónde está el corte; ahora reparalo.",
-				Evento = function()
-					EfectosDialogo.limpiarTodo()
-					ServicioCamara.restaurar(1.2)
-				end,
+				EfectosDialogo.limpiarTodo(),
 				Siguiente = "FIN",
 			},
 		},

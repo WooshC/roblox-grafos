@@ -26,7 +26,7 @@ local DIALOGOS = {
 				Id        = "intro_estacion",
 				Numero    = 1,
 				Actor     = "Carlos",
-				Expresion = "Preocupado",
+				Expresion = "Enojado",
 				Texto     = "¡Tocino! Este es tu primer encargo real. Estamos en el Barrio Antiguo... y mira esto. A las doce de la noche, todo debería estar iluminado, pero las casas están a oscuras.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
@@ -41,7 +41,7 @@ local DIALOGOS = {
 				Id        = "alcalde_radio",
 				Numero    = 2,
 				Actor     = "Alcalde",
-				Expresion = "Disgustado_Alcade",
+				Expresion = "Disgustado",
 				Texto     = "¿Qué ocurre en el Barrio Antiguo? Mi plan de electrificación fue impecable. Todas las casas estaban conectadas cuando firmé el proyecto. No puede haber fallos... a menos que alguien haya manipulado la red sin autorización.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
@@ -104,7 +104,7 @@ local DIALOGOS = {
 				Id        = "btn_ejecutar",
 				Numero    = 7,
 				Actor     = "Sistema",
-				Expresion = "Normal",
+				Expresion = "Procesando",
 				Texto     = "Presiona el botón Ejecutar Algoritmo para ver cómo DFS explora la red paso a paso desde el Generador Principal. Observa cómo la pila LIFO decide qué nodo visita a continuación. dentro del panel de analisis",
 
 				DestacarBoton = {
@@ -120,44 +120,15 @@ local DIALOGOS = {
 					alTerminar     = "restaurar",
 				},
 
-				Siguiente = "mostrar_carlos",
-			},
-
-			-- 8. Enfocar cámara en Carlos
-			{
-				Id        = "mostrar_carlos",
-				Numero    = 8,
-				Actor     = "Sistema",
-				Expresion = "Normal",
-				Texto     = "Carlos es tu instructor. Te espera cerca de la entrada. Ve a hablar con él cuando estés listo.",
-
-				Evento = function(gui, metadata)
-					toggleTecho(false)
-
-					local nivelActual = Workspace:FindFirstChild("NivelActual")
-					local objetivoCarlos = nil
-					if nivelActual then
-						objetivoCarlos = nivelActual:FindFirstChild("Objetivo_Carlos", true)
-					end
-
-					if objetivoCarlos then
-						_G.ControladorDialogo.moverCamara(objetivoCarlos, {
-							altura   = 18,
-							angulo   = 55,
-							duracion = 1.2,
-						})
-					end
-				end,
-
 				Siguiente = "alerta_emergencia",
 			},
 
 			-- 9. Alerta de emergencia en el Mercado
 			{
 				Id        = "alerta_emergencia",
-				Numero    = 9,
+				Numero    = 8,
 				Actor     = "Sistema",
-				Expresion = "Serio",
+				Expresion = "Triste",
 				Texto     = "ATENCIÓN: Hemos detectado una emergencia eléctrica en el Mercado Central. El Poste del Mercado está dañado por una sobrecarga. Cuando llegues, acércate al nodo dañado y haz clic repetidamente sobre él para repararlo antes de tender cables. Si no restableces la conexión a tiempo, la emergencia se propagará por todo el barrio.",
 				Evento = function()
 					EfectosDialogo.resaltarNodo("Poste_Mercado_z2", "ERROR")
@@ -168,14 +139,15 @@ local DIALOGOS = {
 			-- 10. Instrucción final + activar guía
 			{
 				Id        = "instruccion_final",
-				Numero    = 10,
+				Numero    = 9,
 				Actor     = "Sistema",
-				Expresion = "Normal",
+				Expresion = "Procesando",
 				Texto     = "Conecta las casas de la Estación al generador. Luego avanza al Mercado para aprender BFS. ¡Suerte!",
 
 				Evento = function(gui, metadata)
 					_G.ControladorDialogo.restaurarCamara(0.6)
 					toggleTecho(true)
+					EfectosDialogo.limpiarTodo()
 				end,
 
 				Siguiente = "FIN",

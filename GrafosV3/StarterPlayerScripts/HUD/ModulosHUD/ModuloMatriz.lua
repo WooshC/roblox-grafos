@@ -1,27 +1,6 @@
 -- StarterPlayerScripts/HUD/ModulosHUD/ModuloMatriz.lua
 -- Módulo cliente: visualiza la Matriz de Adyacencia en PanelMatrizAdyacencia.
--- Tipo: ModuleScript
---
--- GUI esperada en GUIExploradorV2:
---   PanelMatrizAdyacencia (Frame)
---     MatrizHeader (Frame)
---       TituloMatriz    (TextLabel)
---       BtnCerrarMatriz (TextButton)
---     MarcoInfoNodo (Frame)
---       FilaNodo    > Valor (TextLabel)
---       FilaGrado   > Valor
---       FilaEntrada > Valor
---       FilaSalida  > Valor
---     CuadriculaMatriz (ScrollingFrame)
---   SelectorModos
---     MatrizBtn (TextButton)   ← abre la matriz
---     VisualBtn (TextButton)   ← cierra y vuelve al minimapa
---   ContenedorMiniMapa (Frame) ← se oculta al abrir la matriz
---
--- API pública:
---   ModuloMatriz.inicializar(hudGui)
---   ModuloMatriz.configurarNivel(nivelActual, nivelID, configNivel)
---   ModuloMatriz.limpiar()
+-- Versión con UI de información de nodo mejorada (sin solapamientos).
 
 local Players = game:GetService("Players")
 local RS      = game:GetService("ReplicatedStorage")
@@ -36,17 +15,14 @@ local ModuloMatriz = {}
 -- ESTADO
 -- ════════════════════════════════════════════════════════════════
 local _hudGui        = nil
-local _matrizData    = nil   -- { Headers={}, Matrix={{}}, NombresNodos={} }
-local _nodoSelecIdx  = nil   -- índice (1-based) del nodo resaltado
-local _zonaActual    = nil   -- última zona solicitada
-local _getMatrixFunc = nil   -- RemoteFunction (lazy)
+local _matrizData    = nil
+local _nodoSelecIdx  = nil
+local _zonaActual    = nil
+local _getMatrixFunc = nil
 local _inicializado  = false
 local _refreshPending = false
 local _esDirigido    = false
--- local _labelLimite   = nil   -- legacy: ahora la fila de límite vive dentro de MarcoInfoNodo
-
--- TG 07: nodos reparados localmente (persiste durante la sesion)
-local _nodosReparadosLocal = {}  -- { [nombreNodo] = true }
+local _nodosReparadosLocal = {}
 
 -- ════════════════════════════════════════════════════════════════
 -- COLORES
@@ -97,14 +73,12 @@ local function isVisible()
 	return p ~= nil and p.Visible
 end
 
--- Toggle del contenedor del minimapa (ContenedorMiniMapa)
 local function setMinimapVisible(visible)
 	if not _hudGui then return end
 	local cont = _hudGui:FindFirstChild("ContenedorMiniMapa", true)
 	if cont then cont.Visible = visible end
 end
 
--- Toggle de la leyenda (Leyenda)
 local function setLeyendaVisible(visible)
 	if not _hudGui then return end
 	local leg = _hudGui:FindFirstChild("Leyenda", true)
@@ -112,17 +86,14 @@ local function setLeyendaVisible(visible)
 end
 
 -- ════════════════════════════════════════════════════════════════
--- ALIAS (nombre legible del nodo)
--- Prioridad: NombresNodos del servidor → LevelsConfig cliente → nombre interno
+-- ALIAS Y HELPERS DE MATRIZ
 -- ════════════════════════════════════════════════════════════════
 local function getAlias(nodeName)
 	if not nodeName then return "--" end
-	-- 1. Desde datos de la matriz (enviados por el servidor)
 	if _matrizData and _matrizData.NombresNodos then
 		local alias = _matrizData.NombresNodos[nodeName]
 		if alias and alias ~= "" then return alias end
 	end
-	-- 2. Fallback: LevelsConfig cargado localmente
 	local nivelID = jugador:GetAttribute("CurrentLevelID") or 0
 	local cfg = LevelsConfig[nivelID]
 	if cfg and cfg.NombresNodos then
@@ -140,7 +111,6 @@ local function getHeaderIdx(nodeName)
 	return nil
 end
 
--- TG 07: determina si un nodo debe mostrarse como danado (rojo) en la matriz
 local function esNodoDaniadoVisible(nodeName)
 	if _nodosReparadosLocal[nodeName] then return false end
 	if not _matrizData or not _matrizData.NodosDaniados then return false end
@@ -150,9 +120,6 @@ local function esNodoDaniadoVisible(nodeName)
 	return false
 end
 
--- ════════════════════════════════════════════════════════════════
--- LÍMITES DE GRADO (desde LevelsConfig)
--- ════════════════════════════════════════════════════════════════
 local function obtenerLimitesGrado(nombreNodo)
 	if not nombreNodo then return nil, nil end
 	local nivelID = jugador:GetAttribute("CurrentLevelID") or 0
@@ -164,8 +131,105 @@ local function obtenerLimitesGrado(nombreNodo)
 	return maxE, maxS
 end
 
+local function configurarInfoNodo()
+	local panel = getPanel()
+	if not panel then return end
+	
+	panel.Size = UDim2.new(0, 420, 0, 480)
+	panel.Position = UDim2.new(0, 10, 0.5, -230)
+	local header = panel:FindFirstChild("MatrizHeader")
+	if header then
+		header.Size     = UDim2.new(1, 0, 0, 36)
+		header.Position = UDim2.new(0, 0, 0, 0)
+	end
+
+	local marco = panel:FindFirstChild("MarcoInfoNodo")
+	if not marco then
+		marco = Instance.new("Frame")
+		marco.Name   = "MarcoInfoNodo"
+		marco.Parent = panel
+		addCorner(marco, 8)
+		addStroke(marco)
+	end
+
+	marco.Size               = UDim2.new(1, -20, 0, 68)
+	marco.Position           = UDim2.new(0, 10, 0, 42)
+	marco.BackgroundColor3   = Color3.fromRGB(20, 30, 50)
+	marco.BackgroundTransparency = 0.2
+	marco.BorderSizePixel    = 0
+
+	-- Limpiar TODO dentro del marco
+	for _, child in ipairs(marco:GetChildren()) do
+		child:Destroy()
+	end
+
+	-- Padding visual
+	local pad = Instance.new("UIPadding")
+	pad.PaddingLeft   = UDim.new(0, 8)
+	pad.PaddingRight  = UDim.new(0, 8)
+	pad.PaddingTop    = UDim.new(0, 6)
+	pad.PaddingBottom = UDim.new(0, 6)
+	pad.Parent = marco
+
+	-- Posiciones absolutas: 2 columnas × 3 filas
+	-- Cada fila: 18px alto, gap de 4px → total 3 filas = 18*3 + 4*2 = 62px (cabe en 68px)
+	local COL1_X = 0            -- columna izquierda: 0%
+	local COL2_X = 0.5          -- columna derecha:   50%
+	local ANCHO  = 0.5          -- cada columna ocupa 50%
+
+	local filasDef = {
+		-- { name, titulo, colX, rowY }
+		{ name = "FilaNodo",    titulo = "Nodo",    col = COL1_X, row = 0   },
+		{ name = "FilaGrado",   titulo = "Grado",   col = COL1_X, row = 22  },
+		{ name = "FilaEntrada", titulo = "Entrada", col = COL1_X, row = 44  },
+		{ name = "FilaSalida",  titulo = "Salida",  col = COL2_X, row = 0   },
+		{ name = "GradoMax",    titulo = "Límite",  col = COL2_X, row = 22  },
+	}
+
+	for _, def in ipairs(filasDef) do
+		local f = Instance.new("Frame")
+		f.Name                  = def.name
+		f.Size                  = UDim2.new(ANCHO, -4, 0, 18)
+		f.Position              = UDim2.new(def.col, 2, 0, def.row)
+		f.BackgroundTransparency = 1
+		f.Parent                = marco
+
+		local titulo = Instance.new("TextLabel")
+		titulo.Name             = "T"
+		titulo.Size             = UDim2.new(0, 55, 1, 0)
+		titulo.Position         = UDim2.new(0, 0, 0, 0)
+		titulo.BackgroundTransparency = 1
+		titulo.Font             = Enum.Font.Gotham
+		titulo.TextSize         = 11
+		titulo.TextColor3       = Color3.fromRGB(180, 190, 210)
+		titulo.TextXAlignment   = Enum.TextXAlignment.Left
+		titulo.TextYAlignment   = Enum.TextYAlignment.Center
+		titulo.Text             = def.titulo .. ":"
+		titulo.Parent           = f
+
+		local valor = Instance.new("TextLabel")
+		valor.Name              = "Valor"
+		valor.Size              = UDim2.new(1, -57, 1, 0)
+		valor.Position          = UDim2.new(0, 57, 0, 0)
+		valor.BackgroundTransparency = 1
+		valor.Font              = Enum.Font.GothamBold
+		valor.TextSize          = 11
+		valor.TextColor3        = Color3.fromRGB(255, 255, 255)
+		valor.TextXAlignment    = Enum.TextXAlignment.Left
+		valor.TextYAlignment    = Enum.TextYAlignment.Center
+		valor.Text              = "--"
+		valor.Parent            = f
+	end
+
+	-- Cuadrícula justo debajo: 42 header + 68 info + 8 margen = 118
+	local scroll = getScroll()
+	if scroll then
+		scroll.Position = UDim2.new(0, 5, 0, 118)
+		scroll.Size     = UDim2.new(1, -10, 1, -126)
+	end
+end
 -- ════════════════════════════════════════════════════════════════
--- INFORMACIÓN DE NODO (MarcoInfoNodo)
+-- ACTUALIZAR INFORMACIÓN DEL NODO
 -- ════════════════════════════════════════════════════════════════
 local function actualizarInfoNodo(nombreInterno, gTotal, gEntrada, gSalida, maxEntrada, maxSalida)
 	local panel = getPanel()
@@ -175,9 +239,10 @@ local function actualizarInfoNodo(nombreInterno, gTotal, gEntrada, gSalida, maxE
 
 	local alias = nombreInterno and getAlias(nombreInterno) or "--"
 
+	-- Función auxiliar para escribir en el Valor de una fila
 	local function setValor(frameName, text, alerta)
-		local frame = marco:FindFirstChild(frameName)
-		local valor = frame and frame:FindFirstChild("Valor")
+		local f = marco:FindFirstChild(frameName)
+		local valor = f and f:FindFirstChild("Valor")
 		if valor then
 			valor.Text = text
 			if alerta then
@@ -188,89 +253,20 @@ local function actualizarInfoNodo(nombreInterno, gTotal, gEntrada, gSalida, maxE
 		end
 	end
 
-	local alertaGrado   = maxEntrada and (gTotal   >= maxEntrada) or false
-	local alertaEntrada = maxEntrada and (gEntrada >= maxEntrada) or false
-	local alertaSalida  = maxSalida  and (gSalida  >= maxSalida)  or false
+	setValor("FilaNodo",    alias)
+	setValor("FilaGrado",   tostring(gTotal   or 0))
+	setValor("FilaEntrada", tostring(gEntrada or 0))
+	setValor("FilaSalida",  tostring(gSalida  or 0))
 
-	setValor("FilaNodo",        alias)
-	setValor("FilaGrado",       tostring(gTotal   or 0), alertaGrado)
-	setValor("FilaEntrada",     tostring(gEntrada or 0), alertaEntrada)
-	setValor("FilaSalida",      tostring(gSalida  or 0), alertaSalida)
-
-	-- Fila interna con los límites máximos del nodo
-	if maxEntrada or maxSalida then
-		setValor("FilaLimite", string.format("Máx. G:%s E:%s S:%s",
-			tostring(maxEntrada or "--"),
-			tostring(maxEntrada or "--"),
-			tostring(maxSalida  or "--")))
-	else
-		setValor("FilaLimite", "--")
-	end
-end
-
--- Ajusta el panel de matriz y agrega una fila de límite dentro de MarcoInfoNodo
-local function configurarInfoNodo(panel)
-	if not panel then return end
-	-- Agrandar panel de matriz
-	panel.Size = UDim2.new(0, 520, 0, 420)
-
-	-- Agrandar título y botón cerrar
-	local header = panel:FindFirstChild("MatrizHeader")
-	if header then
-		local titulo = header:FindFirstChild("TituloMatriz")
-		if titulo and titulo:IsA("TextLabel") then titulo.TextSize = 18 end
-		local btnCerrar = header:FindFirstChild("BtnCerrarMatriz")
-		if btnCerrar and btnCerrar:IsA("TextButton") then btnCerrar.TextSize = 16 end
-	end
-
-	local marco = panel:FindFirstChild("MarcoInfoNodo")
-	if not marco then return end
-
-	-- Eliminar label hermano legacy si existe (ahora el límite es una fila dentro del marco)
-	local labelAnterior = panel:FindFirstChild("LabelLimiteNodo")
-	if labelAnterior then
-		labelAnterior:Destroy()
-	end
-
-	-- Ajustar layout del marco a lista vertical para acomodar 5 filas
-	local grid = marco:FindFirstChildOfClass("UIGridLayout")
-	if grid then grid:Destroy() end
-	if not marco:FindFirstChildOfClass("UIListLayout") then
-		local list = Instance.new("UIListLayout")
-		list.SortOrder = Enum.SortOrder.LayoutOrder
-		list.Padding = UDim.new(0, 2)
-		list.Parent = marco
-	end
-
-	-- Agrandar marco para 5 filas
-	marco.Size = UDim2.new(0, 220, 0, 150)
-
-	-- Ordenar filas existentes
-	local orden = { "FilaNodo", "FilaGrado", "FilaEntrada", "FilaSalida" }
-	for i, nombre in ipairs(orden) do
-		local fila = marco:FindFirstChild(nombre)
-		if fila then fila.LayoutOrder = i end
-	end
-
-	-- Crear fila de límite si no existe
-	if not marco:FindFirstChild("FilaLimite") then
-		local base = marco:FindFirstChild("FilaSalida") or marco:FindFirstChild("FilaEntrada") or marco:FindFirstChild("FilaGrado")
-		if base then
-			local nueva = base:Clone()
-			nueva.Name = "FilaLimite"
-			nueva.LayoutOrder = 5
-			nueva.Size = UDim2.new(1, 0, 0, 22)
-			local k = nueva:FindFirstChild("K")
-			local v = nueva:FindFirstChild("Valor")
-			if k then
-				k.Text = "Límite"
-				k.TextSize = 13
-			end
-			if v then
-				v.Text = "--"
-				v.TextSize = 13
-			end
-			nueva.Parent = marco
+	-- Actualizar GradoMax (Límite)
+	local fMax = marco:FindFirstChild("GradoMax")
+	local valorMax = fMax and fMax:FindFirstChild("Valor")
+	if valorMax then
+		if maxEntrada or maxSalida then
+			local maxTotal = (maxEntrada or 0) + (maxSalida or 0)
+			valorMax.Text = string.format("E:%d, S:%d, G:%d", maxEntrada or 0, maxSalida or 0, maxTotal)
+		else
+			valorMax.Text = "--"
 		end
 	end
 end
@@ -281,14 +277,13 @@ end
 local function calcularGrados(matrix, idx, n)
 	local gSalida, gEntrada = 0, 0
 	for j = 1, n do
-		if matrix[idx] and (matrix[idx][j] or 0) > 0 then gSalida  = gSalida  + 1 end
-		if matrix[j]   and (matrix[j][idx]  or 0) > 0 then gEntrada = gEntrada + 1 end
+		if matrix[idx] and (matrix[idx][j] or 0) > 0 then gSalida = gSalida + 1 end
+		if matrix[j] and (matrix[j][idx] or 0) > 0 then gEntrada = gEntrada + 1 end
 	end
 	local esDigrafo = false
 	for r = 1, n do
 		for c = 1, n do
-			if matrix[r] and matrix[c]
-				and (matrix[r][c] or 0) ~= (matrix[c][r] or 0) then
+			if matrix[r] and matrix[c] and (matrix[r][c] or 0) ~= (matrix[c][r] or 0) then
 				esDigrafo = true; break
 			end
 		end
@@ -299,7 +294,7 @@ local function calcularGrados(matrix, idx, n)
 end
 
 -- ════════════════════════════════════════════════════════════════
--- RESALTAR FILA + COLUMNA DEL NODO SELECCIONADO
+-- RESALTAR MATRIZ
 -- ════════════════════════════════════════════════════════════════
 local function resaltarEnMatriz(idx)
 	local scroll = getScroll()
@@ -328,7 +323,6 @@ local function resaltarEnMatriz(idx)
 			esDefectuoso = GrafoHelpers.esCableDefectuoso(_matrizData, nomA, nomB)
 		end
 
-		-- TG 07: color base de header segun si el nodo esta danado
 		local function colorHeaderBase(nombre)
 			return esNodoDaniadoVisible(nombre) and C.Daniado or C.Header
 		end
@@ -355,14 +349,13 @@ local function resaltarEnMatriz(idx)
 			local esColSelec  = esDato and cx == idx and not esDiag
 
 			if esHdrSelec then
-				-- Si el nodo seleccionado esta danado, mantener rojo; si no, amarillo
 				local nombreSelec = esHdrCol and _matrizData.Headers[cx] or _matrizData.Headers[cy]
 				child.BackgroundColor3 = esNodoDaniadoVisible(nombreSelec) and C.DaniadoSelec or C.Selec
 			elseif esDiag then
 				child.BackgroundColor3 = C.Diag
 			elseif esFilaSelec or esColSelec then
 				if esDefectuoso then
-					child.BackgroundColor3 = Color3.fromRGB(255, 100, 100) -- Light red when highlighted
+					child.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
 				else
 					child.BackgroundColor3 = val > 0 and C.Selec or C.SelecCero
 				end
@@ -382,7 +375,7 @@ local function resaltarEnMatriz(idx)
 end
 
 -- ════════════════════════════════════════════════════════════════
--- SELECCIONAR NODO (actualiza info + resaltado en matriz)
+-- SELECCIONAR NODO
 -- ════════════════════════════════════════════════════════════════
 local function seleccionarNodo(nodeName)
 	if not _matrizData then return end
@@ -404,15 +397,12 @@ local function seleccionarNodo(nodeName)
 end
 
 -- ════════════════════════════════════════════════════════════════
--- RENDERIZAR MATRIZ — tamaño de celda ADAPTATIVO
--- Las celdas llenan el espacio disponible del ScrollingFrame.
--- Si hay demasiados nodos, se activa el scroll (mínimo 18px/celda).
+-- RENDERIZAR MATRIZ
 -- ════════════════════════════════════════════════════════════════
 local function renderizarMatriz(data)
 	local scroll = getScroll()
 	if not scroll then warn("[ModuloMatriz] CuadriculaMatriz no encontrada"); return end
 
-	-- Limpiar celdas previas
 	for _, child in ipairs(scroll:GetChildren()) do
 		if not child:IsA("UIListLayout") then child:Destroy() end
 	end
@@ -433,93 +423,86 @@ local function renderizarMatriz(data)
 		return
 	end
 
-	-- ── Calcular tamaño adaptativo de celda ─────────────────────
-	-- AbsoluteSize es válido porque el panel ya está visible.
 	local padding = 3
 	local sX = scroll.AbsoluteSize.X
 	local sY = scroll.AbsoluteSize.Y
-	if sX < 10 then sX = 300 end   -- fallback si aún no está renderizado
+	if sX < 10 then sX = 300 end
 	if sY < 10 then sY = 300 end
 
-	-- Cuánto espacio queda por celda si distribuimos (n+1) columnas/filas
 	local fitX = math.floor((sX - padding) / (n + 1)) - padding
 	local fitY = math.floor((sY - padding) / (n + 1)) - padding
 	local maxFit  = math.min(fitX, fitY)
-	local cellSize = math.max(18, math.min(maxFit, 70))  -- clamp: 18..70 px
+	local cellSize = math.max(14, math.min(maxFit, 60))
 
 	local paso  = cellSize + padding
 	local total = (n + 1) * paso + padding
 
-	scroll.CanvasSize         = UDim2.new(0, total, 0, total)
-	scroll.ScrollingEnabled   = true
-	scroll.ScrollBarThickness = total > sX and 6 or 0  -- mostrar scroll solo si necesario
+	scroll.CanvasSize = UDim2.new(0, total, 0, total)
+	scroll.ScrollingEnabled = true
+	scroll.ScrollBarThickness = total > sX and 6 or 0
 
-	-- Celda (0,0) — esquina vacía
+	-- Esquina
 	local esquina = Instance.new("TextLabel")
-	esquina.Name               = "Cell_0_0"
-	esquina.Size               = UDim2.new(0, cellSize, 0, cellSize)
-	esquina.Position           = UDim2.new(0, 0, 0, 0)
-	esquina.BackgroundColor3   = C.Esquina
+	esquina.Name = "Cell_0_0"
+	esquina.Size = UDim2.new(0, cellSize, 0, cellSize)
+	esquina.Position = UDim2.new(0, 0, 0, 0)
+	esquina.BackgroundColor3 = C.Esquina
 	esquina.BackgroundTransparency = 0
-	esquina.BorderSizePixel    = 0
-	esquina.Text               = ""
-	esquina.Parent             = scroll
+	esquina.BorderSizePixel = 0
+	esquina.Text = ""
+	esquina.Parent = scroll
 	addCorner(esquina, 4)
 
-	-- Headers de columna (row=0, col=1..n)
+	-- Headers columna
 	for i, hNombre in ipairs(headers) do
 		local alias = getAlias(hNombre)
-		local btn   = Instance.new("TextButton")
-		btn.Name    = string.format("Cell_%d_0", i)
-		btn.Size    = UDim2.new(0, cellSize, 0, cellSize)
+		local btn = Instance.new("TextButton")
+		btn.Name = string.format("Cell_%d_0", i)
+		btn.Size = UDim2.new(0, cellSize, 0, cellSize)
 		btn.Position = UDim2.new(0, i * paso, 0, 0)
 		btn.BackgroundColor3 = esNodoDaniadoVisible(hNombre) and C.Daniado or C.Header
 		btn.BackgroundTransparency = 0
 		btn.BorderSizePixel = 0
-		btn.Text    = alias
+		btn.Text = alias
 		btn.TextColor3 = Color3.new(1, 1, 1)
-		btn.Font    = Enum.Font.GothamBold
-		btn.TextSize = 13; btn.TextScaled = true
+		btn.Font = Enum.Font.GothamBold
+		btn.TextSize = 11; btn.TextScaled = true
 		btn.AutoButtonColor = false
-		btn.Parent  = scroll
+		btn.Parent = scroll
 		addCorner(btn, 4); addStroke(btn)
-
-		local cn = hNombre
-		btn.MouseButton1Click:Connect(function() seleccionarNodo(cn) end)
+		btn.MouseButton1Click:Connect(function() seleccionarNodo(hNombre) end)
 	end
 
-	-- Filas 1..n
+	-- Filas
 	for rowIdx, rowNombre in ipairs(headers) do
 		local alias = getAlias(rowNombre)
 
-		-- Header de fila (col=0)
+		-- Header fila
 		local btnFila = Instance.new("TextButton")
-		btnFila.Name  = string.format("Cell_0_%d", rowIdx)
-		btnFila.Size  = UDim2.new(0, cellSize, 0, cellSize)
+		btnFila.Name = string.format("Cell_0_%d", rowIdx)
+		btnFila.Size = UDim2.new(0, cellSize, 0, cellSize)
 		btnFila.Position = UDim2.new(0, 0, 0, rowIdx * paso)
 		btnFila.BackgroundColor3 = esNodoDaniadoVisible(rowNombre) and C.Daniado or C.Header
 		btnFila.BackgroundTransparency = 0
 		btnFila.BorderSizePixel = 0
-		btnFila.Text  = alias
+		btnFila.Text = alias
 		btnFila.TextColor3 = Color3.new(1, 1, 1)
-		btnFila.Font  = Enum.Font.GothamBold
-		btnFila.TextSize = 13; btnFila.TextScaled = true
+		btnFila.Font = Enum.Font.GothamBold
+		btnFila.TextSize = 11; btnFila.TextScaled = true
 		btnFila.AutoButtonColor = false
 		btnFila.Parent = scroll
 		addCorner(btnFila, 4); addStroke(btnFila)
+		btnFila.MouseButton1Click:Connect(function() seleccionarNodo(rowNombre) end)
 
-		local rn = rowNombre
-		btnFila.MouseButton1Click:Connect(function() seleccionarNodo(rn) end)
-
-		-- Celdas de datos (col=1..n)
+		-- Celdas
 		for colIdx = 1, n do
 			local rawVal = (matrix[rowIdx] and matrix[rowIdx][colIdx]) or 0
-			local val    = rawVal > 0 and 1 or 0
+			local val = rawVal > 0 and 1 or 0
 			local nomA = headers[rowIdx]
 			local nomB = headers[colIdx]
 			local esDefectuoso = GrafoHelpers.esCableDefectuoso(_matrizData, nomA, nomB)
 			local esDiag = (rowIdx == colIdx)
-			
+
 			local color
 			if esDiag then
 				color = C.Diag
@@ -528,33 +511,30 @@ local function renderizarMatriz(data)
 			else
 				color = val > 0 and C.CeldaUno or C.CeldaCero
 			end
-			
-			local texto  = esDiag and "—" or tostring(val)
+			local texto = esDiag and "—" or tostring(val)
 
 			local cell = Instance.new("TextLabel")
-			cell.Name  = string.format("Cell_%d_%d", colIdx, rowIdx)
-			cell.Size  = UDim2.new(0, cellSize, 0, cellSize)
+			cell.Name = string.format("Cell_%d_%d", colIdx, rowIdx)
+			cell.Size = UDim2.new(0, cellSize, 0, cellSize)
 			cell.Position = UDim2.new(0, colIdx * paso, 0, rowIdx * paso)
 			cell.BackgroundColor3 = color
 			cell.BackgroundTransparency = 0
 			cell.BorderSizePixel = 0
-			cell.Text  = texto
+			cell.Text = texto
 			cell.TextColor3 = Color3.new(1, 1, 1)
-			cell.Font  = Enum.Font.Code
-			cell.TextSize = 16; cell.TextScaled = true
+			cell.Font = Enum.Font.Code
+			cell.TextSize = 14; cell.TextScaled = true
 			cell.Parent = scroll
 			addCorner(cell, 4); addStroke(cell)
 		end
 	end
 
-	-- Reaplicar resaltado previo
 	if _nodoSelecIdx then resaltarEnMatriz(_nodoSelecIdx) end
-
 	print(string.format("[ModuloMatriz] %dx%d (celda=%dpx)", n, n, cellSize))
 end
 
 -- ════════════════════════════════════════════════════════════════
--- PLACEHOLDER: texto en la cuadrícula cuando no hay matriz
+-- MOSTRAR MENSAJE EN CUADRÍCULA
 -- ════════════════════════════════════════════════════════════════
 local function mostrarMensaje(texto)
 	local scroll = getScroll()
@@ -564,26 +544,24 @@ local function mostrarMensaje(texto)
 	end
 	scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
 	local lbl = Instance.new("TextLabel")
-	lbl.Size             = UDim2.new(1, 0, 1, 0)
+	lbl.Size = UDim2.new(1, 0, 1, 0)
 	lbl.BackgroundTransparency = 1
-	lbl.Text             = texto
-	lbl.TextColor3       = Color3.fromRGB(176, 190, 197)
-	lbl.Font             = Enum.Font.Gotham
-	lbl.TextSize         = 16
-	lbl.TextWrapped      = true
-	lbl.TextXAlignment   = Enum.TextXAlignment.Center
-	lbl.Parent           = scroll
+	lbl.Text = texto
+	lbl.TextColor3 = Color3.fromRGB(176, 190, 197)
+	lbl.Font = Enum.Font.Gotham
+	lbl.TextSize = 14
+	lbl.TextWrapped = true
+	lbl.TextXAlignment = Enum.TextXAlignment.Center
+	lbl.Parent = scroll
 end
 
 -- ════════════════════════════════════════════════════════════════
--- SOLICITAR MATRIZ AL SERVIDOR
+-- SOLICITAR MATRIZ
 -- ════════════════════════════════════════════════════════════════
 local function solicitarMatriz(zonaID)
 	if not _getMatrixFunc then
 		local ok, remote = pcall(function()
-			return RS:WaitForChild("EventosGrafosV3", 10)
-			          :WaitForChild("Remotos", 5)
-			          :WaitForChild("GetAdjacencyMatrix", 5)
+			return RS:WaitForChild("EventosGrafosV3", 10):WaitForChild("Remotos", 5):WaitForChild("GetAdjacencyMatrix", 5)
 		end)
 		if ok and remote then
 			_getMatrixFunc = remote
@@ -600,35 +578,29 @@ local function solicitarMatriz(zonaID)
 		end)
 
 		if ok and resultado then
-			-- Zona sin datos o sin activar
 			if resultado.SinZona or #resultado.Headers == 0 then
-				_matrizData   = nil
-				_esDirigido   = false
+				_matrizData = nil
+				_esDirigido = false
 				_nodoSelecIdx = nil
-				mostrarMensaje(resultado.SinZona
-					and "Entra en una zona para ver su matriz"
-					or  "Esta zona no tiene grafo definido")
-				-- Limpiar título
-				local panel  = getPanel()
+				mostrarMensaje(resultado.SinZona and "Entra en una zona para ver su matriz" or "Esta zona no tiene grafo definido")
+				local panel = getPanel()
 				local header = panel and panel:FindFirstChild("MatrizHeader")
 				local titulo = header and header:FindFirstChild("TituloMatriz")
 				if titulo then titulo.Text = "MATRIZ DE ADYACENCIA" end
 				return
 			end
 
-			-- Preservar selección previa si el nodo sigue en la nueva zona
 			local nombrePrevio = nil
 			if _nodoSelecIdx and _matrizData and _matrizData.Headers then
 				nombrePrevio = _matrizData.Headers[_nodoSelecIdx]
 			end
 
-			_matrizData   = resultado
-			_esDirigido   = resultado.EsDirigido or false
-			_zonaActual   = zonaID
+			_matrizData = resultado
+			_esDirigido = resultado.EsDirigido or false
+			_zonaActual = zonaID
 			renderizarMatriz(resultado)
 
-			-- Actualizar título con tipo de grafo
-			local panel  = getPanel()
+			local panel = getPanel()
 			local header = panel and panel:FindFirstChild("MatrizHeader")
 			local titulo = header and header:FindFirstChild("TituloMatriz")
 			if titulo then
@@ -658,15 +630,12 @@ local function solicitarMatriz(zonaID)
 	end)
 end
 
--- Debounce para refrescos automáticos
 local function scheduleRefresh()
 	if _refreshPending then return end
 	_refreshPending = true
 	task.delay(0.3, function()
 		_refreshPending = false
-		if isVisible() then
-			solicitarMatriz(_zonaActual)
-		end
+		if isVisible() then solicitarMatriz(_zonaActual) end
 	end)
 end
 
@@ -677,19 +646,17 @@ local function activar()
 	local panel = getPanel()
 	if not panel then return end
 	panel.Visible = true
-	setMinimapVisible(false)   -- ← ocultar minimapa al abrir la matriz
-	setLeyendaVisible(false)   -- ← ocultar leyenda al abrir la matriz
+	setMinimapVisible(false)
+	setLeyendaVisible(false)
 
 	_nodoSelecIdx = nil
 	actualizarInfoNodo(nil, 0, 0, 0, nil, nil)
 
 	local zona = jugador:GetAttribute("ZonaActual") or ""
 	if zona == "" then
-		-- Sin zona activa: mostrar placeholder y no llamar al servidor
 		mostrarMensaje("Entra en una zona para ver su matriz")
-		local titulo = (panel:FindFirstChild("MatrizHeader") or {}) and
-		               panel:FindFirstChild("MatrizHeader")
-		local tl = titulo and titulo:FindFirstChild("TituloMatriz")
+		local header = panel:FindFirstChild("MatrizHeader")
+		local tl = header and header:FindFirstChild("TituloMatriz")
 		if tl then tl.Text = "MATRIZ DE ADYACENCIA" end
 		print("[ModuloMatriz] Activado (sin zona)")
 		return
@@ -702,15 +669,11 @@ end
 local function desactivar()
 	local panel = getPanel()
 	if panel then panel.Visible = false end
-	setMinimapVisible(true)    -- ← restaurar minimapa al cerrar la matriz
-
-	-- Restaurar la leyenda SOLO si el mapa cenital sigue abierto.
-	-- Si el mapa está cerrado, la leyenda no debe aparecer nunca.
+	setMinimapVisible(true)
 	local mapaAbierto = jugador:GetAttribute("MapaAbierto") == true
 	setLeyendaVisible(mapaAbierto)
-
 	_nodoSelecIdx = nil
-	_matrizData   = nil
+	_matrizData = nil
 	print("[ModuloMatriz] Desactivado")
 end
 
@@ -726,10 +689,9 @@ function ModuloMatriz.inicializar(hudGui)
 	local panel = getPanel()
 	if panel then
 		panel.Visible = false
-		configurarInfoNodo(panel)
+		configurarInfoNodo()  -- Crea y organiza el marco de información
 	end
 
-	-- Botones SelectorModos
 	local selectorModos = hudGui:FindFirstChild("SelectorModos", true)
 	if selectorModos then
 		local matrizBtn = selectorModos:FindFirstChild("MatrizBtn")
@@ -740,81 +702,61 @@ function ModuloMatriz.inicializar(hudGui)
 		warn("[ModuloMatriz] SelectorModos no encontrado")
 	end
 
-	-- Botón cerrar del panel
 	if panel then
-		local header    = panel:FindFirstChild("MatrizHeader")
+		local header = panel:FindFirstChild("MatrizHeader")
 		local btnCerrar = header and header:FindFirstChild("BtnCerrarMatriz")
 		if btnCerrar then btnCerrar.MouseButton1Click:Connect(desactivar) end
 	end
 
-	-- Conexión a eventos remotos
 	local ok, remotos = pcall(function()
 		return RS:WaitForChild("EventosGrafosV3", 10):WaitForChild("Remotos", 5)
 	end)
 
 	if ok and remotos then
-		-- NotificarSeleccionNodo: sincronizar selección 3D ↔ matriz
 		local notifyEvent = remotos:FindFirstChild("NotificarSeleccionNodo")
 		if notifyEvent then
 			notifyEvent.OnClientEvent:Connect(function(tipo, arg1, arg2)
 				if tipo == "NodoSeleccionado" then
 					if not isVisible() then return end
-					-- arg1 puede ser string (nombre) o Instance (Model del nodo)
-					local nombre = type(arg1) == "string" and arg1
-					           or (typeof(arg1) == "Instance" and arg1.Name)
-					           or nil
+					local nombre = type(arg1) == "string" and arg1 or (typeof(arg1) == "Instance" and arg1.Name) or nil
 					if nombre then seleccionarNodo(nombre) end
-
 				elseif tipo == "CableDesconectado" or tipo == "ConexionCompletada" then
 					if not isVisible() then return end
-					-- Un cable fue creado o eliminado → refrescar matriz
 					scheduleRefresh()
-
 				elseif tipo == "SeleccionCancelada" then
 					if not isVisible() then return end
 					_nodoSelecIdx = nil
 					actualizarInfoNodo(nil, 0, 0, 0, nil, nil)
 					resaltarEnMatriz(nil)
-
 				elseif tipo == "ClicReparacion" then
-					-- arg1 = nombreNodo, arg2 = clics restantes
 					print(string.format("[ModuloMatriz] Reparando %s: faltan %d clics", tostring(arg1), tonumber(arg2) or 0))
-
 				elseif tipo == "NodoReparado" then
-					-- arg1 = nombreNodo
 					local nombre = type(arg1) == "string" and arg1 or nil
 					if nombre then
 						_nodosReparadosLocal[nombre] = true
 						print("[ModuloMatriz] Nodo reparado:", nombre)
-						if isVisible() then
-							renderizarMatriz(_matrizData)
-						end
+						if isVisible() then renderizarMatriz(_matrizData) end
 					end
 				end
 			end)
 			print("[ModuloMatriz] Escucha NotificarSeleccionNodo")
 		end
 
-		-- ActualizarEstadoConexiones: cobertura adicional (ConectarCables lo dispara
-		-- tanto al conectar como al desconectar desde cualquier ruta de código)
 		local actualizarConex = remotos:FindFirstChild("ActualizarEstadoConexiones")
 		if actualizarConex then
-			actualizarConex.OnClientEvent:Connect(function()
-				scheduleRefresh()
-			end)
+			actualizarConex.OnClientEvent:Connect(scheduleRefresh)
 			print("[ModuloMatriz] Escucha ActualizarEstadoConexiones")
 		end
 	else
 		warn("[ModuloMatriz] No se encontraron los Remotos de EventosGrafosV3")
 	end
 
-	-- Cambio de zona del jugador → refrescar si está abierto
 	jugador:GetAttributeChangedSignal("ZonaActual"):Connect(function()
 		if not isVisible() then return end
 		local zona = jugador:GetAttribute("ZonaActual") or ""
 		if zona == "" then
-			_matrizData   = nil
-			_esDirigido   = false
+			_matrizData = nil
+			_esDirigido = false
 			_nodoSelecIdx = nil
 			actualizarInfoNodo(nil, 0, 0, 0, nil, nil)
 			mostrarMensaje("Entra en una zona para ver su matriz")
@@ -826,25 +768,19 @@ function ModuloMatriz.inicializar(hudGui)
 	print("[ModuloMatriz] Inicializado")
 end
 
-function ModuloMatriz.configurarNivel(_nivelActual, _nivelID, _configNivel)
+function ModuloMatriz.configurarNivel(_, _, _)
 	if isVisible() then scheduleRefresh() end
 end
 
--- API pública para que módulos externos (e.g. ModuloMapa via ControladorHUD)
--- soliciten un refresco de la matriz. Solo actúa si el panel está visible.
 function ModuloMatriz.refrescar()
 	if isVisible() then scheduleRefresh() end
 end
 
--- Resalta el nodo con ese nombre en la matriz (llamado desde ModuloMapa en
--- el primer click del modo mapa). No hace nada si el panel no está visible.
 function ModuloMatriz.seleccionarNodoExterno(nombre)
 	if not isVisible() then return end
 	seleccionarNodo(nombre)
 end
 
--- Limpia el resaltado de selección (llamado desde ModuloMapa al cancelar
--- la selección en modo mapa). No hace nada si el panel no está visible.
 function ModuloMatriz.cancelarSeleccion()
 	if not isVisible() then return end
 	_nodoSelecIdx = nil

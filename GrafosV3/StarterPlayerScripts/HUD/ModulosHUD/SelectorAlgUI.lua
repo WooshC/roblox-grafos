@@ -130,8 +130,8 @@ local function crearToggleModo()
 		btn.Parent = estado.panel
 	end
 
-	btn.Size = UDim2.new(1, -28, 0, 28)
-	btn.Position = UDim2.new(0, 14, 0, 10)
+	btn.Size = UDim2.new(1, -28, 0, 26) 
+    btn.Position = UDim2.new(0, 14, 0, 44)
 	btn.BackgroundTransparency = 0.15
 	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	btn.TextSize = 13
@@ -256,7 +256,7 @@ local function estilizarPills()
 
 	frame.BackgroundTransparency = 1
 	frame.Size = UDim2.new(1, -28, 0, 40)
-	frame.Position = UDim2.new(0, 14, 0, 10 + 28 + 6)  -- debajo del encabezado con gap de 6px
+	frame.Position = UDim2.new(0, 14, 0, 76) 
 	frame.LayoutOrder = 1
 
 	-- Layout horizontal centrado
@@ -356,11 +356,10 @@ end
 -- POSICION RESPONSIVA
 -- ════════════════════════════════════════════════════════════════
 local function calcularPosicionResponsiva(pillsVisibles)
-	pillsVisibles = pillsVisibles or 4
-	local ancho = math.clamp(pillsVisibles * 92 + 48, 280, 420)
-	local alto  = 110
-	-- Centro absoluto de la pantalla (AnchorPoint 0.5,0.5)
-	return UDim2.new(0.5, 0, 0.5, 0), UDim2.new(0, ancho, 0, alto)
+    pillsVisibles = pillsVisibles or 4
+    local ancho = math.clamp(pillsVisibles * 92 + 48, 280, 420)
+    local alto  = 130
+    return UDim2.new(0.5, 0, 0.5, 0), UDim2.new(0, ancho, 0, alto)
 end
 
 -- ════════════════════════════════════════════════════════════════

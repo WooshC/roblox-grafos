@@ -356,6 +356,8 @@ LevelsConfig[1] = {
 		-- Zona 2: Mercado Central
 		["Poste_Mercado_z2"]  = {"Parque_z1", "Puesto_Mercado_z2","Parque_z2","Poste_Canchas_z3"},
 		["Puesto_Mercado_z2"] = {"Poste_Mercado_z2", "Poste_Canchas_z3","Entrada_Tunel_z2","Poste_aux_z2"},
+		["Entrada_Tunel_z2"] = {},
+		["Poste_aux_z2"] = {},
 		["Parque_z2"]={"Poste_Mercado_z2","Casa_Estacion1_z1"},
 
 		-- Zona 3: Las Canchas
@@ -407,6 +409,8 @@ LevelsConfig[1] = {
 		["Parque_z1"]         = "Parque de la Estación",
 		["Poste_Mercado_z2"]  = "Poste del Mercado",
 		["Puesto_Mercado_z2"] = "Puesto del Mercado",
+		["Entrada_Tunel_z2"]= "Entrada del Túnel",
+		["Poste_aux_z2"]         = "Poste auxiliar",
 		["Parque_z2"]         = "Parque del Mercado",
 		["Poste_Canchas_z3"]  = "Poste de las Canchas",
 		["Poste2_Canchas_z3"] = "Segundo Poste de las Canchas",
