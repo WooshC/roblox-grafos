@@ -1,5 +1,6 @@
 -- StarterPlayerScripts/HUD/ModulosHUD/SelectorModosHUD.lua
 -- Maneja el visual del SelectorModos: tamaños, textos y colores según modo activo.
+-- NO decide qué modo está activo; solo refleja el estado que le indique OrquestadorModos.
 
 local SelectorModosHUD = {}
 
@@ -9,6 +10,7 @@ local SelectorModosHUD = {}
 local _selector = nil
 local _botones  = {}
 local _modoActual = "visual"  -- visual | matriz | analisis
+local _onModoCambiado = nil
 
 -- ════════════════════════════════════════════════════════════════
 -- COLORES
@@ -60,15 +62,29 @@ local function _refrescarVisual()
 	_aplicarEstilo(_botones.analisis, _modoActual == "analisis", C.analisis)
 end
 
+local function _intentarCambiarModo(nuevoModo)
+	if nuevoModo == _modoActual then return end
+	if _onModoCambiado then
+		_onModoCambiado(nuevoModo)
+	end
+end
+
 -- ════════════════════════════════════════════════════════════════
 -- API PÚBLICA
 -- ════════════════════════════════════════════════════════════════
 
-function SelectorModosHUD.init(hudGui)
+---Inicializa el selector visual.
+-- @param hudGui ScreenGui
+-- @param opciones table|nil { onModoCambiado = function(nuevoModo) }
+function SelectorModosHUD.init(hudGui, opciones)
 	_selector = hudGui:FindFirstChild("SelectorModos", true)
 	if not _selector then
 		warn("[SelectorModosHUD] SelectorModos no encontrado")
 		return
+	end
+
+	if opciones and type(opciones.onModoCambiado) == "function" then
+		_onModoCambiado = opciones.onModoCambiado
 	end
 
 	-- Referencias
@@ -83,6 +99,23 @@ function SelectorModosHUD.init(hudGui)
 	-- Ajustar tamaño y texto de los 3 botones
 	for _, btn in pairs(_botones) do
 		_ajustarBoton(btn)
+	end
+
+	-- Conectar botones para solicitar cambio de modo
+	if _botones.visual then
+		_botones.visual.MouseButton1Click:Connect(function()
+			_intentarCambiarModo("visual")
+		end)
+	end
+	if _botones.matriz then
+		_botones.matriz.MouseButton1Click:Connect(function()
+			_intentarCambiarModo("matriz")
+		end)
+	end
+	if _botones.analisis then
+		_botones.analisis.MouseButton1Click:Connect(function()
+			_intentarCambiarModo("analisis")
+		end)
 	end
 
 	-- Aplicar estilo inicial

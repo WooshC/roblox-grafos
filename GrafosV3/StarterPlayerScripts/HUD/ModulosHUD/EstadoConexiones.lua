@@ -23,24 +23,25 @@ local Remotos = Eventos:WaitForChild("Remotos")
 -- GESTIÓN DE ESTADO
 -- ================================================================
 
+local GestorEfectos = require(script.Parent.Parent.Parent:WaitForChild("SistemasGameplay"):WaitForChild("GestorEfectos"))
+
+-- Conectar a eventos del servidor via GestorEfectos (único listener centralizado)
+GestorEfectos.registrar("ConexionCompletada", function(params)
+	local nodoA, nodoB = params.arg1, params.arg2
+	EstadoConexiones.registrarConexion(nodoA, nodoB)
+end)
+
+GestorEfectos.registrar("CableDesconectado", function(params)
+	local nodoA, nodoB = params.arg1, params.arg2
+	EstadoConexiones.eliminarConexion(nodoA, nodoB)
+end)
+
 function EstadoConexiones.inicializar(configNivel)
 	conexionesActivas = {}
 	nombresNodos = {}
 
 	if configNivel and configNivel.NombresNodos then
 		nombresNodos = configNivel.NombresNodos
-	end
-
-	-- Conectar a eventos del servidor
-	local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
-	if notificarEvento then
-		notificarEvento.OnClientEvent:Connect(function(tipoEvento, nodoA, nodoB)
-			if tipoEvento == "ConexionCompletada" then
-				EstadoConexiones.registrarConexion(nodoA, nodoB)
-			elseif tipoEvento == "CableDesconectado" then
-				EstadoConexiones.eliminarConexion(nodoA, nodoB)
-			end
-		end)
 	end
 
 	-- Nuevo evento específico para actualización de estado de conexiones

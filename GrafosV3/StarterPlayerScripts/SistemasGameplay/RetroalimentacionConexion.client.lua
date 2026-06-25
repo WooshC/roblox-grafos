@@ -1,6 +1,7 @@
 -- StarterPlayerScripts/SistemasGameplay/RetroalimentacionConexion.client.lua
--- Escucha NotificarSeleccionNodo y abre el diálogo de retroalimentación educativa
--- cuando el jugador intenta una conexión inválida o en dirección incorrecta.
+-- Escucha los eventos 'ConexionInvalida' / 'DireccionInvalida' del bus central
+-- GestorEfectos y abre el diálogo de retroalimentación educativa cuando el
+-- jugador intenta una conexión inválida o en dirección incorrecta.
 
 local Players = game:GetService("Players")
 

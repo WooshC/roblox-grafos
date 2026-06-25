@@ -273,6 +273,17 @@ local function detenerFlujosDeNodo(nombreNodo)
 	end
 end
 
+-- Detener todos los flujos activos (usado al descargar nivel)
+local function detenerTodosLosFlujos()
+	local ids = {}
+	for idConexion, _ in pairs(conexionesActivas) do
+		table.insert(ids, idConexion)
+	end
+	for _, id in ipairs(ids) do
+		detenerFlujoParticulas(id)
+	end
+end
+
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- EVENTOS (via GestorEfectos — sin conexión directa al RemoteEvent)
 -- ═══════════════════════════════════════════════════════════════════════════════
@@ -302,6 +313,11 @@ GestorEfectos.registrar("NodoSobrecargado", function(params)
 	if not nombreNodo then return end
 	-- print("[ParticulasConexion] Nodo sobrecargado, limpiando partículas:", nombreNodo)
 	detenerFlujosDeNodo(nombreNodo)
+end)
+
+GestorEfectos.registrar("NivelDescargado", function(_params)
+	print("[ParticulasConexion] Nivel descargado — deteniendo todos los flujos")
+	detenerTodosLosFlujos()
 end)
 
 print("[ParticulasConexion] Sistema listo")

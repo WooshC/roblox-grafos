@@ -8,6 +8,7 @@ local RS      = game:GetService("ReplicatedStorage")
 local jugador    = Players.LocalPlayer
 local LevelsConfig = require(RS:WaitForChild("Config"):WaitForChild("LevelsConfig"))
 local GrafoHelpers = require(RS:WaitForChild("Compartido"):WaitForChild("GrafoHelpers"))
+local GestorEfectos = require(script.Parent.Parent.Parent:WaitForChild("SistemasGameplay"):WaitForChild("GestorEfectos"))
 
 local ModuloMatriz = {}
 
@@ -713,34 +714,45 @@ function ModuloMatriz.inicializar(hudGui)
 	end)
 
 	if ok and remotos then
-		local notifyEvent = remotos:FindFirstChild("NotificarSeleccionNodo")
-		if notifyEvent then
-			notifyEvent.OnClientEvent:Connect(function(tipo, arg1, arg2)
-				if tipo == "NodoSeleccionado" then
-					if not isVisible() then return end
-					local nombre = type(arg1) == "string" and arg1 or (typeof(arg1) == "Instance" and arg1.Name) or nil
-					if nombre then seleccionarNodo(nombre) end
-				elseif tipo == "CableDesconectado" or tipo == "ConexionCompletada" then
-					if not isVisible() then return end
-					scheduleRefresh()
-				elseif tipo == "SeleccionCancelada" then
-					if not isVisible() then return end
-					_nodoSelecIdx = nil
-					actualizarInfoNodo(nil, 0, 0, 0, nil, nil)
-					resaltarEnMatriz(nil)
-				elseif tipo == "ClicReparacion" then
-					print(string.format("[ModuloMatriz] Reparando %s: faltan %d clics", tostring(arg1), tonumber(arg2) or 0))
-				elseif tipo == "NodoReparado" then
-					local nombre = type(arg1) == "string" and arg1 or nil
-					if nombre then
-						_nodosReparadosLocal[nombre] = true
-						print("[ModuloMatriz] Nodo reparado:", nombre)
-						if isVisible() then renderizarMatriz(_matrizData) end
-					end
-				end
-			end)
-			print("[ModuloMatriz] Escucha NotificarSeleccionNodo")
-		end
+		-- Escuchar eventos de gameplay via GestorEfectos (único listener centralizado)
+		GestorEfectos.registrar("NodoSeleccionado", function(params)
+			if not isVisible() then return end
+			local arg1 = params.arg1
+			local nombre = type(arg1) == "string" and arg1 or (typeof(arg1) == "Instance" and arg1.Name) or nil
+			if nombre then seleccionarNodo(nombre) end
+		end)
+
+		GestorEfectos.registrar("CableDesconectado", function(_params)
+			if not isVisible() then return end
+			scheduleRefresh()
+		end)
+
+		GestorEfectos.registrar("ConexionCompletada", function(_params)
+			if not isVisible() then return end
+			scheduleRefresh()
+		end)
+
+		GestorEfectos.registrar("SeleccionCancelada", function(_params)
+			if not isVisible() then return end
+			_nodoSelecIdx = nil
+			actualizarInfoNodo(nil, 0, 0, 0, nil, nil)
+			resaltarEnMatriz(nil)
+		end)
+
+		GestorEfectos.registrar("ClicReparacion", function(params)
+			print(string.format("[ModuloMatriz] Reparando %s: faltan %d clics", tostring(params.arg1), tonumber(params.arg2) or 0))
+		end)
+
+		GestorEfectos.registrar("NodoReparado", function(params)
+			local nombre = type(params.arg1) == "string" and params.arg1 or nil
+			if nombre then
+				_nodosReparadosLocal[nombre] = true
+				print("[ModuloMatriz] Nodo reparado:", nombre)
+				if isVisible() then renderizarMatriz(_matrizData) end
+			end
+		end)
+
+		print("[ModuloMatriz] Escucha GestorEfectos registrada")
 
 		local actualizarConex = remotos:FindFirstChild("ActualizarEstadoConexiones")
 		if actualizarConex then
@@ -794,6 +806,10 @@ function ModuloMatriz.limpiar()
 end
 
 function ModuloMatriz.estaAbierta()
+	return isVisible()
+end
+
+function ModuloMatriz.estaAbierto()
 	return isVisible()
 end
 

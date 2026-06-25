@@ -17,6 +17,7 @@ local ConstantesAnalisis = require(script.Parent.ModuloAnalisis.ConstantesAnalis
 local GrafoHelpers       = require(RS:WaitForChild("Compartido"):WaitForChild("GrafoHelpers"))
 local EfectosHighlight   = require(RS:WaitForChild("Efectos"):WaitForChild("EfectosHighlight"))
 local GestorEfectos      = require(script.Parent.Parent.Parent:WaitForChild("SistemasGameplay"):WaitForChild("GestorEfectos"))
+local OrquestadorModos   = require(script.Parent.Parent.Parent:WaitForChild("SistemasGameplay"):WaitForChild("OrquestadorModos"))
 local EstadoConexiones   = require(script.Parent:WaitForChild("EstadoConexiones"))
 
 local jugador = Players.LocalPlayer
@@ -1127,6 +1128,7 @@ function EjecutorAlgoritmo3D.inicializar(hudGui)
 		estado.totalPasos = 0
 		estado.zonaAnclada = nil
 		if estado.btnEjecutar then estado.btnEjecutar.Text = "Ejecutar Algoritmo" end
+		OrquestadorModos.setModo("visual")
 	end)
 	SelectorAlgUI.conectarCerrar(function()
 		SelectorAlgUI.ocultar()
@@ -1143,24 +1145,14 @@ function EjecutorAlgoritmo3D.inicializar(hudGui)
 		end
 	end)
 
-	-- Escuchar reparación de nodos
-	local ok2, remotos = pcall(function()
-		return RS:WaitForChild("EventosGrafosV3", 10):WaitForChild("Remotos", 5)
-	end)
-	if ok2 and remotos then
-		local notifyEvent = remotos:FindFirstChild("NotificarSeleccionNodo")
-		if notifyEvent then
-			notifyEvent.OnClientEvent:Connect(function(tipo, arg1)
-				if tipo == "NodoReparado" then
-					local nombre = type(arg1) == "string" and arg1 or nil
-					if nombre then
-						PanelAlgoritmo3D.marcarNodoReparado(nombre)
-						invalidarCacheTopologia()
-					end
-				end
-			end)
+	-- Escuchar reparación de nodos via GestorEfectos
+	GestorEfectos.registrar("NodoReparado", function(params)
+		local nombre = type(params.arg1) == "string" and params.arg1 or nil
+		if nombre then
+			PanelAlgoritmo3D.marcarNodoReparado(nombre)
+			invalidarCacheTopologia()
 		end
-	end
+	end)
 
 	local pillNames = {
 		bfs = "PillBFS",
@@ -1179,6 +1171,7 @@ function EjecutorAlgoritmo3D.inicializar(hudGui)
 			end
 			estado.zonaAnclada = jugador:GetAttribute("ZonaActual") or ""
 			SelectorAlgUI.ocultar()
+			OrquestadorModos.setModo("algoritmo3d")
 			iniciarSimulacion(algo)
 		end)
 	end
@@ -1193,6 +1186,23 @@ function EjecutorAlgoritmo3D.inicializar(hudGui)
 	print("[EjecutorAlgoritmo3D] ===== INICIALIZADO =====")
 	print("[EjecutorAlgoritmo3D] SelectorAlgUI cargado:", tostring(SelectorAlgUI ~= nil))
 end
+
+-- Registrarse en el orquestador de modos
+OrquestadorModos.registrarModo("algoritmo3d", {
+	activar = function()
+		-- La activación real ocurre en iniciarSimulacion; aquí no es necesario hacer nada.
+	end,
+	limpiar = function()
+		limpiarEfectos3D()
+		PanelAlgoritmo3D.ocultar()
+		estado.activo = false
+		estado.pasos = {}
+		estado.pasoActual = 0
+		estado.totalPasos = 0
+		estado.zonaAnclada = nil
+		if estado.btnEjecutar then estado.btnEjecutar.Text = "Ejecutar Algoritmo" end
+	end,
+})
 
 function EjecutorAlgoritmo3D.limpiar()
 	limpiarEfectos3D()

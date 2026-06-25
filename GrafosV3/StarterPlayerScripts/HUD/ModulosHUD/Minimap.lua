@@ -21,6 +21,7 @@ local EfectosNodo       = require(ReplicatedStorage.Efectos.EfectosNodo)
 local EstadoConexiones  = require(script.Parent.EstadoConexiones)
 local LevelsConfig      = require(ReplicatedStorage:WaitForChild("Config"):WaitForChild("LevelsConfig"))
 local GrafoHelpers      = require(ReplicatedStorage:WaitForChild("Compartido"):WaitForChild("GrafoHelpers"))
+local GestorEfectos     = require(script.Parent.Parent.Parent:WaitForChild("SistemasGameplay"):WaitForChild("GestorEfectos"))
 
 local Minimap = {}
 
@@ -327,64 +328,7 @@ end
 -- ACTIVAR MINIMAPA (después de configurarNivel)
 -- ════════════════════════════════════════════════════════════════════════
 
-local function activar()
-	task.spawn(function()
-		task.wait(0.3)  -- pequeño delay para que los Beams del servidor estén replicados
-
-		worldModel:ClearAllChildren()
-		mapaPostes   = {}
-		listaCables  = {}
-		partActivas  = {}
-		puntero      = nil
-		tiempoCables = 0
-
-		cargarNodos()
-		actualizarCables()
-		crearPuntero()
-
-		if contenedor then contenedor.Visible = true end
-		print("[Minimap] Activo — nivel", nivelID)
-	end)
-end
-
--- ════════════════════════════════════════════════════════════════════════
--- API PÚBLICA
--- ════════════════════════════════════════════════════════════════════════
-
--- Llamar una vez al inicio desde ControladorHUD
-function Minimap.inicializar(hudGui)
-	-- Buscar ContenedorMiniMapa en cualquier nivel de la jerarquía
-	contenedor = hudGui:FindFirstChild("ContenedorMiniMapa", true)
-	
-	local vista = contenedor:FindFirstChild("Vista")
-	-- WorldModel: obtener o crear
-	worldModel = vista:FindFirstChild("WorldModel")
-
-	-- Cámara del ViewportFrame: obtener o crear
-	miniCamera = vista.CurrentCamera
-	if not miniCamera then
-		miniCamera              = Instance.new("Camera")
-		miniCamera.FieldOfView  = 70
-		miniCamera.Parent       = vista
-		vista.CurrentCamera     = miniCamera
-	end
-
-	-- Escuchar eventos de conexión para las partículas
-	local evts    = ReplicatedStorage:FindFirstChild("EventosGrafosV3")
-	local remotos = evts and evts:FindFirstChild("Remotos")
-	local notEvt  = remotos and remotos:FindFirstChild("NotificarSeleccionNodo")
-
-	if notEvt then
-		notEvt.OnClientEvent:Connect(function(tipo, nomA, nomB)
-			if tipo == "ConexionCompletada" and nomA and nomB then
-				iniciarParticulas(idConexion(nomA, nomB), nomA, nomB)
-			elseif tipo == "CableDesconectado" and nomA and nomB then
-				detenerParticulas(idConexion(nomA, nomB))
-			end
-		end)
-	end
-
-	-- Loop principal
+local function conectarUpdateLoop()
 	if updateConn then updateConn:Disconnect() end
 	updateConn = RunService.RenderStepped:Connect(function(dt)
 		if not contenedor or not contenedor.Visible then return end
@@ -415,6 +359,80 @@ function Minimap.inicializar(hudGui)
 			actualizarCables()
 		end
 	end)
+end
+
+local function activar()
+	task.spawn(function()
+		task.wait(0.3)  -- pequeño delay para que los Beams del servidor estén replicados
+
+		-- Reconectar loop si fue limpiado previamente
+		if not updateConn then
+			conectarUpdateLoop()
+		end
+
+		worldModel:ClearAllChildren()
+		mapaPostes   = {}
+		listaCables  = {}
+		partActivas  = {}
+		puntero      = nil
+		tiempoCables = 0
+
+		cargarNodos()
+		actualizarCables()
+		crearPuntero()
+
+		if contenedor then contenedor.Visible = true end
+		print("[Minimap] Activo — nivel", nivelID)
+	end)
+end
+
+-- ════════════════════════════════════════════════════════════════════════
+-- API PÚBLICA
+-- ════════════════════════════════════════════════════════════════════════
+
+-- Llamar una vez al inicio desde ControladorHUD
+function Minimap.inicializar(hudGui)
+	-- Buscar ContenedorMiniMapa en cualquier nivel de la jerarquía
+	contenedor = hudGui:FindFirstChild("ContenedorMiniMapa", true)
+	if not contenedor then
+		warn("[Minimap] ContenedorMiniMapa no encontrado en HUD")
+		return
+	end
+	
+	local vista = contenedor:FindFirstChild("Vista")
+	-- WorldModel: obtener o crear
+	worldModel = vista:FindFirstChild("WorldModel")
+
+	-- Cámara del ViewportFrame: obtener o crear
+	miniCamera = vista.CurrentCamera
+	if not miniCamera then
+		miniCamera              = Instance.new("Camera")
+		miniCamera.FieldOfView  = 70
+		miniCamera.Parent       = vista
+		vista.CurrentCamera     = miniCamera
+	end
+
+	-- Escuchar limpieza de nivel
+	GestorEfectos.registrar("NivelDescargado", function(_params)
+		Minimap.limpiar()
+	end)
+
+	-- Escuchar eventos de conexión para las partículas (via GestorEfectos)
+	GestorEfectos.registrar("ConexionCompletada", function(params)
+		local nomA, nomB = params.arg1, params.arg2
+		if nomA and nomB then
+			iniciarParticulas(idConexion(nomA, nomB), nomA, nomB)
+		end
+	end)
+	GestorEfectos.registrar("CableDesconectado", function(params)
+		local nomA, nomB = params.arg1, params.arg2
+		if nomA and nomB then
+			detenerParticulas(idConexion(nomA, nomB))
+		end
+	end)
+
+	-- Loop principal
+	conectarUpdateLoop()
 
 	contenedor.Visible = false
 	print("[Minimap] Inicializado ✅")
@@ -429,6 +447,11 @@ end
 
 -- Llamar en desactivarHUD desde ControladorHUD
 function Minimap.limpiar()
+	if updateConn then
+		updateConn:Disconnect()
+		updateConn = nil
+	end
+
 	if contenedor then contenedor.Visible = false end
 
 	partActivas = {}

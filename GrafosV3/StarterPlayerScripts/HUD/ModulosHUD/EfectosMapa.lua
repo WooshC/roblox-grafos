@@ -16,6 +16,7 @@ local function getEfectosHighlight()
 end
 
 local BillboardNombres = require(ReplicatedStorage.Efectos.BillboardNombres)
+local GestorEfectos = require(script.Parent.Parent.Parent:WaitForChild("SistemasGameplay"):WaitForChild("GestorEfectos"))
 
 local EfectosMapa = {}
 
@@ -69,21 +70,27 @@ function EfectosMapa.limpiarTodo()
 			end
 		end
 	end
-	partesOriginales = {}
-	
+	-- NOTA: no limpiar partesOriginales aquí; la caché debe sobrevivir entre
+	-- aperturas del mapa para no guardar estados intermedios como originales.
+
 	-- Restaurar Beams
 	for _, data in ipairs(beamsOriginales) do
 		if data.beam and data.beam.Parent then
 			data.beam.Color = data.colorOriginal
 		end
 	end
-	beamsOriginales = {}
+	-- NOTA: tampoco limpiar beamsOriginales aquí.
 
 	-- Limpiar billboards
 	BillboardNombres.destruirPorPrefijo("MapaBB_")
 
 	-- Limpiar Highlights de nodos del mapa
 	getEfectosHighlight().limpiarMapaNodos()
+end
+
+function EfectosMapa.limpiarCacheOriginales()
+	partesOriginales = {}
+	beamsOriginales = {}
 end
 
 function EfectosMapa.obtenerNombreAmigable(nombreNodo)
@@ -152,6 +159,27 @@ function EfectosMapa.guardarEstadoOriginal(parte)
 		transparencyOriginal = parte.Transparency,
 		tamanoOriginal     = Vector3.new(parte.Size.X, parte.Size.Y, parte.Size.Z),
 	})
+end
+
+function EfectosMapa.guardarEstadosOriginalesNivel(nivelModel)
+	if not nivelModel then return end
+	for _, nodo in ipairs(nivelModel:GetDescendants()) do
+		if nodo:IsA("Model") and nodo.Name:find("_zN$") then
+			local parte = EfectosMapa.obtenerParteSelector(nodo)
+			if parte then
+				EfectosMapa.guardarEstadoOriginal(parte)
+			end
+		end
+	end
+	local conexionesFolder = nivelModel:FindFirstChild("Conexiones", true)
+	if conexionesFolder then
+		for _, cable in ipairs(conexionesFolder:GetChildren()) do
+			local beam = cable:FindFirstChildOfClass("Beam")
+			if beam then
+				EfectosMapa.guardarEstadoBeamOriginal(beam)
+			end
+		end
+	end
 end
 
 function EfectosMapa.guardarEstadoBeamOriginal(beam)
@@ -334,5 +362,11 @@ function EfectosMapa.actualizarTodos(nivelActual, nodoSeleccionado, adyacentes)
 		end
 	end
 end
+
+-- Al descargar el nivel limpiar efectos del mapa y la caché de originales
+GestorEfectos.registrar("NivelDescargado", function(_params)
+	EfectosMapa.limpiarTodo()
+	EfectosMapa.limpiarCacheOriginales()
+end)
 
 return EfectosMapa

@@ -2,7 +2,6 @@
 -- Controlador de audio especifico para el Gameplay.
 
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterPlayerScripts = game:GetService("StarterPlayer").StarterPlayerScripts
 
 local player = Players.LocalPlayer
@@ -80,44 +79,46 @@ local function desactivar()
 end
 
 -- ═══════════════════════════════════════════════════════════════════════════════
--- CONEXION A EVENTOS DEL SERVIDOR
+-- CONEXION A EVENTOS DEL SERVIDOR (via GestorEfectos)
 -- ═══════════════════════════════════════════════════════════════════════════════
 
+local GestorEfectos = require(script.Parent:WaitForChild("GestorEfectos"))
+
 local function conectarEventos()
-	local Eventos = ReplicatedStorage:WaitForChild("EventosGrafosV3", 10)
-	if not Eventos then return end
-	
-	local Remotos = Eventos:WaitForChild("Remotos")
-	
 	-- Eventos de conexion de cables
-	local notificarEvento = Remotos:WaitForChild("NotificarSeleccionNodo")
-	local conn1 = notificarEvento.OnClientEvent:Connect(function(eventType, arg1, arg2)
+	GestorEfectos.registrar("NodoSeleccionado", function(_params)
 		if not _activo or not ControladorAudio then return end
-		
-		if eventType == "NodoSeleccionado" then
-			ControladorAudio.playNodoSeleccionado()
-			
-		elseif eventType == "ConexionCompletada" then
-			ControladorAudio.playCableConectar(true)
-			
-		elseif eventType == "ConexionInvalida" then
-			ControladorAudio.playCableConectar(false)
-			
-		elseif eventType == "CableDesconectado" then
-			ControladorAudio.playCableDesconectar()
-			
-		end
+		ControladorAudio.playNodoSeleccionado()
 	end)
-	table.insert(_conexiones, conn1)
-	
-	-- Evento de victoria
-	local nivelCompletado = Remotos:WaitForChild("NivelCompletado")
-	local conn2 = nivelCompletado.OnClientEvent:Connect(function(data)
+
+	GestorEfectos.registrar("ConexionCompletada", function(_params)
 		if not _activo or not ControladorAudio then return end
-		print("[AudioGameplay] Nivel completado - Reproduciendo victoria")
-		ControladorAudio.playVictoria()
+		ControladorAudio.playCableConectar(true)
 	end)
-	table.insert(_conexiones, conn2)
+
+	GestorEfectos.registrar("ConexionInvalida", function(_params)
+		if not _activo or not ControladorAudio then return end
+		ControladorAudio.playCableConectar(false)
+	end)
+
+	GestorEfectos.registrar("CableDesconectado", function(_params)
+		if not _activo or not ControladorAudio then return end
+		ControladorAudio.playCableDesconectar()
+	end)
+
+	-- Evento de victoria (se mantiene directo porque no es un efecto de gameplay)
+	local ReplicatedStorage = game:GetService("ReplicatedStorage")
+	local Eventos = ReplicatedStorage:WaitForChild("EventosGrafosV3", 10)
+	if Eventos then
+		local Remotos = Eventos:WaitForChild("Remotos")
+		local nivelCompletado = Remotos:WaitForChild("NivelCompletado")
+		local conn = nivelCompletado.OnClientEvent:Connect(function(data)
+			if not _activo or not ControladorAudio then return end
+			print("[AudioGameplay] Nivel completado - Reproduciendo victoria")
+			ControladorAudio.playVictoria()
+		end)
+		table.insert(_conexiones, conn)
+	end
 end
 
 -- ═══════════════════════════════════════════════════════════════════════════════
@@ -129,22 +130,16 @@ print("[AudioGameplay] Inicializando...")
 -- Conectar eventos
 conectarEventos()
 
--- Escuchar evento de nivel listo
-local Eventos = ReplicatedStorage:WaitForChild("EventosGrafosV3", 10)
-if Eventos then
-	local Remotos = Eventos:WaitForChild("Remotos")
-	
-	local nivelListo = Remotos:WaitForChild("NivelListo")
-	nivelListo.OnClientEvent:Connect(function(data)
-		if data and data.nivelID ~= nil then
-			activar(data.nivelID)
-		end
-	end)
-	
-	local nivelDescargado = Remotos:WaitForChild("NivelDescargado")
-	nivelDescargado.OnClientEvent:Connect(function()
-		desactivar()
-	end)
-end
+-- Escuchar eventos de ciclo de vida via GestorEfectos
+GestorEfectos.registrar("NivelListo", function(params)
+	local data = params.arg1
+	if data and data.nivelID ~= nil then
+		activar(data.nivelID)
+	end
+end)
+
+GestorEfectos.registrar("NivelDescargado", function(_params)
+	desactivar()
+end)
 
 print("[AudioGameplay] Sistema de audio del gameplay inicializado")

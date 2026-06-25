@@ -107,7 +107,7 @@ Efectos/
   EfectosDialogo.lua           -- resaltarNodo, mostrarLabel, mostrarArista, blink, limpiarTodo
   EfectosHighlight.lua         -- Sistema centralizado de Highlights de Roblox
   BillboardNombres.lua         -- Etiquetas flotantes 3D
-  EfectosCable.lua             -- Beams con pulso UV de energía
+  EfectosCable.lua             -- (eliminado) Beams con pulso UV de energía; ningún sistema lo requería
   PresetTween.lua              -- Configuraciones de tweening reutilizables
   EfectosVideo.lua             -- Efectos de video generales
   EfectosNodo.lua              -- Efectos de nodos

@@ -39,6 +39,7 @@ local TimerEmergenciaHUD = require(ModulosHUD.TimerEmergenciaHUD)
 local SelectorModosHUD = require(ModulosHUD.SelectorModosHUD)
 local EjecutorAlgoritmo3D = require(ModulosHUD.EjecutorAlgoritmo3D)
 local AyudaHUD = require(ModulosHUD.AyudaHUD)
+local OrquestadorModos = require(script.Parent.Parent:WaitForChild("SistemasGameplay"):WaitForChild("OrquestadorModos"))
 
 -- Inicializar módulos con referencia al hud
 TransicionHUD.reset()
@@ -51,8 +52,51 @@ ModuloMatriz.inicializar(hudGui)
 ModuloAnalisis.inicializar(hudGui)
 PanelLogrosHUD.init(hudGui)
 TimerEmergenciaHUD.init(hudGui)
-SelectorModosHUD.init(hudGui)
 EjecutorAlgoritmo3D.inicializar(hudGui)
+
+-- Selector de modos: recibe ordenes de OrquestadorModos y también las emite
+SelectorModosHUD.init(hudGui, {
+	onModoCambiado = function(nuevoModo)
+		if nuevoModo == "visual" then
+			-- Volver al modo visual: cerrar mapa y paneles UI
+			OrquestadorModos.setModo("visual")
+			ModuloMatriz.cerrar()
+			ModuloAnalisis.cerrar()
+		elseif nuevoModo == "matriz" then
+			OrquestadorModos.setModo("visual") -- paneles UI requieren modo visual
+			ModuloAnalisis.cerrar()
+			if ModuloMatriz.estaAbierto and ModuloMatriz.estaAbierto() then
+				ModuloMatriz.cerrar()
+			else
+				ModuloMatriz.abrir()
+			end
+		elseif nuevoModo == "analisis" then
+			OrquestadorModos.setModo("visual") -- paneles UI requieren modo visual
+			ModuloMatriz.cerrar()
+			if ModuloAnalisis.estaAbierto and ModuloAnalisis.estaAbierto() then
+				ModuloAnalisis.cerrar()
+			else
+				ModuloAnalisis.abrir()
+			end
+		end
+	end
+})
+
+-- Conectar OrquestadorModos con SelectorModosHUD
+OrquestadorModos.setCallbackUI(function(modo)
+	SelectorModosHUD.setModoActivo(modo)
+end)
+
+-- Registrar modo visual por defecto (cleanup de modos anteriores)
+OrquestadorModos.registrarModo("visual", {
+	activar = function()
+		-- Al volver a visual no es necesario hacer nada especial;
+		-- cada sistema escucha CambioModo y limpia sus efectos.
+	end,
+	limpiar = function()
+		-- No-op: el cleanup real lo hacen los sistemas al recibir CambioModo.
+	end
+})
 
 -- Asegurar que la leyenda del mapa inicie oculta (por si el GUI la tiene visible por defecto)
 task.defer(function()

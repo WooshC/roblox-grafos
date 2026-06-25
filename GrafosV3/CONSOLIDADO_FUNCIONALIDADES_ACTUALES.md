@@ -100,8 +100,8 @@ Sistema de tablet de escaneo (tecla `Tab`) compuesto por 5 submódulos SRP:
     - Reproduce `UI/Click`, `UI/Play`, y la música por nivel dinámicamente.
     - Soporta de manera nativa *Crossfading* inteligente de músicas al pasar entre menú y juego y controla el fade para las "Fanfarrias" de final de nivel que reemplazan a los ruidos del entorno temporalmente.
 - **Bus Global de FX (`GestorEfectos.lua` / `ControladorEfectos.client`):** Proxy que evita lag instruyendo a los clientes que animen lo siguiente simulado:
-    - **Cables con Pulso Eléctrico (`EfectosCable.lua`):** Un cable magnético (`Beam`) se tiñe de un color según `PresetTween` y un módulo `RunService` aplica el desplazamiento `UV` infinito de una textura de destellos para simular flujo de corriente eléctrica.
     - **Billboards Variables (`BillboardNombres.lua`):** Módulo matemático que ancla carteles GUI flotantes a objetos 3D ignorando sombras dinámicas u obstrucciones de luz, cambiando esquemas de color entre `Zona` (`Cyan`), `NodoInteraccion` (`Blanco`) y estado de selección en el Mapa mediante Interpolación Linear Suave (`PresetTween`).
+- **Legacy / No activo:** `EfectosCable.lua` fue eliminado del proyecto porque ningún sistema lo requería en runtime. Su funcionalidad (pulso UV en Beams y preview de arrastre) queda archivada en el historial de Git por si se necesita en el futuro.
 - **Control Fino de Cámara (`ServicioCamara.lua`):** Incluye anidación anti-Deadlock. Rota sin problemas entre enfoques Isométricos o de Persona cancelando transiciones cruzadas, impidiendo estancarse al hablar con un Personaje Guía.
 
 ---
@@ -146,7 +146,7 @@ Sistema de tablet de escaneo (tecla `Tab`) compuesto por 5 submódulos SRP:
 - **`ParticulasConexion.client.lua`:** Bolas de luz con `PointLight` y `Trail` que viajan por las aristas. Dirección A→B (cyan) y B→A (rosa) para grafos no dirigidos.
 - **`SistemaEnergia.client.lua`:** Apaga **todos** los componentes luminosos (`PointLight`, `SpotLight`, `SurfaceLight`, `Beam`, `ParticleEmitter`, `Neon`) al cargar nivel. Los enciende progresivamente con `Tween` según eventos `ProgresoEnergia` del servidor.
 - **`GuiaService.lua`:** Sistema de guía visual con `Beam` texturizado con flechas animadas desde la cabeza del jugador hasta el objetivo. Auto-avance por completitud de zona. Se conecta a `NivelListo`/`NivelDescargado`.
-- **`RetroalimentacionConexion.client.lua`:** Feedback visual inmediato al intentar conexiones inválidas. Lanza diálogos de `Feedback_Conexiones` vía `_G.ControladorDialogo.iniciar()`.
+- **`RetroalimentacionConexion.client.lua`:** Feedback visual inmediato al intentar conexiones inválidas. Escucha `ConexionInvalida` / `DireccionInvalida` a través de `GestorEfectos` y lanza diálogos de `Feedback_Conexiones` vía `_G.ControladorDialogo.iniciar()`.
 
 ---
 

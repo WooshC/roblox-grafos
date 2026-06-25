@@ -272,7 +272,7 @@ function EfectosDialogo.mostrarArista(nombreA, nombreB, colorTipo, opciones)
 	beam.Segments     = 10
 	beam.Parent       = ancla
 
-	-- Pulso de grosor (mismo patrón que EfectosCable)
+	-- Pulso de grosor con Heartbeat
 	local pulsoConn = RunService.Heartbeat:Connect(function(dt)
 		if not beam or not beam.Parent then return end
 		local t = tick() * 3

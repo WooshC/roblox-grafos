@@ -16,6 +16,8 @@ local PresetTween = require(ReplicatedStorage.Efectos.PresetTween)
 local LevelsConfig = require(ReplicatedStorage.Config.LevelsConfig)
 local ServicioCamara = require(ReplicatedStorage.Compartido.ServicioCamara)
 local GestorColisiones = require(ReplicatedStorage.Compartido.GestorColisiones)
+local GestorEfectos = require(script.Parent.Parent.Parent:WaitForChild("SistemasGameplay"):WaitForChild("GestorEfectos"))
+local OrquestadorModos = require(script.Parent.Parent.Parent:WaitForChild("SistemasGameplay"):WaitForChild("OrquestadorModos"))
 
 local ModuloMapa = {}
 
@@ -210,21 +212,19 @@ function ModuloMapa.inicializar(hudRef)
 			end)
 		end
 
-		-- Escuchar cambios de conexiones para actualizar colores en tiempo real
-		local notificarSeleccion = eventosFolder.Remotos:FindFirstChild("NotificarSeleccionNodo")
-		if notificarSeleccion then
-			notificarSeleccion.OnClientEvent:Connect(function(eventType, arg1, arg2)
-				-- Si el mapa está abierto y hay un evento de conexión/desconexión, actualizar
-				if mapaAbierto then
-					if eventType == "ConexionCompletada" or eventType == "CableDesconectado" then
-						-- print("[ModuloMapa] Conexión cambiada, actualizando efectos...")
-						task.wait(0.1) -- Pequeño delay para que el servidor actualice primero
-						_actualizarHighlights()
-						_actualizarInfoHUD()
-					end
-				end
-			end)
-		end
+		-- Escuchar cambios de conexiones para actualizar colores en tiempo real (via GestorEfectos)
+		GestorEfectos.registrar("ConexionCompletada", function(_params)
+			if not mapaAbierto then return end
+			task.wait(0.1)
+			_actualizarHighlights()
+			_actualizarInfoHUD()
+		end)
+		GestorEfectos.registrar("CableDesconectado", function(_params)
+			if not mapaAbierto then return end
+			task.wait(0.1)
+			_actualizarHighlights()
+			_actualizarInfoHUD()
+		end)
 	end
 
 	-- Inicialmente oculto
@@ -270,6 +270,7 @@ function ModuloMapa.configurarNivel(nivelModel, id, config)
 	-- Inicializar efectos del mapa y estado de conexiones
 	EstadoConexiones.inicializar(config)
 	EfectosMapa.inicializar(config, EstadoConexiones)
+	EfectosMapa.guardarEstadosOriginalesNivel(nivelModel)
 
 	-- Inicializar efectos de zonas (billboards)
 	EfectosZonas.inicializar(nivelModel, config)
@@ -799,7 +800,8 @@ end
 -- API PUBLICA - ABRIR / CERRAR
 -- ================================================================
 
-function ModuloMapa.abrir()
+-- Lógica interna de apertura del mapa (llamada por OrquestadorModos)
+local function _abrirMapa()
 	if mapaAbierto then return end
 	if not frameMapa then
 		warn("[ModuloMapa] Frame del mapa no encontrado")
@@ -851,7 +853,7 @@ function ModuloMapa.abrir()
 	-- Actualizar UI Informativa
 	_actualizarInfoHUD()
 	_actualizarLegend()
-	
+
 	-- Mostrar la leyenda solo cuando se abre el mapa
 	if frameLeyenda then
 		frameLeyenda.Visible = true
@@ -885,7 +887,8 @@ function ModuloMapa.abrir()
 	print("[ModuloMapa] Mapa abierto")
 end
 
-function ModuloMapa.cerrar()
+-- Lógica interna de cierre del mapa (llamada por OrquestadorModos)
+local function _cerrarMapa()
 	if not mapaAbierto then return end
 
 	print("[ModuloMapa] Cerrando mapa...")
@@ -948,6 +951,20 @@ function ModuloMapa.cerrar()
 	print("[ModuloMapa] Mapa cerrado")
 end
 
+-- Registrarse en el orquestador de modos
+OrquestadorModos.registrarModo("mapa", {
+	activar = _abrirMapa,
+	limpiar = _cerrarMapa,
+})
+
+function ModuloMapa.abrir()
+	OrquestadorModos.setModo("mapa")
+end
+
+function ModuloMapa.cerrar()
+	OrquestadorModos.setModo("visual")
+end
+
 function ModuloMapa.estaAbierto()
 	return mapaAbierto
 end
@@ -984,9 +1001,9 @@ end
 function ModuloMapa.limpiar()
 	print("[ModuloMapa] Iniciando limpieza...")
 
-	-- Cerrar mapa si está abierto
+	-- Cerrar mapa si está abierto (directo para evitar bucle con OrquestadorModos)
 	if mapaAbierto then
-		ModuloMapa.cerrar()
+		_cerrarMapa()
 	end
 
 	-- Desconectar conexiones

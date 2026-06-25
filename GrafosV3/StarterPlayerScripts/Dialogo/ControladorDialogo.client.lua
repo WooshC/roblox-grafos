@@ -21,6 +21,7 @@ local GestorBloqueos = require(RS:WaitForChild("Compartido"):WaitForChild("Gesto
 local LevelsConfig = require(RS:WaitForChild("Config"):WaitForChild("LevelsConfig"))
 local Utilidades = require(RS:WaitForChild("Compartido"):WaitForChild("Utilidades"))
 local DialogoJugadorController = require(script.Parent:WaitForChild("DialogoJugadorController"))
+local OrquestadorModos = require(script.Parent.Parent:WaitForChild("SistemasGameplay"):WaitForChild("OrquestadorModos"))
 
 -- (obtenerModuloMapa movido a DialogoJugadorController)
 
@@ -133,6 +134,7 @@ end
 local dialogoActivo = false
 local promptsConectados = {}
 local nivelActual = nil
+local modoPrevioDialogo = nil  -- Para restaurar el modo visual al cerrar
 
 -- Configuración por defecto de restricciones
 local RESTRICCIONES_DEFAULT = {
@@ -286,6 +288,13 @@ function iniciarDialogo(dialogoID, metadata)
 		end
 	end
 
+	-- Guardar modo actual y forzar modo visual durante el diálogo
+	modoPrevioDialogo = OrquestadorModos.obtenerModoActual()
+	if modoPrevioDialogo ~= "visual" then
+		print("[ControladorDialogo] Cambiando a modo visual para diálogo (era", modoPrevioDialogo, ")")
+		OrquestadorModos.setModo("visual")
+	end
+
 	-- ═══════════════════════════════════════════════════════════════════════════════
 	-- PASO 1: OCULTAR TECHOS SI ESTÁ CONFIGURADO
 	-- ═══════════════════════════════════════════════════════════════════════════════
@@ -397,6 +406,13 @@ function iniciarDialogo(dialogoID, metadata)
 		end
 
 		DialogoJugadorController.mostrarHUD()
+
+		-- Restaurar modo previo si era distinto de visual
+		if modoPrevioDialogo and modoPrevioDialogo ~= "visual" then
+			print("[ControladorDialogo] Restaurando modo previo:", modoPrevioDialogo)
+			OrquestadorModos.setModo(modoPrevioDialogo)
+			modoPrevioDialogo = nil
+		end
 
 		if metadata.config and metadata.config.alCerrar then
 			metadata.config.alCerrar(metadata)

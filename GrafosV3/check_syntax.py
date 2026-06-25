@@ -15,11 +15,42 @@ def check(path):
         return False
 
 files = [
+    # Sistemas centrales de efectos
+    "StarterPlayerScripts/SistemasGameplay/GestorEfectos.lua",
+    "StarterPlayerScripts/SistemasGameplay/OrquestadorModos.lua",
+    "StarterPlayerScripts/SistemasGameplay/ControladorEfectos.client.lua",
+    "StarterPlayerScripts/SistemasGameplay/ParticulasConexion.client.lua",
+    "StarterPlayerScripts/SistemasGameplay/AudioGameplay.client.lua",
+
+    # HUD y modos
+    "StarterPlayerScripts/HUD/ControladorHUD.client.lua",
+    "StarterPlayerScripts/HUD/ModulosHUD/SelectorModosHUD.lua",
+    "StarterPlayerScripts/HUD/ModulosHUD/ModuloMapa.lua",
+    "StarterPlayerScripts/HUD/ModulosHUD/EfectosMapa.lua",
+    "StarterPlayerScripts/HUD/ModulosHUD/Minimap.lua",
+    "StarterPlayerScripts/HUD/ModulosHUD/ModuloMatriz.lua",
+    "StarterPlayerScripts/HUD/ModulosHUD/ModuloAnalisis.lua",
+    "StarterPlayerScripts/HUD/ModulosHUD/EjecutorAlgoritmo3D.lua",
+    "StarterPlayerScripts/HUD/ModulosHUD/EstadoConexiones.lua",
+
+    # Bibliotecas de efectos
+    "ReplicatedStorage/Efectos/EfectosDano.lua",
+    "ReplicatedStorage/Efectos/EfectosHighlight.lua",
+    "ReplicatedStorage/Efectos/BillboardNombres.lua",
+    "ReplicatedStorage/Efectos/EfectosDialogo.lua",
+    "ReplicatedStorage/Efectos/EfectosNodo.lua",
+    "ReplicatedStorage/Efectos/EfectosVideo.lua",
+
+    # Diálogos
+    "StarterPlayerScripts/Dialogo/ControladorDialogo.client.lua",
+    "StarterPlayerScripts/Dialogo/DialogoJugadorController.lua",
+
+    # Referencias servidor
     "ServerScriptService/SistemasGameplay/ServicioPuntaje.lua",
     "ServerScriptService/Servicios/CargadorNiveles.lua",
-    "StarterPlayerScripts/HUD/ModulosHUD/ModuloMatriz.lua",
     "ServerScriptService/SistemasGameplay/ConectarCables.lua",
 ]
+
 ok_all = True
 for f in files:
     if not check(f):

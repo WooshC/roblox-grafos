@@ -19,6 +19,8 @@ local LevelsConfig     = require(Replicado:WaitForChild("Config"):WaitForChild("
 local ControladorAudio = require(script.Parent.Parent
 	:WaitForChild("Compartido")
 	:WaitForChild("ControladorAudio"))
+local GestorEfectos    = require(script.Parent:WaitForChild("GestorEfectos"))
+local OrquestadorModos = require(script.Parent:WaitForChild("OrquestadorModos"))
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- CONFIGURACION Y ESTADO
@@ -40,6 +42,11 @@ local _tagsNodoCosto = {}   -- { clave → true } tags de costo previo sobre nod
 local _efectosConexionRecientes = {}  -- { { clon = Instance, nodo = string, tiempo = number } }
 local _dialogosReparacionMostrados = {}  -- { [nombreNodo] = true }
 
+-- Helper: solo aplicar efectos de gameplay en modo visual
+local function modoVisualActivo()
+	return OrquestadorModos.obtenerModoActual() == "visual"
+end
+
 -- Forward declarations: se redefinen más abajo con la implementación real.
 -- Evitan errores si los handlers se ejecutan antes de que las funciones se carguen.
 local obtenerPesoArista = function() return nil end
@@ -47,15 +54,11 @@ local crearTagCostoNodo = function() end
 local destruirTagsNodoCosto = function() end
 
 -- ═══════════════════════════════════════════════════════════════════════════════
--- LEVELS CONFIG (para nombres de nodos)
+-- EVENTOS REMOTOS (para ReproducirEfecto)
 -- ═══════════════════════════════════════════════════════════════════════════════
 
-local LevelsConfig = require(Replicado:WaitForChild("Config"):WaitForChild("LevelsConfig"))
-
--- Actualizar nombres cuando carga un nivel
 local Eventos = Replicado:WaitForChild("EventosGrafosV3")
 local Remotos = Eventos:WaitForChild("Remotos")
-local nivelListoEv = Remotos:WaitForChild("NivelListo")
 
 local function activarTodosNodosDaniadosDelNivel(nivelID)
 	local cfg = LevelsConfig[nivelID]
@@ -71,7 +74,9 @@ local function activarTodosNodosDaniadosDelNivel(nivelID)
 	end
 end
 
-nivelListoEv.OnClientEvent:Connect(function(data)
+-- Actualizar nombres cuando carga un nivel (via GestorEfectos)
+GestorEfectos.registrar("NivelListo", function(params)
+	local data = params.arg1
 	if data and data.nivelID ~= nil then
 		_nivelActualID = data.nivelID
 		local cfg = LevelsConfig[data.nivelID]
@@ -170,7 +175,15 @@ end
 local function styleBasePart(part, color)
 	if not part then return end
 
-	-- Guardar estado original
+	-- Guardar estado original solo una vez por parte; si ya existe, reemplazar
+	-- para evitar que un estado intermedio (p. ej. amarillo de adyacente)
+	-- quede como "original" al limpiar.
+	for i, state in ipairs(_savedStates) do
+		if state.part == part then
+			table.remove(_savedStates, i)
+			break
+		end
+	end
 	table.insert(_savedStates, {
 		part = part,
 		origColor = part.Color,
@@ -265,10 +278,9 @@ end
 -- EVENTOS (via GestorEfectos — conexión única centralizada)
 -- ═══════════════════════════════════════════════════════════════════════════════
 
-local GestorEfectos = require(script.Parent:WaitForChild("GestorEfectos"))
-
 -- Nodo seleccionado: arg1 = Model nodo, arg2 = {Model,...} adyacentes
 GestorEfectos.registrar("NodoSeleccionado", function(params)
+	if not modoVisualActivo() then return end
 	local arg1, arg2 = params.arg1, params.arg2
 	clearAll()
 	local adyNames = {}
@@ -370,6 +382,7 @@ end
 
 -- Conexión completada: efecto VFX en cada Selector + tag de costo
 GestorEfectos.registrar("ConexionCompletada", function(params)
+	if not modoVisualActivo() then return end
 	local nomA, nomB, peso = params.arg1, params.arg2, params.arg3
 	clearAll()
 	local ahora = tick()
@@ -430,6 +443,7 @@ end)
 
 -- Cable desconectado: limpiar highlights y destruir tag de costo
 GestorEfectos.registrar("CableDesconectado", function(params)
+	if not modoVisualActivo() then return end
 	clearAll()
 	local nomA, nomB = params.arg1, params.arg2
 	if nomA and nomB then
@@ -439,36 +453,50 @@ end)
 
 -- Selección cancelada
 GestorEfectos.registrar("SeleccionCancelada", function(_params)
+	if not modoVisualActivo() then return end
 	clearAll()
 end)
 
 -- Error de conexión: flash rojo
 GestorEfectos.registrar("ConexionInvalida", function(params)
+	if not modoVisualActivo() then return end
 	clearAll()
 	flashModel(params.arg1, COLOR_ERROR, 0.35)
 end)
 
 GestorEfectos.registrar("DireccionInvalida", function(params)
+	if not modoVisualActivo() then return end
 	clearAll()
 	flashModel(params.arg1, COLOR_ERROR, 0.35)
 end)
 
 -- ═══════════════════════════════════════════════════════════════════════════════
--- LIMPIEZA AL DESCARGAR NIVEL
+-- LIMPIEZA AL CAMBIAR DE MODO O DESCARGAR NIVEL
 -- ═══════════════════════════════════════════════════════════════════════════════
 
-local nivelDescargadoEv = Remotos:WaitForChild("NivelDescargado", 10)
-if nivelDescargadoEv then
-	nivelDescargadoEv.OnClientEvent:Connect(function()
-		print("[ControladorEfectos] Nivel descargado — limpiando efectos de daño")
-		EfectosDano.limpiarTodo()
-		_nodosDaniados = {}
-		_nodosReparadosLocal = {}
-		_nivelActualID = nil
-		_efectosConexionRecientes = {}
-		_dialogosReparacionMostrados = {}
-	end)
-end
+-- Al cambiar a un modo que no es visual, limpiar efectos de gameplay
+GestorEfectos.registrar("CambioModo", function(params)
+	local nuevoModo = params.modo
+	if nuevoModo ~= "visual" then
+		clearAll()
+	end
+end)
+
+-- Al descargar el nivel, limpiar todo el estado
+GestorEfectos.registrar("NivelDescargado", function(_params)
+	print("[ControladorEfectos] Nivel descargado — limpiando efectos")
+	EfectosDano.limpiarTodo()
+	_nodosDaniados = {}
+	_nodosReparadosLocal = {}
+	_nivelActualID = nil
+	_efectosConexionRecientes = {}
+	_dialogosReparacionMostrados = {}
+	for claveTag, _ in pairs(_tagsCable) do
+		BillboardNombres.destruir(claveTag)
+	end
+	_tagsCable = {}
+	destruirTagsNodoCosto()
+end)
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- EVENTOS REMOTOS DIRECTOS (ReproducirEfecto)
@@ -501,171 +529,154 @@ end
 
 conectarReproducirEfecto()
 
--- TG 07: Escuchar eventos de reparacion de nodos
-local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
-if notificarEvento then
-	notificarEvento.OnClientEvent:Connect(function(tipo, arg1, arg2)
-		if tipo == "ClicReparacion" then
-			-- Feedback visual sutil en cada clic de reparacion
-			local nombreNodo = type(arg1) == "string" and arg1 or nil
-			local restantes = tonumber(arg2) or 0
-			if nombreNodo then
-				-- print(string.format("[ControladorEfectos] Reparando %s: faltan %d clics", nombreNodo, restantes))
-				-- Sonido de click de reparacion
-				ControladorAudio.playSonidoArreglando()
-				-- Pequeno flash dorado en el nodo
-				local nivel = Workspace:FindFirstChild("NivelActual")
-				local nodo = nil
-				local basePart = nil
-				if nivel then
-					nodo = nivel:FindFirstChild(nombreNodo, true)
-					if nodo then
-						flashModel(nodo, Color3.fromRGB(255, 220, 50), 0.15)
-						basePart = getSelector(nodo)
-					end
-				end
-
-				-- Al primer clic, informar si la reparación quita o mantiene el límite de grado
-				if restantes == 2 and not _dialogosReparacionMostrados[nombreNodo] then
-					_dialogosReparacionMostrados[nombreNodo] = true
-					local nivelID = player:GetAttribute("CurrentLevelID") or 0
-					local cfgNodo = LevelsConfig[nivelID]
-						    and LevelsConfig[nivelID].LimitesGrado
-						    and LevelsConfig[nivelID].LimitesGrado[nombreNodo]
-					local quitaLimite = cfgNodo and cfgNodo.QuitarLimiteAlReparar == true
-					local claveDialogo = quitaLimite and "Feedback_RepararQuitaLimite" or "Feedback_RepararMantieneLimite"
-
-					if _G.ControladorDialogo and not _G.ControladorDialogo.estaActivo() then
-						_G.ControladorDialogo.iniciar(claveDialogo, {
-							promptPart = basePart,
-							ocultarHUD = false,
-							restricciones = {
-								bloquearMovimiento = false,
-								bloquearSalto = false,
-								apuntarCamara = false,
-								permitirConexiones = true,
-							},
-						})
-					end
-				end
-			end
-
-		elseif tipo == "NodoReparado" then
-			local nombreNodo = type(arg1) == "string" and arg1 or nil
-			if nombreNodo then
-				-- print("[ControladorEfectos] Nodo reparado:", nombreNodo)
-				-- Marcar como reparado para no reactivar al volver a la zona
-				_nodosReparadosLocal[nombreNodo] = true
-				-- Sonido de reparacion
-				ControladorAudio.playNodoReparar()
-				-- Limpiar efectos de daño de este nodo
-				EfectosDano.desactivar(nombreNodo)
-				-- Flash verde de exito
-				local nivel = Workspace:FindFirstChild("NivelActual")
-				if nivel then
-					local nodo = nivel:FindFirstChild(nombreNodo, true)
-					if nodo then
-						flashModel(nodo, Color3.fromRGB(46, 204, 113), 0.4)
-					end
-				end
-			end
-
-		elseif tipo == "FaltaDineroReparacion" then
-			local nombreNodo = type(arg1) == "string" and arg1 or nil
-			local costo = tonumber(arg2) or 0
-			-- print(string.format("[ControladorEfectos] Falta dinero para reparar %s (costo: %d)", tostring(nombreNodo), costo))
-			-- Flash rojo intenso indicando falta de fondos
-			local nivel = Workspace:FindFirstChild("NivelActual")
-			if nivel and nombreNodo then
-				local nodo = nivel:FindFirstChild(nombreNodo, true)
-				if nodo then
-					flashModel(nodo, Color3.fromRGB(255, 0, 0), 0.5)
-				end
-			end
-			-- Sonido de error
-			ControladorAudio.playSFX("Error")
-
-		elseif tipo == "FaltaDineroCable" then
-			local nomA = type(arg1) == "string" and arg1 or nil
-			local nomB = type(arg2) == "string" and arg2 or nil
-			local peso = tonumber(arg3) or 0
-			-- print(string.format("[ControladorEfectos] Falta dinero para cable %s-%s (peso: %d)", tostring(nomA), tostring(nomB), peso))
-			-- Flash rojo en ambos nodos
-			local nivel = Workspace:FindFirstChild("NivelActual")
-			if nivel then
-				local nodoA = nomA and nivel:FindFirstChild(nomA, true)
-				local nodoB = nomB and nivel:FindFirstChild(nomB, true)
-				if nodoA then flashModel(nodoA, Color3.fromRGB(255, 0, 0), 0.35) end
-				if nodoB then flashModel(nodoB, Color3.fromRGB(255, 0, 0), 0.35) end
-			end
-			-- Sonido de error
-			ControladorAudio.playSFX("ConnectionFailed")
-
-		elseif tipo == "NodoSobrecargado" then
-			local nombreNodo = type(arg1) == "string" and arg1 or nil
-			if not nombreNodo then return end
-
-			local nivel = Workspace:FindFirstChild("NivelActual")
-			local nodo = nivel and nivel:FindFirstChild(nombreNodo, true)
-			local _, basePart = nodo and getSelector(nodo)
-			local claveBB = "SOBRECARGA_" .. nombreNodo
-
-			-- 1. Guardar estado y mover cámara al nodo afectado
-			ServicioCamara.guardarEstado()
-			ServicioCamara.moverHaciaObjetivo(nombreNodo, {
-				altura = 18,
-				angulo = 65,
-				duracion = 0.8,
-			})
-
-			-- 2. Billboard temporal
-			if basePart then
-				BillboardNombres.crear(basePart, "NODO SOBRECARGADO", "NODO_DANIADO", claveBB)
-			end
-
-			-- 3. Sonido, efectos de daño y flash
-			ControladorAudio.playSFX("Explosion")
-			EfectosDano.activar(nombreNodo)
+-- TG 07: Escuchar eventos de reparacion de nodos via GestorEfectos
+GestorEfectos.registrar("ClicReparacion", function(params)
+	-- Feedback visual sutil en cada clic de reparacion
+	local nombreNodo = type(params.arg1) == "string" and params.arg1 or nil
+	local restantes = tonumber(params.arg2) or 0
+	if nombreNodo then
+		-- Sonido de click de reparacion
+		ControladorAudio.playSonidoArreglando()
+		-- Pequeno flash dorado en el nodo
+		local nivel = Workspace:FindFirstChild("NivelActual")
+		local nodo = nil
+		local basePart = nil
+		if nivel then
+			nodo = nivel:FindFirstChild(nombreNodo, true)
 			if nodo then
-				flashModel(nodo, Color3.fromRGB(255, 0, 0), 0.6)
+				flashModel(nodo, Color3.fromRGB(255, 220, 50), 0.15)
+				basePart = getSelector(nodo)
 			end
-
-			-- 4. Limpiar efectos de conexión recientes para evitar partículas flotantes
-			destruirEfectosConexionRecientes(nombreNodo)
-
-			-- 5. Esperar, quitar billboard, restaurar cámara e iniciar diálogo de feedback
-			task.delay(2.5, function()
-				BillboardNombres.destruir(claveBB)
-				ServicioCamara.restaurar(0.6)
-				task.delay(0.7, function()
-					if _G.ControladorDialogo and not _G.ControladorDialogo.estaActivo() then
-						_G.ControladorDialogo.iniciar("Feedback_NodoSobrecargado", {
-							promptPart = basePart,
-							ocultarHUD = false,
-							restricciones = {
-								bloquearMovimiento = false,
-								bloquearSalto = false,
-								apuntarCamara = false,
-								permitirConexiones = true,
-							},
-						})
-					end
-				end)
-			end)
 		end
+
+		-- Al primer clic, informar si la reparación quita o mantiene el límite de grado
+		if restantes == 2 and not _dialogosReparacionMostrados[nombreNodo] then
+			_dialogosReparacionMostrados[nombreNodo] = true
+			local nivelID = player:GetAttribute("CurrentLevelID") or 0
+			local cfgNodo = LevelsConfig[nivelID]
+				    and LevelsConfig[nivelID].LimitesGrado
+				    and LevelsConfig[nivelID].LimitesGrado[nombreNodo]
+			local quitaLimite = cfgNodo and cfgNodo.QuitarLimiteAlReparar == true
+			local claveDialogo = quitaLimite and "Feedback_RepararQuitaLimite" or "Feedback_RepararMantieneLimite"
+
+			if _G.ControladorDialogo and not _G.ControladorDialogo.estaActivo() then
+				_G.ControladorDialogo.iniciar(claveDialogo, {
+					promptPart = basePart,
+					ocultarHUD = false,
+					restricciones = {
+						bloquearMovimiento = false,
+						bloquearSalto = false,
+						apuntarCamara = false,
+						permitirConexiones = true,
+					},
+				})
+			end
+		end
+	end
+end)
+
+GestorEfectos.registrar("NodoReparado", function(params)
+	local nombreNodo = type(params.arg1) == "string" and params.arg1 or nil
+	if nombreNodo then
+		-- Marcar como reparado para no reactivar al volver a la zona
+		_nodosReparadosLocal[nombreNodo] = true
+		-- Sonido de reparacion
+		ControladorAudio.playNodoReparar()
+		-- Limpiar efectos de daño de este nodo
+		EfectosDano.desactivar(nombreNodo)
+		-- Flash verde de exito
+		local nivel = Workspace:FindFirstChild("NivelActual")
+		if nivel then
+			local nodo = nivel:FindFirstChild(nombreNodo, true)
+			if nodo then
+				flashModel(nodo, Color3.fromRGB(46, 204, 113), 0.4)
+			end
+		end
+	end
+end)
+
+GestorEfectos.registrar("FaltaDineroReparacion", function(params)
+	local nombreNodo = type(params.arg1) == "string" and params.arg1 or nil
+	local costo = tonumber(params.arg2) or 0
+	-- Flash rojo intenso indicando falta de fondos
+	local nivel = Workspace:FindFirstChild("NivelActual")
+	if nivel and nombreNodo then
+		local nodo = nivel:FindFirstChild(nombreNodo, true)
+		if nodo then
+			flashModel(nodo, Color3.fromRGB(255, 0, 0), 0.5)
+		end
+	end
+	-- Sonido de error
+	ControladorAudio.playSFX("Error")
+end)
+
+GestorEfectos.registrar("FaltaDineroCable", function(params)
+	local nomA = type(params.arg1) == "string" and params.arg1 or nil
+	local nomB = type(params.arg2) == "string" and params.arg2 or nil
+	local peso = tonumber(params.arg3) or 0
+	-- Flash rojo en ambos nodos
+	local nivel = Workspace:FindFirstChild("NivelActual")
+	if nivel then
+		local nodoA = nomA and nivel:FindFirstChild(nomA, true)
+		local nodoB = nomB and nivel:FindFirstChild(nomB, true)
+		if nodoA then flashModel(nodoA, Color3.fromRGB(255, 0, 0), 0.35) end
+		if nodoB then flashModel(nodoB, Color3.fromRGB(255, 0, 0), 0.35) end
+	end
+	-- Sonido de error
+	ControladorAudio.playSFX("ConnectionFailed")
+end)
+
+GestorEfectos.registrar("NodoSobrecargado", function(params)
+	local nombreNodo = type(params.arg1) == "string" and params.arg1 or nil
+	if not nombreNodo then return end
+
+	local nivel = Workspace:FindFirstChild("NivelActual")
+	local nodo = nivel and nivel:FindFirstChild(nombreNodo, true)
+	local _, basePart = nodo and getSelector(nodo)
+	local claveBB = "SOBRECARGA_" .. nombreNodo
+
+	-- 1. Guardar estado y mover cámara al nodo afectado
+	ServicioCamara.guardarEstado()
+	ServicioCamara.moverHaciaObjetivo(nombreNodo, {
+		altura = 18,
+		angulo = 65,
+		duracion = 0.8,
+	})
+
+	-- 2. Billboard temporal
+	if basePart then
+		BillboardNombres.crear(basePart, "NODO SOBRECARGADO", "NODO_DANIADO", claveBB)
+	end
+
+	-- 3. Sonido, efectos de daño y flash
+	ControladorAudio.playSFX("Explosion")
+	EfectosDano.activar(nombreNodo)
+	if nodo then
+		flashModel(nodo, Color3.fromRGB(255, 0, 0), 0.6)
+	end
+
+	-- 4. Limpiar efectos de conexión recientes para evitar partículas flotantes
+	destruirEfectosConexionRecientes(nombreNodo)
+
+	-- 5. Esperar, quitar billboard, restaurar cámara e iniciar diálogo de feedback
+	task.delay(2.5, function()
+		BillboardNombres.destruir(claveBB)
+		ServicioCamara.restaurar(0.6)
+		task.delay(0.7, function()
+			if _G.ControladorDialogo and not _G.ControladorDialogo.estaActivo() then
+				_G.ControladorDialogo.iniciar("Feedback_NodoSobrecargado", {
+					promptPart = basePart,
+					ocultarHUD = false,
+					restricciones = {
+						bloquearMovimiento = false,
+						bloquearSalto = false,
+						apuntarCamara = false,
+						permitirConexiones = true,
+					},
+				})
+			end
+		end)
 	end)
-end
+end)
 
 print("[ControladorEfectos] Sistema de efectos inicializado")
-
--- Limpieza de tags de cable al descargar nivel
-local nivelDescargadoEv = Remotos:WaitForChild("NivelDescargado", 10)
-if nivelDescargadoEv then
-	nivelDescargadoEv.OnClientEvent:Connect(function()
-		for claveTag, _ in pairs(_tagsCable) do
-			BillboardNombres.destruir(claveTag)
-		end
-		_tagsCable = {}
-		destruirTagsNodoCosto()
-	end)
-end

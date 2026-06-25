@@ -10,6 +10,11 @@ local EfectosDano = {}
 -- Mapa de efectos activos: { nombreNodo → Instance (emisor con Fire/Smoke) }
 local _efectosActivos = {}
 
+-- Contador de reintentos para encontrar el selector
+local _intentos = {}
+local MAX_INTENTOS = 10
+local DELAY_REINTENTO = 0.3
+
 -- Busca el Selector (BasePart) de un nodo dentro de NivelActual
 local function buscarSelector(nombreNodo)
 	local nivel = Workspace:FindFirstChild("NivelActual")
@@ -32,13 +37,22 @@ function EfectosDano.activar(nombreNodo)
 	local selector = buscarSelector(nombreNodo)
 	if not selector then
 		-- Reintentar: el nivel puede no haberse replicado todavía
-		task.delay(0.3, function()
+		_intentos[nombreNodo] = (_intentos[nombreNodo] or 0) + 1
+		if _intentos[nombreNodo] > MAX_INTENTOS then
+			warn("[EfectosDano] No se pudo activar daño para", nombreNodo, "después de", MAX_INTENTOS, "intentos")
+			_intentos[nombreNodo] = nil
+			return
+		end
+		task.delay(DELAY_REINTENTO, function()
 			if not _efectosActivos[nombreNodo] then
 				EfectosDano.activar(nombreNodo)
 			end
 		end)
 		return
 	end
+
+	-- Éxito: limpiar contador de intentos
+	_intentos[nombreNodo] = nil
 
 	print("[EfectosDano] ⚡ Activando daño en:", nombreNodo)
 
@@ -118,6 +132,7 @@ function EfectosDano.limpiarTodo()
 	for nombreNodo, _ in pairs(_efectosActivos) do
 		EfectosDano.desactivar(nombreNodo)
 	end
+	_intentos = {}
 	_efectosActivos = {}
 end
 

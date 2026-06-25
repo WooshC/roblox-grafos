@@ -12,6 +12,7 @@ local PanelEstadoAnalisis  = require(script.PanelEstadoAnalisis)
 local AlgoritmosGrafo = require(script.Parent.AlgoritmosGrafo)
 local LevelsConfig    = require(RS:WaitForChild("Config"):WaitForChild("LevelsConfig"))
 local GrafoHelpers    = require(RS:WaitForChild("Compartido"):WaitForChild("GrafoHelpers"))
+local GestorEfectos   = require(script.Parent.Parent.Parent:WaitForChild("SistemasGameplay"):WaitForChild("GestorEfectos"))
 
 local jugador = Players.LocalPlayer
 
@@ -548,31 +549,21 @@ function ModuloAnalisis.inicializar(hudGui)
 	PanelEstadoAnalisis.actualizarPills(E.algoActual)
 	PseudocodigoAnalisis.reconstruirPseudocodigo(E.algoActual)
 
-	-- Escuchar reparacion de nodos (TG 07)
-	local ok2, remotos = pcall(function()
-		return RS:WaitForChild("EventosGrafosV3", 10):WaitForChild("Remotos", 5)
-	end)
-	if ok2 and remotos then
-		local notifyEvent = remotos:FindFirstChild("NotificarSeleccionNodo")
-		if notifyEvent then
-			notifyEvent.OnClientEvent:Connect(function(tipo, arg1)
-				if tipo == "NodoReparado" then
-					local nombre = type(arg1) == "string" and arg1 or nil
-					if nombre then
-						E.nodosReparados[nombre] = true
-						print("[ModuloAnalisis] Nodo reparado:", nombre)
-						-- Refrescar viewport si esta abierto
-						if E.abierto and E.worldModel then
-							ViewportAnalisis.construirViewport()
-							if E.totalPasos > 0 and E.pasos[E.pasoActual] then
-								ViewportAnalisis.reconstruirAristas(E.pasos[E.pasoActual])
-							end
-						end
-					end
+	-- Escuchar reparacion de nodos via GestorEfectos (TG 07)
+	GestorEfectos.registrar("NodoReparado", function(params)
+		local nombre = type(params.arg1) == "string" and params.arg1 or nil
+		if nombre then
+			E.nodosReparados[nombre] = true
+			print("[ModuloAnalisis] Nodo reparado:", nombre)
+			-- Refrescar viewport si esta abierto
+			if E.abierto and E.worldModel then
+				ViewportAnalisis.construirViewport()
+				if E.totalPasos > 0 and E.pasos[E.pasoActual] then
+					ViewportAnalisis.reconstruirAristas(E.pasos[E.pasoActual])
 				end
-			end)
+			end
 		end
-	end
+	end)
 
 	print("[ModuloAnalisis] Inicializado ✅")
 end
