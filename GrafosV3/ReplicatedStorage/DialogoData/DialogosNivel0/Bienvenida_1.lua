@@ -40,6 +40,32 @@ local DIALOGOS = {
 		Zona = "Tutorial",
 		Nivel = 0,
 
+		-- Se ejecuta tanto al terminar normalmente como al hacer skip
+		EventoSalida = function()
+			print("[EventoSalida] Bienvenida_1 finalizado")
+
+			-- Avanzar guía si aún no se ha avanzado (evita duplicados gracias a GuiaService)
+			local GuiaService = _G.GuiaService
+			if GuiaService and GuiaService.GuiaAvanzar then
+				GuiaService.GuiaAvanzar:Fire("carlos")
+			else
+				warn("[EventoSalida] GuiaService no disponible")
+			end
+
+			-- Eliminar bloqueo configurado para este diálogo
+			if _G.GestorBloqueos then
+				_G.GestorBloqueos:eliminarPorDialogo("Bienvenida_1")
+			else
+				warn("[EventoSalida] GestorBloqueos no disponible")
+			end
+
+			-- Restaurar cámara y techo por seguridad
+			if _G.ControladorDialogo and _G.ControladorDialogo.restaurarCamara then
+				_G.ControladorDialogo.restaurarCamara(0.5)
+			end
+			toggleTecho(true)
+		end,
+
 		Lineas = {
 			-- 1. INTRODUCCIÓN
 			{
