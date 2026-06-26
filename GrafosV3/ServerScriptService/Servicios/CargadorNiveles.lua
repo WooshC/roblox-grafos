@@ -280,6 +280,7 @@ function CargadorNiveles.cargar(nivelID, jugador)
 	-- 4. Configurar ValidadorConexiones (fuente de verdad — antes de ConectarCables)
 	ValidadorConexiones.configurar({
 		Adyacencias = config.Adyacencias,
+		CablesDefectuosos = config.CablesDefectuosos,
 		nivelID     = nivelID,
 	})
 

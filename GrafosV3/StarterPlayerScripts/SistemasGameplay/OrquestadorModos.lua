@@ -16,6 +16,9 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 
+--Estado del modo previo
+local _modoPrevio = nil
+
 local GestorEfectos = require(script.Parent:WaitForChild("GestorEfectos"))
 
 local OrquestadorModos = {}
@@ -60,29 +63,30 @@ end
 -- @param nombre string — nombre del modo destino
 function OrquestadorModos.setModo(nombre)
 	if nombre == _modoActual then return end
+
 	if not _modos[nombre] then
 		warn("[OrquestadorModos] Modo no registrado:", nombre)
 		return
 	end
 
 	local anterior = _modoActual
+	_modoPrevio = anterior  -- guardar antes de cambiar
+
 	print(string.format("[OrquestadorModos] Cambiando modo: %s → %s", anterior, nombre))
 
-	-- 1. Limpiar modo anterior
+	-- 1. Limpiar modo anterior (pasando el destino para decisiones condicionales)
 	local modoAnterior = _modos[anterior]
 	if modoAnterior then
-		local ok, err = pcall(modoAnterior.limpiar)
+		local ok, err = pcall(modoAnterior.limpiar, nombre)
 		if not ok then
 			warn("[OrquestadorModos] Error limpiando modo '" .. anterior .. "':", err)
 		end
 	end
 
-	-- 2. Actualizar estado
+	-- 2. Actualizar estado (UNA sola vez, aquí)
 	_modoActual = nombre
 
-	-- 3. Notificar a todos los sistemas via bus ANTES de activar el nuevo modo.
-	--    Esto garantiza que los sistemas de efectos limpien su estado antes de que
-	--    el nuevo modo (p. ej. mapa) aplique sus propios colores/highlight.
+	-- 3. Notificar sistemas via bus
 	GestorEfectos.emitir("CambioModo", { modo = nombre, anterior = anterior })
 
 	-- 4. Sincronizar UI
@@ -100,6 +104,15 @@ function OrquestadorModos.setModo(nombre)
 		warn("[OrquestadorModos] Error activando modo '" .. nombre .. "':", err)
 	end
 end
+
+function OrquestadorModos.volverAtras()
+	if _modoPrevio and _modos[_modoPrevio] then
+		OrquestadorModos.setModo(_modoPrevio)
+	else
+		OrquestadorModos.setModo("visual")
+	end
+end
+
 
 ---Devuelve el nombre del modo actual.
 function OrquestadorModos.obtenerModoActual()

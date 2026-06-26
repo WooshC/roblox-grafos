@@ -667,7 +667,9 @@ function ConectarCables.activar(nivel, adyacencias, jugador, nivelID, callbacks)
 	-- Crear cables iniciales y defectuosos automáticamente al arrancar
 	local configNivel = LevelsConfig[nivelID]
 	if configNivel then
-		local function preCrearCables(lista)
+		local actualizarEstadoEvento = Remotos:FindFirstChild("ActualizarEstadoConexiones")
+
+		local function preCrearCables(lista, notificarEstado)
 			if not lista then return end
 			for _, par in ipairs(lista) do
 				local sA = _selectoresPorNombre[par[1]]
@@ -675,12 +677,17 @@ function ConectarCables.activar(nivel, adyacencias, jugador, nivelID, callbacks)
 				if sA and sB then
 					if not buscarCable(par[1], par[2]) then
 						crearCable(sA, sB)
+						-- Sincronizar con el cliente SOLO para cables que realmente transmiten energía.
+						-- Los CablesDefectuosos son visuales pero no enrutan, por eso no se notifican.
+						if notificarEstado and actualizarEstadoEvento then
+							actualizarEstadoEvento:FireClient(_jugador, "conectar", par[1], par[2])
+						end
 					end
 				end
 			end
 		end
-		preCrearCables(configNivel.CablesIniciales)
-		preCrearCables(configNivel.CablesDefectuosos)
+		preCrearCables(configNivel.CablesIniciales, true)
+		preCrearCables(configNivel.CablesDefectuosos, false)
 	end
 end
 

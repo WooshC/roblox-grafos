@@ -49,7 +49,10 @@ GH.nodosAlcanzables(adyacencias, inicio)           -- { [nomNodo] = true }
 GH.nodosNoAlcanzables(adyacencias, inicio, nodos)  -- { [nomNodo] = true }
 ```
 
-`configOrNivelID` acepta tanto un `number` (`nivelID`) como una tabla (`config` o `data` con `PesosAristas`/`CablesDefectuosos`/`Defectuosos`).
+`configOrNivelID` acepta:
+- un `number` (`nivelID`);
+- una tabla `config`/`data` con `PesosAristas`/`CablesDefectuosos`/`Defectuosos`;
+- una tabla plana de claves canónicas (por ejemplo `data.Defectuosos` devuelto por el servidor), que se usa directamente como set dinámico de defectuosos.
 
 ## 4. Migraciones completadas
 

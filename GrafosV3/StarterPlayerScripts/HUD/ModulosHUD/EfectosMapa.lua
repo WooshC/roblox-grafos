@@ -26,6 +26,9 @@ local partesOriginales = {} -- Guardar estado original para restaurar
 local beamsOriginales = {} -- Guardar estado original de los beams
 local configNivelGlobal = nil
 
+-- Red energizada recibida desde ServicioEnergia (fuente de verdad en tiempo real)
+local redEnergizadaServidor = nil
+
 -- Módulo de estado de conexiones (se inicializa luego)
 local EstadoConexiones = nil
 
@@ -52,10 +55,23 @@ local HIGHLIGHT_TIPO = {
 function EfectosMapa.inicializar(configNivel, estadoConexionesModulo)
 	nombresNodos = {}
 	configNivelGlobal = configNivel
+	-- No reseteamos redEnergizadaServidor aquí: el evento puede llegar antes de configurarNivel.
 	if configNivel and configNivel.NombresNodos then
 		nombresNodos = configNivel.NombresNodos
 	end
 	EstadoConexiones = estadoConexionesModulo
+end
+
+function EfectosMapa.limpiarRedEnergizada()
+	redEnergizadaServidor = nil
+end
+
+function EfectosMapa.actualizarRedEnergizada(redEnergizada)
+	redEnergizadaServidor = redEnergizada
+end
+
+function EfectosMapa.obtenerRedEnergizada()
+	return redEnergizadaServidor
 end
 
 function EfectosMapa.limpiarTodo()
@@ -271,18 +287,19 @@ function EfectosMapa.actualizarTodos(nivelActual, nodoSeleccionado, adyacentes)
 		return
 	end
 	
-	-- Algoritmo BFS para encontrar la propagación de la energía a partir de los Generadores
-	local nodosEnergizados = {}
-	if configNivelGlobal and configNivelGlobal.Generadores and EstadoConexiones then
+	-- Fuente de verdad de energía: ServicioEnergia envía la red energizada en tiempo real.
+	-- Si aún no llega datos, hacemos BFS local como fallback (útil durante carga o desconexiones).
+	local nodosEnergizados = redEnergizadaServidor
+	if not nodosEnergizados and configNivelGlobal and configNivelGlobal.Generadores and EstadoConexiones then
+		nodosEnergizados = {}
 		local queue = {}
 		for _, gen in ipairs(configNivelGlobal.Generadores) do
 			nodosEnergizados[gen] = true
 			table.insert(queue, gen)
 		end
-		
+
 		while #queue > 0 do
 			local actual = table.remove(queue, 1)
-			-- Obtener nodos directamente conectados
 			local vecinos = EstadoConexiones.obtenerConexiones(actual)
 			if vecinos then
 				for _, vecino in ipairs(vecinos) do
@@ -294,6 +311,10 @@ function EfectosMapa.actualizarTodos(nivelActual, nodoSeleccionado, adyacentes)
 			end
 		end
 	end
+	-- Asegurar que siempre sea una tabla usable
+	if not nodosEnergizados then
+		nodosEnergizados = {}
+	end
 
 	for _, grafo in ipairs(grafosFolder:GetChildren()) do
 		local nodosFolder = grafo:FindFirstChild("Nodos")
@@ -304,14 +325,14 @@ function EfectosMapa.actualizarTodos(nivelActual, nodoSeleccionado, adyacentes)
 				local esAdyacente    = adyacentes and table.find(adyacentes, nombre)
 				local conectado      = EfectosMapa.esNodoConectado(nodo)
 				local esInicial      = false
-				
+
 				if configNivelGlobal and configNivelGlobal.Generadores then
 					esInicial = table.find(configNivelGlobal.Generadores, nombre) ~= nil
 				end
-				
+
 				local tieneEnergia = nodosEnergizados[nombre] == true
 
-				-- Determinar estado
+				-- Determinar estado: prioridad energía real del ServicioEnergia
 				local colorParte, tipoHighlight
 				if esSeleccionado then
 					colorParte    = COLORES.SELECCIONADO
@@ -322,9 +343,13 @@ function EfectosMapa.actualizarTodos(nivelActual, nodoSeleccionado, adyacentes)
 				elseif esAdyacente then
 					colorParte    = COLORES.ADYACENTE
 					tipoHighlight = HIGHLIGHT_TIPO.ADYACENTE
-				elseif conectado then
+				elseif tieneEnergia then
 					colorParte    = COLORES.CONECTADO
 					tipoHighlight = HIGHLIGHT_TIPO.CONECTADO
+				elseif conectado then
+					-- Tiene cables físicos pero no recibe energía del generador
+					colorParte    = COLORES.SIN_ENERGIA
+					tipoHighlight = HIGHLIGHT_TIPO.SIN_ENERGIA
 				else
 					colorParte    = COLORES.AISLADO
 					tipoHighlight = HIGHLIGHT_TIPO.AISLADO
@@ -367,6 +392,7 @@ end
 GestorEfectos.registrar("NivelDescargado", function(_params)
 	EfectosMapa.limpiarTodo()
 	EfectosMapa.limpiarCacheOriginales()
+	EfectosMapa.limpiarRedEnergizada()
 end)
 
 return EfectosMapa

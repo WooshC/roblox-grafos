@@ -225,6 +225,17 @@ function ModuloMapa.inicializar(hudRef)
 			_actualizarHighlights()
 			_actualizarInfoHUD()
 		end)
+
+		-- Escuchar red energizada real desde ServicioEnergia (fuente de verdad)
+		local eventoRedEnergizada = eventosFolder.Remotos:FindFirstChild("ActualizarRedEnergizada")
+		if eventoRedEnergizada then
+			eventoRedEnergizada.OnClientEvent:Connect(function(redEnergizada)
+				EfectosMapa.actualizarRedEnergizada(redEnergizada)
+				if mapaAbierto then
+					_actualizarHighlights()
+				end
+			end)
+		end
 	end
 
 	-- Inicialmente oculto

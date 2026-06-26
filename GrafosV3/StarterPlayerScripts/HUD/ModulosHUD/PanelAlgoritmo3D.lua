@@ -415,7 +415,11 @@ local function actualizarMinimapa(step)
 	end
 
 	for key, info in pairs(estado.aristaParts) do
-		local esDefectuosa = GrafoHelpers.esCableDefectuoso(estado.nivelID, info.nomA, info.nomB)
+		local esDefectuosa = false
+		local setDinamico = estado.matrizData and estado.matrizData.Defectuosos
+		if setDinamico then
+			esDefectuosa = GrafoHelpers.esCableDefectuoso(setDinamico, info.nomA, info.nomB)
+		end
 		local reparada = estado.aristasReparadas[key]
 		if esDefectuosa and not reparada then
 			colorArista(key, "defectuosa")
@@ -776,7 +780,8 @@ local function actualizarInfoPanel(step, pasoActual, totalPasos, algoritmo)
 		estado.lblMensaje.Text = step.descripcion or ""
 
 		local msgStroke = estado.boxMensaje:FindFirstChildOfClass("UIStroke")
-		if step.aristaNueva and GrafoHelpers.esCableDefectuoso(estado.nivelID, step.aristaNueva[1], step.aristaNueva[2]) then
+		local fuenteDefectuosos = estado.matrizData and estado.matrizData.Defectuosos or nil
+		if step.aristaNueva and GrafoHelpers.esCableDefectuoso(fuenteDefectuosos or estado.nivelID, step.aristaNueva[1], step.aristaNueva[2]) then
 			estado.boxMensaje.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
 			msgStroke.Color = COL.ROJO
 			estado.lblMensaje.TextColor3 = COL.ROJO

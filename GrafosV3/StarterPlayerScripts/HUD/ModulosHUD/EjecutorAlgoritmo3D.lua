@@ -150,7 +150,8 @@ end
 -- ADYACENCIAS Y ARISTAS
 -- ════════════════════════════════════════════════════════════════
 local function buildAdyacencias(data, soloValidas)
-	return GrafoHelpers.adjDesdeMatriz(data, not soloValidas, estado.nivelID)
+	-- Usar el set dinámico de defectuosos del servidor si viene en data.
+	return GrafoHelpers.adjDesdeMatriz(data, not soloValidas, data)
 end
 
 local function existeArista(nomA, nomB)
@@ -476,7 +477,11 @@ local function construirAristas()
 			local dist = (posA - posB).Magnitude
 			if dist < 0.1 then continue end
 
-			local esDefectuosa = GrafoHelpers.esCableDefectuoso(estado.nivelID, nomA, nomB)
+			local esDefectuosa = false
+			local setDinamico = estado.matrizData and estado.matrizData.Defectuosos
+			if setDinamico then
+				esDefectuosa = GrafoHelpers.esCableDefectuoso(setDinamico, nomA, nomB)
+			end
 
 			local posACil, posBCil = posA, posB
 			if esDirigido then
@@ -498,6 +503,7 @@ local function construirAristas()
 			part.Anchored     = true
 			part.CanCollide   = false
 			part.CastShadow   = false
+			part.CanQuery   = false
 			part.Size         = Vector3.new(dist, TAM_ARISTA, TAM_ARISTA)
 			part.CFrame       = CFrame.fromMatrix(centro, ejeX, ejeY, ejeZ)
 			part.Material     = esDefectuosa and MAT_NEON or MAT_DEFAULT
@@ -785,6 +791,7 @@ local function consultarTopologiaReal()
 		Headers = realData.Headers or {},
 		Matrix = realData.Matrix or {},
 		NodosDaniados = realData.NodosDaniados or {},
+		Defectuosos = realData.Defectuosos or {},
 	}
 	estado.ultimaTopologia = resultado
 	estado.ultimaConsultaTime = tick()
@@ -807,7 +814,9 @@ local function verificarAristaEnTopologia(topologia, nomA, nomB)
 	local valBA = matrix[idxB] and matrix[idxB][idxA]
 	local conectada = (valAB and valAB > 0) or (valBA and valBA > 0)
 	if not conectada then return false end
-	local defectuosa = GrafoHelpers.esCableDefectuoso(estado.nivelID, nomA, nomB)
+	-- Usar el set dinámico de la topología real (refleja destrucciones/reconexiones)
+	local fuenteDefectuosos = topologia.Defectuosos or (estado.matrizData and estado.matrizData.Defectuosos) or nil
+	local defectuosa = GrafoHelpers.esCableDefectuoso(fuenteDefectuosos or estado.nivelID, nomA, nomB)
 	return true, defectuosa
 end
 
@@ -892,6 +901,7 @@ local function iniciarValidacionGuiada()
 								mostrarBillboardAristaDefectuosa(a, b)
 							else
 								PanelAlgoritmo3D.mostrarMensajeCorrecto(aristaEsperada)
+								PanelAlgoritmo3D.repararArista(a, b)
 								ocultarBillboardAristaDefectuosa()
 								task.wait(1.2)
 								avanzo = true
@@ -1095,6 +1105,7 @@ local function toggleSelector()
 		estado.zonaAnclada = nil
 		SelectorAlgUI.ocultar()
 		if estado.btnEjecutar then estado.btnEjecutar.Text = "Ejecutar Algoritmo" end
+		OrquestadorModos.setModo("visual")
 		return
 	end
 	if SelectorAlgUI.estaVisible() then
@@ -1110,9 +1121,9 @@ end
 function EjecutorAlgoritmo3D.inicializar(hudGui)
 	estado.hudGui = hudGui
 
-	estado.btnEjecutar = hudGui:FindFirstChild("BtnEjecutarAlg", true)
+	estado.btnEjecutar = hudGui:FindFirstChild("BtnEjecutadorAlgoritmo", true)
 	if not estado.btnEjecutar then
-		warn("[EjecutorAlgoritmo3D] BtnEjecutarAlg no encontrado")
+		warn("[EjecutorAlgoritmo3D] BtnEjecutadorAlgoritmo no encontrado")
 	else
 		estado.btnEjecutar.MouseButton1Click:Connect(toggleSelector)
 	end
@@ -1134,14 +1145,53 @@ function EjecutorAlgoritmo3D.inicializar(hudGui)
 		SelectorAlgUI.ocultar()
 	end)
 
-	-- Escuchar conexiones del jugador (para modo guiado, si se implementa)
+	-- Escuchar conexiones/desconexiones
 	GestorEfectos.registrar("ConexionCompletada", function(params)
 		local nomA = params.arg1
 		local nomB = params.arg2
 		if type(nomA) == "string" and type(nomB) == "string" then
 			invalidarCacheTopologia()
-			-- Aquí se podría implementar el modo guiado (paso a paso)
-			-- pero por ahora solo se usa auto‑play con validación.
+
+			-- Actualizar la parte 3D de esa arista si existe y era defectuosa
+			local mapKey = keyAristaMap(nomA, nomB)
+			local info = estado.aristaMap[mapKey]
+			if info and info.part and info.part.Parent then
+				-- Ya no es defectuosa: restaurar color y material por defecto
+				info.esDefectuosa = false
+				info.part.Material = MAT_DEFAULT
+				TweenService:Create(info.part, TWEEN_ARISTA, {
+					Color        = COL_ARISTA_DEFAULT,
+					Transparency = ALPHA_DEFAULT,
+				}):Play()
+				-- Detener partículas si las había
+				local pid = estado.matrizData and estado.matrizData.EsDirigido
+					and (nomA .. "_>" .. nomB)
+					or  idConexion(nomA, nomB)
+				detenerParticulasId(pid)
+			end
+		end
+	end)
+
+	GestorEfectos.registrar("CableDesconectado", function(params)
+		local nomA = params.arg1
+		local nomB = params.arg2
+		if type(nomA) == "string" and type(nomB) == "string" then
+			invalidarCacheTopologia()
+
+			-- Si la arista existe en el mapa, restaurarla al estado default
+			local mapKey = keyAristaMap(nomA, nomB)
+			local info = estado.aristaMap[mapKey]
+			if info and info.part and info.part.Parent then
+				info.part.Material = MAT_DEFAULT
+				TweenService:Create(info.part, TWEEN_ARISTA, {
+					Color        = COL_ARISTA_DEFAULT,
+					Transparency = ALPHA_DEFAULT,
+				}):Play()
+				local pid = estado.matrizData and estado.matrizData.EsDirigido
+					and (nomA .. "_>" .. nomB)
+					or  idConexion(nomA, nomB)
+				detenerParticulasId(pid)
+			end
 		end
 	end)
 
@@ -1189,10 +1239,10 @@ end
 
 -- Registrarse en el orquestador de modos
 OrquestadorModos.registrarModo("algoritmo3d", {
-	activar = function()
-		-- La activación real ocurre en iniciarSimulacion; aquí no es necesario hacer nada.
-	end,
-	limpiar = function()
+	activar = function() end,
+	limpiar = function(modoDestino)
+		if modoDestino == "mapa" then return end
+
 		limpiarEfectos3D()
 		PanelAlgoritmo3D.ocultar()
 		estado.activo = false
@@ -1200,7 +1250,7 @@ OrquestadorModos.registrarModo("algoritmo3d", {
 		estado.pasoActual = 0
 		estado.totalPasos = 0
 		estado.zonaAnclada = nil
-		if estado.btnEjecutar then estado.btnEjecutar.Text = "Ejecutar Algoritmo" end
+		if estado.btnEjecutar then estado.btnEjecutar.Text = "Ejecución Algoritmica" end
 	end,
 })
 
@@ -1215,7 +1265,8 @@ function EjecutorAlgoritmo3D.limpiar()
 	estado.adyacencias = {}
 	estado.ultimaTopologia = nil
 	estado.ultimaConsultaTime = 0
-	if estado.btnEjecutar then estado.btnEjecutar.Text = "Ejecutar Algoritmo" end
+	if estado.btnEjecutar then estado.btnEjecutar.Text = "Ejecución Algoritmica" end
+	OrquestadorModos.setModo("visual")
 	SelectorAlgUI.ocultar()
 	PanelAlgoritmo3D.ocultar()
 end

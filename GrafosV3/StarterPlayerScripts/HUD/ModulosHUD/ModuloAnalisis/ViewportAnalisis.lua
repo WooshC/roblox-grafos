@@ -317,10 +317,16 @@ function ViewportAnalisis.reconstruirAristas(step)
 
 			local esNueva     = (key == nuevaKey)
 			local esRecorrida = recorridasSet[key]
-			
-			local nivelID = jugador and jugador:GetAttribute("CurrentLevelID") or 0
-			local esDefectuosa = GrafoHelpers.esCableDefectuoso(nivelID, nomA, nomB)
 
+			-- Usar el set dinámico de defectuosos del grafo actual (puede venir de ValidadorConexiones)
+			local esDefectuosa = false
+			if E.modoValidacion then
+				local fuenteDefectuosos = E.matrizData and E.matrizData.Defectuosos or nil
+				esDefectuosa = GrafoHelpers.esCableDefectuoso(
+					fuenteDefectuosos or (jugador and jugador:GetAttribute("CurrentLevelID") or 0),
+					nomA, nomB
+				)
+			end
 			local esDijkstra = E.algoActual == "dijkstra"
 
 			local color, alpha, mat

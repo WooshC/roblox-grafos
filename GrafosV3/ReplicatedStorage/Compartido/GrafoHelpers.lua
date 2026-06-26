@@ -186,14 +186,45 @@ function GrafoHelpers.obtenerPeso(configOrNivelID, nomA, nomB, default)
 end
 
 -- ════════════════════════════════════════════════════════════════════
--- CABLE DEFECTUOSO (según config estática o tabla Defectuosos)
--- ════════════════════════════════════════════════════════════════════
+-- CABLE DEFECTUOSO (según config estática, tabla Defectuosos dinámica, o CablesDefectuosos)
+-- configOrNivelID puede ser:
+--   • number (nivelID) → se lee LevelsConfig
+--   • table de config  → se lee .Defectuosos y .CablesDefectuosos
+--   • table con .Defectuosos → se usa ese set de claves canónicas (dinámico)
+--   • table plana de claves canónicas → se usa directamente como set dinámico
+local function esSetDefectuososPlano(t)
+	if type(t) ~= "table" then return false end
+	if t.Defectuosos ~= nil or t.Adyacencias ~= nil or t.CablesDefectuosos ~= nil then return false end
+	for k, _ in pairs(t) do
+		return type(k) == "string" and string.find(k, SEP, 1, true) ~= nil
+	end
+	return false -- tabla vacía: no podemos asumir que es set plano; dejar que el fallback la interprete como config
+end
+
 function GrafoHelpers.esCableDefectuoso(configOrNivelID, nomA, nomB)
+	local claveCanonica = GrafoHelpers.clavePar(nomA, nomB)
+
+	-- 1) Set dinámico de defectuosos (por ejemplo desde ValidadorConexiones / data.Defectuosos)
+	if type(configOrNivelID) == "table" then
+		local set = configOrNivelID.Defectuosos
+		if set == nil and esSetDefectuososPlano(configOrNivelID) then
+			set = configOrNivelID
+		end
+		if set then
+			if set[claveCanonica] == true then return true end
+			local claves = { nomA .. SEP .. nomB, nomB .. SEP .. nomA }
+			for _, clave in ipairs(claves) do
+				if set[clave] == true then return true end
+			end
+		end
+	end
+
+	-- 2) Config estática de LevelsConfig
 	local cfg = resolverConfig(configOrNivelID)
 	if not cfg then return false end
 	if cfg.Defectuosos then
 		local claves = {
-			GrafoHelpers.clavePar(nomA, nomB),
+			claveCanonica,
 			nomA .. SEP .. nomB,
 			nomB .. SEP .. nomA,
 		}
@@ -273,6 +304,7 @@ function GrafoHelpers.adjDesdeMatriz(data, incluirDefectuosas, configOrNivelID)
 				if (fila[j] or 0) > 0 then
 					local b = headers[j]
 					if not incluirDefectuosas then
+						-- Priorizar set dinámico de defectuosos si viene en data/config
 						local fuente = configOrNivelID or data
 						if GrafoHelpers.esCableDefectuoso(fuente, a, b) then
 							continue
