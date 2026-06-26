@@ -44,7 +44,11 @@ local DIALOGOS = {
 				Actor     = "Sistema",
 				Expresion = "Normal",
 				Texto     = "Este es el botón del Mapa. Presiónalo para ver una vista panorámica del nivel y conectar nodos directamente.",
-
+				Evento    = function(_gui, _metadata)
+					if _G.ControladorDialogo and _G.ControladorDialogo.cerrarMapa then
+						_G.ControladorDialogo.cerrarMapa()
+					end
+				end,
 				DestacarBoton = {
 					nombre         = "BtnMapa",
 					escala         = 1.3,
@@ -67,6 +71,11 @@ local DIALOGOS = {
 				Actor     = "Sistema",
 				Expresion = "Normal",
 				Texto     = "Aquí aprenderás los fundamentos de la teoría de grafos: nodos, aristas, conectividad y mucho más.",
+				Evento    = function(_gui, _metadata)
+					if _G.ControladorDialogo and _G.ControladorDialogo.cerrarMapa then
+						_G.ControladorDialogo.cerrarMapa()
+					end
+				end,
 				Siguiente = "contexto_laboratorio",
 			},
 			-- 4b. Contexto del laboratorio
@@ -94,7 +103,11 @@ local DIALOGOS = {
 				Actor     = "Sistema",
 				Expresion = "Normal",
 				Texto     = "Presiona el botón de Misiones para ver tus objetivos. Completa cada misión para avanzar a la siguiente zona.",
-
+				Evento    = function(_gui, _metadata)
+					if _G.ControladorDialogo and _G.ControladorDialogo.cerrarMapa then
+						_G.ControladorDialogo.cerrarMapa()
+					end
+				end,
 				DestacarBoton = {
 					nombre         = "BtnMisiones",
 					escala         = 1.3,
@@ -125,7 +138,12 @@ local DIALOGOS = {
 				Numero    = 9,
 				Actor     = "Sistema",
 				Expresion = "Normal",
-				Texto     = "Sigue la flecha amarilla que sale de tu personaje. Te indicará el camino hacia tu próximo objetivo.",
+				Texto     = "Sigue la flecha amarilla que sale de tu personaje...",
+				Evento    = function(_gui, _metadata)
+					if _G.ControladorDialogo and _G.ControladorDialogo.cerrarMapa then
+						_G.ControladorDialogo.cerrarMapa()
+					end
+				end,
 				Siguiente = "hud_ayuda",
 			},
 			-- 8. Tutorial: Botón de Ayuda

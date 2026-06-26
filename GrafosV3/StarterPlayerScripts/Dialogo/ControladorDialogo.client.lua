@@ -511,6 +511,15 @@ function ControladorDialogo.cerrar()
 	end
 end
 
+---Cierra el mapa cenital si está abierto (útil para eventos de diálogo).
+function ControladorDialogo.cerrarMapa()
+	local ModuloMapa = DialogoJugadorController.obtenerModuloMapa()
+	if ModuloMapa and ModuloMapa.estaAbierto and ModuloMapa.estaAbierto() then
+		print("[ControladorDialogo] Cerrando mapa desde diálogo")
+		ModuloMapa.cerrar()
+	end
+end
+
 function ControladorDialogo.obtenerSistema()
 	return DialogoGUISystem
 end
