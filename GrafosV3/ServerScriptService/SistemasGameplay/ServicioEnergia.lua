@@ -16,6 +16,7 @@ local _generadores = {}
 local _adyacencias = {}
 local _zonas = {}
 local _eventoProgresoEnergia = nil
+local _eventoRedEnergizada = nil
 local _conexionEstado = nil
 local _hiloEvaluacion = nil
 
@@ -90,12 +91,18 @@ local function evaluarPropagacion()
 		warn("[ServicioEnergia] evaluarPropagacion() llamado pero _activo = false")
 		return
 	end
+
+	local redEnergizada = calcularRedEnergizada()
+
+	-- Notificar a todos los clientes el set de nodos energizados (para el mapa y otros HUDs)
+	if _eventoRedEnergizada then
+		_eventoRedEnergizada:FireAllClients(redEnergizada)
+	end
+
 	if not _eventoProgresoEnergia then
 		warn("[ServicioEnergia] evaluarPropagacion() llamado pero _eventoProgresoEnergia es nil")
 		return
 	end
-
-	local redEnergizada = calcularRedEnergizada()
 
 	for zonaID, nodosEnZona in pairs(_zonas) do
 		local porcentaje = 0
@@ -144,6 +151,7 @@ function ServicioEnergia.activar(config, nivelID, eventos)
 
 	if eventos then
 		_eventoProgresoEnergia = eventos:FindFirstChild("ProgresoEnergia")
+		_eventoRedEnergizada   = eventos:FindFirstChild("ActualizarRedEnergizada")
 	end
 
 	indexarNivel()
@@ -174,6 +182,7 @@ function ServicioEnergia.desactivar()
 	_adyacencias = {}
 	_zonas = {}
 	_eventoProgresoEnergia = nil
+	_eventoRedEnergizada = nil
 
 	if _conexionEstado then
 		_conexionEstado:Disconnect()

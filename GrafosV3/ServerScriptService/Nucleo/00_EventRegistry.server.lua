@@ -57,6 +57,7 @@ local EVENTOS_REMOTOS = {
 
 	-- Sistema de Energía Progresiva
 	{ nombre = "ProgresoEnergia",        tipo = "RemoteEvent" },      -- Server -> Cliente (porcentaje de energía por zona)
+	{ nombre = "ActualizarRedEnergizada", tipo = "RemoteEvent" },      -- Server -> Cliente (set de nodos actualmente energizados)
 	{ nombre = "TimerEmergencia",        tipo = "RemoteEvent" },      -- Server -> Cliente (tiempo restante misión emergencia)
 
 	-- Sistema de Diálogos
