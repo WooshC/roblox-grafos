@@ -186,14 +186,29 @@ function GrafoHelpers.obtenerPeso(configOrNivelID, nomA, nomB, default)
 end
 
 -- ════════════════════════════════════════════════════════════════════
--- CABLE DEFECTUOSO (según config estática o tabla Defectuosos)
--- ════════════════════════════════════════════════════════════════════
+-- CABLE DEFECTUOSO (según config estática, tabla Defectuosos dinámica, o CablesDefectuosos)
+-- configOrNivelID puede ser:
+--   • number (nivelID) → se lee LevelsConfig
+--   • table de config  → se lee .Defectuosos y .CablesDefectuosos
+--   • table con .Defectuosos → se usa ese set de claves canónicas (dinámico)
 function GrafoHelpers.esCableDefectuoso(configOrNivelID, nomA, nomB)
+	local claveCanonica = GrafoHelpers.clavePar(nomA, nomB)
+
+	-- 1) Set dinámico de defectuosos (por ejemplo desde ValidadorConexiones / data.Defectuosos)
+	if type(configOrNivelID) == "table" and configOrNivelID.Defectuosos then
+		if configOrNivelID.Defectuosos[claveCanonica] == true then return true end
+		local claves = { nomA .. SEP .. nomB, nomB .. SEP .. nomA }
+		for _, clave in ipairs(claves) do
+			if configOrNivelID.Defectuosos[clave] == true then return true end
+		end
+	end
+
+	-- 2) Config estática de LevelsConfig
 	local cfg = resolverConfig(configOrNivelID)
 	if not cfg then return false end
 	if cfg.Defectuosos then
 		local claves = {
-			GrafoHelpers.clavePar(nomA, nomB),
+			claveCanonica,
 			nomA .. SEP .. nomB,
 			nomB .. SEP .. nomA,
 		}
@@ -273,6 +288,7 @@ function GrafoHelpers.adjDesdeMatriz(data, incluirDefectuosas, configOrNivelID)
 				if (fila[j] or 0) > 0 then
 					local b = headers[j]
 					if not incluirDefectuosas then
+						-- Priorizar set dinámico de defectuosos si viene en data/config
 						local fuente = configOrNivelID or data
 						if GrafoHelpers.esCableDefectuoso(fuente, a, b) then
 							continue

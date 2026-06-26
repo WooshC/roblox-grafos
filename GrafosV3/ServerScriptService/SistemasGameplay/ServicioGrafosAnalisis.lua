@@ -13,6 +13,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LevelsConfig  = require(ReplicatedStorage:WaitForChild("Config"):WaitForChild("LevelsConfig"))
 local GrafoHelpers  = require(ReplicatedStorage:WaitForChild("Compartido"):WaitForChild("GrafoHelpers"))
+local ValidadorConexiones = require(script.Parent:WaitForChild("ValidadorConexiones"))
 
 local Remotos = ReplicatedStorage
 	:WaitForChild("EventosGrafosV3", 10)
@@ -57,8 +58,16 @@ getGrafoCompletoFunc.OnServerInvoke = function(player, zonaID)
 		end
 	end
 
-	-- Cables defectuosos como set de claves canónicas
-	local defectuososSet = GrafoHelpers.defectuososSet(config)
+	-- Cables defectuosos: usar estado dinámico de ValidadorConexiones.
+	-- Así, si el jugador reemplazó o destruyó un cable defectuoso, no se marca como defectuoso.
+	local defectuososSet = {}
+	for _, nomA in ipairs(nodos) do
+		for _, nomB in ipairs(adyacencias[nomA] or {}) do
+			if ValidadorConexiones.esCableDefectuoso(nomA, nomB) then
+				defectuososSet[GrafoHelpers.clavePar(nomA, nomB)] = true
+			end
+		end
+	end
 
 	return {
 		Headers       = nodos,

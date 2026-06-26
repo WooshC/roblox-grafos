@@ -40,8 +40,9 @@ end
 -- CONSTRUIR ADYACENCIAS DESDE LA MATRIZ
 -- ════════════════════════════════════════════════════════════════
 local function buildAdyacencias(data, soloValidas)
-	local nivelID = jugador:GetAttribute("CurrentLevelID") or 0
-	return GrafoHelpers.adjDesdeMatriz(data, not soloValidas, nivelID)
+	-- Usar el set dinámico de defectuosos que viene del servidor (data.Defectuosos).
+	-- Si no existe, GrafoHelpers cae en la config estática como fallback.
+	return GrafoHelpers.adjDesdeMatriz(data, not soloValidas, data)
 end
 
 -- ════════════════════════════════════════════════════════════════
@@ -535,16 +536,8 @@ function ModuloAnalisis.inicializar(hudGui)
 		)
 	end)
 
-	-- AnalisisBtn en SelectorModos
-	local selectorModos = hudGui:FindFirstChild("SelectorModos", true)
-	if selectorModos then
-		local analisisBtn = selectorModos:FindFirstChild("AnalisisBtn")
-		if analisisBtn then
-			analisisBtn.MouseButton1Click:Connect(function()
-				if E.abierto then ModuloAnalisis.cerrar() else ModuloAnalisis.abrir() end
-			end)
-		end
-	end
+	-- NOTA: AnalisisBtn se conecta desde SelectorModosHUD/ControladorHUD.
+	-- No duplicar aquí para evitar que dos listeners se anulen.
 
 	PanelEstadoAnalisis.actualizarPills(E.algoActual)
 	PseudocodigoAnalisis.reconstruirPseudocodigo(E.algoActual)

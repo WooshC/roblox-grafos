@@ -206,6 +206,20 @@ function ValidadorConexiones.esCableDefectuoso(nombreA, nombreB)
 end
 
 --[[
+	Limpia manualmente la marca de defectuoso para un par de nodos.
+	Útil cuando un sistema externo destruye el cable sin pasar por eliminarConexion.
+]]
+function ValidadorConexiones.limpiarCableDefectuoso(nombreA, nombreB)
+	local clave = GrafoHelpers.clavePar(nombreA, nombreB)
+	if cablesDefectuososClaves[clave] then
+		cablesDefectuososClaves[clave] = nil
+		print(string.format("[ValidadorConexiones] Marca de defectuoso limpiada: %s", clave))
+		return true
+	end
+	return false
+end
+
+--[[
 	Obtiene todas las conexiones de un nodo.
 	
 	@param nombreNodo string - Nombre del nodo
