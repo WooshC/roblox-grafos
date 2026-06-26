@@ -1105,6 +1105,7 @@ local function toggleSelector()
 		estado.zonaAnclada = nil
 		SelectorAlgUI.ocultar()
 		if estado.btnEjecutar then estado.btnEjecutar.Text = "Ejecutar Algoritmo" end
+		OrquestadorModos.setModo("visual")
 		return
 	end
 	if SelectorAlgUI.estaVisible() then
@@ -1238,10 +1239,10 @@ end
 
 -- Registrarse en el orquestador de modos
 OrquestadorModos.registrarModo("algoritmo3d", {
-	activar = function()
-		-- La activación real ocurre en iniciarSimulacion; aquí no es necesario hacer nada.
-	end,
-	limpiar = function()
+	activar = function() end,
+	limpiar = function(modoDestino)
+		if modoDestino == "mapa" then return end
+
 		limpiarEfectos3D()
 		PanelAlgoritmo3D.ocultar()
 		estado.activo = false
@@ -1265,6 +1266,7 @@ function EjecutorAlgoritmo3D.limpiar()
 	estado.ultimaTopologia = nil
 	estado.ultimaConsultaTime = 0
 	if estado.btnEjecutar then estado.btnEjecutar.Text = "Ejecución Algoritmica" end
+	OrquestadorModos.setModo("visual")
 	SelectorAlgUI.ocultar()
 	PanelAlgoritmo3D.ocultar()
 end
