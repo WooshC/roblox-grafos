@@ -110,19 +110,19 @@ local function iniciarAutoPlay()
 			E.pasoActual = E.pasoActual + 1
 			PanelEstadoAnalisis.aplicarPaso(E.pasos[E.pasoActual])
 		end
-		
+
 		if E.autoPlaying and E.modoValidacion then
 			-- Finalizó el auto-play de validación exitosamente
 			local inicio = E.nodoInicio or E.matrizData.Headers[1]
 			local aisladosSet = GrafoHelpers.nodosNoAlcanzables(E.adyacencias, inicio, E.matrizData.Headers)
-			
+
 			local aislados = {}
 			for _, n in ipairs(E.matrizData.Headers) do
 				if aisladosSet[n] then
 					table.insert(aislados, E.matrizData.NombresNodos[n] or n)
 				end
 			end
-			
+
 			if #aislados > 0 then
 				local zonaId = jugador:GetAttribute("ZonaActual") or ""
 				local nivelID = jugador:GetAttribute("CurrentLevelID") or 0
@@ -380,26 +380,27 @@ function ModuloAnalisis.inicializar(hudGui)
 		E.btnEjecRef = btnEjec
 		btnEjec.MouseButton1Click:Connect(function()
 			if not E.abierto then return end
-			
-			-- Si el usuario viene de terminar una validación y presiona "Ejecutar", restablecemos el grafo completo
+			detenerAutoPlay()  -- ← mover aquí, siempre primero
+
 			if E.validacionTerminada then
 				E.modoValidacion      = false
 				E.validacionTerminada = false
-				
-				if E.idealMatrizData then
-					E.matrizData = E.idealMatrizData
-				end
-				
+
+				E.matrizData          = E.idealMatrizData or E.matrizData
 				E.adyacencias         = buildAdyacencias(E.matrizData, false)
 				E.adyacenciasVisuales = nil
-				
+
 				PanelEstadoAnalisis.mostrarMensajeDesc("Restaurando simulación de grafo ideal...")
 				ViewportAnalisis.construirViewport()
 				ejecutarAlgoritmo()
-				iniciarAutoPlay()
+
+				-- Solo iniciar autoplay si hay pasos
+				if E.totalPasos > 0 then
+					iniciarAutoPlay()
+				end
 				return
 			end
-			
+
 			if E.totalPasos == 0 then
 				local zona = jugador:GetAttribute("ZonaActual") or ""
 				if zona == "" then
@@ -411,6 +412,7 @@ function ModuloAnalisis.inicializar(hudGui)
 					function()
 						ViewportAnalisis.construirViewport()
 						ejecutarAlgoritmo()
+						if E.totalPasos > 0 then iniciarAutoPlay() end
 					end,
 					function(msg) PanelEstadoAnalisis.mostrarMensajeDesc(msg) end
 				)
@@ -442,19 +444,19 @@ function ModuloAnalisis.inicializar(hudGui)
 				)
 			end
 		end
-		
+
 		btnValidar.MouseButton1Click:Connect(function()
 			if not E.abierto or not E.matrizData then return end
 			detenerAutoPlay()
-			
+
 			PanelEstadoAnalisis.mostrarMensajeDesc("Obteniendo topología real de conexiones...")
-			
+
 			-- Usar explícitamente GetAdjacencyMatrix para obtener las conexiones REALES armadas por el jugador
 			local rf = RS:WaitForChild("EventosGrafosV3"):WaitForChild("Remotos"):WaitForChild("GetAdjacencyMatrix")
 			task.spawn(function()
 				local zona = jugador:GetAttribute("ZonaActual") or ""
 				local ok, realData = pcall(function() return rf:InvokeServer(zona) end)
-				
+
 				if ok and realData and not realData.SinZona then
 					-- Guardar algoritmo activo y forzar BFS para la validación de conectividad
 					E.algoOriginalValidacion = E.algoActual
@@ -464,14 +466,14 @@ function ModuloAnalisis.inicializar(hudGui)
 					E.validacionTerminada = false
 					E.matrizData          = realData
 					E.nodosDaniados       = realData.NodosDaniados or {}
-					
+
 					-- Ignora cables defectuosos para el backend
 					E.adyacencias         = buildAdyacencias(realData, true) 
 					-- Visualmente dibuja todos (incluso defectuosos)
 					E.adyacenciasVisuales = buildAdyacencias(realData, false)
-					
+
 					ViewportAnalisis.construirViewport()
-					
+
 					-- Ejecutamos BFS sobre las adyacencias reales para detectar nodos aislados
 					ejecutarAlgoritmo()
 					PanelEstadoAnalisis.mostrarMensajeDesc("Validando nodos aislados a partir de tus conexiones...")

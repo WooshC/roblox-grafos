@@ -191,15 +191,31 @@ end
 --   • number (nivelID) → se lee LevelsConfig
 --   • table de config  → se lee .Defectuosos y .CablesDefectuosos
 --   • table con .Defectuosos → se usa ese set de claves canónicas (dinámico)
+--   • table plana de claves canónicas → se usa directamente como set dinámico
+local function esSetDefectuososPlano(t)
+	if type(t) ~= "table" then return false end
+	if t.Defectuosos ~= nil or t.Adyacencias ~= nil or t.CablesDefectuosos ~= nil then return false end
+	for k, _ in pairs(t) do
+		return type(k) == "string" and string.find(k, SEP, 1, true) ~= nil
+	end
+	return false -- tabla vacía: no podemos asumir que es set plano; dejar que el fallback la interprete como config
+end
+
 function GrafoHelpers.esCableDefectuoso(configOrNivelID, nomA, nomB)
 	local claveCanonica = GrafoHelpers.clavePar(nomA, nomB)
 
 	-- 1) Set dinámico de defectuosos (por ejemplo desde ValidadorConexiones / data.Defectuosos)
-	if type(configOrNivelID) == "table" and configOrNivelID.Defectuosos then
-		if configOrNivelID.Defectuosos[claveCanonica] == true then return true end
-		local claves = { nomA .. SEP .. nomB, nomB .. SEP .. nomA }
-		for _, clave in ipairs(claves) do
-			if configOrNivelID.Defectuosos[clave] == true then return true end
+	if type(configOrNivelID) == "table" then
+		local set = configOrNivelID.Defectuosos
+		if set == nil and esSetDefectuososPlano(configOrNivelID) then
+			set = configOrNivelID
+		end
+		if set then
+			if set[claveCanonica] == true then return true end
+			local claves = { nomA .. SEP .. nomB, nomB .. SEP .. nomA }
+			for _, clave in ipairs(claves) do
+				if set[clave] == true then return true end
+			end
 		end
 	end
 
