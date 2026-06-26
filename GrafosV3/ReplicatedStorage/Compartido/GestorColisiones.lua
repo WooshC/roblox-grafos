@@ -24,7 +24,7 @@ GestorColisiones.config = {
 -- ═══════════════════════════════════════════════════════════════════════════════
 function GestorColisiones:capturar(nivelModelo)
 	if not nivelModelo then
-		warn("[GestorColisiones] ❌ No se proporciono modelo de nivel")
+		warn("[GestorColisiones] No se proporciono modelo de nivel")
 		return
 	end
 
@@ -44,7 +44,7 @@ function GestorColisiones:capturar(nivelModelo)
 	end
 
 	self.estaCapturado = true
-	print(string.format("[GestorColisiones] ✅ Capturados %d techos", #techos))
+	print(string.format("[GestorColisiones] Capturados %d techos", #techos))
 	return #techos
 end
 
@@ -103,7 +103,7 @@ end
 -- ═══════════════════════════════════════════════════════════════════════════════
 function GestorColisiones:ocultarTecho()
 	if not self.estaCapturado then
-		warn("[GestorColisiones] ⚠️ No hay techos capturados. Llamar capturar() primero.")
+		warn("[GestorColisiones] No hay techos capturados. Llamar capturar() primero.")
 		return
 	end
 
@@ -123,7 +123,7 @@ function GestorColisiones:ocultarTecho()
 	end
 
 	self.estaOculto = true
-	print(string.format("[GestorColisiones] ✅ %d techos ocultados", conteo))
+	print(string.format("[GestorColisiones] %d techos ocultados", conteo))
 end
 
 -- ═══════════════════════════════════════════════════════════════════════════════
@@ -131,7 +131,7 @@ end
 -- ═══════════════════════════════════════════════════════════════════════════════
 function GestorColisiones:restaurar()
 	if not self.estaCapturado then
-		warn("[GestorColisiones] ⚠️ No hay techos capturados")
+		warn("[GestorColisiones] No hay techos capturados")
 		return
 	end
 
@@ -149,7 +149,7 @@ function GestorColisiones:restaurar()
 	end
 
 	self.estaOculto = false
-	print(string.format("[GestorColisiones] ✅ %d techos restaurados", conteo))
+	print(string.format("[GestorColisiones] %d techos restaurados", conteo))
 end
 
 -- ═══════════════════════════════════════════════════════════════════════════════
@@ -165,7 +165,7 @@ function GestorColisiones:liberar()
 	self.estaCapturado = false
 	self.estaOculto = false
 
-	print("[GestorColisiones] 🧹 Referencias liberadas")
+	print("[GestorColisiones] Referencias liberadas")
 end
 
 -- ═══════════════════════════════════════════════════════════════════════════════

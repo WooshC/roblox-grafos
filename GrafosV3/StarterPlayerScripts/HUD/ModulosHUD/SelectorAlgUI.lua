@@ -404,7 +404,7 @@ function SelectorAlgUI.inicializar(hudGui)
 		workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(recalcular)
 	end
 
-	print("[SelectorAlgUI] Inicializado ✅")
+	print("[SelectorAlgUI] Inicializado ")
 end
 
 function SelectorAlgUI.mostrar(algoritmos)

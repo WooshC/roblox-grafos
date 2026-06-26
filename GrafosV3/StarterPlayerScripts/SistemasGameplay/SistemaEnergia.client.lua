@@ -337,11 +337,11 @@ local function ajustarNivelEnergia(carpeta, porcentaje)
 end
 
 local function actualizarProgresoZona(zonaID, porcentaje)
-	-- print(string.format("[SistemaEnergia] 📡 Recibido ProgresoEnergia: zonaID=%s porcentaje=%.2f", tostring(zonaID), porcentaje))
+	-- print(string.format("[SistemaEnergia] Recibido ProgresoEnergia: zonaID=%s porcentaje=%.2f", tostring(zonaID), porcentaje))
 
 	local nombreCarpeta = _mapaZonas[zonaID]
 	if not nombreCarpeta then
-		-- warn(string.format("[SistemaEnergia] ⚠ zonaID '%s' no está en _mapaZonas. Zonas conocidas:", tostring(zonaID)))
+		-- warn(string.format("[SistemaEnergia] zonaID '%s' no está en _mapaZonas. Zonas conocidas:", tostring(zonaID)))
 		-- for zid, carp in pairs(_mapaZonas) do
 		-- 	warn(string.format("  → %s → %s", zid, carp))
 		-- end
@@ -349,12 +349,12 @@ local function actualizarProgresoZona(zonaID, porcentaje)
 	end
 	local carpeta = obtenerCarpeta(nombreCarpeta)
 	if not carpeta then
-		-- warn(string.format("[SistemaEnergia] ⚠ Carpeta '%s' no encontrada en workspace para zona '%s'", nombreCarpeta, tostring(zonaID)))
+		-- warn(string.format("[SistemaEnergia] Carpeta '%s' no encontrada en workspace para zona '%s'", nombreCarpeta, tostring(zonaID)))
 		return
 	end
 
 	_zonasEncendidas[zonaID] = porcentaje
-	-- print(string.format("[SistemaEnergia] ⚡ %s → %d%%", nombreCarpeta, math.floor(porcentaje * 100)))
+	-- print(string.format("[SistemaEnergia] %s → %d%%", nombreCarpeta, math.floor(porcentaje * 100)))
 	ajustarNivelEnergia(carpeta, porcentaje)
 	actualizarEmergencia(zonaID, porcentaje)
 end
@@ -400,7 +400,7 @@ local function inicializarApagado()
 			zonasApagadas = zonasApagadas + 1
 			-- print(string.format("[SistemaEnergia] %s → %d luces apagadas", nombreCarpeta, l))
 		else
-			warn(string.format("[SistemaEnergia] ⚠ No encontrada: '%s' (ZonaID: %s)", nombreCarpeta, tostring(zonaID)))
+			warn(string.format("[SistemaEnergia] No encontrada: '%s' (ZonaID: %s)", nombreCarpeta, tostring(zonaID)))
 		end
 	end
 
@@ -421,7 +421,7 @@ local function conectar(nombre, callback)
 	local ev = remotos:WaitForChild(nombre, 10)
 	if ev then
 		ev.OnClientEvent:Connect(callback)
-		print("[SistemaEnergia] ✓ Escuchando", nombre)
+		print("[SistemaEnergia] Escuchando", nombre)
 	else
 		warn("[SistemaEnergia] Evento no encontrado:", nombre)
 	end

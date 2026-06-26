@@ -24,7 +24,7 @@ function ServicioDatos.cargar(jugador)
 	
 	if exito and datos then
 		ServicioDatos.cache[userId] = datos
-		print("[ServicioDatos] ✅ Datos cargados para", jugador.Name)
+		print("[ServicioDatos] Datos cargados para", jugador.Name)
 	else
 		-- Crear datos iniciales
 		local datosIniciales = {
@@ -34,7 +34,7 @@ function ServicioDatos.cargar(jugador)
 		}
 		
 		ServicioDatos.cache[userId] = datosIniciales
-		print("[ServicioDatos] ✅ Datos iniciales creados para", jugador.Name)
+		print("[ServicioDatos] Datos iniciales creados para", jugador.Name)
 	end
 end
 
@@ -47,7 +47,7 @@ function ServicioDatos.guardar(jugador)
 	local datos = ServicioDatos.cache[userId]
 	
 	if not datos then
-		warn("[ServicioDatos] ⚠️ No hay datos en cache para", jugador.Name)
+		warn("[ServicioDatos] No hay datos en cache para", jugador.Name)
 		return
 	end
 	
@@ -58,9 +58,9 @@ function ServicioDatos.guardar(jugador)
 	end)
 	
 	if exito then
-		print("[ServicioDatos] ✅ Datos guardados para", jugador.Name)
+		print("[ServicioDatos] Datos guardados para", jugador.Name)
 	else
-		warn("[ServicioDatos] ❌ Error guardando:", error)
+		warn("[ServicioDatos] Error guardando:", error)
 	end
 end
 
@@ -87,7 +87,7 @@ function ServicioDatos.actualizarNivel(jugador, nivelID, datosNivel)
 		local siguienteNivel = nivelID + 1
 		if not table.find(datos.nivelesDesbloqueados, siguienteNivel) then
 			table.insert(datos.nivelesDesbloqueados, siguienteNivel)
-			print("[ServicioDatos] ✅ Nivel desbloqueado:", siguienteNivel)
+			print("[ServicioDatos] Nivel desbloqueado:", siguienteNivel)
 		end
 	end
 end

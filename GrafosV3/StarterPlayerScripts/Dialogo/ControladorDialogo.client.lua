@@ -47,7 +47,7 @@ local function cargarModulo(nombre)
 	end
 	local resultado = Utilidades.safeRequire(modulo, nombre)
 	if resultado then
-		print("[ControladorDialogo] ✓ Módulo cargado:", nombre)
+		print("[ControladorDialogo] Módulo cargado:", nombre)
 	end
 	return resultado
 end
@@ -96,7 +96,7 @@ if not initExito then
 	return
 end
 
-print("[ControladorDialogo] ✓ Sistema de diálogos inicializado correctamente")
+print("[ControladorDialogo] Sistema de diálogos inicializado correctamente")
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- FORWARDING DE ACCIONES DE GAMEPLAY AL SISTEMA DE DIÁLOGOS INTERACTIVOS
@@ -122,7 +122,7 @@ if notificarSeleccionNodo then
 			end
 		end
 	end)
-	print("[ControladorDialogo] ✓ Forwarding de acciones de gameplay conectado")
+	print("[ControladorDialogo] Forwarding de acciones de gameplay conectado")
 else
 	warn("[ControladorDialogo] NotificarSeleccionNodo no encontrado - diálogos interactivos no funcionarán")
 end
@@ -222,7 +222,7 @@ local function buscarYConectarPrompts()
 		if modeloDialogo:IsA("Model") or modeloDialogo:IsA("Folder") then
 			local promptPart = modeloDialogo:FindFirstChild("PromptPart")
 			if promptPart then
-				-- print("[ControladorDialogo] ✓ PromptPart encontrado en:", modeloDialogo.Name)
+				-- print("[ControladorDialogo] PromptPart encontrado en:", modeloDialogo.Name)
 				local config = {
 					id = modeloDialogo:GetAttribute("DialogoID") or modeloDialogo.Name,
 					actionText = modeloDialogo:GetAttribute("ActionText") or "Hablar",
@@ -312,12 +312,12 @@ function iniciarDialogo(dialogoID, metadata)
 	if dialogoIniciadoEvento then
 		local ok, err = pcall(function() dialogoIniciadoEvento:FireServer() end)
 		if ok then
-			print("[ControladorDialogo] 📤 DialogoIniciado enviado al servidor")
+			print("[ControladorDialogo] DialogoIniciado enviado al servidor")
 		else
-			warn("[ControladorDialogo] ❌ Error enviando DialogoIniciado:", err)
+			warn("[ControladorDialogo] Error enviando DialogoIniciado:", err)
 		end
 	else
-		warn("[ControladorDialogo] ❌ DialogoIniciado no encontrado en Remotos")
+		warn("[ControladorDialogo] DialogoIniciado no encontrado en Remotos")
 	end
 
 	-- Combinar restricciones: Defaults → Config del archivo → Config del prompt/atributos
@@ -423,12 +423,12 @@ function iniciarDialogo(dialogoID, metadata)
 		if dialogoTerminadoEvento then
 			local ok, err = pcall(function() dialogoTerminadoEvento:FireServer() end)
 			if ok then
-				print("[ControladorDialogo] 📤 DialogoTerminado enviado al servidor")
+				print("[ControladorDialogo] DialogoTerminado enviado al servidor")
 			else
-				warn("[ControladorDialogo] ❌ Error enviando DialogoTerminado:", err)
+				warn("[ControladorDialogo] Error enviando DialogoTerminado:", err)
 			end
 		else
-			warn("[ControladorDialogo] ❌ DialogoTerminado no encontrado en Remotos")
+			warn("[ControladorDialogo] DialogoTerminado no encontrado en Remotos")
 		end
 
 		dialogoActivo = false
@@ -446,12 +446,12 @@ function iniciarDialogo(dialogoID, metadata)
 		if dialogoTerminadoEvento then
 			local ok, err = pcall(function() dialogoTerminadoEvento:FireServer() end)
 			if ok then
-				print("[ControladorDialogo] 📤 DialogoTerminado enviado al servidor (fallback)")
+				print("[ControladorDialogo] DialogoTerminado enviado al servidor (fallback)")
 			else
-				warn("[ControladorDialogo] ❌ Error enviando DialogoTerminado (fallback):", err)
+				warn("[ControladorDialogo] Error enviando DialogoTerminado (fallback):", err)
 			end
 		else
-			warn("[ControladorDialogo] ❌ DialogoTerminado no encontrado en Remotos (fallback)")
+			warn("[ControladorDialogo] DialogoTerminado no encontrado en Remotos (fallback)")
 		end
 		dialogoActivo = false
 	end
@@ -630,4 +630,4 @@ remotos.NivelDescargado.OnClientEvent:Connect(function()
 	nivelActual = nil
 end)
 
-print("[GrafosV3] ✅ ControladorDialogo activo y esperando niveles")
+print("[GrafosV3] ControladorDialogo activo y esperando niveles")

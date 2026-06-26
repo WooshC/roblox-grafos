@@ -48,10 +48,10 @@ function VictoriaHUD._buscarElementos()
 	end
 	
 	-- Diagnóstico
-	print("[VictoriaHUD] victoriaFondo:", victoriaFondo and "✅" or "❌")
-	print("[VictoriaHUD] victoriaStats:", victoriaStats and "✅" or "❌")
-	print("[VictoriaHUD] botonRepetir:", botonRepetir and "✅" or "❌")
-	print("[VictoriaHUD] botonContinuar:", botonContinuar and "✅" or "❌")
+	print("[VictoriaHUD] victoriaFondo:", victoriaFondo and "" or "")
+	print("[VictoriaHUD] victoriaStats:", victoriaStats and "" or "")
+	print("[VictoriaHUD] botonRepetir:", botonRepetir and "" or "")
+	print("[VictoriaHUD] botonContinuar:", botonContinuar and "" or "")
 end
 
 function VictoriaHUD._conectarBotones()
@@ -113,7 +113,7 @@ end
 
 function VictoriaHUD.mostrar(snapshotVictoria)
 	if not victoriaFondo then
-		warn("[VictoriaHUD] ❌ VictoriaFondo no encontrado")
+		warn("[VictoriaHUD] VictoriaFondo no encontrado")
 		return
 	end
 
@@ -130,14 +130,14 @@ function VictoriaHUD.mostrar(snapshotVictoria)
 		local function fijarValorStat(nombreFila, valor)
 			local statRow = victoriaStats:FindFirstChild(nombreFila)
 			if not statRow then
-				warn("[VictoriaHUD] ⚠ Fila no encontrada:", nombreFila)
+				warn("[VictoriaHUD] Fila no encontrada:", nombreFila)
 				return
 			end
 			
 			-- Buscar "Val" primero (nombre en GUIExploradorV2), fallback a "Valor"
 			local valueLabel = statRow:FindFirstChild("Val") or statRow:FindFirstChild("Valor")
 			if not valueLabel then
-				warn("[VictoriaHUD] ⚠ No se encontró 'Val' ni 'Valor' en:", nombreFila)
+				warn("[VictoriaHUD] No se encontró 'Val' ni 'Valor' en:", nombreFila)
 				return
 			end
 			
@@ -176,10 +176,10 @@ function VictoriaHUD.mostrar(snapshotVictoria)
 		end
 	else
 		if not victoriaStats then
-			warn("[VictoriaHUD] ❌ victoriaStats no encontrado")
+			warn("[VictoriaHUD] victoriaStats no encontrado")
 		end
 		if not snapshotVictoria then
-			warn("[VictoriaHUD] ❌ snapshotVictoria es nil")
+			warn("[VictoriaHUD] snapshotVictoria es nil")
 		end
 	end
 

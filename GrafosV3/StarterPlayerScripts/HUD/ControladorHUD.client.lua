@@ -631,4 +631,4 @@ end)
 -- Inicialmente, el HUD debe estar desactivado (el menú está activo)
 desactivarHUD()
 
-print("[GrafosV3] ✅ ControladorHUD activo y esperando NivelListo")
+print("[GrafosV3] ControladorHUD activo y esperando NivelListo")

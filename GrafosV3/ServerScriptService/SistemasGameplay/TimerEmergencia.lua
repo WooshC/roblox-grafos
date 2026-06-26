@@ -47,12 +47,12 @@ end
 function TimerEmergencia:iniciar(mision)
 	-- No reiniciar si ya está activo para la misma misión
 	if self._misionID == mision.ID and self._conn then
-		-- print(string.format("[TimerEmergencia] ⚠️ Timer %d ya activo, no se reinicia", mision.ID))
+		-- print(string.format("[TimerEmergencia] Timer %d ya activo, no se reinicia", mision.ID))
 		return
 	end
 	-- No reiniciar si ya finalizó
 	if self._fallido or self._completado then
-		-- print(string.format("[TimerEmergencia] ⚠️ Timer %d ya finalizó (fallido=%s, completado=%s)",
+		-- print(string.format("[TimerEmergencia] Timer %d ya finalizó (fallido=%s, completado=%s)",
 		-- 	mision.ID, tostring(self._fallido), tostring(self._completado)))
 		return
 	end
@@ -68,14 +68,14 @@ function TimerEmergencia:iniciar(mision)
 	self._pausado     = false
 	self._tiempoRestantePausa = nil
 
-	-- print(string.format("[TimerEmergencia] 🚨 EMERGENCIA %d iniciada | Tiempo: %ds", mision.ID, tiempoLimite))
+	-- print(string.format("[TimerEmergencia] EMERGENCIA %d iniciada | Tiempo: %ds", mision.ID, tiempoLimite))
 
 	-- Si se pidió pausa antes de que el timer existiera, pausar inmediatamente
 	if self._debePausarseAlIniciar then
 		self._debePausarseAlIniciar = false
 		self._pausado = true
 		self._tiempoRestantePausa = tiempoLimite
-		-- print(string.format("[TimerEmergencia] 🚨 EMERGENCIA %d iniciada Y PAUSADA — restante: %ds", mision.ID, tiempoLimite))
+		-- print(string.format("[TimerEmergencia] EMERGENCIA %d iniciada Y PAUSADA — restante: %ds", mision.ID, tiempoLimite))
 		self:_notificarCliente(tiempoLimite, "PAUSADO")
 	else
 		self:_notificarCliente(tiempoLimite, mision.Texto)
@@ -96,7 +96,7 @@ function TimerEmergencia:iniciar(mision)
 
 			if restante <= 0 then
 				self._fallido = true
-				-- print(string.format("[TimerEmergencia] ⏰ EMERGENCIA %d FALLIDA — Tiempo agotado", self._misionID))
+				-- print(string.format("[TimerEmergencia] EMERGENCIA %d FALLIDA — Tiempo agotado", self._misionID))
 				self:_notificarCliente(0, self._textoMision, true)
 				if self._onExpirado then
 					self._onExpirado(self._misionID)
@@ -115,12 +115,12 @@ function TimerEmergencia:pausar()
 	if not self._conn or not self._deadline then
 		-- Timer aún no existe; marcar para pausar al iniciar
 		self._debePausarseAlIniciar = true
-		-- print("[TimerEmergencia] ⏸️ Marca de pausa pendiente (timer aún no existe)")
+		-- print("[TimerEmergencia] Marca de pausa pendiente (timer aún no existe)")
 		return
 	end
 	self._tiempoRestantePausa = math.max(0, self._deadline - tick())
 	self._pausado = true
-	-- print(string.format("[TimerEmergencia] ⏸️ Pausado — restante: %.0fs", self._tiempoRestantePausa))
+	-- print(string.format("[TimerEmergencia] Pausado — restante: %.0fs", self._tiempoRestantePausa))
 	self:_notificarCliente(math.floor(self._tiempoRestantePausa), "PAUSADO")
 end
 
@@ -128,14 +128,14 @@ function TimerEmergencia:reanudar()
 	-- Limpiar marca de pausa pendiente si el timer aún no existía
 	if self._debePausarseAlIniciar then
 		self._debePausarseAlIniciar = false
-		-- print("[TimerEmergencia] ▶️ Marca de pausa pendiente limpiada")
+		-- print("[TimerEmergencia] ▶ Marca de pausa pendiente limpiada")
 	end
 	if not self._pausado or self._tiempoRestantePausa == nil then return end
 	self._deadline = tick() + self._tiempoRestantePausa
 	self._pausado = false
 	self._tiempoRestantePausa = nil
 	self._ultimoSegundo = nil
-	-- print(string.format("[TimerEmergencia] ▶️ Reanudado — deadline: %.0fs", self._deadline - tick()))
+	-- print(string.format("[TimerEmergencia] ▶ Reanudado — deadline: %.0fs", self._deadline - tick()))
 	-- Notificar inmediatamente para evitar demora de 1s
 	self:_notificarCliente(math.max(0, math.floor(self._deadline - tick())), self._textoMision)
 end
@@ -150,7 +150,7 @@ end
 function TimerEmergencia:marcarComoSuperada()
 	if self._completado then return end
 	self._completado = true
-	-- print(string.format("[TimerEmergencia] 🎉 EMERGENCIA %d SUPERADA", self._misionID or 0))
+	-- print(string.format("[TimerEmergencia] EMERGENCIA %d SUPERADA", self._misionID or 0))
 	self:_notificarCliente(-1, self._textoMision or "EMERGENCIA", false, true)
 	if self._onSuperada and self._misionID then
 		self._onSuperada(self._misionID, self._textoMision)

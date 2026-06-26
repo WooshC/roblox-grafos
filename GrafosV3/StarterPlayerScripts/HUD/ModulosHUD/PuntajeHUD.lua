@@ -81,7 +81,7 @@ function PuntajeHUD._buscarEtiquetasRecursivo()
 	end
 end
 
--- Actualiza el puntaje en el contenedor de puntos (🏆)
+-- Actualiza el puntaje en el contenedor de puntos ()
 function PuntajeHUD.fijar(valor)
 	if not etiquetaPuntos then
 		PuntajeHUD._buscarEtiquetas()
@@ -92,7 +92,7 @@ function PuntajeHUD.fijar(valor)
 	end
 end
 
--- Actualiza las estrellas (⭐)
+-- Actualiza las estrellas ()
 function PuntajeHUD.fijarEstrellas(valor)
 	if not etiquetaEstrellas then
 		PuntajeHUD._buscarEtiquetas()
@@ -103,7 +103,7 @@ function PuntajeHUD.fijarEstrellas(valor)
 	end
 end
 
--- Actualiza el dinero (💰)
+-- Actualiza el dinero ()
 function PuntajeHUD.fijarDinero(valor)
 	if not etiquetaDinero then
 		PuntajeHUD._buscarEtiquetas()

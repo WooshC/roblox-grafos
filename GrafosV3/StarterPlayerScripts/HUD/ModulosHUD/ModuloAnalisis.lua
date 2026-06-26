@@ -565,7 +565,7 @@ function ModuloAnalisis.inicializar(hudGui)
 		end
 	end)
 
-	print("[ModuloAnalisis] Inicializado ✅")
+	print("[ModuloAnalisis] Inicializado ")
 end
 
 function ModuloAnalisis.configurarNivel(nivelModelParam, nivelIDParam, _configNivel)

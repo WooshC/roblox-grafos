@@ -499,4 +499,4 @@ n("UIGridLayout", {
 	SortOrder = Enum.SortOrder.LayoutOrder,
 }, lScroll)
 
-print("[EDA Quest] ✅ GUI v5 — estructura lista, tarjetas se generarán dinámicamente")
+print("[EDA Quest] GUI v5 — estructura lista, tarjetas se generarán dinámicamente")

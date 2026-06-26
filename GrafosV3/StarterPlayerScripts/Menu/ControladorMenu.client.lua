@@ -14,7 +14,6 @@ local camara = workspace.CurrentCamera
 local menuGui = playerGui:WaitForChild("EDAQuestMenu")
 local frameMenu = menuGui:WaitForChild("FrameMenu")
 local frameLevels = menuGui:WaitForChild("FrameLevels")
-local frameSettings = menuGui:WaitForChild("FrameSettings")
 local frameCredits = menuGui:WaitForChild("FrameCredits")
 local frameExit = menuGui:WaitForChild("FrameExit")
 
@@ -150,7 +149,6 @@ end
 local function mostrarMenuPrincipal()
 	frameMenu.Visible = true
 	frameLevels.Visible = false
-	frameSettings.Visible = false
 	frameCredits.Visible = false
 	frameExit.Visible = false
 	configurarCamaraMenu()
@@ -159,7 +157,6 @@ end
 local function mostrarSelectorNiveles()
 	frameMenu.Visible = false
 	frameLevels.Visible = true
-	frameSettings.Visible = false
 	frameCredits.Visible = false
 	frameExit.Visible = false
 
@@ -956,14 +953,6 @@ local function conectarBotonesNavegacion()
 		end)
 	end
 
-	-- Boton AJUSTES
-	local btnSettings = frameMenu:FindFirstChild("BtnSettings", true)
-	if btnSettings then
-		btnSettings.MouseButton1Click:Connect(function()
-			abrirModal(frameSettings)
-		end)
-	end
-
 	-- Boton LOGROS (creado estáticamente por crearGUIMenu.lua)
 	local btnLogros = frameMenu:FindFirstChild("BtnLogros", true)
 	if btnLogros then
@@ -990,7 +979,7 @@ local function conectarBotonesNavegacion()
 	end
 
 	-- Botones de cerrar en modales
-	for _, modal in ipairs({frameSettings, frameCredits, frameExit, frameLogros}) do
+	for _, modal in ipairs({frameCredits, frameExit, frameLogros}) do
 		if modal then
 			local closeBtn = modal:FindFirstChild("CloseBtn", true)
 			if closeBtn then
@@ -1010,14 +999,6 @@ local function conectarBotonesNavegacion()
 			local okBtn = modal:FindFirstChild("OkBtn", true)
 			if okBtn then
 				okBtn.MouseButton1Click:Connect(function()
-					cerrarModal(modal)
-				end)
-			end
-
-			local saveBtn = modal:FindFirstChild("SaveBtn", true)
-			if saveBtn then
-				saveBtn.MouseButton1Click:Connect(function()
-					-- Guardar ajustes y cerrar
 					cerrarModal(modal)
 				end)
 			end

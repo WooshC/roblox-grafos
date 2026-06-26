@@ -91,7 +91,7 @@ local estado = {
 	-- Flag para evitar que el mensaje se sobrescriba mientras esperamos reparación
 	modoEsperaNodoDaniado = false,
 
-	-- Billboards de nodos dañados (para mostrar "⚠️ REPARAR")
+	-- Billboards de nodos dañados (para mostrar " REPARAR")
 	billboardsDaniados = {},
 }
 

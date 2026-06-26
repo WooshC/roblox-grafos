@@ -138,12 +138,12 @@ local function resolveWaypointPart(objetivo)
 	-- ── PART_EXISTENTE ──────────────────────────────────────────
 	if tipo == "PART_EXISTENTE" then
 		if not objetivosFolder then
-			warn("❌ GuiaService: objetivosFolder no inicializado")
+			warn(" GuiaService: objetivosFolder no inicializado")
 			return nil
 		end
 		local part = objetivosFolder:FindFirstChild(ref.Nombre)
 		if not part then
-			warn("❌ GuiaService: Part '" .. ref.Nombre .. "' no encontrada en Objetivos")
+			warn(" GuiaService: Part '" .. ref.Nombre .. "' no encontrada en Objetivos")
 		end
 		return part
 
@@ -151,13 +151,13 @@ local function resolveWaypointPart(objetivo)
 	elseif tipo == "PART_DIRECTA" then
 		local container = getContainer(ref.BuscarEn or "NIVEL_ACTUAL")
 		if not container then
-			warn("❌ GuiaService: PART_DIRECTA – contenedor '" .. (ref.BuscarEn or "NIVEL_ACTUAL") .. "' no encontrado")
+			warn(" GuiaService: PART_DIRECTA – contenedor '" .. (ref.BuscarEn or "NIVEL_ACTUAL") .. "' no encontrado")
 			return nil
 		end
 		local target   = findTarget(container, ref)
 		local basePart = getBasePart(target)
 		if not basePart then
-			warn("❌ GuiaService: PART_DIRECTA – '" .. refDesc(ref) .. "' no encontrado o sin BasePart")
+			warn(" GuiaService: PART_DIRECTA – '" .. refDesc(ref) .. "' no encontrado o sin BasePart")
 			return nil
 		end
 		return basePart
@@ -166,12 +166,12 @@ local function resolveWaypointPart(objetivo)
 	elseif tipo == "SOBRE_OBJETO" then
 		local container = getContainer(ref.BuscarEn or "NIVEL_ACTUAL")
 		if not container then
-			warn("❌ GuiaService: SOBRE_OBJETO – contenedor no encontrado")
+			warn(" GuiaService: SOBRE_OBJETO – contenedor no encontrado")
 			return nil
 		end
 		local target = findTarget(container, ref)
 		if not target then
-			warn("❌ GuiaService: SOBRE_OBJETO – '" .. refDesc(ref) .. "' no encontrado")
+			warn(" GuiaService: SOBRE_OBJETO – '" .. refDesc(ref) .. "' no encontrado")
 			return nil
 		end
 		local partName = "Objetivo_" .. objetivo.ID
@@ -193,7 +193,7 @@ local function resolveWaypointPart(objetivo)
 	-- ── POSICION_FIJA ────────────────────────────────────────────
 	elseif tipo == "POSICION_FIJA" then
 		if not ref.Posicion then
-			warn("❌ GuiaService: POSICION_FIJA sin campo 'Posicion' en WaypointRef")
+			warn(" GuiaService: POSICION_FIJA sin campo 'Posicion' en WaypointRef")
 			return nil
 		end
 		local partName = "Objetivo_" .. objetivo.ID
@@ -212,7 +212,7 @@ local function resolveWaypointPart(objetivo)
 		return part
 	end
 
-	warn("❌ GuiaService: WaypointRef.Tipo desconocido: '" .. tostring(tipo) .. "'")
+	warn(" GuiaService: WaypointRef.Tipo desconocido: '" .. tostring(tipo) .. "'")
 	return nil
 end
 
@@ -223,7 +223,7 @@ end
 local function getOrCreateHeadAtt(character)
 	local head = character:WaitForChild("Head", 5)
 	if not head then
-		warn("❌ GuiaService: Personaje sin Head (timeout)")
+		warn(" GuiaService: Personaje sin Head (timeout)")
 		return nil
 	end
 	local att = head:FindFirstChild("GuiaHeadAtt")
@@ -396,7 +396,7 @@ end
 local function apuntarA(part, objetivo)
 	local char = localPlayer.Character
 	if not char then
-		warn("❌ GuiaService: Sin personaje para apuntar guia")
+		warn(" GuiaService: Sin personaje para apuntar guia")
 		return
 	end
 	local headAtt = getOrCreateHeadAtt(char)
@@ -441,7 +441,7 @@ end
 function GuiaService:avanzar(objetivoID)
 	local current = listaObjetivos[indexActual]
 	if not current then
-		warn("⚠️ GuiaService:avanzar() – No hay objetivo activo (indexActual=" .. indexActual .. ")")
+		warn(" GuiaService:avanzar() – No hay objetivo activo (indexActual=" .. indexActual .. ")")
 		return
 	end
 	if current.ID ~= objetivoID then return end
@@ -460,13 +460,13 @@ function GuiaService:avanzar(objetivoID)
 		local nextPart = resolveWaypointPart(next)
 		if nextPart then
 			apuntarA(nextPart, next)
-			print("🧭 GuiaService: [" .. (indexActual - 1) .. "→" .. indexActual .. "] " .. current.ID .. " → " .. next.ID)
+			print(" GuiaService: [" .. (indexActual - 1) .. "→" .. indexActual .. "] " .. current.ID .. " → " .. next.ID)
 		else
-			warn("❌ GuiaService: No se pudo resolver waypoint para '" .. next.ID .. "'")
+			warn(" GuiaService: No se pudo resolver waypoint para '" .. next.ID .. "'")
 		end
 	else
 		currentPart = nil
-		print("🏁 GuiaService: Todos los objetivos completados")
+		print(" GuiaService: Todos los objetivos completados")
 	end
 
 	cleanupObjective(prevPart, shouldDestroy)
@@ -484,17 +484,17 @@ function GuiaService:initForLevel(nivelID)
 		return require(ReplicatedStorage:WaitForChild("Config"):WaitForChild("LevelsConfig"))
 	end)
 	if not ok then
-		warn("❌ GuiaService: No se pudo cargar LevelsConfig:", LevelsConfig)
+		warn(" GuiaService: No se pudo cargar LevelsConfig:", LevelsConfig)
 		return
 	end
 
 	local levelCfg = LevelsConfig[nivelID]
 	if not levelCfg then
-		print("ℹ️ GuiaService: Nivel " .. tostring(nivelID) .. " no existe en LevelsConfig")
+		print("ℹ GuiaService: Nivel " .. tostring(nivelID) .. " no existe en LevelsConfig")
 		return
 	end
 	if not levelCfg.Guia or #levelCfg.Guia == 0 then
-		print("ℹ️ GuiaService: Nivel " .. tostring(nivelID) .. " sin seccion 'Guia'")
+		print("ℹ GuiaService: Nivel " .. tostring(nivelID) .. " sin seccion 'Guia'")
 		return
 	end
 
@@ -502,7 +502,7 @@ function GuiaService:initForLevel(nivelID)
 
 	local levelModel = getLevelModel()
 	if not levelModel then
-		warn("❌ GuiaService: NivelActual no encontrado en Workspace")
+		warn(" GuiaService: NivelActual no encontrado en Workspace")
 		return
 	end
 
@@ -510,7 +510,7 @@ function GuiaService:initForLevel(nivelID)
 	local navegacion = levelModel:FindFirstChild("Navegacion")
 	objetivosFolder  = navegacion and navegacion:FindFirstChild("Waypoints")
 	if not objetivosFolder then
-		warn("❌ GuiaService: NivelActual/Navegacion/Waypoints no encontrado")
+		warn(" GuiaService: NivelActual/Navegacion/Waypoints no encontrado")
 		return
 	end
 
@@ -523,9 +523,9 @@ function GuiaService:initForLevel(nivelID)
 	local firstP = resolveWaypointPart(first)
 	if firstP then
 		apuntarA(firstP, first)
-		print("🧭 GuiaService: Guia iniciada → Objetivo[1] '" .. first.ID .. "'")
+		print(" GuiaService: Guia iniciada → Objetivo[1] '" .. first.ID .. "'")
 	else
-		warn("❌ GuiaService: No se pudo resolver primer waypoint '" .. first.ID .. "'")
+		warn(" GuiaService: No se pudo resolver primer waypoint '" .. first.ID .. "'")
 	end
 end
 
@@ -552,7 +552,7 @@ end
 -- ============================================
 
 function GuiaService:init()
-	print("🧭 GuiaService: Inicializando...")
+	print(" GuiaService: Inicializando...")
 
 	task.spawn(function()
 		local remotos = ReplicatedStorage
@@ -560,7 +560,7 @@ function GuiaService:init()
 			:WaitForChild("Remotos", 10)
 
 		if not remotos then
-			warn("❌ GuiaService: No se encontro EventosGrafosV3/Remotos")
+			warn(" GuiaService: No se encontro EventosGrafosV3/Remotos")
 			return
 		end
 
@@ -575,7 +575,7 @@ function GuiaService:init()
 				end
 			end)
 		else
-			warn("⚠️ GuiaService: RemoteEvent 'NivelListo' no encontrado")
+			warn(" GuiaService: RemoteEvent 'NivelListo' no encontrado")
 		end
 
 		-- 2. NivelDescargado → limpiar guia
@@ -601,13 +601,13 @@ function GuiaService:init()
 				local zonaData = payload.porZona and payload.porZona[current.Zona]
 				if not zonaData then return end
 				if zonaData.total > 0 and zonaData.completadas >= zonaData.total then
-					print("🧭 GuiaService: Zona '" .. current.Zona .. "' completada → avanzando guia")
+					print(" GuiaService: Zona '" .. current.Zona .. "' completada → avanzando guia")
 					self:avanzar(current.ID)
 				end
 			end)
-			print("✅ GuiaService: Escuchando 'ActualizarMisiones' para auto-avanzar por zona")
+			print(" GuiaService: Escuchando 'ActualizarMisiones' para auto-avanzar por zona")
 		else
-			warn("⚠️ GuiaService: 'ActualizarMisiones' no encontrado en Remotos")
+			warn(" GuiaService: 'ActualizarMisiones' no encontrado en Remotos")
 		end
 
 		-- 4. GuiaAvanzar BindableEvent → avance manual desde otro script cliente
@@ -619,13 +619,13 @@ function GuiaService:init()
 					self:avanzar(id)
 				end)
 			else
-				warn("⚠️ GuiaService: BindableEvent 'GuiaAvanzar' no encontrado en Bindables")
+				warn(" GuiaService: BindableEvent 'GuiaAvanzar' no encontrado en Bindables")
 			end
 		else
-			warn("⚠️ GuiaService: Carpeta 'Bindables' no encontrada en EventosGrafosV3")
+			warn(" GuiaService: Carpeta 'Bindables' no encontrada en EventosGrafosV3")
 		end
 
-		print("✅ GuiaService: Inicializado correctamente")
+		print(" GuiaService: Inicializado correctamente")
 	end)
 
 	-- 5. Atributo ZonaActual replicado desde GestorZonas (server → client) → actualizar visibilidad

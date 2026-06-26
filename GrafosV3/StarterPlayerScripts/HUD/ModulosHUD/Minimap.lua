@@ -435,7 +435,7 @@ function Minimap.inicializar(hudGui)
 	conectarUpdateLoop()
 
 	contenedor.Visible = false
-	print("[Minimap] Inicializado ✅")
+	print("[Minimap] Inicializado ")
 end
 
 -- Llamar en NivelListo desde ControladorHUD (mismo patrón que ModuloMapa.configurarNivel)

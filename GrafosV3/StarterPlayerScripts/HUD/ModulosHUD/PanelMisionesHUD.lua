@@ -226,7 +226,7 @@ function PanelMisionesHUD._mostrarHeaderZona(nombreZona, datosZona)
 	padding.PaddingRight = UDim.new(0, 8)
 	padding.Parent = headerFrame
 
-	-- Formato: "(completadas/total)" o "✅" si todas completas
+	-- Formato: "(completadas/total)" o "" si todas completas
 	local textoEstado = todasCompletas and "✅" or string.format("(%d/%d)", completadas, total)
 	crearEtiqueta(headerFrame,
 		string.format("%s  ·  %s", nombreZona:gsub("_", " "), textoEstado),

@@ -91,7 +91,7 @@ function DialogoGUISystem:Init()
 	-- Ocultar GUI inicialmente
 	screenGui.Enabled = false
 
-	print("[DialogoGUISystem] ✓ Sistema inicializado")
+	print("[DialogoGUISystem] Sistema inicializado")
 end
 
 ---Crea una GUI básica si no existe
@@ -350,7 +350,7 @@ function DialogoGUISystem:_configurarTextos()
 		end
 	end
 
-	print("[DialogoGUISystem] ✓ Textos configurados con TextScaled")
+	print("[DialogoGUISystem] Textos configurados con TextScaled")
 end
 
 -- ════════════════════════════════════════════════════════════════
@@ -397,7 +397,7 @@ function DialogoGUISystem:_configurarBotones()
 		g.choicesEyeBtn.TextSize = 18
 	end
 
-	print("[DialogoGUISystem] ✓ Botones configurados con tamaños grandes")
+	print("[DialogoGUISystem] Botones configurados con tamaños grandes")
 end
 
 ---Obtiene referencias a los elementos de la GUI
@@ -466,13 +466,13 @@ end
 
 function DialogoGUISystem:Play(dialogueKey, metadata)
 	if self.isPlaying then
-		print("[DialogoGUISystem] ⚠ Ya hay un diálogo en reproducción")
+		print("[DialogoGUISystem] Ya hay un diálogo en reproducción")
 		return false
 	end
 
 	local dialogueData = self:LoadDialogue(dialogueKey)
 	if not dialogueData then
-		print("[DialogoGUISystem] ✗ No se encontró diálogo: " .. tostring(dialogueKey))
+		print("[DialogoGUISystem] No se encontró diálogo: " .. tostring(dialogueKey))
 		return false
 	end
 
@@ -630,7 +630,7 @@ function DialogoGUISystem:GoToLine(lineId)
 		end
 	end
 
-	print("[DialogoGUISystem] ⚠ Línea no encontrada: " .. tostring(lineId))
+	print("[DialogoGUISystem] Línea no encontrada: " .. tostring(lineId))
 	return false
 end
 
@@ -704,7 +704,7 @@ function DialogoGUISystem:LoadDialogue(key)
 	local DialogoData = ReplicatedStorage:FindFirstChild("DialogoData")
 
 	if not DialogoData then
-		print("[DialogoGUISystem] ✗ Carpeta DialogoData no encontrada en ReplicatedStorage")
+		print("[DialogoGUISystem] Carpeta DialogoData no encontrada en ReplicatedStorage")
 		return nil
 	end
 
@@ -726,7 +726,7 @@ function DialogoGUISystem:LoadDialogue(key)
 			else
 				print("[DialogoGUISystem] Módulo", module.Name, "cargado. Buscando clave '" .. tostring(key) .. "'...")
 				if data[key] then
-					print("[DialogoGUISystem] ✓ Diálogo encontrado:", tostring(key))
+					print("[DialogoGUISystem] Diálogo encontrado:", tostring(key))
 					return data[key]
 				else
 					-- Mostrar qué diálogos están disponibles
@@ -740,7 +740,7 @@ function DialogoGUISystem:LoadDialogue(key)
 		end
 	end
 
-	print("[DialogoGUISystem] ✗ Diálogo no encontrado: " .. tostring(key) .. " (módulos revisados: " .. modulosEncontrados .. ")")
+	print("[DialogoGUISystem] Diálogo no encontrado: " .. tostring(key) .. " (módulos revisados: " .. modulosEncontrados .. ")")
 	return nil
 end
 

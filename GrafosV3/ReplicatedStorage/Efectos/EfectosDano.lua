@@ -54,7 +54,7 @@ function EfectosDano.activar(nombreNodo)
 	-- Éxito: limpiar contador de intentos
 	_intentos[nombreNodo] = nil
 
-	print("[EfectosDano] ⚡ Activando daño en:", nombreNodo)
+	print("[EfectosDano] Activando daño en:", nombreNodo)
 
 	-- Emisor invisible posicionado sobre el nodo
 	local emisor = Instance.new("Part")
@@ -104,7 +104,7 @@ function EfectosDano.desactivar(nombreNodo)
 	local emisor = _efectosActivos[nombreNodo]
 	if not emisor then return end
 
-	print("[EfectosDano] ✅ Reparando nodo, desactivando daño:", nombreNodo)
+	print("[EfectosDano] Reparando nodo, desactivando daño:", nombreNodo)
 
 	local fuego = emisor:FindFirstChild("Dano_Fuego")
 	local humo = emisor:FindFirstChild("Dano_Humo")

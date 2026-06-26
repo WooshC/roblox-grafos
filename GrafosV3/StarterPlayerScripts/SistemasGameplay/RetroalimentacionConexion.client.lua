@@ -31,7 +31,7 @@ local controlador = nil
 task.spawn(function()
 	controlador = obtenerControlador()
 	if controlador then
-		print("[RetroalimentacionConexion] ✓ ControladorDialogo obtenido")
+		print("[RetroalimentacionConexion] ControladorDialogo obtenido")
 	else
 		warn("[RetroalimentacionConexion] ControladorDialogo no disponible")
 	end
@@ -52,4 +52,4 @@ GestorEfectos.registrar("DireccionInvalida", function(_params)
 	controlador.iniciar(DIALOGO_POR_TIPO.DireccionInvalida)
 end)
 
-print("[RetroalimentacionConexion] ✓ Escuchando errores de conexión")
+print("[RetroalimentacionConexion] Escuchando errores de conexión")

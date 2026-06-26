@@ -19,7 +19,7 @@ local function _obtenerRemotos()
 		eventos = ReplicatedStorage:WaitForChild("EventosGrafosV3", 5)
 	end
 	if not eventos then
-		warn("[EventosClientes] ❌ EventosGrafosV3 no encontrado en ReplicatedStorage")
+		warn("[EventosClientes] EventosGrafosV3 no encontrado en ReplicatedStorage")
 		return nil
 	end
 	_remotos = eventos:FindFirstChild("Remotos")
@@ -27,7 +27,7 @@ local function _obtenerRemotos()
 		_remotos = eventos:WaitForChild("Remotos", 5)
 	end
 	if not _remotos then
-		warn("[EventosClientes] ❌ Remotos no encontrado en EventosGrafosV3")
+		warn("[EventosClientes] Remotos no encontrado en EventosGrafosV3")
 	end
 	return _remotos
 end
@@ -51,7 +51,7 @@ function EventosClientes.obtener(nombre, timeout)
 	if ev then
 		_cache[nombre] = ev
 	else
-		warn(string.format("[EventosClientes] ❌ '%s' no encontrado en Remotos (timeout=%ds)", nombre, timeout))
+		warn(string.format("[EventosClientes] '%s' no encontrado en Remotos (timeout=%ds)", nombre, timeout))
 	end
 	return ev
 end

@@ -204,7 +204,7 @@ local function procesarSobrecarga(nombreNodo)
 	-- Si el límite fue quitado al reparar, no volver a explotar
 	if _nodosLimiteRelajado[nombreNodo] then return end
 
-	print(string.format("[ConectarCables] 💥 Sobrecarga en %s — eliminando conexiones", nombreNodo))
+	print(string.format("[ConectarCables] Sobrecarga en %s — eliminando conexiones", nombreNodo))
 
 	-- Eliminar todos los cables conectados a este nodo
 	local vecinos = ValidadorConexiones.obtenerConexiones(nombreNodo)

@@ -117,10 +117,10 @@ function DialogoTTS.new()
 	end)
 
 	if self.ttsDisponible then
-		print("[DialogoTTS] ✓ AudioTextToSpeech API disponible")
+		print("[DialogoTTS] AudioTextToSpeech API disponible")
 		self:InicializarAudio()
 	else
-		warn("[DialogoTTS] ✗ AudioTextToSpeech no disponible en esta versión de Roblox")
+		warn("[DialogoTTS] AudioTextToSpeech no disponible en esta versión de Roblox")
 	end
 
 	return self
@@ -232,10 +232,10 @@ function DialogoTTS:Hablar(texto, personaje)
 	local exito, err = pcall(function() self.audioTTS:Play() end)
 	if exito then
 		self.reproduciendo = true
-		print("[DialogoTTS] ✓ Reproducción iniciada")
+		print("[DialogoTTS] Reproducción iniciada")
 		return true
 	else
-		warn("[DialogoTTS] ✗ Error al reproducir:", err)
+		warn("[DialogoTTS] Error al reproducir:", err)
 		return false
 	end
 end

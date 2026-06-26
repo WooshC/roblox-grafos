@@ -206,7 +206,7 @@ end
 
 -- ── ARISTA FALSA ─────────────────────────────────────────────────────
 -- Dibuja un Beam entre los Selector de dos nodos,
--- muestra un BillboardGui "⬇ ARISTA" en el punto medio
+-- muestra un BillboardGui " ARISTA" en el punto medio
 -- y lanza partículas A→B y B→A.
 
 ---Crea una arista visual falsa entre dos nodos

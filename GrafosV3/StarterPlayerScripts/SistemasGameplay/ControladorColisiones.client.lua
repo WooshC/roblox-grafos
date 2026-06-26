@@ -72,4 +72,4 @@ end
 -- Exponer globalmente para facilitar acceso desde otros sistemas
 _G.ControladorColisiones = ControladorColisiones
 
-print("[GrafosV3] ✅ ControladorColisiones activo y esperando NivelListo")
+print("[GrafosV3] ControladorColisiones activo y esperando NivelListo")

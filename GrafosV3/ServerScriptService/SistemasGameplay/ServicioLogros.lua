@@ -112,7 +112,7 @@ function ServicioLogros.desbloquear(jugador, logroID)
 
 	datos[logroID] = true
 
-	print(string.format("[ServicioLogros] 🏆 LOGRO DESBLOQUEADO — %s | Jugador: %s", logro.nombre, jugador.Name))
+	print(string.format("[ServicioLogros] LOGRO DESBLOQUEADO — %s | Jugador: %s", logro.nombre, jugador.Name))
 
 	-- Notificar al cliente
 	if Remotos then
@@ -392,7 +392,7 @@ function ServicioLogros.reset(jugador)
 	end)
 	
 	if ok then
-		print(string.format("[ServicioLogros] ✅ Logros RESETEADOS para %s (%d)", jugador.Name, userId))
+		print(string.format("[ServicioLogros] Logros RESETEADOS para %s (%d)", jugador.Name, userId))
 	else
 		warn("[ServicioLogros] Error al resetear logros:", err)
 	end

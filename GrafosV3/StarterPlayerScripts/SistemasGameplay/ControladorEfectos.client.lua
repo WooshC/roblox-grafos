@@ -107,7 +107,7 @@ end
 local function activarNodosDaniadosDeZona(nombreZona)
 	local nodosDaniados = obtenerNodosDaniadosDeZona(nombreZona)
 	if nodosDaniados then
-		print(string.format("[ControladorEfectos] 🚨 Zona '%s' tiene nodos dañados:", nombreZona), table.concat(nodosDaniados, ", "))
+		print(string.format("[ControladorEfectos] Zona '%s' tiene nodos dañados:", nombreZona), table.concat(nodosDaniados, ", "))
 		for _, nombreNodo in ipairs(nodosDaniados) do
 			-- TG 07: no reactivar efectos en nodos ya reparados manualmente
 			if not _nodosReparadosLocal[nombreNodo] then
@@ -134,7 +134,7 @@ local timerEmergenciaEv = Remotos:WaitForChild("TimerEmergencia", 10)
 if timerEmergenciaEv then
 	timerEmergenciaEv.OnClientEvent:Connect(function(restante, texto, expirado, completada)
 		if completada then
-			print("[ControladorEfectos] ✅ Emergencia superada — limpiando efectos de daño")
+			print("[ControladorEfectos] Emergencia superada — limpiando efectos de daño")
 			EfectosDano.limpiarTodo()
 		end
 	end)
@@ -515,9 +515,9 @@ local function conectarReproducirEfecto()
 	
 	if reproducirEfectoEv then
 		reproducirEfectoEv.OnClientEvent:Connect(function(tipoEfecto, arg1, arg2)
-			-- print(string.format("[ControladorEfectos] 📥 Recibido efecto: %s | arg1=%s", tostring(tipoEfecto), tostring(arg1)))
+			-- print(string.format("[ControladorEfectos] Recibido efecto: %s | arg1=%s", tostring(tipoEfecto), tostring(arg1)))
 			if tipoEfecto == "LIMPIAR_DANO" then
-				-- print("[ControladorEfectos] 🧹 Limpiando efectos de daño por evento remoto")
+				-- print("[ControladorEfectos] Limpiando efectos de daño por evento remoto")
 				EfectosDano.limpiarTodo()
 			end
 		end)

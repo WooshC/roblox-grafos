@@ -4,8 +4,8 @@
 -- CAMBIOS:
 --   • Eliminada la leyenda de colores (Actual / Visitado / En cola / Sin visitar).
 --   • ScrollEstado dividido en DOS secciones con header propio:
---       1. "📋 INFORMACIÓN DEL PASO"  → estructura activa (Cola/Pila) + Visitados + 💡 concepto
---       2. "🔵 NODOS"                 → tabla Nodo | Estado | Nivel/Dist.
+-- 1. " INFORMACIÓN DEL PASO" → estructura activa (Cola/Pila) + Visitados + concepto
+-- 2. " NODOS" → tabla Nodo | Estado | Nivel/Dist.
 
 local AlgoritmosGrafo      = require(script.Parent.Parent.AlgoritmosGrafo)
 local ViewportAnalisis     = require(script.Parent.ViewportAnalisis)
@@ -484,7 +484,7 @@ function PanelEstadoAnalisis.actualizarScrollEstado(step)
 		end
 	end
 
-	-- Bloque 💡 concepto pedagógico (si existe)
+	-- Bloque concepto pedagógico (si existe)
 	local conceptoTexto = getConceptoPaso(step.lineaPseudo)
 	local conceptoH     = 0
 	if conceptoTexto then

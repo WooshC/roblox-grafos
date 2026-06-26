@@ -47,7 +47,7 @@ local function indexarNivel()
 			end
 		end
 	else
-		warn("[ServicioEnergia] ⚠ _config.Zonas es nil o vacío!")
+		warn("[ServicioEnergia] _config.Zonas es nil o vacío!")
 	end
 	local countZonas = 0
 	for _ in pairs(_zonas) do countZonas = countZonas + 1 end

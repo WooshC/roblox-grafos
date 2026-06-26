@@ -209,7 +209,7 @@ local function _onTimerExpirado(misionID)
 	-- Penalización: -500 puntos por fallar la emergencia
 	_puntosAcum = math.max(0, _puntosAcum - 500)
 	if _servicioPuntaje then _servicioPuntaje:fijarPuntajeMision(_jugador, _puntosAcum, calcularEstrellasHelper(_puntosAcum)) end
-	-- print(string.format("[ServicioMisiones] 💥 Penalización -500 pts | Puntaje actual: %d", _puntosAcum))
+	-- print(string.format("[ServicioMisiones] Penalización -500 pts | Puntaje actual: %d", _puntosAcum))
 	verificarYNotificar()
 end
 
@@ -278,7 +278,7 @@ local function verificarYNotificar()
 			_puntosAcum = _puntosAcum + (m.Puntos or 0)
 			if _servicioPuntaje then _servicioPuntaje:fijarPuntajeMision(_jugador, _puntosAcum, calcularEstrellasHelper(_puntosAcum)) end
 			cambiado = true
-			-- print(string.format("[ServicioMisiones] ✅ Misión %d completada — +%d pts (total: %d)",
+			-- print(string.format("[ServicioMisiones] Misión %d completada — +%d pts (total: %d)",
 				-- m.ID, m.Puntos or 0, _puntosAcum))
 
 			-- Si es emergencia, detener timer, limpiar efectos de daño y notificar éxito
@@ -420,7 +420,7 @@ function ServicioMisiones.activar(config, nivelID, jugador, eventos, servicioPun
 			_eventoReproducirEfecto = Instance.new("RemoteEvent")
 			_eventoReproducirEfecto.Name = "ReproducirEfecto"
 			_eventoReproducirEfecto.Parent = remotosCarpeta
-			print("[ServicioMisiones] 🔧 Creado ReproducirEfecto dinámicamente en activar()")
+			print("[ServicioMisiones] Creado ReproducirEfecto dinámicamente en activar()")
 		end
 
 		-- Escuchar pausa/reanudación desde diálogos (conexión sincrónica para evitar race conditions)
@@ -428,20 +428,20 @@ function ServicioMisiones.activar(config, nivelID, jugador, eventos, servicioPun
 		if dialogoIniciado and not _dialogoIniciadoConn then
 			_dialogoIniciadoConn = dialogoIniciado.OnServerEvent:Connect(function(player)
 				if not chequearCooldownDialogo(player.UserId, 0.3) then return end
-				-- print(string.format("[ServicioMisiones] 📥 DialogoIniciado recibido de %s | _jugador=%s", tostring(player), tostring(_jugador)))
+				-- print(string.format("[ServicioMisiones] DialogoIniciado recibido de %s | _jugador=%s", tostring(player), tostring(_jugador)))
 				if player == _jugador and _timerEmergencia then _timerEmergencia:pausar() end
 			end)
-			print("[ServicioMisiones] 🔌 Conectado DialogoIniciado")
+			print("[ServicioMisiones] Conectado DialogoIniciado")
 		elseif not dialogoIniciado then
-			warn("[ServicioMisiones] ❌ DialogoIniciado no encontrado en eventos")
+			warn("[ServicioMisiones] DialogoIniciado no encontrado en eventos")
 		else
-			print("[ServicioMisiones] ⚠️ DialogoIniciado ya conectado, saltando")
+			print("[ServicioMisiones] DialogoIniciado ya conectado, saltando")
 		end
 		local dialogoTerminado = eventos:FindFirstChild("DialogoTerminado") or eventos:WaitForChild("DialogoTerminado", 2)
 		if dialogoTerminado and not _dialogoTerminadoConn then
 			_dialogoTerminadoConn = dialogoTerminado.OnServerEvent:Connect(function(player)
 				if not chequearCooldownDialogo(player.UserId, 0.3) then return end
-				-- print(string.format("[ServicioMisiones] 📥 DialogoTerminado recibido de %s | _jugador=%s", tostring(player), tostring(_jugador)))
+				-- print(string.format("[ServicioMisiones] DialogoTerminado recibido de %s | _jugador=%s", tostring(player), tostring(_jugador)))
 				if player ~= _jugador then return end
 				if _timerEmergencia then _timerEmergencia:reanudar() end
 				-- Si el timer nunca se inició (primera vez), iniciarlo ahora
@@ -459,11 +459,11 @@ function ServicioMisiones.activar(config, nivelID, jugador, eventos, servicioPun
 					end
 				end
 			end)
-			print("[ServicioMisiones] 🔌 Conectado DialogoTerminado")
+			print("[ServicioMisiones] Conectado DialogoTerminado")
 		elseif not dialogoTerminado then
-			warn("[ServicioMisiones] ❌ DialogoTerminado no encontrado en eventos")
+			warn("[ServicioMisiones] DialogoTerminado no encontrado en eventos")
 		else
-			print("[ServicioMisiones] ⚠️ DialogoTerminado ya conectado, saltando")
+			print("[ServicioMisiones] DialogoTerminado ya conectado, saltando")
 		end
 	end
 
