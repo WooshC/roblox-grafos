@@ -162,7 +162,9 @@ local function animarParticula(particula, desde, hasta, duracion, onCompleto, ca
 end
 
 local function iniciarFlujoParticulas(idConexion, nodoA, nodoB, esDirigido)
+	print(string.format("[ParticulasConexion][DEBUG] iniciarFlujoParticulas id=%s (%s->%s) dirigido=%s", tostring(idConexion), tostring(nodoA), tostring(nodoB), tostring(esDirigido)))
 	if conexionesActivas[idConexion] then
+		print(string.format("[ParticulasConexion][DEBUG] id=%s ya existe, ignorando", tostring(idConexion)))
 		return
 	end
 
@@ -185,6 +187,7 @@ local function iniciarFlujoParticulas(idConexion, nodoA, nodoB, esDirigido)
 		posB = posB,
 		esDirigido = esDirigido,
 		particulas = {},
+		tweens = {},
 		carpetaConexiones = carpetaConexiones
 	}
 
@@ -197,7 +200,7 @@ local function iniciarFlujoParticulas(idConexion, nodoA, nodoB, esDirigido)
 		local particula = crearParticulaVisual("AB")
 		table.insert(conexion.particulas, particula)
 
-		animarParticula(particula, posA, posB, duracionViaje, function()
+		local tween = animarParticula(particula, posA, posB, duracionViaje, function()
 			for i, p in ipairs(conexion.particulas) do
 				if p == particula then
 					table.remove(conexion.particulas, i)
@@ -205,6 +208,9 @@ local function iniciarFlujoParticulas(idConexion, nodoA, nodoB, esDirigido)
 				end
 			end
 		end, conexion.carpetaConexiones)
+		if tween then
+			table.insert(conexion.tweens, tween)
+		end
 	end
 
 	local function crearParticulaBA()
@@ -214,7 +220,7 @@ local function iniciarFlujoParticulas(idConexion, nodoA, nodoB, esDirigido)
 		local particula = crearParticulaVisual("BA")
 		table.insert(conexion.particulas, particula)
 
-		animarParticula(particula, posB, posA, duracionViaje, function()
+		local tween = animarParticula(particula, posB, posA, duracionViaje, function()
 			for i, p in ipairs(conexion.particulas) do
 				if p == particula then
 					table.remove(conexion.particulas, i)
@@ -222,6 +228,9 @@ local function iniciarFlujoParticulas(idConexion, nodoA, nodoB, esDirigido)
 				end
 			end
 		end, conexion.carpetaConexiones)
+		if tween then
+			table.insert(conexion.tweens, tween)
+		end
 	end
 
 	conexion.loopAB = task.spawn(function()
@@ -245,10 +254,21 @@ local function iniciarFlujoParticulas(idConexion, nodoA, nodoB, esDirigido)
 end
 
 local function detenerFlujoParticulas(idConexion)
+	print(string.format("[ParticulasConexion][DEBUG] detenerFlujoParticulas id=%s", tostring(idConexion)))
 	local conexion = conexionesActivas[idConexion]
-	if not conexion then return end
+	if not conexion then
+		print(string.format("[ParticulasConexion][DEBUG] id=%s no encontrado en conexionesActivas", tostring(idConexion)))
+		return
+	end
 
 	conexionesActivas[idConexion] = nil
+
+	-- Cancelar tweens activos para evitar que partículas fantasmas terminen su animación
+	for _, tween in ipairs(conexion.tweens or {}) do
+		if tween then
+			pcall(function() tween:Cancel() end)
+		end
+	end
 
 	for _, particula in ipairs(conexion.particulas) do
 		if particula and particula.Parent then
@@ -259,17 +279,29 @@ local function detenerFlujoParticulas(idConexion)
 	-- print("[ParticulasConexion] Flujo detenido:", idConexion)
 end
 
+-- Invertir un id de conexion A_B → B_A, usando el último '_' como separador
+-- para soportar nombres de nodos que contengan '_'.
+local function invertirIdConexion(idConexion)
+	local sep = idConexion:match("^.*()_")
+	if not sep then return idConexion end
+	local a = idConexion:sub(1, sep - 1)
+	local b = idConexion:sub(sep + 1)
+	return b .. "_" .. a
+end
+
 -- Detener todos los flujos que pasan por un nodo (usado al sobrecargar)
 local function detenerFlujosDeNodo(nombreNodo)
+	print(string.format("[ParticulasConexion][DEBUG] detenerFlujosDeNodo nodo=%s", tostring(nombreNodo)))
 	local ids = {}
 	for idConexion, conexion in pairs(conexionesActivas) do
 		if conexion.nodoA == nombreNodo or conexion.nodoB == nombreNodo then
 			table.insert(ids, idConexion)
 		end
 	end
+	print(string.format("[ParticulasConexion][DEBUG] conexiones incidentes encontradas: %d", #ids))
 	for _, id in ipairs(ids) do
 		detenerFlujoParticulas(id)
-		detenerFlujoParticulas(id:gsub("^(.+)_(.+)$", "%2_%1"))
+		detenerFlujoParticulas(invertirIdConexion(id))
 	end
 end
 
@@ -290,28 +322,30 @@ end
 
 local GestorEfectos = require(script.Parent:WaitForChild("GestorEfectos"))
 
+print("[ParticulasConexion][DEBUG] registrando handlers en GestorEfectos")
+
 GestorEfectos.registrar("ConexionCompletada", function(params)
 	local nodoA, nodoB = params.arg1, params.arg2
+	print(string.format("[ParticulasConexion][DEBUG] evento ConexionCompletada A=%s B=%s", tostring(nodoA), tostring(nodoB)))
 	if not nodoA or not nodoB then return end
 	local idConexion = nodoA .. "_" .. nodoB
 	local esDirigido = esConexionDirigida(nodoA, nodoB)
-	-- print("[ParticulasConexion] Conexión creada:", nodoA, "->", nodoB, "Dirigido:", esDirigido)
 	iniciarFlujoParticulas(idConexion, nodoA, nodoB, esDirigido)
 end)
 
 GestorEfectos.registrar("CableDesconectado", function(params)
 	local nodoA, nodoB = params.arg1, params.arg2
+	print(string.format("[ParticulasConexion][DEBUG] evento CableDesconectado A=%s B=%s", tostring(nodoA), tostring(nodoB)))
 	if not nodoA or not nodoB then return end
 	local idConexion = nodoA .. "_" .. nodoB
-	-- print("[ParticulasConexion] Conexión eliminada:", nodoA, "->", nodoB)
 	detenerFlujoParticulas(idConexion)
 	detenerFlujoParticulas(nodoB .. "_" .. nodoA)
 end)
 
 GestorEfectos.registrar("NodoSobrecargado", function(params)
 	local nombreNodo = params.arg1
+	print(string.format("[ParticulasConexion][DEBUG] evento NodoSobrecargado nodo=%s", tostring(nombreNodo)))
 	if not nombreNodo then return end
-	-- print("[ParticulasConexion] Nodo sobrecargado, limpiando partículas:", nombreNodo)
 	detenerFlujosDeNodo(nombreNodo)
 end)
 

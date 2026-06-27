@@ -1,39 +1,4 @@
 -- StarterPlayerScripts/SistemasGameplay/GestorEfectos.lua
--- Bus centralizado de efectos visuales para el cliente.
--- TIPO: ModuleScript (sin sufijo .client — requirable desde LocalScripts)
---
--- ARQUITECTURA:
---   1. Este módulo se carga UNA vez. Los LocalScripts lo requieren con:
---        require(script.Parent:WaitForChild("GestorEfectos"))
---   2. Escucha los eventos del servidor una sola vez y despacha a handlers.
---   3. Los subsistemas de efectos se registran aquí en lugar de conectarse
---      directamente al RemoteEvent, eliminando conexiones duplicadas.
---
--- API:
---   GestorEfectos.registrar(tipoEfecto, handler)
---     → handler(params) — registrar un callback para un tipo de efecto
---   GestorEfectos.emitir(tipoEfecto, params)
---     → despacha localmente sin red (para efectos internos)
---
--- Tipos de efectos que gestiona (desde NotificarSeleccionNodo):
---   "NodoSeleccionado"   params: { arg1=Model nodo, arg2={Model,...} adyacentes }
---   "ConexionCompletada" params: { arg1=string nodoA, arg2=string nodoB, arg3=number peso }
---   "CableDesconectado"  params: { arg1=string nodoA, arg2=string nodoB }
---   "SeleccionCancelada" params: {}
---   "ConexionInvalida"   params: { arg1=Model nodo }
---   "DireccionInvalida"  params: { arg1=Model nodo }
---   "CableCreadoConPeso" params: { arg1=string nodoA, arg2=string nodoB, arg3=number peso }
---   "ClicReparacion"     params: { arg1=string nodo, arg2=number restantes }
---   "NodoReparado"       params: { arg1=string nodo }
---   "FaltaDineroReparacion" params: { arg1=string nodo, arg2=number costo }
---   "FaltaDineroCable"   params: { arg1=string nodoA, arg2=string nodoB, arg3=number peso }
---   "NodoSobrecargado"   params: { arg1=string nodo }
---
--- Eventos de ciclo de vida emitidos localmente:
---   "NivelListo"         params: { arg1=table data }
---   "NivelDescargado"    params: {}
---   "CambioModo"         params: { modo=string, anterior=string|nil }
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local GestorEfectos = {}

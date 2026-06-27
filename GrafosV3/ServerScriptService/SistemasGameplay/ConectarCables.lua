@@ -162,10 +162,6 @@ local function obtenerModelosAdyacentes(nomA)
 	return modelos
 end
 
--- ═══════════════════════════════════════════════════════════════════════════════
--- REPARACION DE NODOS DANADOS (TG 07)
--- ═══════════════════════════════════════════════════════════════════════════════
-
 local function obtenerNodosDaniadosDeZona(zona)
 	if not _nivelID or not zona or zona == "" then return nil end
 	local config = LevelsConfig[_nivelID]
@@ -174,11 +170,7 @@ local function obtenerNodosDaniadosDeZona(zona)
 	return zonaCfg and zonaCfg.NodosDaniados or nil
 end
 
--- Devuelve true si el nodo está dañado en CUALQUIER zona del nivel,
--- sin importar en qué zona se encuentre el jugador actualmente.
 local function esNodoDaniado(nombreNodo)
-	-- Un nodo dañado dinámicamente por sobrecarga tiene prioridad:
-	-- puede volver a dañarse aunque haya sido reparado antes.
 	if _nodosDaniadosDinamicos[nombreNodo] then return true end
 	if _nodosReparados[nombreNodo] then return false end
 	local config = _nivelID and LevelsConfig[_nivelID]
@@ -208,6 +200,9 @@ local function procesarSobrecarga(nombreNodo)
 
 	-- Eliminar todos los cables conectados a este nodo
 	local vecinos = ValidadorConexiones.obtenerConexiones(nombreNodo)
+	local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
+	local actualizarEstadoEvento = Remotos:FindFirstChild("ActualizarEstadoConexiones")
+
 	for _, vecino in ipairs(vecinos) do
 		local clave = GrafoHelpers.clavePar(nombreNodo, vecino)
 		local indice = buscarCable(nombreNodo, vecino)
@@ -221,6 +216,17 @@ local function procesarSobrecarga(nombreNodo)
 		ValidadorConexiones.eliminarConexion(nombreNodo, vecino)
 		if _callbacks and _callbacks.onCableEliminadoPorSobrecarga then
 			_callbacks.onCableEliminadoPorSobrecarga(nombreNodo, vecino)
+		end
+
+		-- Notificar al cliente para que limpie partículas, cables y estado de conexiones
+		print(string.format("[ConectarCables][DEBUG] procesarSobrecarga eliminando cable %s-%s", tostring(nombreNodo), tostring(vecino)))
+		if notificarEvento then
+			notificarEvento:FireClient(_jugador, "CableDesconectado", nombreNodo, vecino)
+			print(string.format("[ConectarCables][DEBUG] FireClient CableDesconectado %s %s", tostring(nombreNodo), tostring(vecino)))
+		end
+		if actualizarEstadoEvento then
+			actualizarEstadoEvento:FireClient(_jugador, "desconectar", nombreNodo, vecino)
+			print(string.format("[ConectarCables][DEBUG] FireClient ActualizarEstadoConexiones desconectar %s %s", tostring(nombreNodo), tostring(vecino)))
 		end
 	end
 
@@ -240,7 +246,8 @@ local function procesarSobrecarga(nombreNodo)
 end
 
 local function verificarSobrecarga(nomA, nomB)
-	if not _limitesGrado then return end
+	local huboSobrecarga = false
+	if not _limitesGrado then return false end
 	for _, nombreNodo in ipairs({nomA, nomB}) do
 		if not _nodosLimiteRelajado[nombreNodo] then
 			local limite = obtenerLimiteGrado(nombreNodo)
@@ -248,10 +255,12 @@ local function verificarSobrecarga(nomA, nomB)
 				local grado = ValidadorConexiones.obtenerGrado(nombreNodo)
 				if grado > limite then
 					procesarSobrecarga(nombreNodo)
+					huboSobrecarga = true
 				end
 			end
 		end
 	end
+	return huboSobrecarga
 end
 
 local function manejarClicReparacion(jugador, selector)
@@ -525,13 +534,19 @@ local function intentarConectar(jugador, selector1, selector2)
 			end
 		end
 		
-		crearCable(selector1, selector2)
-		verificarSobrecarga(nomA, nomB)
+		print(string.format("[ConectarCables][DEBUG] crearConexion (clic) A=%s B=%s peso=%s", tostring(nomA), tostring(nomB), tostring(peso)))
 		
+		crearCable(selector1, selector2)
+		
+		-- Notificar éxito visual/sonoro ANTES de verificar sobrecarga.
+		-- Si hay sobrecarga, el cliente recibirá CableDesconectado inmediatamente después.
 		local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
 		if notificarEvento then
 			notificarEvento:FireClient(jugador, "ConexionCompletada", nomA, nomB, peso)
 		end
+		
+		local huboSobrecarga = verificarSobrecarga(nomA, nomB)
+		print(string.format("[ConectarCables][DEBUG] sobrecarga (clic) A=%s B=%s huboSobrecarga=%s", tostring(nomA), tostring(nomB), tostring(huboSobrecarga)))
 	else
 		-- Error: no son adyacentes
 		local tipoError = esAdyacente(nomB, nomA) and "DireccionInvalida" or "ConexionInvalida"
@@ -859,24 +874,35 @@ function ConectarCables.conectarNodos(nombreNodoA, nombreNodoB, jugador)
 		end
 	end
 	
+	print(string.format("[ConectarCables][DEBUG] crearConexion A=%s B=%s peso=%s", tostring(nombreNodoA), tostring(nombreNodoB), tostring(peso)))
+	
 	-- Crear la conexión
 	crearCable(selectorA, selectorB)
-	verificarSobrecarga(nombreNodoA, nombreNodoB)
 	
+	-- Notificar éxito visual/sonoro ANTES de verificar sobrecarga.
+	-- Si hay sobrecarga, el cliente recibirá CableDesconectado inmediatamente después
+	-- y limpiará las partículas/efectos. Si notificamos después, el cliente reiniciaría
+	-- partículas sobre un cable que ya fue destruido.
 	local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
 	if notificarEvento then
 		notificarEvento:FireClient(jugador, "ConexionCompletada", nombreNodoA, nombreNodoB, peso)
 	end
+	
+	local huboSobrecarga = verificarSobrecarga(nombreNodoA, nombreNodoB)
+	print(string.format("[ConectarCables][DEBUG] sobrecarga A=%s B=%s huboSobrecarga=%s", tostring(nombreNodoA), tostring(nombreNodoB), tostring(huboSobrecarga)))
 	
 	-- Llamar callback onCableCreado para registrar el acierto
 	if _callbacks and _callbacks.onCableCreado then
 		_callbacks.onCableCreado(nombreNodoA, nombreNodoB)
 	end
 	
-	-- Actualizar estado de conexiones del cliente
-	local actualizarEstadoEvento = Remotos:FindFirstChild("ActualizarEstadoConexiones")
-	if actualizarEstadoEvento then
-		actualizarEstadoEvento:FireClient(jugador, "conectar", nombreNodoA, nombreNodoB)
+	-- Actualizar estado de conexiones del cliente solo si el cable sobrevivió.
+	-- Si hubo sobrecarga, ya se disparó "desconectar" por cada cable eliminado.
+	if not huboSobrecarga then
+		local actualizarEstadoEvento = Remotos:FindFirstChild("ActualizarEstadoConexiones")
+		if actualizarEstadoEvento then
+			actualizarEstadoEvento:FireClient(jugador, "conectar", nombreNodoA, nombreNodoB)
+		end
 	end
 	
 	return true
