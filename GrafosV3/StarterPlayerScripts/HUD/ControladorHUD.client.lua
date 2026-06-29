@@ -117,6 +117,13 @@ local _analisisCerrar = ModuloAnalisis.cerrar
 ModuloMatriz.abrir = function(...)
 	_matrizAbrir(...)
 	SelectorModosHUD.setModoActivo("matriz")
+	-- Al abrir la matriz, cerrar leyenda y panel de misiones para evitar solapamientos
+	if ModuloMapa and ModuloMapa.ocultarLeyenda then
+		ModuloMapa.ocultarLeyenda()
+	end
+	if PanelMisionesHUD and PanelMisionesHUD.ocultar then
+		PanelMisionesHUD.ocultar()
+	end
 end
 ModuloMatriz.cerrar = function(...)
 	_matrizCerrar(...)

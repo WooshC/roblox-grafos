@@ -167,6 +167,27 @@ local PRESETS = {
 		textoFlecha         = "▼",
 		animarFlotacion     = true,
 	},
+
+	NODO_NIVEL = {
+	tamano              = UDim2.new(0, 100, 0, 30),
+	offsetY             = 3.5,
+	offsetMundo         = true,
+	maxDistance         = 0,
+	alwaysOnTop         = true,
+	conFondo            = true,
+	colorFondo          = Color3.fromRGB(15, 23, 42),
+	transparenciaFondo  = 0.5,
+	colorTexto          = Color3.fromRGB(255, 255, 255),
+	fuente              = Enum.Font.GothamBold,
+	colorBorde          = Color3.fromRGB(255, 255, 255),
+	transparenciaBorde  = 0.3,
+	grosorBorde         = 1,
+	radioBorde          = UDim.new(0, 4),
+	conPadding          = true,
+	textoEscalado       = true,
+	conFlecha           = false,
+	animarFlotacion     = false,
+}
 }
 
 -- ═══════════════════════════════════════════════════════════════════════════════

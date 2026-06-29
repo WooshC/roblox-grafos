@@ -37,11 +37,23 @@ GestorEfectos.registrar("CableDesconectado", function(params)
 end)
 
 function EstadoConexiones.inicializar(configNivel)
+	print("[EstadoConexiones][DEBUG] inicializar llamado — limpiando conexiones")
 	conexionesActivas = {}
 	nombresNodos = {}
 
 	if configNivel and configNivel.NombresNodos then
 		nombresNodos = configNivel.NombresNodos
+	end
+
+	-- Registrar cables iniciales del nivel (el servidor no siempre notifica estas conexiones al cliente)
+	if configNivel and configNivel.CablesIniciales then
+		for _, par in ipairs(configNivel.CablesIniciales) do
+			local nomA, nomB = par[1], par[2]
+			if nomA and nomB then
+				print(string.format("[EstadoConexiones][DEBUG] registrando cable inicial %s-%s", tostring(nomA), tostring(nomB)))
+				EstadoConexiones.registrarConexion(nomA, nomB)
+			end
+		end
 	end
 
 	-- Nuevo evento específico para actualización de estado de conexiones
@@ -70,6 +82,7 @@ function EstadoConexiones.registrarConexion(nombreA, nombreB)
 	end
 
 	local clave = GrafoHelpers.clavePar(nombreA, nombreB)
+	print(string.format("[EstadoConexiones][DEBUG] registrarConexion clave=%s", tostring(clave)))
 	conexionesActivas[clave] = true
 end
 
@@ -82,6 +95,7 @@ function EstadoConexiones.eliminarConexion(nombreA, nombreB)
 	end
 
 	local clave = GrafoHelpers.clavePar(nombreA, nombreB)
+	print(string.format("[EstadoConexiones][DEBUG] eliminarConexion clave=%s", tostring(clave)))
 	conexionesActivas[clave] = nil
 end
 

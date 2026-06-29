@@ -104,6 +104,39 @@ AlgoritmosGrafo.PSEUDOCODIGOS = {
 }
 
 -- ═══════════════════════════════════════════════════════════════════════════════
+-- PALETA DE COLORES CENTRALIZADA (sin dependencias de Roblox)
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+AlgoritmosGrafo.COLORES = {
+	NODO = {
+		sin_visitar   = { color = Color3.fromRGB(100, 116, 139), material = Enum.Material.SmoothPlastic, transparencia = 0.15, brillo = 0,  rango = 0  },
+		en_estructura = { color = Color3.fromRGB(237, 161,   0), material = Enum.Material.Neon,          transparencia = 0.15, brillo = 4,  rango = 20 },
+		actual        = { color = Color3.fromRGB( 42, 120, 214), material = Enum.Material.Neon,          transparencia = 0.15, brillo = 8,  rango = 28 },
+		visitado      = { color = Color3.fromRGB( 29, 158, 117), material = Enum.Material.Neon,          transparencia = 0.15, brillo = 5,  rango = 22 },
+		inicio        = { color = Color3.fromRGB(237, 161,   0), material = Enum.Material.Neon,          transparencia = 0.15, brillo = 6,  rango = 24 },
+		destino       = { color = Color3.fromRGB( 99, 153,  34), material = Enum.Material.Neon,          transparencia = 0.15, brillo = 6,  rango = 24 },
+		camino_final  = { color = Color3.new(1, 1, 1),           material = Enum.Material.Neon,          transparencia = 0.0,  brillo = 7,  rango = 26 },
+		no_usado      = { color = Color3.fromRGB( 60,  70,  85), material = Enum.Material.SmoothPlastic, transparencia = 0.55, brillo = 0,  rango = 0  },
+		defectuoso    = { color = Color3.fromRGB(226,  75,  74), material = Enum.Material.Neon,          transparencia = 0.1,  brillo = 5,  rango = 20 },
+		reparado      = { color = Color3.fromRGB(237, 161,   0), material = Enum.Material.Neon,          transparencia = 0.15, brillo = 5,  rango = 20 },
+	},
+	ARISTA = {
+		sin_explorar = { color = Color3.fromRGB(100, 116, 139), material = Enum.Material.SmoothPlastic, transparencia = 0.55 },
+		nueva        = { color = Color3.fromRGB(237, 161,   0), material = Enum.Material.Neon,          transparencia = 0.0  },
+		recorrida    = { color = Color3.fromRGB( 29, 158, 117), material = Enum.Material.Neon,          transparencia = 0.0  },
+		candidata    = { color = Color3.fromRGB(237, 161,   0), material = Enum.Material.Neon,          transparencia = 0.35 },
+		descartada   = { color = Color3.fromRGB( 80,  90, 105), material = Enum.Material.SmoothPlastic, transparencia = 0.7  },
+		camino_final = { color = Color3.new(1, 1, 1),           material = Enum.Material.Neon,          transparencia = 0.0  },
+		defectuosa   = { color = Color3.fromRGB(226,  75,  74), material = Enum.Material.Neon,          transparencia = 0.1  },
+		reparada     = { color = Color3.fromRGB(237, 161,   0), material = Enum.Material.Neon,          transparencia = 0.1  },
+	},
+	PARTICULA = {
+		nueva     = { color = Color3.fromRGB(237, 161,   0), velocidad = 40, frecuencia = 0.55, tamano = 2.0 },
+		recorrida = { color = Color3.fromRGB( 29, 158, 117), velocidad = 40, frecuencia = 0.55, tamano = 2.0 },
+	},
+}
+
+-- ═══════════════════════════════════════════════════════════════════════════════
 -- UTILIDADES INTERNAS
 -- ═══════════════════════════════════════════════════════════════════════════════
 
@@ -141,6 +174,18 @@ local function buildAristasRecorridas(orden, padre)
 	return aristas
 end
 
+-- Construye la lista de aristas candidatas de Prim: una arista (padre[v], v)
+-- por cada nodo v que aún esté en la PQ y tenga un padre asignado.
+local function buildAristasCandidatasPrim(nodos, enPQ, padre)
+	local aristas = {}
+	for _, v in ipairs(nodos) do
+		if enPQ[v] and padre[v] then
+			aristas[#aristas+1] = { padre[v], v }
+		end
+	end
+	return aristas
+end
+
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- BFS
 -- ═══════════════════════════════════════════════════════════════════════════════
@@ -168,6 +213,7 @@ function AlgoritmosGrafo.bfs(nodos, adyacencias, inicio)
 		structConten     = copiarTabla(cola),
 		aristasRecorridas = {},
 		aristaNueva      = nil,
+		aristasCandidatas = {},
 	}
 
 	local cabeza = 1
@@ -204,6 +250,7 @@ function AlgoritmosGrafo.bfs(nodos, adyacencias, inicio)
 					structConten      = colaPost,
 					aristasRecorridas = buildAristasRecorridas(nodos, padre),
 					aristaNueva       = { u, v },
+					aristasCandidatas = {},
 				}
 			end
 		end
@@ -224,6 +271,7 @@ function AlgoritmosGrafo.bfs(nodos, adyacencias, inicio)
 				structConten      = colaPost,
 				aristasRecorridas = buildAristasRecorridas(nodos, padre),
 				aristaNueva       = nil,
+				aristasCandidatas = {},
 			}
 		end
 	end
@@ -239,6 +287,7 @@ function AlgoritmosGrafo.bfs(nodos, adyacencias, inicio)
 		structConten      = {},
 		aristasRecorridas = buildAristasRecorridas(nodos, padre),
 		aristaNueva       = nil,
+		aristasCandidatas = {},
 	}
 
 	return steps
@@ -270,6 +319,7 @@ function AlgoritmosGrafo.dfs(nodos, adyacencias, inicio)
 		structConten      = copiarTabla(pila),
 		aristasRecorridas = {},
 		aristaNueva       = nil,
+		aristasCandidatas = {},
 	}
 
 	while #pila > 0 do
@@ -314,6 +364,7 @@ function AlgoritmosGrafo.dfs(nodos, adyacencias, inicio)
 				structConten      = copiarTabla(pila),
 				aristasRecorridas = buildAristasRecorridas(nodos, padre),
 				aristaNueva       = aristaNueva,
+				aristasCandidatas = {},
 			}
 		else
 			steps[#steps+1] = {
@@ -327,6 +378,8 @@ function AlgoritmosGrafo.dfs(nodos, adyacencias, inicio)
 				structConten      = copiarTabla(pila),
 				aristasRecorridas = buildAristasRecorridas(nodos, padre),
 				aristaNueva       = nil,
+				aristasCandidatas = {},
+				esBacktrack       = true,
 			}
 		end
 	end
@@ -342,6 +395,7 @@ function AlgoritmosGrafo.dfs(nodos, adyacencias, inicio)
 		structConten      = {},
 		aristasRecorridas = buildAristasRecorridas(nodos, padre),
 		aristaNueva       = nil,
+		aristasCandidatas = {},
 	}
 
 	return steps
@@ -416,6 +470,7 @@ function AlgoritmosGrafo.dijkstra(nodos, adyacencias, inicio, pesos, fin)
 		structConten      = pqComoLista(),
 		aristasRecorridas = {},
 		aristaNueva       = nil,
+		aristasCandidatas = {},
 	}
 
 	local function extraerMin()
@@ -474,6 +529,7 @@ function AlgoritmosGrafo.dijkstra(nodos, adyacencias, inicio, pesos, fin)
 			structConten      = pqComoLista(),
 			aristasRecorridas = {},          -- solo se resalta al final, no paso a paso
 			aristaNueva       = aristaNueva,
+			aristasCandidatas = {},
 		}
 	end
 
@@ -488,6 +544,7 @@ function AlgoritmosGrafo.dijkstra(nodos, adyacencias, inicio, pesos, fin)
 		structConten      = {},
 		aristasRecorridas = caminoAFin(),   -- camino mínimo final inicio → fin
 		aristaNueva       = nil,
+		aristasCandidatas = {},
 	}
 
 	return steps
@@ -541,6 +598,7 @@ function AlgoritmosGrafo.prim(nodos, adyacencias, raiz, pesos)
 		structConten      = pqComoLista(),
 		aristasRecorridas = {},
 		aristaNueva       = nil,
+		aristasCandidatas = {},
 	}
 
 	local function extraerMin()
@@ -598,6 +656,7 @@ function AlgoritmosGrafo.prim(nodos, adyacencias, raiz, pesos)
 			structConten      = pqComoLista(),
 			aristasRecorridas = buildAristasRecorridas(nodos, padre),
 			aristaNueva       = aristaNueva,
+			aristasCandidatas = buildAristasCandidatasPrim(nodos, enPQ, padre),
 		}
 	end
 
@@ -617,6 +676,7 @@ function AlgoritmosGrafo.prim(nodos, adyacencias, raiz, pesos)
 		structConten      = {},
 		aristasRecorridas = buildAristasRecorridas(nodos, padre),
 		aristaNueva       = nil,
+		aristasCandidatas = {},
 	}
 
 	return steps

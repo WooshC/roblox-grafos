@@ -135,6 +135,7 @@ local dialogoActivo = false
 local promptsConectados = {}
 local nivelActual = nil
 local modoPrevioDialogo = nil  -- Para restaurar el modo visual al cerrar
+local modoCambiadoPorDialogo = false
 
 -- Configuración por defecto de restricciones
 local RESTRICCIONES_DEFAULT = {
@@ -288,11 +289,16 @@ function iniciarDialogo(dialogoID, metadata)
 		end
 	end
 
-	-- Guardar modo actual y forzar modo visual durante el diálogo
+	-- El diálogo es una superposición, no un modo visual del mundo.
+	-- Mantener algoritmo3d evita que su handler de limpieza destruya la ejecución.
 	modoPrevioDialogo = OrquestadorModos.obtenerModoActual()
-	if modoPrevioDialogo ~= "visual" then
+	modoCambiadoPorDialogo = false
+	if modoPrevioDialogo == "algoritmo3d" then
+		print("[ControladorDialogo] Conservando ejecución 3D durante el diálogo")
+	elseif modoPrevioDialogo ~= "visual" then
 		print("[ControladorDialogo] Cambiando a modo visual para diálogo (era", modoPrevioDialogo, ")")
 		OrquestadorModos.setModo("visual")
+		modoCambiadoPorDialogo = true
 	end
 
 	-- ═══════════════════════════════════════════════════════════════════════════════
@@ -407,12 +413,13 @@ function iniciarDialogo(dialogoID, metadata)
 
 		DialogoJugadorController.mostrarHUD()
 
-		-- Restaurar modo previo si era distinto de visual
-		if modoPrevioDialogo and modoPrevioDialogo ~= "visual" then
+		-- Restaurar únicamente cuando el diálogo realmente cambió el modo.
+		if modoCambiadoPorDialogo and modoPrevioDialogo then
 			print("[ControladorDialogo] Restaurando modo previo:", modoPrevioDialogo)
 			OrquestadorModos.setModo(modoPrevioDialogo)
-			modoPrevioDialogo = nil
 		end
+		modoPrevioDialogo = nil
+		modoCambiadoPorDialogo = false
 
 		if metadata.config and metadata.config.alCerrar then
 			metadata.config.alCerrar(metadata)
@@ -441,6 +448,11 @@ function iniciarDialogo(dialogoID, metadata)
 		DialogoJugadorController.desactivarClickAereo()
 		DialogoJugadorController.desbloquear()
 		DialogoJugadorController.mostrarHUD()
+		if modoCambiadoPorDialogo and modoPrevioDialogo then
+			OrquestadorModos.setModo(modoPrevioDialogo)
+		end
+		modoPrevioDialogo = nil
+		modoCambiadoPorDialogo = false
 		-- Notificar al servidor que el diálogo terminó (aunque falló)
 		local dialogoTerminadoEvento = remotos:FindFirstChild("DialogoTerminado")
 		if dialogoTerminadoEvento then
