@@ -10,6 +10,8 @@ local RS           = game:GetService("ReplicatedStorage")
 local BillboardNombres = require(RS:WaitForChild("Efectos"):WaitForChild("BillboardNombres"))
 local LevelsConfig     = require(RS:WaitForChild("Config"):WaitForChild("LevelsConfig"))
 local GrafoHelpers     = require(RS:WaitForChild("Compartido"):WaitForChild("GrafoHelpers"))
+local AlgoritmosGrafo  = require(script.Parent.AlgoritmosGrafo)
+local COLORES          = AlgoritmosGrafo.COLORES
 
 local PanelAlgoritmo3D = {}
 
@@ -306,9 +308,9 @@ local function construirMinimapa()
 		part.Anchored = true
 		part.CanCollide = false
 		part.CastShadow = false
-		part.Material = Enum.Material.SmoothPlastic
+		part.Material = COLORES.NODO.sin_visitar.material
 		part.Size = Vector3.new(TAM_NODO_MINI, TAM_NODO_MINI, TAM_NODO_MINI)
-		part.Color = COL.CIAN_OSCURO
+		part.Color = COLORES.NODO.sin_visitar.color
 		part.CFrame = CFrame.new(pos)
 		part.Parent = estado.worldModel
 		estado.nodoParts[nome] = part
@@ -333,11 +335,11 @@ local function construirMinimapa()
 			part.Anchored = true
 			part.CanCollide = false
 			part.CastShadow = false
-			part.Material = Enum.Material.SmoothPlastic
+			part.Material = COLORES.ARISTA.sin_explorar.material
 			part.Size = Vector3.new(TAM_ARISTA_MINI, TAM_ARISTA_MINI, dist)
 			part.CFrame = CFrame.lookAt(centro, posB)
-			part.Color = COL.CIAN_OSCURO
-			part.Transparency = 0.45
+			part.Color = COLORES.ARISTA.sin_explorar.color
+			part.Transparency = COLORES.ARISTA.sin_explorar.transparencia
 			part.Parent = estado.worldModel
 			estado.aristaParts[key] = {
 				part = part,
@@ -354,54 +356,28 @@ local function colorArista(key, tipo)
 	if not info then return end
 	local part = info.part
 	if not part then return end
-	if tipo == "defectuosa" then
-		part.Color = COL.ROJO
-		part.Material = Enum.Material.Neon
-		part.Transparency = 0.1
-	elseif tipo == "reparada" then
-		part.Color = COL.AMARILLO
-		part.Material = Enum.Material.Neon
-		part.Transparency = 0.1
-	elseif tipo == "nueva" then
-		part.Color = COL.AMARILLO
-		part.Material = Enum.Material.Neon
-		part.Transparency = 0
-	elseif tipo == "recorrida" then
-		part.Color = COL.CIAN
-		part.Material = Enum.Material.Neon
-		part.Transparency = 0
-	elseif tipo == "camino" then
-		part.Color = Color3.new(1, 1, 1)
-		part.Material = Enum.Material.Neon
-		part.Transparency = 0
+	local cfg = COLORES.ARISTA[tipo]
+	if cfg then
+		part.Color = cfg.color
+		part.Material = cfg.material
+		part.Transparency = cfg.transparencia
 	else
-		part.Color = COL.CIAN_OSCURO
-		part.Material = Enum.Material.SmoothPlastic
-		part.Transparency = 0.45
+		part.Color = COLORES.ARISTA.sin_explorar.color
+		part.Material = COLORES.ARISTA.sin_explorar.material
+		part.Transparency = COLORES.ARISTA.sin_explorar.transparencia
 	end
 end
 
 local function colorNodo(nome, tipo)
 	local part = estado.nodoParts[nome]
 	if not part then return end
-	if tipo == "actual" then
-		part.Color = COL.CIAN
-		part.Material = Enum.Material.Neon
-	elseif tipo == "inicio" then
-		part.Color = Color3.fromRGB(255, 170, 0)
-		part.Material = Enum.Material.Neon
-	elseif tipo == "fin" then
-		part.Color = COL.VERDE
-		part.Material = Enum.Material.Neon
-	elseif tipo == "visitado" then
-		part.Color = COL.VERDE
-		part.Material = Enum.Material.Neon
-	elseif tipo == "camino" then
-		part.Color = Color3.new(1, 1, 1)
-		part.Material = Enum.Material.Neon
+	local cfg = COLORES.NODO[tipo]
+	if cfg then
+		part.Color = cfg.color
+		part.Material = cfg.material
 	else
-		part.Color = COL.CIAN_OSCURO
-		part.Material = Enum.Material.SmoothPlastic
+		part.Color = COLORES.NODO.sin_visitar.color
+		part.Material = COLORES.NODO.sin_visitar.material
 	end
 end
 
@@ -475,8 +451,8 @@ local function actualizarMinimapa(step)
 	-- Nodos dañados en rojo (a menos que estén reparados)
 	for nome, part in pairs(estado.nodoParts) do
 		if estado.nodosDaniadosSet[nome] and not estado.nodosReparados[nome] then
-			part.Color = COL.ROJO
-			part.Material = Enum.Material.Neon
+			part.Color = COLORES.NODO.defectuoso.color
+			part.Material = COLORES.NODO.defectuoso.material
 		end
 	end
 end
@@ -715,9 +691,7 @@ local function crearPanelUI()
 			alignX = Enum.TextXAlignment.Left,
 		})
 	end
-	crearLegendItem("Normal", COL.CIAN_OSCURO)
-	crearLegendItem("Defectuosa", COL.ROJO)
-	crearLegendItem("Reparada", COL.AMARILLO)
+	crearLegendItem("Defectuosa", COLORES.ARISTA.defectuosa.color)
 
 	estado.btnCerrar.MouseButton1Click:Connect(function()
 		if estado.onCerrar then estado.onCerrar() end
@@ -782,9 +756,9 @@ local function actualizarInfoPanel(step, pasoActual, totalPasos, algoritmo)
 		local msgStroke = estado.boxMensaje:FindFirstChildOfClass("UIStroke")
 		local fuenteDefectuosos = estado.matrizData and estado.matrizData.Defectuosos or nil
 		if step.aristaNueva and GrafoHelpers.esCableDefectuoso(fuenteDefectuosos or estado.nivelID, step.aristaNueva[1], step.aristaNueva[2]) then
-			estado.boxMensaje.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
-			msgStroke.Color = COL.ROJO
-			estado.lblMensaje.TextColor3 = COL.ROJO
+			estado.boxMensaje.BackgroundColor3 = COLORES.NODO.defectuoso.color
+			msgStroke.Color = COLORES.NODO.defectuoso.color
+			estado.lblMensaje.TextColor3 = COLORES.NODO.defectuoso.color
 		else
 			estado.boxMensaje.BackgroundColor3 = Color3.fromRGB(255, 200, 0)
 			msgStroke.Color = Color3.fromRGB(255, 200, 0)
@@ -865,8 +839,8 @@ local function crearBillboardNodoDaniado(nome, selector)
 		"NODO_DANIADO",
 		"NodoDanado_BB_" .. nome,
 		{
-			colorTexto = Color3.fromRGB(255, 80, 80),
-			colorBorde = Color3.fromRGB(255, 80, 80),
+			colorTexto = COLORES.NODO.defectuoso.color,
+			colorBorde = COLORES.NODO.defectuoso.color,
 		}
 	)
 	estado.billboardsDaniados[nome] = bb
@@ -999,10 +973,10 @@ function PanelAlgoritmo3D.mostrarMensajeCorrecto(aristaEsperada)
 	local a = aristaEsperada and getAlias(aristaEsperada[1]) or "?"
 	local b = aristaEsperada and getAlias(aristaEsperada[2]) or "?"
 	estado.lblMensaje.Text = "✅ Arista " .. a .. " → " .. b .. " correcta. Avanzando..."
-	estado.lblMensaje.TextColor3 = COL.VERDE
+	estado.lblMensaje.TextColor3 = COLORES.NODO.visitado.color
 	local stroke = estado.boxMensaje:FindFirstChildOfClass("UIStroke")
-	if stroke then stroke.Color = COL.VERDE end
-	estado.boxMensaje.BackgroundColor3 = COL.VERDE
+	if stroke then stroke.Color = COLORES.NODO.visitado.color end
+	estado.boxMensaje.BackgroundColor3 = COLORES.NODO.visitado.color
 end
 
 function PanelAlgoritmo3D.mostrarMensajeDefectuoso(aristaEsperada)
@@ -1011,10 +985,10 @@ function PanelAlgoritmo3D.mostrarMensajeDefectuoso(aristaEsperada)
 	local a = aristaEsperada and getAlias(aristaEsperada[1]) or "?"
 	local b = aristaEsperada and getAlias(aristaEsperada[2]) or "?"
 	estado.lblMensaje.Text = "❌ Arista " .. a .. " → " .. b .. " defectuosa. Desconecta el cable y vuelve a conectar."
-	estado.lblMensaje.TextColor3 = COL.ROJO
+	estado.lblMensaje.TextColor3 = COLORES.NODO.defectuoso.color
 	local stroke = estado.boxMensaje:FindFirstChildOfClass("UIStroke")
-	if stroke then stroke.Color = COL.ROJO end
-	estado.boxMensaje.BackgroundColor3 = COL.ROJO
+	if stroke then stroke.Color = COLORES.NODO.defectuoso.color end
+	estado.boxMensaje.BackgroundColor3 = COLORES.NODO.defectuoso.color
 end
 
 -- Mensaje de nodo dañado: ACTIVA el modo espera y crea billboard
@@ -1022,10 +996,10 @@ function PanelAlgoritmo3D.mostrarMensajeNodoDaniado(nome, selector)
 	if not estado.lblMensaje then return end
 	local alias = getAlias(nome) or nome
 	estado.lblMensaje.Text = "⚠️ El nodo " .. alias .. " está defectuoso. Acércate y repáralo para continuar."
-	estado.lblMensaje.TextColor3 = COL.ROJO
+	estado.lblMensaje.TextColor3 = COLORES.NODO.defectuoso.color
 	local stroke = estado.boxMensaje:FindFirstChildOfClass("UIStroke")
-	if stroke then stroke.Color = COL.ROJO end
-	estado.boxMensaje.BackgroundColor3 = COL.ROJO
+	if stroke then stroke.Color = COLORES.NODO.defectuoso.color end
+	estado.boxMensaje.BackgroundColor3 = COLORES.NODO.defectuoso.color
 
 	estado.modoEsperaNodoDaniado = true
 	crearBillboardNodoDaniado(nome, selector)
@@ -1048,8 +1022,8 @@ function PanelAlgoritmo3D.marcarNodoReparado(nome)
 	estado.nodosReparados[nome] = true
 	if estado.nodoParts[nome] then
 		local part = estado.nodoParts[nome]
-		part.Color = COL.AMARILLO
-		part.Material = Enum.Material.Neon
+		part.Color = COLORES.NODO.reparado.color
+		part.Material = COLORES.NODO.reparado.material
 	end
 	-- Destruir billboard si existe
 	if estado.billboardsDaniados[nome] then

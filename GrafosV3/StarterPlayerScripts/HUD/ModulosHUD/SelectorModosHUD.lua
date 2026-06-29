@@ -127,7 +127,8 @@ end
 
 function SelectorModosHUD.setModoActivo(modo)
 	if modo ~= "visual" and modo ~= "matriz" and modo ~= "analisis" then
-		warn("[SelectorModosHUD] Modo inválido:", modo)
+		-- El orquestador maneja modos que este selector no representa
+		-- visualmente (ej. "mapa", "algoritmo3d"). No es un error.
 		return
 	end
 	_modoActual = modo

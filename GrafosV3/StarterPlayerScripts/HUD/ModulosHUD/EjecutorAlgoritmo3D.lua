@@ -13,8 +13,8 @@ local PresetTween        = require(RS:WaitForChild("Efectos"):WaitForChild("Pres
 local BillboardNombres   = require(RS:WaitForChild("Efectos"):WaitForChild("BillboardNombres"))
 local SelectorAlgUI      = require(script.Parent.SelectorAlgUI)
 local PanelAlgoritmo3D   = require(script.Parent.PanelAlgoritmo3D)
-local ConstantesAnalisis = require(script.Parent.ModuloAnalisis.ConstantesAnalisis)
 local GrafoHelpers       = require(RS:WaitForChild("Compartido"):WaitForChild("GrafoHelpers"))
+local COLORES            = AlgoritmosGrafo.COLORES
 local EfectosHighlight   = require(RS:WaitForChild("Efectos"):WaitForChild("EfectosHighlight"))
 local GestorEfectos      = require(script.Parent.Parent.Parent:WaitForChild("SistemasGameplay"):WaitForChild("GestorEfectos"))
 local OrquestadorModos   = require(script.Parent.Parent.Parent:WaitForChild("SistemasGameplay"):WaitForChild("OrquestadorModos"))
@@ -42,29 +42,9 @@ local VEL_PASO_SEGUNDOS = 1.5
 local CACHE_TOPOLOGIA_SEG = 1.0
 local _simVersion       = 0
 
-local COL_NODO = {
-	INICIO   = ConstantesAnalisis.COL_ACTUAL,    -- naranja
-	VISITADO = ConstantesAnalisis.COL_VISITADO,  -- verde
-	ACTUAL   = ConstantesAnalisis.COL_ACTUAL,    -- naranja
-	CAMINO   = Color3.new(1, 1, 1),
-}
-
-local COL_ARISTA_DEFAULT = ConstantesAnalisis.COL_ARISTA_DEFAULT
-local COL_ARISTA_VISIT   = ConstantesAnalisis.COL_ARISTA_VISIT
-local COL_ARISTA_NUEVA   = ConstantesAnalisis.COL_ARISTA_NUEVA
-local COL_ARISTA_BLANCO  = Color3.new(1, 1, 1)
-local COL_ARISTA_DEFECT  = Color3.fromRGB(200, 50, 50)
-
-local ALPHA_DEFAULT = 0.55
-local ALPHA_ACTIVA  = 0.0
-local MAT_DEFAULT   = Enum.Material.SmoothPlastic
-local MAT_NEON      = Enum.Material.Neon
-
-local COL_PART_NUEVA = ConstantesAnalisis.COL_PART_NUEVA
-local COL_PART_VISIT = ConstantesAnalisis.COL_PART_VISIT
-local VEL_PART       = 40
-local FREQ_PART      = 0.55
-local TAM_PART       = 2.0
+local VEL_PART       = COLORES.PARTICULA.nueva.velocidad
+local FREQ_PART      = COLORES.PARTICULA.nueva.frecuencia
+local TAM_PART       = COLORES.PARTICULA.nueva.tamano
 local TAM_ARISTA     = 0.5
 
 local TWEEN_ARISTA = TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
@@ -216,17 +196,19 @@ local function crearBillboardsGuia(nomA, nomB)
 	local selB = obtenerSelector(buscarNodoWorkspace(nomB))
 
 	if selA then
+		local colInicio = COLORES.NODO.inicio.color
 		BillboardNombres.crear(selA, "INICIO", "NODO_GUIA", "AlgGuia_BB_NodoInicio_" .. nomA, {
-			colorTexto = Color3.fromRGB(255, 170, 0),
-			colorBorde = Color3.fromRGB(255, 170, 0),
+			colorTexto = colInicio,
+			colorBorde = colInicio,
 			textoFlecha = "▲",
 		})
 	end
 
 	if selB then
+		local colDestino = COLORES.NODO.destino.color
 		BillboardNombres.crear(selB, "DESTINO", "NODO_GUIA", "AlgGuia_BB_NodoDestino_" .. nomB, {
-			colorTexto = Color3.fromRGB(105, 219, 124),
-			colorBorde = Color3.fromRGB(105, 219, 124),
+			colorTexto = colDestino,
+			colorBorde = colDestino,
 		})
 	end
 end
@@ -263,12 +245,82 @@ local function crearBillboardNodoActual(nombre)
 	if not sel then return end
 	local alias = PanelAlgoritmo3D.getAlias(nombre) or nombre
 	local key = "AlgEjec_BB_NodoActual_" .. nombre
+	local colActual = COLORES.NODO.actual.color
 	BillboardNombres.crear(sel, "Visitando nodo\n" .. alias, "NODO_GUIA", key, {
-		colorTexto = Color3.fromRGB(255, 220, 80),
-		colorBorde = Color3.fromRGB(255, 220, 80),
+		colorTexto = colActual,
+		colorBorde = colActual,
 		textoFlecha = "▼",
 	})
 	table.insert(estado.billboardsEjecucion, key)
+end
+
+local function colorCapaBFS(capa, capaMaxima)
+	local profundidad = capaMaxima > 0 and (capa / capaMaxima) or 0
+	local tono = profundidad * 0.75 -- rojo → naranja → amarillo → verde → azul → violeta
+	local luminosidad = 1 - (profundidad * 0.45)
+	return Color3.fromHSV(tono, 0.85, luminosidad)
+end
+
+local function crearBillboardsResultadoRecorrido(step)
+	local algoritmo = estado.algoritmoActual
+	if algoritmo ~= "bfs" and algoritmo ~= "dfs" then return end
+	if not step then return end
+
+	limpiarBillboardsEjecucion()
+
+	local capaMaxima = 0
+	if algoritmo == "bfs" then
+		for _, capa in pairs(step.distancias or {}) do
+			if typeof(capa) == "number" and capa > capaMaxima then
+				capaMaxima = capa
+			end
+		end
+	end
+
+	local ordenDFS = {}
+	if algoritmo == "dfs" then
+		for posicion, nombre in ipairs(step.visitados or {}) do
+			ordenDFS[nombre] = posicion
+		end
+	end
+
+	local headers = estado.matrizData and estado.matrizData.Headers or {}
+	for _, nombre in ipairs(headers) do
+		local sel = obtenerSelector(buscarNodoWorkspace(nombre))
+		if sel then
+			local texto
+			local color
+
+			if algoritmo == "bfs" then
+				local capa = step.distancias and step.distancias[nombre]
+				if typeof(capa) == "number" then
+					texto = "Capa BFS: " .. tostring(capa)
+					color = colorCapaBFS(capa, capaMaxima)
+				else
+					texto = "Sin alcanzar"
+					color = COLORES.NODO.no_usado.color
+				end
+			else
+				local posicion = ordenDFS[nombre]
+				if posicion then
+					texto = "Salida DFS: " .. tostring(posicion)
+					color = COLORES.NODO.visitado.color
+				else
+					texto = "Sin visitar"
+					color = COLORES.NODO.no_usado.color
+				end
+			end
+
+			local key = "AlgEjec_BB_Resultado_" .. algoritmo .. "_" .. nombre
+			BillboardNombres.crear(sel, texto, "NODO_NIVEL", key, {
+				colorTexto = Color3.new(1, 1, 1),
+				colorBorde = color,
+				grosorBorde = 3,
+				transparenciaBorde = 0,
+			})
+			table.insert(estado.billboardsEjecucion, key)
+		end
+	end
 end
 
 local function marcarRutaCortaDijkstra(step)
@@ -286,9 +338,10 @@ local function marcarRutaCortaDijkstra(step)
 		if sel then
 			local alias = PanelAlgoritmo3D.getAlias(nombre) or nombre
 			local key = "AlgEjec_BB_RutaCorta_" .. nombre
+			local colCamino = COLORES.NODO.camino_final.color
 			BillboardNombres.crear(sel, "Ruta más corta\n" .. alias, "NODO_GUIA", key, {
-				colorTexto = Color3.fromRGB(255, 215, 0),
-				colorBorde = Color3.fromRGB(255, 215, 0),
+				colorTexto = colCamino,
+				colorBorde = colCamino,
 				textoFlecha = "★",
 			})
 			table.insert(estado.billboardsEjecucion, key)
@@ -360,27 +413,40 @@ local function restaurarNodo(nombre)
 	}):Play()
 end
 
-local function encenderNodo(nombre, tipoColor)
+local function encenderNodo(nombre, tipoColor, distancia)
 	local sel = obtenerSelector(buscarNodoWorkspace(nombre))
 	if not sel or not sel:IsA("BasePart") then return 0 end
 	guardarEstadoOriginal(sel, nombre)
 	estado.nodosEncendidos[nombre] = true
 
-	local col  = COL_NODO[tipoColor] or COL_NODO.VISITADO
-	local neon = (tipoColor == "ACTUAL" or tipoColor == "VISITADO" or tipoColor == "INICIO" or tipoColor == "CAMINO")
-	if neon then sel.Material = PresetTween.MATERIALES.NEON end
+	local cfg = COLORES.NODO[tipoColor] or COLORES.NODO.visitado
+	sel.Material = cfg.material
 	TweenService:Create(sel, TWEEN_NODO, {
-		Color = col, Transparency = 0.15,
+		Color = cfg.color,
+		Transparency = cfg.transparencia,
 	}):Play()
 
 	local previa = sel:FindFirstChild(ID_LUZ_PREFIX .. nombre)
 	if previa then previa:Destroy() end
-	local luz = Instance.new("PointLight")
-	luz.Name = ID_LUZ_PREFIX .. nombre
-	luz.Color = col; luz.Brightness = 0; luz.Range = 0; luz.Parent = sel
-	estado.lucesTemporales[nombre] = luz
-	TweenService:Create(luz, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{ Brightness = 6, Range = 24 }):Play()
+
+	local brillo, rango = cfg.brillo, cfg.rango
+	if brillo > 0 then
+		-- En BFS, los nodos más lejanos del origen brillan menos para leer la "ola".
+		if tipoColor == "visitado" and typeof(distancia) == "number" and distancia > 0 then
+			local factor = math.max(0.35, 1 - distancia * 0.15)
+			brillo = brillo * factor
+			rango  = rango  * factor
+		end
+		local luz = Instance.new("PointLight")
+		luz.Name = ID_LUZ_PREFIX .. nombre
+		luz.Color = cfg.color
+		luz.Brightness = 0
+		luz.Range = 0
+		luz.Parent = sel
+		estado.lucesTemporales[nombre] = luz
+		TweenService:Create(luz, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ Brightness = brillo, Range = rango }):Play()
+	end
 
 	return 0.5
 end
@@ -418,7 +484,7 @@ local function iniciarParticulasArista(id, nomA, nomB, posA, posB, esDirigido)
 		local v = version
 		task.spawn(function()
 			while estado.partActivas[id] == v do
-				spawnParticula(posA, posB, COL_PART_NUEVA)
+				spawnParticula(posA, posB, COLORES.PARTICULA.nueva.color)
 				task.wait(FREQ_PART)
 			end
 		end)
@@ -428,7 +494,7 @@ local function iniciarParticulasArista(id, nomA, nomB, posA, posB, esDirigido)
 		task.spawn(function()
 			task.wait(FREQ_PART / 2)
 			while estado.partActivas[id] == v do
-				spawnParticula(posB, posA, COL_PART_VISIT)
+				spawnParticula(posB, posA, COLORES.PARTICULA.recorrida.color)
 				task.wait(FREQ_PART)
 			end
 		end)
@@ -506,8 +572,10 @@ local function construirAristas()
 			part.CanQuery   = false
 			part.Size         = Vector3.new(dist, TAM_ARISTA, TAM_ARISTA)
 			part.CFrame       = CFrame.fromMatrix(centro, ejeX, ejeY, ejeZ)
-			part.Material     = esDefectuosa and MAT_NEON or MAT_DEFAULT
-			part.Color        = esDefectuosa and COL_ARISTA_DEFECT or COL_ARISTA_DEFAULT
+
+			local cfg = esDefectuosa and COLORES.ARISTA.defectuosa or COLORES.ARISTA.sin_explorar
+			part.Material     = cfg.material
+			part.Color        = cfg.color
 			part.Transparency = 1
 			part.Parent       = parentFolder
 
@@ -516,9 +584,8 @@ local function construirAristas()
 			mesh.Scale    = Vector3.new(1, 1, 1)
 			mesh.Parent   = part
 
-			local alphaFinal = esDefectuosa and ALPHA_ACTIVA or ALPHA_DEFAULT
 			TweenService:Create(part, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-				{ Transparency = alphaFinal }):Play()
+				{ Transparency = cfg.transparencia }):Play()
 
 			local mapKey = esDirigido and (nomA .. "->" .. nomB) or key
 			estado.aristaMap[mapKey] = {
@@ -534,99 +601,83 @@ local function construirAristas()
 
 end
 
-local function obtenerAristasPendientesDelPaso(step)
-	local pendientes = {}
-	if not step then return pendientes end
+local function asignarRolAristas(step)
+	local roles = {}
+	if not step then return roles end
 
-	local esDirigido = estado.matrizData and estado.matrizData.EsDirigido or false
-	local dict = {}
+	-- Prioridad: nueva > recorrida > candidata > sin_explorar
+	for _, arista in ipairs(step.aristasCandidatas or {}) do
+		local key = claveArista(arista[1], arista[2])
+		if not roles[key] then
+			roles[key] = "candidata"
+		end
+	end
 
 	for _, arista in ipairs(step.aristasRecorridas or {}) do
-		local a, b = arista[1], arista[2]
-		local key = claveArista(a, b)
-		local mapKey = keyAristaMap(a, b)
-		if not dict[key] and estado.aristasProcesadas[key] ~= "recorrida" then
-			dict[key] = { nomA = a, nomB = b, key = key, mapKey = mapKey, rol = "recorrida" }
-		end
+		local key = claveArista(arista[1], arista[2])
+		roles[key] = "recorrida"
 	end
 
 	if step.aristaNueva then
-		local a, b = step.aristaNueva[1], step.aristaNueva[2]
-		local key = claveArista(a, b)
-		local mapKey = keyAristaMap(a, b)
-		if estado.aristasProcesadas[key] ~= "nueva" then
-			dict[key] = { nomA = a, nomB = b, key = key, mapKey = mapKey, rol = "nueva" }
-		end
+		local key = claveArista(step.aristaNueva[1], step.aristaNueva[2])
+		roles[key] = "nueva"
 	end
 
-	for _, data in pairs(dict) do
-		table.insert(pendientes, data)
-	end
-	return pendientes
+	return roles
+end
+
+local function aplicarEstiloArista(info, rol)
+	local cfg = COLORES.ARISTA[rol] or COLORES.ARISTA.sin_explorar
+	local part = info.part
+	if not part or not part.Parent then return end
+
+	part.Material = cfg.material
+	TweenService:Create(part, TWEEN_ARISTA, {
+		Color        = cfg.color,
+		Transparency = cfg.transparencia,
+	}):Play()
 end
 
 local function actualizarAristas(step)
 	if not estado.matrizData then return 0 end
 	local esDirigido = estado.matrizData.EsDirigido or false
-	local esDijkstra = estado.algoritmoActual == "dijkstra"
 
-	local pendientes = obtenerAristasPendientesDelPaso(step)
+	local roles = asignarRolAristas(step)
 	local nuevoSetPart = {}
 
-	for _, data in ipairs(pendientes) do
-		local info = estado.aristaMap[data.mapKey]
-		if not info or info.esDefectuosa then continue end
+	for mapKey, info in pairs(estado.aristaMap) do
+		if info.esDefectuosa then continue end
 
-		local nomA, nomB = data.nomA, data.nomB
-		local rol = data.rol
+		local key = claveArista(info.nomA, info.nomB)
+		local rol = roles[key] or "sin_explorar"
+		local rolPrevio = estado.aristasProcesadas[key]
 
-		local color, alpha, mat
-		if rol == "nueva" then
-			color = COL_ARISTA_NUEVA; alpha = ALPHA_ACTIVA; mat = MAT_NEON
-		else -- "recorrida"
-			color = esDijkstra and COL_ARISTA_BLANCO or COL_ARISTA_VISIT
-			alpha = ALPHA_ACTIVA
-			mat   = MAT_NEON
-		end
+		if rolPrevio ~= rol then
+			aplicarEstiloArista(info, rol)
+			estado.aristasProcesadas[key] = rol
 
-		local part = info.part
-		if part and part.Parent then
-			part.Material = mat
-			TweenService:Create(part, TWEEN_ARISTA, {
-				Color        = color,
-				Transparency = alpha,
-			}):Play()
-		end
-
-		if rol == "recorrida" then
-			crearTagArista(nomA, nomB, part)
-		end
-
-		estado.aristasProcesadas[data.key] = rol
-
-		local pid = esDirigido and (nomA .. "_>" .. nomB) or idConexion(nomA, nomB)
-		nuevoSetPart[pid] = info
-	end
-
-	-- Mantener partículas activas para aristas ya procesadas
-	if step then
-		for _, arista in ipairs(step.aristasRecorridas or {}) do
-			local a, b = arista[1], arista[2]
-			local mapKey = keyAristaMap(a, b)
-			local info = estado.aristaMap[mapKey]
-			if info and not info.esDefectuosa then
-				local pid = esDirigido and (a .. "_>" .. b) or idConexion(a, b)
-				nuevoSetPart[pid] = info
+			if rol == "recorrida" or rol == "camino_final" then
+				crearTagArista(info.nomA, info.nomB, info.part)
 			end
 		end
-		if step.aristaNueva then
-			local a, b = step.aristaNueva[1], step.aristaNueva[2]
-			local mapKey = keyAristaMap(a, b)
-			local info = estado.aristaMap[mapKey]
-			if info and not info.esDefectuosa then
-				local pid = esDirigido and (a .. "_>" .. b) or idConexion(a, b)
-				nuevoSetPart[pid] = info
+
+		-- Animación de backtrack en DFS: arista "cierra" brevemente antes de consolidarse
+		if estado.algoritmoActual == "dfs" and step.esBacktrack and step.nodoActual then
+			local u = step.nodoActual
+			if (info.nomA == u or info.nomB == u) and rol == "recorrida" then
+				aplicarEstiloArista(info, "sin_explorar")
+				task.delay(0.25, function()
+					if info.part and info.part.Parent then
+						aplicarEstiloArista(info, "recorrida")
+					end
+				end)
 			end
+		end
+
+		-- Partículas solo para aristas activas en el árbol/camino
+		if rol == "nueva" or rol == "recorrida" or rol == "camino_final" then
+			local pid = esDirigido and (info.nomA .. "_>" .. info.nomB) or idConexion(info.nomA, info.nomB)
+			nuevoSetPart[pid] = info
 		end
 	end
 
@@ -696,67 +747,90 @@ local function aplicarPaso3D(step)
 
 	local maxDuracion = 0
 	local headers = estado.matrizData and estado.matrizData.Headers or {}
+
+	local visitadosSet = {}
+	for _, nome in ipairs(step.visitados or {}) do
+		visitadosSet[nome] = true
+	end
+
+	local pendientesSet = {}
+	for _, item in ipairs(step.pendientes or {}) do
+		local nome = tostring(item):match("^(.-)=") or tostring(item)
+		pendientesSet[nome] = true
+	end
+
 	for _, nome in ipairs(headers) do
-		local dur = 0
+		local tipoColor = nil
+		local distancia = nil
+
 		if nome == step.nodoActual then
-			dur = encenderNodo(nome, "ACTUAL")
-		elseif nome == estado.nodoInicio and not estado.nodosEncendidos[nome] then
-			dur = encenderNodo(nome, "INICIO")
-		elseif table.find(step.visitados or {}, nome) then
-			dur = encenderNodo(nome, "VISITADO")
+			tipoColor = "actual"
+		elseif nome == estado.nodoInicio then
+			tipoColor = "inicio"
+		elseif nome == estado.nodoFin and estado.algoritmoActual == "dijkstra" then
+			tipoColor = "destino"
+		elseif visitadosSet[nome] then
+			tipoColor = "visitado"
+		elseif pendientesSet[nome] then
+			tipoColor = "en_estructura"
 		end
-		if dur > maxDuracion then maxDuracion = dur end
+
+		if estado.algoritmoActual == "bfs" and step.distancias then
+			distancia = step.distancias[nome]
+		end
+
+		if tipoColor then
+			local dur = encenderNodo(nome, tipoColor, distancia)
+			if dur > maxDuracion then maxDuracion = dur end
+		end
 	end
 
 	local durAristas = actualizarAristas(step)
 	if durAristas > maxDuracion then maxDuracion = durAristas end
 
 	if estado.algoritmoActual == "dijkstra" and estado.pasoActual == estado.totalPasos then
-		-- Destacar camino final (implementación existente)
-		local function destacarCaminoFinalDijkstra(step)
-			if estado.algoritmoActual ~= "dijkstra" or not step then return end
-			local aristas = step.aristasRecorridas or {}
+		local function destacarCaminoFinalDijkstra(s)
+			if estado.algoritmoActual ~= "dijkstra" or not s then return end
+			local aristas = s.aristasRecorridas or {}
 			if #aristas == 0 then return end
+
 			local caminoSet = {}
 			local aristasCaminoSet = {}
 			for _, arista in ipairs(aristas) do
 				local a, b = arista[1], arista[2]
 				caminoSet[a] = true; caminoSet[b] = true
-				local key = claveArista(a, b)
-				aristasCaminoSet[key] = true
+				aristasCaminoSet[claveArista(a, b)] = true
 			end
-			local aRestaurar = {}
+
+			-- Atenuar nodos y aristas que no forman parte del camino óptimo
 			for nombre in pairs(estado.nodosEncendidos) do
 				if not caminoSet[nombre] then
-					table.insert(aRestaurar, nombre)
+					encenderNodo(nombre, "no_usado")
 				end
 			end
-			for _, nombre in ipairs(aRestaurar) do
-				restaurarNodo(nombre)
-			end
-			local aBlanco = {}
 			for nombre in pairs(caminoSet) do
-				table.insert(aBlanco, nombre)
+				encenderNodo(nombre, "camino_final")
 			end
-			for _, nombre in ipairs(aBlanco) do
-				encenderNodo(nombre, "CAMINO")
-			end
+
 			for _, info in pairs(estado.aristaMap) do
 				if info.part and info.part.Parent and not info.esDefectuosa then
-					local nomA, nomB = info.nomA, info.nomB
-					local key = claveArista(nomA, nomB)
-					if not aristasCaminoSet[key] then
-						info.part.Material = MAT_DEFAULT
-						TweenService:Create(info.part, TWEEN_ARISTA, {
-							Color        = COL_ARISTA_DEFAULT,
-							Transparency = ALPHA_DEFAULT,
-						}):Play()
+					local key = claveArista(info.nomA, info.nomB)
+					if aristasCaminoSet[key] then
+						estado.aristasProcesadas[key] = "camino_final"
+						aplicarEstiloArista(info, "camino_final")
+					else
+						estado.aristasProcesadas[key] = "no_usado"
+						aplicarEstiloArista(info, "no_usado")
 					end
 				end
 			end
 			limpiarTodasParticulas()
 		end
 		destacarCaminoFinalDijkstra(step)
+	end
+
+	if estado.pasoActual == estado.totalPasos then
+		crearBillboardsResultadoRecorrido(step)
 	end
 
 	PanelAlgoritmo3D.aplicarPaso(step, estado.pasoActual, estado.totalPasos)
@@ -1158,11 +1232,7 @@ function EjecutorAlgoritmo3D.inicializar(hudGui)
 			if info and info.part and info.part.Parent then
 				-- Ya no es defectuosa: restaurar color y material por defecto
 				info.esDefectuosa = false
-				info.part.Material = MAT_DEFAULT
-				TweenService:Create(info.part, TWEEN_ARISTA, {
-					Color        = COL_ARISTA_DEFAULT,
-					Transparency = ALPHA_DEFAULT,
-				}):Play()
+				aplicarEstiloArista(info, "sin_explorar")
 				-- Detener partículas si las había
 				local pid = estado.matrizData and estado.matrizData.EsDirigido
 					and (nomA .. "_>" .. nomB)
@@ -1182,11 +1252,7 @@ function EjecutorAlgoritmo3D.inicializar(hudGui)
 			local mapKey = keyAristaMap(nomA, nomB)
 			local info = estado.aristaMap[mapKey]
 			if info and info.part and info.part.Parent then
-				info.part.Material = MAT_DEFAULT
-				TweenService:Create(info.part, TWEEN_ARISTA, {
-					Color        = COL_ARISTA_DEFAULT,
-					Transparency = ALPHA_DEFAULT,
-				}):Play()
+				aplicarEstiloArista(info, "sin_explorar")
 				local pid = estado.matrizData and estado.matrizData.EsDirigido
 					and (nomA .. "_>" .. nomB)
 					or  idConexion(nomA, nomB)
