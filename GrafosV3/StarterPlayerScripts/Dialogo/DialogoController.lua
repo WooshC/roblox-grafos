@@ -60,6 +60,10 @@ function DialogoController:RenderLine(lineIndex)
 	-- Verificar condición
 	if linea.Condicion then
 		if not linea.Condicion(self.system.metadata) then
+			if linea.SiguienteSiFalso then
+				self.system:GoToLine(linea.SiguienteSiFalso)
+				return
+			end
 			-- Saltar a siguiente línea automáticamente
 			self.system:Next()
 			return

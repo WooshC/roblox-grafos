@@ -30,6 +30,9 @@ local _eventoNivelCompletado    = nil
 local _estrellasLimitadasPorDialogos = false  -- true si se limitaron estrellas por diálogos incorrectos
 local _nodosReparados = {}  -- TG 07: { [nombreNodo] = true } nodos reparados manualmente
 local _nodosSobrecargados = {}  -- { [nombreNodo] = true } nodos que sufrieron sobrecarga de grado
+local _dialogosTerminados = {}  -- { [dialogoID] = true } diálogos cerrados durante el nivel
+local _resultadoFinal = nil
+local _mensajeFinal = nil
 
 -- ── Timer de emergencia (instancia delegada) ──────────────────────────────────
 local _timerEmergencia = nil
@@ -60,17 +63,14 @@ local function contarConexiones(nodo)
 	return count
 end
 
-local function esAlcanzable(inicio, meta, visitados)
+local function esAlcanzableConEnergia(inicio, meta, visitados)
 	if inicio == meta then return true end
 	visitados = visitados or {}
 	visitados[inicio] = true
-	for key, _ in pairs(_cables) do
-		local a, b = GrafoHelpers.parsearClave(key)
-		local otro = nil
-		if a == inicio and not visitados[b] then otro = b
-		elseif b == inicio and not visitados[a] then otro = a end
-		if otro then
-			if esAlcanzable(otro, meta, visitados) then return true end
+
+	for _, vecino in ipairs(ValidadorConexiones.obtenerConexiones(inicio)) do
+		if not visitados[vecino] and esAlcanzableConEnergia(vecino, meta, visitados) then
+			return true
 		end
 	end
 	return false
@@ -110,11 +110,13 @@ local Validadores = {}
 Validadores.ARISTA_CREADA = function(params)
 	local key = GrafoHelpers.clavePar(params.NodoA, params.NodoB)
 	return _cables[key] == true
+		and not ValidadorConexiones.esCableDefectuoso(params.NodoA, params.NodoB)
 end
 
 Validadores.ARISTA_DIRIGIDA = function(params)
 	local key = GrafoHelpers.clavePar(params.NodoOrigen, params.NodoDestino)
 	return _cables[key] == true
+		and not ValidadorConexiones.esCableDefectuoso(params.NodoOrigen, params.NodoDestino)
 end
 
 Validadores.GRADO_NODO = function(params)
@@ -140,7 +142,7 @@ Validadores.GRAFO_CONEXO = function(params)
 	for i = 1, #nodos do
 		for j = 1, #nodos do
 			if i ~= j then
-				if not esAlcanzable(nodos[i], nodos[j], {}) then
+				if not esAlcanzableConEnergia(nodos[i], nodos[j], {}) then
 					return false
 				end
 			end
@@ -150,13 +152,31 @@ Validadores.GRAFO_CONEXO = function(params)
 end
 
 Validadores.EMERGENCIA = function(params)
+	-- Comprobar energía real desde un generador. obtenerConexiones omite
+	-- automáticamente los cables que todavía están defectuosos.
+	local nodosEnergizar = params.NodosEnergizar or {}
+	if #nodosEnergizar > 0 then
+		local generadores = (_config and _config.Generadores) or {}
+		for _, destino in ipairs(nodosEnergizar) do
+			local energizado = false
+			for _, generador in ipairs(generadores) do
+				if esAlcanzableConEnergia(generador, destino, {}) then
+					energizado = true
+					break
+				end
+			end
+			if not energizado then return false end
+		end
+		return true
+	end
+
 	-- Primero verificar que el grafo esté conexo (misma lógica que GRAFO_CONEXO)
 	local nodos = params.Nodos or {}
 	if #nodos < 2 then return true end
 	for i = 1, #nodos do
 		for j = 1, #nodos do
 			if i ~= j then
-				if not esAlcanzable(nodos[i], nodos[j], {}) then
+				if not esAlcanzableConEnergia(nodos[i], nodos[j], {}) then
 					return false
 				end
 			end
@@ -165,6 +185,16 @@ Validadores.EMERGENCIA = function(params)
 	-- Luego verificar que no haya expirado el tiempo
 	if _timerEmergencia and _timerEmergencia:estaFallido() then
 		return false
+	end
+	return true
+end
+
+Validadores.DIALOGO_COMPLETADO = function(params)
+	if not params.DialogoID or not _dialogosTerminados[params.DialogoID] then
+		return false
+	end
+	for _, misionID in ipairs(params.RequiereMisiones or {}) do
+		if not _completadas[misionID] then return false end
 	end
 	return true
 end
@@ -365,6 +395,8 @@ local function verificarYNotificar()
 				puntajeBase = snap.puntajeBase,
 				estrellasLimitadasPorDialogos = _estrellasLimitadasPorDialogos,
 				totalPreguntasDialogo = (_config and _config.TotalPreguntasDialogo) or 0,
+				resultadoFinal = _resultadoFinal,
+				mensajeFinal = _mensajeFinal,
 			}
 			_eventoNivelCompletado:FireClient(_jugador, snapCliente)
 
@@ -401,6 +433,10 @@ function ServicioMisiones.activar(config, nivelID, jugador, eventos, servicioPun
 	_estrellasLimitadasPorDialogos = false
 	_zonasVisitadas = {}
 	_nodosReparados = {}
+	_nodosSobrecargados = {}
+	_dialogosTerminados = {}
+	_resultadoFinal = nil
+	_mensajeFinal = nil
 	if _timerEmergencia then _timerEmergencia:detener() end
 	_timerEmergencia = nil
 
@@ -439,10 +475,40 @@ function ServicioMisiones.activar(config, nivelID, jugador, eventos, servicioPun
 		end
 		local dialogoTerminado = eventos:FindFirstChild("DialogoTerminado") or eventos:WaitForChild("DialogoTerminado", 2)
 		if dialogoTerminado and not _dialogoTerminadoConn then
-			_dialogoTerminadoConn = dialogoTerminado.OnServerEvent:Connect(function(player)
+			_dialogoTerminadoConn = dialogoTerminado.OnServerEvent:Connect(function(player, dialogoID, resultado)
 				if not chequearCooldownDialogo(player.UserId, 0.3) then return end
 				-- print(string.format("[ServicioMisiones] DialogoTerminado recibido de %s | _jugador=%s", tostring(player), tostring(_jugador)))
 				if player ~= _jugador then return end
+				if type(dialogoID) == "string" and dialogoID ~= "" then
+					local primeraFinalizacion = _dialogosTerminados[dialogoID] == nil
+					_dialogosTerminados[dialogoID] = resultado or true
+
+					for _, mision in ipairs(_misiones) do
+						local params = mision.Parametros or {}
+						if mision.Tipo == "DIALOGO_COMPLETADO" and params.DialogoID == dialogoID then
+							if resultado == "exito" then
+								_resultadoFinal = "exito"
+								_mensajeFinal = params.MensajeExito
+							else
+								_resultadoFinal = "fracaso"
+								_mensajeFinal = params.MensajeFallo
+								if primeraFinalizacion then
+									local penalizacion = params.PenalizacionFallo or 0
+									_puntosAcum = _puntosAcum - penalizacion
+									if _servicioPuntaje then
+										_servicioPuntaje:fijarPuntajeMision(
+											_jugador,
+											_puntosAcum,
+											calcularEstrellasHelper(_puntosAcum)
+										)
+									end
+								end
+							end
+							break
+						end
+					end
+					verificarYNotificar()
+				end
 				if _timerEmergencia then _timerEmergencia:reanudar() end
 				-- Si el timer nunca se inició (primera vez), iniciarlo ahora
 				-- Usar zona actual si existe; si no, buscar cualquier emergencia pendiente
@@ -495,6 +561,9 @@ function ServicioMisiones.desactivar()
 	_config = nil
 	_nodosReparados = {}
 	_nodosSobrecargados = {}
+	_dialogosTerminados = {}
+	_resultadoFinal = nil
+	_mensajeFinal = nil
 
 	-- Limpiar conexiones de diálogo y timer para evitar fugas entre niveles
 	if _dialogoIniciadoConn then _dialogoIniciadoConn:Disconnect(); _dialogoIniciadoConn = nil end

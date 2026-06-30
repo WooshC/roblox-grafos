@@ -237,38 +237,16 @@ local DIALOGOS = {
 				Actor     = "Sistema",
 				Expresion = "Normal",
 				Texto     = "La Matriz de Adyacencia muestra todas las conexiones del grafo en formato de tabla. También puedes abrirla en cualquier momento presionando la tecla F.",
-				Siguiente = "matriz_destacar",
-			},
-
-			-- ── 9. MATRIZ DE ADYACENCIA: DESTACAR BOTÓN ───────────────
-			{
-				Id        = "matriz_destacar",
-				Numero    = 9,
-				Actor     = "Sistema",
-				Expresion = "Normal",
-				Texto     = "Presiona el botón de la Matriz para abrirla. Verás una tabla con todos los nodos y sus conexiones.",
-
-				Evento = function()
-					local Players = game:GetService("Players")
-					local ModuloMatriz = nil
-					pcall(function()
-						ModuloMatriz = require(Players.LocalPlayer:WaitForChild("PlayerScripts"):WaitForChild("HUD"):WaitForChild("ModulosHUD"):WaitForChild("ModuloMatriz"))
-					end)
-					if ModuloMatriz and ModuloMatriz.abrir then
-						ModuloMatriz.abrir()
-					end
-				end,
-
 				Siguiente = "matriz_explicacion",
 			},
 
-			-- ── 10. MATRIZ DE ADYACENCIA: EXPLICACIÓN ─────────────────
+			-- ── 9. MATRIZ DE ADYACENCIA: EXPLICACIÓN ──────────────────
 			{
 				Id        = "matriz_explicacion",
-				Numero    = 10,
+				Numero    = 9,
 				Actor     = "Sistema",
 				Expresion = "Normal",
-				Texto     = "Observa la fila del " .. aliasCentro .. " en la matriz. El número de unos en esa fila es exactamente su grado: 4. La matriz te ayuda a verificar el grado de cualquier nodo de forma rápida. Con ella podrás contrastar lo que dice el informe con lo que realmente está conectado.",
+				Texto     = "Cuando abras la matriz, observa la fila del " .. aliasCentro .. ". El número de unos en esa fila será exactamente su grado. La matriz te permitirá contrastar el informe con las conexiones reales.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					enfocarEstrella({ altura = 28, angulo = 60, duracion = 1.0 })
@@ -276,10 +254,10 @@ local DIALOGOS = {
 				Siguiente = "instruccion_conectar",
 			},
 
-			-- ── 11. INSTRUCCIÓN: CONECTAR PRIMER VECINO ───────────────
+			-- ── 10. INSTRUCCIÓN: CONECTAR PRIMER VECINO ───────────────
 			{
 				Id        = "instruccion_conectar",
-				Numero    = 11,
+				Numero    = 10,
 				Actor     = "Sistema",
 				Expresion = "Normal",
 				Texto     = "Haz clic en el " .. aliasCentro .. " y luego en el " .. aliasA .. " para crear tu primera arista.",
@@ -297,10 +275,10 @@ local DIALOGOS = {
 				Siguiente = "resultado",
 			},
 
-			-- ── 12. RESULTADO ─────────────────────────────────────────
+			-- ── 11. RESULTADO ─────────────────────────────────────────
 			{
 				Id        = "resultado",
-				Numero    = 12,
+				Numero    = 11,
 				Actor     = "Carlos",
 				Expresion = "Feliz",
 				Texto     = "¡Bien hecho! Ya creaste la primera arista. Conecta los tres vecinos restantes para completar la misión y alcanzar grado 4. Una red ordenada no necesita cables de más: eso es justo lo contrario a los contratos inflados.",
@@ -311,6 +289,16 @@ local DIALOGOS = {
 					end)
 					enfocarEstrella({ altura = 28, angulo = 60, duracion = 1.0 })
 				end,
+				Siguiente = "matriz_final",
+			},
+
+			-- ── 12. ABRIR MATRIZ AL TERMINAR ───────────────────────────
+			{
+				Id        = "matriz_final",
+				Numero    = 12,
+				Actor     = "Sistema",
+				Expresion = "Normal",
+				Texto     = "Para ver la Matriz de Adyacencia en acción, termina este diálogo y presiona la tecla F. Después crea las conexiones restantes y observa cómo la matriz se actualiza.",
 				Siguiente = "FIN",
 			},
 		},
@@ -319,7 +307,7 @@ local DIALOGOS = {
 			TiempoDeEspera      = 0.5,
 			VelocidadTypewriter = 0.03,
 			PuedeOmitir         = true,
-			OcultarHUD          = false,
+			OcultarHUD          = true,
 			UsarTTS             = true,
 		},
 

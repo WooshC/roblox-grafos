@@ -163,9 +163,30 @@ function VictoriaHUD.mostrar(snapshotVictoria)
 		local pantallaVictoria = victoriaFondo:FindFirstChild("PantallaVictoria", true)
 		local contenedor = pantallaVictoria and pantallaVictoria:FindFirstChild("ContenedorPrincipal", true)
 		local victoriaHead = contenedor and contenedor:FindFirstChild("VictoriaHead", true)
+		local titulo = victoriaHead and victoriaHead:FindFirstChild("TituloVictoria", true)
 		local subtitulo = victoriaHead and victoriaHead:FindFirstChild("SubtituloVictoria", true)
+		if titulo and titulo:IsA("TextLabel") then
+			if snapshotVictoria.resultadoFinal == "fracaso" then
+				titulo.Text = "EL ALCALDE SE SALIÓ CON LA SUYA"
+				titulo.TextColor3 = Color3.fromRGB(255, 90, 90)
+			elseif snapshotVictoria.resultadoFinal == "exito" then
+				titulo.Text = "ALCALDE DESENMASCARADO"
+				titulo.TextColor3 = Color3.fromRGB(105, 219, 124)
+			else
+				titulo.Text = "¡NIVEL COMPLETADO!"
+				titulo.TextColor3 = Color3.fromRGB(221, 233, 245)
+			end
+		end
 		if subtitulo and subtitulo:IsA("TextLabel") then
-			if snapshotVictoria.estrellasLimitadasPorDialogos then
+			if snapshotVictoria.resultadoFinal == "fracaso" then
+				subtitulo.Text = snapshotVictoria.mensajeFinal
+					or "No logramos demostrar la corrupción y fuimos denunciados por calumnia."
+				subtitulo.TextColor3 = Color3.fromRGB(255, 150, 150)
+			elseif snapshotVictoria.resultadoFinal == "exito" then
+				subtitulo.Text = snapshotVictoria.mensajeFinal
+					or "Las pruebas revelaron el costo real de la red."
+				subtitulo.TextColor3 = Color3.fromRGB(105, 219, 124)
+			elseif snapshotVictoria.estrellasLimitadasPorDialogos then
 				subtitulo.Text = "¡Respondiste algunas preguntas incorrectamente! Vuelve a intentarlo para obtener 3 estrellas."
 				subtitulo.TextColor3 = Color3.fromRGB(255, 200, 50)
 			else
