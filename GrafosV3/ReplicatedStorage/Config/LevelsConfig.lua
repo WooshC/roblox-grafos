@@ -1,20 +1,3 @@
--- ReplicatedStorage/Config/LevelsConfig.lua
--- FUENTE UNICA DE VERDAD para todos los niveles.
---
--- Campos usados actualmente:
---   Nombre, DescripcionCorta, ImageId, Modelo → MenuController
---   Seccion, Algoritmo, Tag, Conceptos        → MenuController (separadores y tarjetas)
---   Puntuacion.*                               → Boot → ScoreTracker / DataService
---   Adyacencias                                → Boot → ConectarCables
---   Zonas[x].Trigger                           → Boot → ZoneTriggerManager
---   NombresNodos                               → VisualEffectsService (billboard nodo)
---   Misiones                                   → MissionService
---   AnalisisConfig[zonaID]                     → ModuloAnalisis (analizador educativo)
---     .algoritmos   → pills disponibles en esa zona
---     .nodoInicio   → nodo desde el que arrancan BFS/DFS/Dijkstra/Prim
---     .nodoFin      → nodo destino (opcional, resalta ruta en Dijkstra)
---     .conceptos    → tabla de conceptos clave por algoritmo (textos didácticos)
-
 local LevelsConfig = {}
 
 -- ============================================
@@ -737,11 +720,7 @@ LevelsConfig[2] = {
 -- ============================================
 -- NIVEL 3: EL ARBOL DE EXPANSION MINIMA
 -- ============================================
--- Concepto: Algoritmo de Prim (MST).
--- El presupuesto es limitado. El jugador debe conectar TODOS los nodos
--- gastando la menor cantidad de cable posible. Prim elige siempre la arista
--- de menor peso que conecte un nodo nuevo a la red ya construida.
--- ============================================
+
 LevelsConfig[3] = {
 	Nombre           = "El Arbol de Expansion Minima",
 	DescripcionCorta = "El presupuesto es ajustado. Usa Prim para conectar toda la red con el minimo tendido de cable.",
@@ -752,12 +731,40 @@ LevelsConfig[3] = {
 	Seccion   = "Algoritmos de Ruta",
 	Algoritmo = "Prim",
 	Conceptos = { "Prim", "Arbol de Expansion Minima", "Peso", "Conectar todo al minimo costo" },
-	Generadores = { "Gen_Bodega_z1" },
+	Generadores = { "Gen_Estacion_z1" },
+
+	ConfiguracionEntorno = {
+		Reloj = 0,
+		IluminacionAmbiental = Color3.fromRGB(15, 15, 35),
+		IluminacionExteriores = Color3.fromRGB(10, 10, 25),
+		LinternaJugador = true,
+	},
 
 	-- Presupuesto del nivel (en dolares): cada arista consume su peso x CostoPorMetro
 	Presupuesto = {
-		Inicial = 18000,
-		AdvertenciaBajo = 3000,
+		Inicial = 22000,
+		AdvertenciaBajo = 4000,
+	},
+
+	CostosReparacion = {
+		["NodoHos2_z2"] = 300,
+		["NodoHos4_z2"] = 300,
+		["Poste4_z2"]   = 300,
+	},
+
+	LimitesGrado = {
+		["Poste_Casa1_z1"] = {
+			GradoMaximo = 3,
+			MaxEntrada = 3,
+			MaxSalida = 3,
+			QuitarLimiteAlReparar = false,
+		},
+		["Poste2_z2"] = {
+			GradoMaximo = 3,
+			MaxEntrada = 3,
+			MaxSalida = 3,
+			QuitarLimiteAlReparar = false,
+		},
 	},
 
 	-- Costo por metro de cable (en dolares). El peso de la arista = metros.
@@ -774,129 +781,154 @@ LevelsConfig[3] = {
 
 	-- Requisito especial para 3 estrellas: responder todas las preguntas correctamente
 	RequiereDialogosCorrectos = true,
-	TotalPreguntasDialogo = 3,
+	TotalPreguntasDialogo = 5,
 
 	Adyacencias = {
-		-- Zona 1: Oficina de Presupuesto
-		["Gen_Bodega_z1"]   = {"Poste_Norte_z1", "Poste_Sur_z1"},
-		["Poste_Norte_z1"]  = {"Gen_Bodega_z1", "Cruce_Norte_z2"},
-		["Poste_Sur_z1"]    = {"Gen_Bodega_z1", "Cruce_Sur_z2"},
+		-- Zona 1: Sector Residencial (aristas internas no dirigidas)
+		["Gen_Estacion_z1"]   = {"Casa_Estacion1_z1", "Casa_Estacion2_z1", "Poste_Parque2_z1"},
+		["Casa_Estacion1_z1"] = {"Gen_Estacion_z1", "Parque2_z1", "Parque_z1"},
+		["Casa_Estacion2_z1"] = {"Gen_Estacion_z1", "Poste_Canchas_z1", "Poste_Casa1_z1"},
+		["Parque2_z1"]        = {"Casa_Estacion1_z1", "Poste_Parque2_z1", "Parque_z1"},
+		["Parque_z1"]         = {"Casa_Estacion1_z1", "Parque2_z1", "Poste_Casa1_z1", "Poste2_z2"},
+		["Poste_Canchas_z1"]  = {"Casa_Estacion2_z1", "Poste_Casa1_z1", "PosteCanchas_z2"},
+		["Poste_Casa1_z1"]    = {"Casa_Estacion2_z1", "Parque_z1", "Poste_Canchas_z1"},
+		["Poste_Parque2_z1"]  = {"Gen_Estacion_z1", "Parque2_z1"},
 
-		-- Zona 2: Rutas de Suministro
-		["Cruce_Norte_z2"]  = {"Poste_Norte_z1", "Mercado_z2", "Taller_z2"},
-		["Cruce_Sur_z2"]    = {"Poste_Sur_z1", "Taller_z2", "Plaza_z2"},
-		["Mercado_z2"]      = {"Cruce_Norte_z2", "Plaza_z2"},
-		["Taller_z2"]       = {"Cruce_Norte_z2", "Cruce_Sur_z2", "Plaza_z2", "Antena_z3"},
-		["Plaza_z2"]        = {"Mercado_z2", "Cruce_Sur_z2", "Taller_z2", "Centro_Control_z3"},
-
-		-- Zona 3: Centro de Control
-		["Centro_Control_z3"] = {"Plaza_z2", "Antena_z3", "Subestacion_z3"},
-		["Antena_z3"]         = {"Taller_z2", "Centro_Control_z3", "Terminal_z3"},
-		["Subestacion_z3"]    = {"Centro_Control_z3", "Terminal_z3"},
-		["Terminal_z3"]       = {"Antena_z3", "Subestacion_z3"},
+		-- Zona 2: Complejo Hospitalario (aristas internas no dirigidas)
+		["NodoHos_z2"]         = {"PosteCanchas_z2", "NodoHos2_z2", "PosteHospital_z2"},
+		["PosteCanchas_z2"]    = {"NodoHos_z2", "NodoHos2_z2", "Poste_Canchas_z1"},
+		["NodoHos2_z2"]        = {"NodoHos_z2", "PosteCanchas_z2", "Poste2_z2"},
+		["PosteHospital_z2"]   = {"NodoHos_z2", "Poste2_z2", "Poste4_z2"},
+		["Poste2_z2"]          = {"NodoHos2_z2", "PosteHospital_z2", "NodoHos4_z2", "Poste4_z2", "Parque_z1"},
+		["NodoHos4_z2"]        = {"Poste2_z2", "Poste4_z2"},
+		["Poste4_z2"]          = {"PosteHospital_z2", "Poste2_z2", "NodoHos4_z2"},
 	},
 
 	-- Pesos de cada arista (costo en presupuesto).
 	PesosAristas = {
-		["Gen_Bodega_z1|Poste_Norte_z1"]   = 4,
-		["Gen_Bodega_z1|Poste_Sur_z1"]     = 7,
-		["Poste_Norte_z1|Cruce_Norte_z2"]  = 3,
-		["Poste_Sur_z1|Cruce_Sur_z2"]      = 5,
-		["Cruce_Norte_z2|Mercado_z2"]      = 3,
-		["Cruce_Norte_z2|Taller_z2"]       = 8,
-		["Cruce_Sur_z2|Taller_z2"]         = 4,
-		["Cruce_Sur_z2|Plaza_z2"]          = 6,
-		["Mercado_z2|Plaza_z2"]            = 2,
-		["Taller_z2|Plaza_z2"]             = 1,
-		["Taller_z2|Antena_z3"]            = 7,
-		["Plaza_z2|Centro_Control_z3"]     = 5,
-		["Centro_Control_z3|Antena_z3"]    = 3,
-		["Centro_Control_z3|Subestacion_z3"] = 4,
-		["Antena_z3|Terminal_z3"]          = 2,
-		["Subestacion_z3|Terminal_z3"]     = 6,
+		-- Sector Residencial
+		["Gen_Estacion_z1|Casa_Estacion1_z1"]   = 4,
+		["Gen_Estacion_z1|Casa_Estacion2_z1"]   = 6,
+		["Gen_Estacion_z1|Poste_Parque2_z1"]    = 3,
+		["Casa_Estacion1_z1|Parque2_z1"]        = 2,
+		["Casa_Estacion1_z1|Parque_z1"]         = 5,
+		["Casa_Estacion2_z1|Poste_Canchas_z1"]  = 3,
+		["Casa_Estacion2_z1|Poste_Casa1_z1"]    = 2,
+		["Parque2_z1|Poste_Parque2_z1"]         = 4,
+		["Parque2_z1|Parque_z1"]                = 6,
+		["Parque_z1|Poste_Casa1_z1"]            = 3,
+		["Poste_Canchas_z1|Poste_Casa1_z1"]     = 5,
+
+		-- Complejo Hospitalario
+		["NodoHos_z2|PosteCanchas_z2"]          = 3,
+		["NodoHos_z2|NodoHos2_z2"]              = 2,
+		["NodoHos_z2|PosteHospital_z2"]         = 4,
+		["PosteCanchas_z2|NodoHos2_z2"]         = 4,
+		["NodoHos2_z2|Poste2_z2"]               = 5,
+		["PosteHospital_z2|Poste2_z2"]          = 3,
+		["PosteHospital_z2|Poste4_z2"]          = 5,
+		["Poste2_z2|NodoHos4_z2"]               = 2,
+		["Poste2_z2|Poste4_z2"]                 = 6,
+		["NodoHos4_z2|Poste4_z2"]               = 1,
+		
+		["Parque_z1|Poste2_z2"]                 = 4,
+		["PosteCanchas_z2|Poste_Canchas_z1"]    = 6,
+	},
+
+	CablesDefectuosos = {
+		{"NodoHos_z2", "NodoHos2_z2"},
+		{"Poste2_z2", "NodoHos4_z2"},
 	},
 
 	Zonas = {
-		["Zona_Presupuesto_1"] = {
-			Trigger = "ZonaTrigger_Presupuesto",
-			Descripcion = "Oficina de Presupuesto",
+		["Zona_Residencial_1"] = {
+			Trigger = "ZonaTrigger_Residencial",
+			Descripcion = "Sector Residencial",
 			Dialogo = "Nivel3_Presupuesto",
 			CarpetaLuz = "Zona_luz_1"
 		},
-		["Zona_Rutas_2"] = {
-			Trigger = "ZonaTrigger_Rutas",
-			Descripcion = "Rutas de Suministro",
+		["Zona_Hospital_2"] = {
+			Trigger = "ZonaTrigger_Hospital",
+			Descripcion = "Complejo Hospitalario",
 			Dialogo = "Nivel3_Rutas",
-			CarpetaLuz = "Zona_luz_2"
+			CarpetaLuz = "Zona_luz_2",
+			NodosDaniados = {"NodoHos2_z2", "NodoHos4_z2", "Poste4_z2"},
 		},
-		["Zona_Control_3"] = {
-			Trigger = "ZonaTrigger_Control",
-			Descripcion = "Centro de Control",
-			Dialogo = "Nivel3_Control",
-			CarpetaLuz = "Zona_luz_3"
+	},
+
+	NodosZona = {
+		["Zona_Residencial_1"] = {
+			"Gen_Estacion_z1", "Casa_Estacion1_z1", "Casa_Estacion2_z1",
+			"Parque2_z1", "Parque_z1", "Poste_Canchas_z1",
+			"Poste_Casa1_z1", "Poste_Parque2_z1",
+		},
+		["Zona_Hospital_2"] = {
+			"NodoHos_z2", "PosteCanchas_z2", "NodoHos2_z2",
+			"PosteHospital_z2", "Poste2_z2", "NodoHos4_z2", "Poste4_z2",
+		},
+	},
+
+	-- Activador final: aparece sobre el Hospital Central cuando se supera
+	-- la emergencia. Al cerrar el diálogo se completa la última misión.
+	DialogoFinal = {
+		DialogoID = "Final_1",
+		PromptNombre = "Final_1",
+		MisionesRequeridas = {
+			301,302,303,304,305,306,307,308,309,310,
+			311,312,313,314,315,316,317,318,319,320,
 		},
 	},
 
 	NombresNodos = {
-		["Gen_Bodega_z1"]      = "Generador Bodega",
-		["Poste_Norte_z1"]     = "Poste Norte",
-		["Poste_Sur_z1"]       = "Poste Sur",
-		["Cruce_Norte_z2"]     = "Cruce Norte",
-		["Cruce_Sur_z2"]       = "Cruce Sur",
-		["Mercado_z2"]         = "Mercado Central",
-		["Taller_z2"]          = "Taller Municipal",
-		["Plaza_z2"]           = "Plaza Central",
-		["Centro_Control_z3"]  = "Centro de Control",
-		["Antena_z3"]          = "Antena Principal",
-		["Subestacion_z3"]     = "Subestacion Electrica",
-		["Terminal_z3"]        = "Terminal de Red",
+		-- Sector Residencial
+		["Gen_Estacion_z1"]   = "Subestación Residencial",
+		["Casa_Estacion1_z1"] = "Casa Los Pinos",
+		["Casa_Estacion2_z1"] = "Casa Las Acacias",
+		["Parque2_z1"]        = "Parque Infantil",
+		["Parque_z1"]         = "Parque Central",
+		["Poste_Canchas_z1"]  = "Poste Deportivo",
+		["Poste_Casa1_z1"]    = "Poste Los Pinos",
+		["Poste_Parque2_z1"]  = "Poste Parque Infantil",
+
+		-- Complejo Hospitalario
+		["NodoHos_z2"]       = "Hospital Central",
+		["PosteCanchas_z2"]  = "Acceso de Ambulancias",
+		["NodoHos2_z2"]      = "Área de Urgencias",
+		["PosteHospital_z2"] = "Poste Hospitalario",
+		["Poste2_z2"]        = "Subestación Médica",
+		["NodoHos4_z2"]      = "Laboratorio Clínico",
+		["Poste4_z2"]        = "Poste de Consulta Externa",
 	},
 
 	AnalisisConfig = {
-		["Zona_Presupuesto_1"] = {
+		["Zona_Residencial_1"] = {
 			algoritmos = { "prim" },
-			nodoInicio = "Gen_Bodega_z1",
+			nodoInicio = "Gen_Estacion_z1",
 			nodoFin    = nil,
 			conceptos  = {
 				prim = {
-					intro = "Prim construye el Arbol de Expansion Minima (MST): conecta todos los nodos con el menor tendido de cable. Empieza desde el Generador Bodega.",
+					intro = "Prim parte de la Subestación Residencial y conecta las ocho ubicaciones sin ciclos. El MST óptimo de esta zona tiene peso total 22.",
 					pasos = {
-						[2]  = "Raiz: Generador Bodega con key=0. El resto empieza en infinito.",
-						[8]  = "El nodo con key minima se integra al MST.",
-						[9]  = "Actualizamos keys de los vecinos no conectados.",
-						[13] = "MST completo — toda la red conectada con el minimo cable.",
+						[2]  = "La Subestación Residencial inicia con key=0; los demás nodos comienzan en infinito.",
+						[8]  = "Integra al MST el nodo pendiente cuya arista de entrada tenga el menor peso.",
+						[9]  = "Compara los cables vecinos y conserva para cada nodo la alternativa más barata.",
+						[13] = "MST residencial completo: 7 aristas, 8 nodos y peso total 22.",
 					},
 				},
 			},
 		},
-		["Zona_Rutas_2"] = {
+		["Zona_Hospital_2"] = {
 			algoritmos = { "prim" },
-			nodoInicio = "Gen_Bodega_z1",
+			nodoInicio = "NodoHos_z2",
 			nodoFin    = nil,
 			conceptos  = {
 				prim = {
-					intro = "Ejecuta Prim desde la Bodega. Observa como el algoritmo siempre elige el cable mas barato que conecte un nuevo nodo a la red.",
+					intro = "Prim parte del Hospital Central para conectar las siete áreas médicas. El MST óptimo de esta zona tiene peso total 15.",
 					pasos = {
-						[2]  = "Bodega inicia con key=0. Sus vecinos reciben sus primeros pesos.",
-						[8]  = "El nodo con key minima se une al MST.",
-						[9]  = "Si este cable es mas barato para llegar a un nodo, actualizamos su key.",
-						[13] = "MST completo para toda la zona de rutas.",
-					},
-				},
-			},
-		},
-		["Zona_Control_3"] = {
-			algoritmos = { "prim" },
-			nodoInicio = "Gen_Bodega_z1",
-			nodoFin    = nil,
-			conceptos  = {
-				prim = {
-					intro = "Prim conecta todos los nodos del pueblo con el minimo costo total. Ideal cuando el presupuesto es limitado.",
-					pasos = {
-						[2]  = "Raiz: Generador Bodega con key=0. El resto en infinito.",
-						[8]  = "El nodo con key minima se integra al MST.",
-						[9]  = "Actualizamos keys de vecinos no conectados.",
-						[13] = "MST completo — toda la red conectada con el tendido minimo.",
+						[2]  = "El Hospital Central inicia con key=0; sus conexiones reciben los primeros pesos.",
+						[8]  = "Selecciona el área pendiente conectada por el cable candidato más barato.",
+						[9]  = "Actualiza la key solamente cuando aparece una conexión de menor peso.",
+						[13] = "MST hospitalario completo: 6 aristas, 7 nodos y peso total 15.",
 					},
 				},
 			},
@@ -904,30 +936,50 @@ LevelsConfig[3] = {
 	},
 
 	Misiones = {
-		-- Zona 1: Oficina de Presupuesto
-		{ ID=301, Zona="Zona_Presupuesto_1", Texto="Selecciona el Generador Bodega",                 Tipo="NODO_SELECCIONADO", Puntos=100, Parametros={ Nodo="Gen_Bodega_z1" } },
-		{ ID=302, Zona="Zona_Presupuesto_1", Texto="Conecta el Poste Norte al Generador (costo 4)",  Tipo="ARISTA_CREADA",     Puntos=150, Parametros={ NodoA="Gen_Bodega_z1", NodoB="Poste_Norte_z1" } },
-		{ ID=303, Zona="Zona_Presupuesto_1", Texto="Conecta el Poste Sur al Generador (costo 7)",    Tipo="ARISTA_CREADA",     Puntos=150, Parametros={ NodoA="Gen_Bodega_z1", NodoB="Poste_Sur_z1" } },
+		-- Zona 1: validar el MST residencial producido por Prim (peso 22)
+		{ ID=301, Zona="Zona_Residencial_1", Texto="Selecciona la Subestación Residencial", Tipo="NODO_SELECCIONADO", Puntos=100, Parametros={ Nodo="Gen_Estacion_z1" } },
+		{ ID=302, Zona="Zona_Residencial_1", Texto="Conecta la Subestación con el Poste Parque Infantil (peso 3)", Tipo="ARISTA_CREADA", Puntos=120, Parametros={ NodoA="Gen_Estacion_z1", NodoB="Poste_Parque2_z1" } },
+		{ ID=303, Zona="Zona_Residencial_1", Texto="Conecta el Poste Parque Infantil con el Parque Infantil (peso 4)", Tipo="ARISTA_CREADA", Puntos=120, Parametros={ NodoA="Poste_Parque2_z1", NodoB="Parque2_z1" } },
+		{ ID=304, Zona="Zona_Residencial_1", Texto="Conecta el Parque Infantil con Casa Los Pinos (peso 2)", Tipo="ARISTA_CREADA", Puntos=120, Parametros={ NodoA="Parque2_z1", NodoB="Casa_Estacion1_z1" } },
+		{ ID=305, Zona="Zona_Residencial_1", Texto="Conecta Casa Los Pinos con el Parque Central (peso 5)", Tipo="ARISTA_CREADA", Puntos=120, Parametros={ NodoA="Casa_Estacion1_z1", NodoB="Parque_z1" } },
+		{ ID=306, Zona="Zona_Residencial_1", Texto="Conecta el Parque Central con el Poste Los Pinos (peso 3)", Tipo="ARISTA_CREADA", Puntos=120, Parametros={ NodoA="Parque_z1", NodoB="Poste_Casa1_z1" } },
+		{ ID=307, Zona="Zona_Residencial_1", Texto="Conecta el Poste Los Pinos con Casa Las Acacias (peso 2)", Tipo="ARISTA_CREADA", Puntos=120, Parametros={ NodoA="Poste_Casa1_z1", NodoB="Casa_Estacion2_z1" } },
+		{ ID=308, Zona="Zona_Residencial_1", Texto="Conecta Casa Las Acacias con el Poste Deportivo (peso 3)", Tipo="ARISTA_CREADA", Puntos=120, Parametros={ NodoA="Casa_Estacion2_z1", NodoB="Poste_Canchas_z1" } },
+		{ ID=309, Zona="Zona_Residencial_1", Texto="Valida con Prim que las 8 ubicaciones residenciales estén conectadas", Tipo="GRAFO_CONEXO", Puntos=300, Parametros={ Nodos={"Gen_Estacion_z1","Casa_Estacion1_z1","Casa_Estacion2_z1","Parque2_z1","Parque_z1","Poste_Canchas_z1","Poste_Casa1_z1","Poste_Parque2_z1"} } },
 
-		-- Zona 2: Rutas de Suministro
-		{ ID=304, Zona="Zona_Rutas_2", Texto="Tiende cable hacia el Cruce Norte (costo 3)",          Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Poste_Norte_z1", NodoB="Cruce_Norte_z2" } },
-		{ ID=305, Zona="Zona_Rutas_2", Texto="Conecta el Mercado al Cruce Norte (costo 3)",          Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Cruce_Norte_z2", NodoB="Mercado_z2" } },
-		{ ID=306, Zona="Zona_Rutas_2", Texto="Conecta la Plaza al Mercado (costo 2)",                Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Mercado_z2",     NodoB="Plaza_z2" } },
-		{ ID=307, Zona="Zona_Rutas_2", Texto="Ilumina toda la zona de Rutas (5 nodos)",               Tipo="GRAFO_CONEXO",  Puntos=300, Parametros={ Nodos={"Cruce_Norte_z2","Cruce_Sur_z2","Mercado_z2","Taller_z2","Plaza_z2"} } },
-
-		-- Zona 3: Centro de Control
-		{ ID=308, Zona="Zona_Control_3", Texto="Conecta Centro de Control desde Plaza (costo 5)",    Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Plaza_z2",         NodoB="Centro_Control_z3" } },
-		{ ID=309, Zona="Zona_Control_3", Texto="Conecta la Antena al Centro de Control (costo 3)",   Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Centro_Control_z3", NodoB="Antena_z3" } },
-		{ ID=310, Zona="Zona_Control_3", Texto="Conecta la Terminal desde la Antena (costo 2)",      Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Antena_z3",         NodoB="Terminal_z3" } },
-		{ ID=311, Zona="Zona_Control_3", Texto="Conecta la Subestacion al Centro de Control (costo 4)", Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Centro_Control_z3", NodoB="Subestacion_z3" } },
-		{ ID=312, Zona="Zona_Control_3", Texto="Ilumina todo el pueblo (12 nodos, sin exceder presupuesto)", Tipo="GRAFO_CONEXO",  Puntos=500, Parametros={ Nodos={"Gen_Bodega_z1","Poste_Norte_z1","Poste_Sur_z1","Cruce_Norte_z2","Cruce_Sur_z2","Mercado_z2","Taller_z2","Plaza_z2","Centro_Control_z3","Antena_z3","Subestacion_z3","Terminal_z3"} } },
+		-- Zona 2: validar el MST hospitalario producido por Prim (peso 15)
+		{ ID=310, Zona="Zona_Hospital_2", Texto="Selecciona el Hospital Central", Tipo="NODO_SELECCIONADO", Puntos=100, Parametros={ Nodo="NodoHos_z2" } },
+		{ ID=311, Zona="Zona_Hospital_2", Texto="Conecta el Hospital con Urgencias (peso 2)", Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="NodoHos_z2", NodoB="NodoHos2_z2" } },
+		{ ID=312, Zona="Zona_Hospital_2", Texto="Conecta el Hospital con el Acceso de Ambulancias (peso 3)", Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="NodoHos_z2", NodoB="PosteCanchas_z2" } },
+		{ ID=313, Zona="Zona_Hospital_2", Texto="Conecta el Hospital con el Poste Hospitalario (peso 4)", Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="NodoHos_z2", NodoB="PosteHospital_z2" } },
+		{ ID=314, Zona="Zona_Hospital_2", Texto="Conecta el Poste Hospitalario con la Subestación Médica (peso 3)", Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="PosteHospital_z2", NodoB="Poste2_z2" } },
+		{ ID=315, Zona="Zona_Hospital_2", Texto="Conecta la Subestación Médica con el Laboratorio (peso 2)", Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Poste2_z2", NodoB="NodoHos4_z2" } },
+		{ ID=316, Zona="Zona_Hospital_2", Texto="Conecta el Laboratorio con Consulta Externa (peso 1)", Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="NodoHos4_z2", NodoB="Poste4_z2" } },
+		{ ID=317, Zona="Zona_Hospital_2", Texto="Valida con Prim que las 7 áreas hospitalarias estén conectadas", Tipo="GRAFO_CONEXO", Puntos=350, Parametros={ Nodos={"NodoHos_z2","PosteCanchas_z2","NodoHos2_z2","PosteHospital_z2","Poste2_z2","NodoHos4_z2","Poste4_z2"} } },
+		{ ID=318, Zona="Zona_Hospital_2", Texto="Conecta el Parque Central con la Subestación Médica (peso 4)", Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Parque_z1", NodoB="Poste2_z2" } },
+		{ ID=319, Zona="Zona_Hospital_2", Texto="Completa el MST de las 15 ubicaciones sin superar el presupuesto", Tipo="GRAFO_CONEXO", Puntos=600, Parametros={ Nodos={"Gen_Estacion_z1","Casa_Estacion1_z1","Casa_Estacion2_z1","Parque2_z1","Parque_z1","Poste_Canchas_z1","Poste_Casa1_z1","Poste_Parque2_z1","NodoHos_z2","PosteCanchas_z2","NodoHos2_z2","PosteHospital_z2","Poste2_z2","NodoHos4_z2","Poste4_z2"} } },
+		{ ID=320, Zona="Zona_Hospital_2", Texto="EMERGENCIA: repara Urgencias, Laboratorio y Consulta Externa; luego devuélveles la energía", Tipo="EMERGENCIA", Puntos=800, Parametros={ NodosEnergizar={"NodoHos2_z2","NodoHos4_z2","Poste4_z2"}, TiempoLimite=180 } },
+		{ ID=321, Zona="Final_1", Texto="Cuenta la verdad durante la rueda de prensa del Alcalde", Tipo="DIALOGO_COMPLETADO", Puntos=0, Parametros={
+			DialogoID="Final_1",
+			RequiereMisiones={
+				301,302,303,304,305,306,307,308,309,310,
+				311,312,313,314,315,316,317,318,319,320,
+			},
+			PenalizacionFallo=1000,
+			MensajeExito="El Alcalde fue desenmascarado con las pruebas de Prim.",
+			MensajeFallo="El Alcalde se salió con la suya y fuimos denunciados por calumnia.",
+		} },
 	},
 
 	Guia = {
-		{ ID="presupuesto_1",  Zona="Zona_Presupuesto_1", Label="Ve a la Oficina",      WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Presupuesto" }, DestruirAlCompletar=false },
-		{ ID="rutas_2",        Zona="Zona_Rutas_2",       Label="Ve a las Rutas",       WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Rutas"       }, DestruirAlCompletar=false },
-		{ ID="control_3",      Zona="Zona_Control_3",     Label="Ve al Centro Control", WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Control"     }, DestruirAlCompletar=false },
+		{ ID="residencial_1", Zona="Zona_Residencial_1", Label="Ve al Sector Residencial", WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Residencial" }, DestruirAlCompletar=false },
+		{ ID="hospital_2",    Zona="Zona_Hospital_2",    Label="Ve al Complejo Hospitalario", WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Hospital" }, DestruirAlCompletar=false },
+		{ ID="final_1", Label="Ve y cuenta la verdad a todos", WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="Final_1" }, DestruirAlCompletar=false },
 	},
+
+	Bloqueos = {
+		Colisionador_2 = { Zona = "Zona_Residencial_1" },
+	}
 }
 
 

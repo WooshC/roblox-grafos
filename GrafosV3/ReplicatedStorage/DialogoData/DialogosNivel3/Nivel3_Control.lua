@@ -1,165 +1,230 @@
--- ReplicatedStorage/DialogoData/DialogosNivel3/Nivel3_Control.lua
--- Diálogo de la Zona 3 (Centro de Control) — Nivel 3: El Árbol de Expansión Mínima
--- Concepto: Aplicaciones de MST, eficiencia de Prim y cierre del nivel.
+-- Final_1 — rueda de prensa y desenlace del nivel 3.
+-- La misión solo tiene éxito si se contestan correctamente las tres preguntas.
 
+local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local LevelsConfig      = require(ReplicatedStorage:WaitForChild("Config"):WaitForChild("LevelsConfig"))
 local EfectosDialogo    = require(ReplicatedStorage:WaitForChild("Efectos"):WaitForChild("EfectosDialogo"))
 local ServicioCamara    = require(ReplicatedStorage:WaitForChild("Compartido"):WaitForChild("ServicioCamara"))
+local Utilidades        = require(ReplicatedStorage:WaitForChild("Compartido"):WaitForChild("Utilidades"))
 
--- Evento para notificar respuestas correctas al servidor
-local Utilidades = require(ReplicatedStorage:WaitForChild("Compartido"):WaitForChild("Utilidades"))
+local jugador = Players.LocalPlayer
+local aciertosFinales = 0
+local ATRIBUTO_RESULTADO = "ResultadoDialogo_Final_1"
 
-local function notificarRespuestaCorrecta()
+local function acertar()
+	aciertosFinales = aciertosFinales + 1
 	Utilidades.notificarDialogoCorrecto()
 end
 
--- ════════════════════════════════════════════════════════════════════
--- ALIASES
--- ════════════════════════════════════════════════════════════════════
-
-local nombres       = LevelsConfig[3].NombresNodos
-local configNivel   = LevelsConfig[3]
-local costoPorMetro = configNivel.CostoPorMetro
-local presupuesto   = configNivel.Presupuesto.Inicial
-
-local aliasBodega   = nombres["Gen_Bodega_z1"]      or "Generador Bodega"
-local aliasPlaza    = nombres["Plaza_z2"]           or "Plaza Central"
-local aliasCentro   = nombres["Centro_Control_z3"]  or "Centro de Control"
-local aliasAntena   = nombres["Antena_z3"]          or "Antena Principal"
-local aliasSubest   = nombres["Subestacion_z3"]     or "Subestacion Electrica"
-local aliasTerminal = nombres["Terminal_z3"]        or "Terminal de Red"
-
--- ════════════════════════════════════════════════════════════════════
--- DATOS DEL DIÁLOGO
--- ════════════════════════════════════════════════════════════════════
+local function marcarResultado(resultado)
+	jugador:SetAttribute(ATRIBUTO_RESULTADO, resultado)
+end
 
 local DIALOGOS = {
-	["Nivel3_Control"] = {
-		Zona  = "Zona_Control_3",
+	["Final_1"] = {
+		Zona = "Zona_Hospital_2",
 		Nivel = 3,
 		Lineas = {
-			-- ── 1. INTRODUCCIÓN AL CENTRO DE CONTROL ──────────────────────
 			{
-				Id        = "intro_control",
-				Numero    = 1,
-				Actor     = "Carlos",
-				Expresion = "Sonriente",
-				Texto     = "Llegamos al " .. aliasCentro .. ". Desde aquí se ve toda la red del pueblo en las pantallas. Usando Prim hemos aprendido a tender cables con el mínimo desperdicio posible. 🖥️",
+				Id = "inicio",
+				Numero = 1,
+				Actor = "Reportero",
+				Expresion = "Normal",
+				Texto = "En esta noche oscura, las luces de emergencia iluminan la rueda de prensa junto al Hospital Central. El Alcalde asegura que sus obras dejaron la mejor red eléctrica de la historia.",
 				Evento = function()
+					aciertosFinales = 0
+					jugador:SetAttribute(ATRIBUTO_RESULTADO, nil)
 					EfectosDialogo.limpiarTodo()
-					ServicioCamara.moverHaciaObjetivo("Centro_Control_z3", { altura = 25, angulo = 60, duracion = 1.5 })
-					EfectosDialogo.resaltarNodo("Centro_Control_z3", "SELECCIONADO")
-					EfectosDialogo.resaltarNodo("Antena_z3", "ADYACENTE")
-					EfectosDialogo.resaltarNodo("Subestacion_z3", "ADYACENTE")
 				end,
-				Siguiente = "pregunta_app",
+				Siguiente = "ciudadanos_felices",
 			},
-			-- ── 2. PREGUNTA DE OPCIÓN MÚLTIPLE ──────────────────────────────
 			{
-				Id        = "pregunta_app",
-				Numero    = 2,
-				Actor     = "Carlos",
-				Expresion = "Curioso",
-				Texto     = "Pregunta: ¿dónde se usa un Árbol de Expansión Mínima en la vida real?",
+				Id = "ciudadanos_felices",
+				Numero = 2,
+				Actor = "Ciudadanos",
+				Expresion = "Normal",
+				Texto = "¡Viva el Alcalde! Vemos postes nuevos y muchos cables. Seguramente todo ese dinero se utilizó para protegernos.",
+				Siguiente = "version_alcalde",
+			},
+			{
+				Id = "version_alcalde",
+				Numero = 3,
+				Actor = "Alcalde",
+				Expresion = "Sonriente",
+				Texto = "Así es. Cada centavo fue invertido. Cuantos más cables tiene una red, más segura es. Los costos exactos son asuntos administrativos que no necesitan preocupar a los ciudadanos.",
+				Siguiente = "interrupcion",
+			},
+			{
+				Id = "interrupcion",
+				Numero = 4,
+				Actor = "Carlos",
+				Expresion = "Serio",
+				Texto = "¡Eso es falso! Esta misma noche reparamos el hospital. Sus conexiones redundantes inflaron el presupuesto, aumentaron innecesariamente el grado de los nodos y saturaron el sistema.",
+				Siguiente = "reportero_pide_pruebas",
+			},
+			{
+				Id = "reportero_pide_pruebas",
+				Numero = 5,
+				Actor = "Reportero",
+				Expresion = "Normal",
+				Texto = "Es una acusación grave. Tendrán tres oportunidades para demostrarla con datos. Si fallan, el Alcalde podrá denunciarlos por calumnia.",
+				Siguiente = "pregunta_1",
+			},
+			{
+				Id = "pregunta_1",
+				Numero = 6,
+				Actor = "Reportero",
+				Expresion = "Normal",
+				Texto = "Primera pregunta: ¿cuál es el peso mínimo comprobado para conectar las dos zonas usando sus MST y el enlace más barato?",
 				Opciones = {
-					{ Texto = "Para diseñar redes eléctricas, fibra óptica y carreteras con el menor costo total.", Siguiente = "resp_app_bien" },
-					{ Texto = "Para ordenar listas de nombres alfabéticamente.", Siguiente = "resp_app_mal" },
-					{ Texto = "Para encontrar el camino más corto entre dos ciudades en un GPS.", Siguiente = "resp_app_mal2" },
+					{ Texto = "41 unidades de peso: 22 residencial + 15 hospital + 4 del enlace.", Siguiente = "p1_bien", OnSelect = acertar },
+					{ Texto = "37 unidades, porque las zonas no necesitan conectarse entre sí.", Siguiente = "p1_mal" },
+					{ Texto = "46 unidades, porque deben utilizarse los dos enlaces entre zonas.", Siguiente = "p1_mal" },
 				},
 			},
-			-- Respuesta correcta
 			{
-				Id        = "resp_app_bien",
-				Numero    = 3,
-				Actor     = "Carlos",
+				Id = "p1_bien",
+				Numero = 7,
+				Actor = "Sistema",
 				Expresion = "Feliz",
-				Texto     = "¡Correcto! El MST sirve para planificar redes donde queremos conectar muchos puntos sin gastar de más: electricidad, fibra óptica, carreteras, circuitos impresos, e incluso agrupación de datos. 🌐",
-				Evento = function()
-					local jugador = game:GetService("Players").LocalPlayer
-					if jugador then
-						local puntajeActual = jugador:GetAttribute("PuntajeDialogo") or 0
-						jugador:SetAttribute("PuntajeDialogo", puntajeActual + 100)
-					end
-					notificarRespuestaCorrecta()
+				Texto = "Evidencia correcta: el costo mínimo total se obtiene sin conexiones redundantes.",
+				Siguiente = "reaccion_1",
+			},
+			{
+				Id = "p1_mal",
+				Numero = 7,
+				Actor = "Alcalde",
+				Expresion = "Malevolo",
+				Texto = "Ni siquiera conocen el costo mínimo. Sus acusaciones empiezan a desmoronarse.",
+				Siguiente = "reaccion_1",
+			},
+			{
+				Id = "reaccion_1",
+				Numero = 8,
+				Actor = "Ciudadanos",
+				Expresion = "Normal",
+				Texto = "Queremos ver números claros. Continúen con la auditoría.",
+				Siguiente = "pregunta_2",
+			},
+			{
+				Id = "pregunta_2",
+				Numero = 9,
+				Actor = "Reportero",
+				Expresion = "Normal",
+				Texto = "Segunda pregunta: ¿por qué agregar cables innecesarios pudo causar la emergencia hospitalaria?",
+				Opciones = {
+					{ Texto = "Porque elevó el grado y concentró carga en nodos que terminaron saturándose.", Siguiente = "p2_bien", OnSelect = acertar },
+					{ Texto = "Porque los nodos con menor grado siempre consumen más energía.", Siguiente = "p2_mal" },
+					{ Texto = "Porque una red eléctrica no puede tener más de una arista.", Siguiente = "p2_mal" },
+				},
+			},
+			{
+				Id = "p2_bien",
+				Numero = 10,
+				Actor = "Oficial",
+				Expresion = "Normal",
+				Texto = "El informe de emergencia confirma esa explicación: hubo grados innecesarios y sobrecarga.",
+				Siguiente = "confrontacion_ciudadana",
+			},
+			{
+				Id = "p2_mal",
+				Numero = 10,
+				Actor = "Oficial",
+				Expresion = "Normal",
+				Texto = "Esa respuesta no coincide con el informe técnico de la emergencia.",
+				Siguiente = "confrontacion_ciudadana",
+			},
+			{
+				Id = "confrontacion_ciudadana",
+				Numero = 11,
+				Actor = "Ciudadanos",
+				Expresion = "Normal",
+				Texto = "Alcalde, ¿por qué ocultó los grados de los nodos y el costo real de cada cable?",
+				Siguiente = "alcalde_evasivo",
+			},
+			{
+				Id = "alcalde_evasivo",
+				Numero = 12,
+				Actor = "Alcalde",
+				Expresion = "Enojado",
+				Texto = "¡Porque los ciudadanos no necesitan entender algoritmos! Lo importante es que vean muchas obras.",
+				Siguiente = "pregunta_3",
+			},
+			{
+				Id = "pregunta_3",
+				Numero = 13,
+				Actor = "Reportero",
+				Expresion = "Normal",
+				Texto = "Última pregunta: ¿qué demuestra Prim frente al argumento del Alcalde?",
+				Opciones = {
+					{ Texto = "Que se puede conectar todo con mínimo costo, sin ciclos ni cables de más.", Siguiente = "p3_bien", OnSelect = acertar },
+					{ Texto = "Que el camino entre dos nodos siempre debe usar todos los cables.", Siguiente = "p3_mal" },
+					{ Texto = "Que aumentar el grado de todos los nodos reduce automáticamente el costo.", Siguiente = "p3_mal" },
+				},
+			},
+			{
+				Id = "p3_bien",
+				Numero = 14,
+				Actor = "Sistema",
+				Expresion = "Feliz",
+				Texto = "La explicación de Prim coincide con la matriz, los pesos y la red reparada.",
+				Siguiente = "resultado_exito",
+			},
+			{
+				Id = "p3_mal",
+				Numero = 14,
+				Actor = "Alcalde",
+				Expresion = "Codicioso",
+				Texto = "Tres preguntas eran suficientes para demostrar que no tienen pruebas sólidas.",
+				Siguiente = "resultado_exito",
+			},
+			{
+				Id = "resultado_exito",
+				Numero = 15,
+				Actor = "Ciudadanos",
+				Expresion = "Normal",
+				Texto = "¡Las tres pruebas coinciden! Alcalde, infló los costos y puso en peligro al hospital. Exigimos una investigación.",
+				Condicion = function()
+					return aciertosFinales == 3
 				end,
-				Opciones = { { Texto = "Continuar", Siguiente = "complejidad" } },
+				Evento = function()
+					marcarResultado("exito")
+				end,
+				SiguienteSiFalso = "resultado_fracaso",
+				Siguiente = "oficial_exito",
 			},
-			-- Respuesta incorrecta 1
 			{
-				Id        = "resp_app_mal",
-				Numero    = 3,
-				Actor     = "Carlos",
-				Expresion = "Serio",
-				Texto     = "No exactamente. Ordenar nombres es un problema de ordenamiento, no de grafos. El MST aparece cuando queremos conectar puntos minimizando el costo total de las conexiones.",
-				Opciones = { { Texto = "Entendido", Siguiente = "complejidad" } },
-			},
-			-- Respuesta incorrecta 2
-			{
-				Id        = "resp_app_mal2",
-				Numero    = 3,
-				Actor     = "Carlos",
-				Expresion = "Serio",
-				Texto     = "Eso describe Dijkstra, no Prim. Un GPS busca la ruta más corta entre dos puntos. El MST busca conectar TODOS los puntos con el menor costo total, sin importar un par origen-destino específico.",
-				Opciones = { { Texto = "Entendido", Siguiente = "complejidad" } },
-			},
-			-- ── 4. COMPLEJIDAD DE PRIM ────────────────────────────────────
-			{
-				Id        = "complejidad",
-				Numero    = 4,
-				Actor     = "Carlos",
-				Expresion = "Pensativo",
-				Texto     = "Hablemos de eficiencia. Con una matriz de adyacencia, Prim es O(N²) porque cada vez busca el nodo con la key mínima recorriendo todos los nodos. Con una lista de adyacencia más un Min-Heap, baja a O((N + A) · log N). Para grafos grandes y dispersos, la segunda versión es mucho más rápida.",
+				Id = "oficial_exito",
+				Numero = 16,
+				Actor = "Oficial",
+				Expresion = "Normal",
+				Texto = "Las pruebas quedan registradas. Abriremos una investigación por corrupción, sobrecostos y negligencia en la emergencia hospitalaria.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
-					EfectosDialogo.resaltarNodo("Centro_Control_z3", "SELECCIONADO")
-					EfectosDialogo.mostrarArista("Centro_Control_z3", "Antena_z3", "SELECCIONADO", { sinParticulas = true })
-					EfectosDialogo.mostrarArista("Centro_Control_z3", "Subestacion_z3", "SELECCIONADO", { sinParticulas = true })
-					EfectosDialogo.mostrarArista("Antena_z3", "Terminal_z3", "ADYACENTE", { sinParticulas = true })
-					EfectosDialogo.mostrarLabel("Antena_z3", "3 m")
-					EfectosDialogo.mostrarLabel("Subestacion_z3", "4 m")
-					EfectosDialogo.mostrarLabel("Terminal_z3", "2 m")
+					ServicioCamara.restaurar(1.2)
 				end,
-				Siguiente = "prim_vs_dijkstra",
+				Siguiente = "FIN",
 			},
-			-- ── 5. PRIM VS DIJKSTRA ───────────────────────────────────────
 			{
-				Id        = "prim_vs_dijkstra",
-				Numero    = 5,
-				Actor     = "Carlos",
-				Expresion = "Pensativo",
-				Texto     = "Repasemos la diferencia clave. Dijkstra resuelve camino mínimo desde un origen: cada nodo guarda la distancia acumulada desde la raíz. Prim resuelve MST: cada nodo guarda el peso de la arista más barata que lo conecta al árbol. Son 'primos', pero resuelven problemas distintos. 🧠",
+				Id = "resultado_fracaso",
+				Numero = 15,
+				Actor = "Ciudadanos",
+				Expresion = "Normal",
+				Texto = "Las respuestas no fueron suficientes. Confiamos en las obras que podemos ver y no en acusaciones sin pruebas completas.",
 				Evento = function()
-					EfectosDialogo.limpiarTodo()
-					EfectosDialogo.resaltarNodo("Gen_Bodega_z1", "SELECCIONADO")
-					EfectosDialogo.resaltarNodo("Terminal_z3", "SELECCIONADO")
-					EfectosDialogo.mostrarArista("Gen_Bodega_z1", "Poste_Norte_z1", "SELECCIONADO", { sinParticulas = true })
-					EfectosDialogo.mostrarArista("Poste_Norte_z1", "Cruce_Norte_z2", "SELECCIONADO", { sinParticulas = true })
-					EfectosDialogo.mostrarArista("Cruce_Norte_z2", "Mercado_z2", "SELECCIONADO", { sinParticulas = true })
-					EfectosDialogo.mostrarArista("Mercado_z2", "Plaza_z2", "SELECCIONADO", { sinParticulas = true })
-					EfectosDialogo.mostrarArista("Plaza_z2", "Centro_Control_z3", "SELECCIONADO", { sinParticulas = true })
-					EfectosDialogo.mostrarArista("Centro_Control_z3", "Antena_z3", "SELECCIONADO", { sinParticulas = true })
-					EfectosDialogo.mostrarArista("Antena_z3", "Terminal_z3", "SELECCIONADO", { sinParticulas = true })
-					ServicioCamara.moverHaciaObjetivo("Plaza_z2", { altura = 40, angulo = 75, duracion = 2 })
+					marcarResultado("fracaso")
 				end,
-				Siguiente = "cierre_presupuesto",
+				Siguiente = "oficial_fracaso",
 			},
-			-- ── 6. CIERRE DEL PRESUPUESTO ───────────────────────────────────
 			{
-				Id        = "cierre_presupuesto",
-				Numero    = 6,
-				Actor     = "Carlos",
-				Expresion = "Sonriente",
-				Texto     = "En este nivel aprendiste a no derrochar cable. Prim te da la estrategia 'greedy': crece el árbol siempre por la conexión más barata. Pero recuerda que el presupuesto es de $" .. tostring(presupuesto) .. " y cada metro cuesta $" .. tostring(costoPorMetro) .. ", así que en cada misión elige primero las conexiones más urgentes y económicas.",
-				Siguiente = "cierre_nivel",
-			},
-			-- ── 7. CIERRE DEL NIVEL ─────────────────────────────────────────
-			{
-				Id        = "cierre_nivel",
-				Numero    = 7,
-				Actor     = "Carlos",
-				Expresion = "Extasiado",
-				Texto     = "¡Gran trabajo, Tocino! Villa Conexa ahora sabe conectar sus nodos con el mínimo cable posible gracias a Prim. En el próximo nivel usaremos todo esto en un reto aún mayor. ¡Nos vemos pronto! 🎉",
+				Id = "oficial_fracaso",
+				Numero = 16,
+				Actor = "Oficial",
+				Expresion = "Normal",
+				Texto = "El Alcalde presentará una denuncia por calumnia. La rueda de prensa ha terminado.",
+				Condicion = function()
+					return aciertosFinales < 3
+				end,
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					ServicioCamara.restaurar(1.2)
@@ -167,12 +232,8 @@ local DIALOGOS = {
 				Siguiente = "FIN",
 			},
 		},
-		Metadata = { TiempoDeEspera = 0.5, VelocidadTypewriter = 0.03, PuedeOmitir = true, OcultarHUD = true, UsarTTS = true },
+		Metadata = { TiempoDeEspera = 0.5, VelocidadTypewriter = 0.03, PuedeOmitir = false, OcultarHUD = true, UsarTTS = true },
 		Configuracion = { bloquearMovimiento = true, bloquearSalto = true, apuntarCamara = true, ocultarTechos = true },
-		EventoSaltar = function()
-			EfectosDialogo.limpiarTodo()
-			ServicioCamara.restaurar(0)
-		end,
 	},
 }
 

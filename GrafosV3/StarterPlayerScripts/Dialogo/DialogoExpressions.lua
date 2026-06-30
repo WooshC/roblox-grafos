@@ -45,6 +45,23 @@ local ASSETS_PERSONAJES = {
 		Normal            = "rbxassetid://102820827241401",  -- Default: Presentacion_Alcade
 	},
 
+	Ciudadanos = {
+		Normal = "rbxassetid://129627081325324",
+	},
+
+	Reportero = {
+		Normal = "rbxassetid://108134062312748",
+	},
+
+	-- Alias conservado por si el actor se llama "Reporte" dentro de Studio.
+	Reporte = {
+		Normal = "rbxassetid://108134062312748",
+	},
+
+	Oficial = {
+		Normal = "rbxassetid://102230620154281",
+	},
+
 	-- Personaje por defecto (fallback)
 	Default = {
 		Normal = "rbxassetid://0",

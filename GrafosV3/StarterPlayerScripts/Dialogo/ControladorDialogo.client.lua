@@ -136,6 +136,8 @@ local promptsConectados = {}
 local nivelActual = nil
 local modoPrevioDialogo = nil  -- Para restaurar el modo visual al cerrar
 local modoCambiadoPorDialogo = false
+local promptDialogoFinal = nil
+local misionDialogoFinalCompletada = false
 
 -- Configuración por defecto de restricciones
 local RESTRICCIONES_DEFAULT = {
@@ -153,7 +155,7 @@ local RESTRICCIONES_DEFAULT = {
 local function conectarPrompt(promptPart, configDialogo)
 	if not promptPart then return end
 
-	local prompt = promptPart:FindFirstChildOfClass("ProximityPrompt")
+	local prompt = configDialogo.prompt or promptPart:FindFirstChildOfClass("ProximityPrompt")
 	if not prompt then
 		warn("[ControladorDialogo] No se encontró ProximityPrompt en:", promptPart.Name)
 		return
@@ -182,6 +184,7 @@ local function conectarPrompt(promptPart, configDialogo)
 
 		if configDialogo.unaVez then
 			jugador:SetAttribute("DialogoVisto_" .. configDialogo.id, true)
+			prompt.Enabled = false
 		end
 
 		local metadata = {
@@ -199,6 +202,51 @@ local function conectarPrompt(promptPart, configDialogo)
 	end)
 end
 
+local function conectarDialogoFinalConfigurado()
+	local nivelID = jugador:GetAttribute("CurrentLevelID") or 0
+	local cfgNivel = LevelsConfig[nivelID]
+	local cfgFinal = cfgNivel and cfgNivel.DialogoFinal
+	if not cfgFinal then return end
+
+	local objetivo = nivelActual:FindFirstChild(cfgFinal.PromptNombre or "", true)
+	if not objetivo then
+		warn("[ControladorDialogo] No se encontró el activador del diálogo final:", tostring(cfgFinal.PromptNombre))
+		return
+	end
+
+	local prompt = objetivo:IsA("ProximityPrompt")
+		and objetivo
+		or objetivo:FindFirstChildWhichIsA("ProximityPrompt", true)
+	if not prompt then
+		warn("[ControladorDialogo] El activador final no contiene un ProximityPrompt:", objetivo:GetFullName())
+		return
+	end
+
+	promptDialogoFinal = prompt
+	local tieneRequisitos = cfgFinal.MisionRequerida ~= nil
+		or (cfgFinal.MisionesRequeridas and #cfgFinal.MisionesRequeridas > 0)
+	prompt.Enabled = not tieneRequisitos or misionDialogoFinalCompletada
+
+	conectarPrompt(prompt.Parent, {
+		id = cfgFinal.DialogoID,
+		prompt = prompt,
+		actionText = prompt.ActionText,
+		objectText = prompt.ObjectText,
+		tecla = prompt.KeyboardKeyCode,
+		distancia = prompt.MaxActivationDistance,
+		holdDuration = prompt.HoldDuration,
+		unaVez = true,
+		ocultarHUD = true,
+		restricciones = {
+			bloquearMovimiento = true,
+			bloquearSalto = true,
+			bloquearCarrera = true,
+			apuntarCamara = true,
+			permitirConexiones = false,
+		},
+	})
+end
+
 local function buscarYConectarPrompts()
 	promptsConectados = {}
 
@@ -207,6 +255,8 @@ local function buscarYConectarPrompts()
 		warn("[ControladorDialogo] No se encontró NivelActual en Workspace")
 		return
 	end
+
+	conectarDialogoFinalConfigurado()
 
 	local dialoguePrompts = nivelActual:FindFirstChild("DialoguePrompts")
 	if not dialoguePrompts then
@@ -250,6 +300,7 @@ local function buscarYConectarPrompts()
 			end
 		end
 	end
+
 end
 
 -- ═══════════════════════════════════════════════════════════════════════════════
@@ -427,8 +478,12 @@ function iniciarDialogo(dialogoID, metadata)
 
 		-- Notificar al servidor que el diálogo terminó (reanudar timer de emergencia)
 		local dialogoTerminadoEvento = remotos:FindFirstChild("DialogoTerminado")
+		local atributoResultado = "ResultadoDialogo_" .. tostring(dialogoID)
+		local resultadoDialogo = jugador:GetAttribute(atributoResultado)
 		if dialogoTerminadoEvento then
-			local ok, err = pcall(function() dialogoTerminadoEvento:FireServer() end)
+			local ok, err = pcall(function()
+				dialogoTerminadoEvento:FireServer(dialogoID, resultadoDialogo)
+			end)
 			if ok then
 				print("[ControladorDialogo] DialogoTerminado enviado al servidor")
 			else
@@ -437,6 +492,7 @@ function iniciarDialogo(dialogoID, metadata)
 		else
 			warn("[ControladorDialogo] DialogoTerminado no encontrado en Remotos")
 		end
+		jugador:SetAttribute(atributoResultado, nil)
 
 		dialogoActivo = false
 	end)
@@ -455,8 +511,12 @@ function iniciarDialogo(dialogoID, metadata)
 		modoCambiadoPorDialogo = false
 		-- Notificar al servidor que el diálogo terminó (aunque falló)
 		local dialogoTerminadoEvento = remotos:FindFirstChild("DialogoTerminado")
+		local atributoResultado = "ResultadoDialogo_" .. tostring(dialogoID)
+		local resultadoDialogo = jugador:GetAttribute(atributoResultado)
 		if dialogoTerminadoEvento then
-			local ok, err = pcall(function() dialogoTerminadoEvento:FireServer() end)
+			local ok, err = pcall(function()
+				dialogoTerminadoEvento:FireServer(dialogoID, resultadoDialogo)
+			end)
 			if ok then
 				print("[ControladorDialogo] DialogoTerminado enviado al servidor (fallback)")
 			else
@@ -465,6 +525,7 @@ function iniciarDialogo(dialogoID, metadata)
 		else
 			warn("[ControladorDialogo] DialogoTerminado no encontrado en Remotos (fallback)")
 		end
+		jugador:SetAttribute(atributoResultado, nil)
 		dialogoActivo = false
 	end
 
@@ -626,6 +687,45 @@ end
 
 jugador:GetAttributeChangedSignal("ZonaActual"):Connect(onZonaChanged)
 
+local actualizarMisiones = remotos:FindFirstChild("ActualizarMisiones")
+if actualizarMisiones then
+	actualizarMisiones.OnClientEvent:Connect(function(payload)
+		local nivelID = jugador:GetAttribute("CurrentLevelID") or 0
+		local cfgNivel = LevelsConfig[nivelID]
+		local cfgFinal = cfgNivel and cfgNivel.DialogoFinal
+		if not cfgFinal or not payload or not payload.porZona then return end
+
+		local requeridas = cfgFinal.MisionesRequeridas or {}
+		if cfgFinal.MisionRequerida then
+			requeridas = {cfgFinal.MisionRequerida}
+		end
+		if #requeridas == 0 then return end
+
+		local completadas = {}
+		for _, datosZona in pairs(payload.porZona) do
+			for _, mision in ipairs(datosZona.misiones or {}) do
+				if mision.estado == "completada" then
+					completadas[mision.id] = true
+				end
+			end
+		end
+
+		local completada = true
+		for _, misionID in ipairs(requeridas) do
+			if not completadas[misionID] then
+				completada = false
+				break
+			end
+		end
+
+		misionDialogoFinalCompletada = completada
+		if promptDialogoFinal and promptDialogoFinal.Parent then
+			local yaVisto = jugador:GetAttribute("DialogoVisto_" .. cfgFinal.DialogoID) == true
+			promptDialogoFinal.Enabled = completada and not yaVisto
+		end
+	end)
+end
+
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- INICIALIZACIÓN
@@ -649,6 +749,8 @@ remotos.NivelDescargado.OnClientEvent:Connect(function()
 
 	promptsConectados = {}
 	nivelActual = nil
+	promptDialogoFinal = nil
+	misionDialogoFinalCompletada = false
 end)
 
 print("[GrafosV3] ControladorDialogo activo y esperando niveles")

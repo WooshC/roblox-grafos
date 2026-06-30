@@ -102,7 +102,20 @@ local DIALOGOS = {
 					EfectosDialogo.mostrarLabel("Poste_Canchas_z3", "DFS inicia aquí")
 					EfectosDialogo.mostrarLabel("Casa_Canchas_z3", "Componente aislado", "ERROR")
 				end,
-				EfectosDialogo.limpiarTodo(),
+				Siguiente = "instruccion_analisis",
+			},
+
+			-- ── 6. ABRIR PANEL DE ANÁLISIS AL TERMINAR ─────────────────
+			{
+				Id        = "instruccion_analisis",
+				Numero    = 6,
+				Actor     = "Sistema",
+				Expresion = "Normal",
+				Texto     = "Termina este diálogo y presiona la tecla T para abrir el Panel de Análisis. Allí podrás verificar el estado completo de la red, identificar las aristas dañadas y corregirlas antes de continuar.",
+				Evento = function()
+					EfectosDialogo.limpiarTodo()
+					ServicioCamara.restaurar(1.2)
+				end,
 				Siguiente = "FIN",
 			},
 		},
