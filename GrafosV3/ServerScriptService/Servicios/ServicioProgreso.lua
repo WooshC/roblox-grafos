@@ -28,15 +28,17 @@ local cache = {}
 
 local function crearDatosDefault()
 	local datos = {}
-	for i = 0, 4 do
+	for nivelID, _ in pairs(LevelsConfig) do
 		local fila = {}
 		for k, v in pairs(DATOS_NIVEL_DEFAULT) do
 			fila[k] = v
 		end
-		datos[tostring(i)] = fila
+		datos[tostring(nivelID)] = fila
 	end
 	-- Nivel 0 siempre desbloqueado
-	datos["0"].desbloqueado = true
+	if datos["0"] then
+		datos["0"].desbloqueado = true
+	end
 	return datos
 end
 
@@ -56,15 +58,15 @@ function ServicioProgreso.cargar(jugador)
 	
 	local datos = (ok and raw) or crearDatosDefault()
 	
-	-- Asegurar que existan todos los niveles
-	for i = 0, 4 do
-		local k = tostring(i)
+	-- Asegurar que existan todos los niveles definidos en LevelsConfig
+	for nivelID, _ in pairs(LevelsConfig) do
+		local k = tostring(nivelID)
 		if not datos[k] then
 			local fila = {}
 			for kk, vv in pairs(DATOS_NIVEL_DEFAULT) do
 				fila[kk] = vv
 			end
-			if i == 0 then
+			if nivelID == 0 then
 				fila.desbloqueado = true
 			end
 			datos[k] = fila
@@ -109,8 +111,8 @@ function ServicioProgreso.guardarResultado(jugador, nivelID, resultado)
 	nivelDatos.fallos = resultado.fallos or 0
 	nivelDatos.tiempoMejor = resultado.tiempo or 0
 	
-	-- Desbloquear siguiente nivel si tiene estrellas
-	if (resultado.estrellas or 0) > 0 and nivelID < 4 then
+	-- Desbloquear siguiente nivel si tiene estrellas y existe en config
+	if (resultado.estrellas or 0) > 0 and LevelsConfig[nivelID + 1] then
 		local nextK = tostring(nivelID + 1)
 		if datos[nextK] then
 			datos[nextK].desbloqueado = true
@@ -138,12 +140,11 @@ function ServicioProgreso.obtenerProgresoParaCliente(jugador)
 	local datos = ServicioProgreso.cargar(jugador)
 	local resultado = {}
 	
-	for i = 0, 4 do
-		local k = tostring(i)
+	for nivelID, config in pairs(LevelsConfig) do
+		local k = tostring(nivelID)
 		local nivelDatos = datos[k] or {}
-		local config = LevelsConfig[i] or {}
 		
-		local desbloqueado = nivelDatos.desbloqueado or (i == 0)
+		local desbloqueado = nivelDatos.desbloqueado or (nivelID == 0)
 		local estrellas = nivelDatos.estrellas or 0
 		
 		local status = (not desbloqueado) and "bloqueado"
@@ -152,11 +153,11 @@ function ServicioProgreso.obtenerProgresoParaCliente(jugador)
 		
 		-- Enriquecer con datos de LevelsConfig
 		resultado[k] = {
-			nivelID = i,
-			nombre = config.Nombre or ("Nivel " .. i),
+			nivelID = nivelID,
+			nombre = config.Nombre or ("Nivel " .. nivelID),
 			imageId = config.ImageId or "",
 			algoritmo = config.Algoritmo,
-			tag = config.Tag or ("NIVEL " .. i),
+			tag = config.Tag or ("NIVEL " .. nivelID),
 			descripcion = config.DescripcionCorta or "",
 			conceptos = config.Conceptos or {},
 			seccion = config.Seccion or "NIVELES",

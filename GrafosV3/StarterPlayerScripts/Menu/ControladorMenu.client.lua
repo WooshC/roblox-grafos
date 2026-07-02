@@ -411,7 +411,14 @@ function actualizarSidebar(datosNivel)
 			infoName.Text = datosNivel.nombre or ""
 		end
 		if infoDesc then
-			infoDesc.Text = datosNivel.descripcion or ""
+			local partes = {}
+			if datosNivel.descripcion and datosNivel.descripcion ~= "" then
+				table.insert(partes, datosNivel.descripcion)
+			end
+			if datosNivel.historia and datosNivel.historia ~= "" then
+				table.insert(partes, datosNivel.historia)
+			end
+			infoDesc.Text = table.concat(partes, "\n\n")
 		end
 
 		-- Estrellas grandes
@@ -566,6 +573,11 @@ local function construirGrid(datosProgreso)
 	for idxSeccion, nombreSeccion in ipairs(ordenSecciones) do
 		local niveles = secciones[nombreSeccion]
 
+		-- Ordenar niveles dentro de la sección por nivelID
+		table.sort(niveles, function(a, b)
+			return (a.nivelID or 999) < (b.nivelID or 999)
+		end)
+
 		-- Header de seccion
 		local header = crearInstancia("Frame", {
 			Name = "SecH_" .. nombreSeccion,
@@ -649,9 +661,8 @@ end
 
 function actualizarBarraProgreso()
 	local total, completados = 0, 0
-	for i = 0, 4 do
-		local datos = datosNiveles[tostring(i)]
-		if datos then
+	for _, datos in pairs(datosNiveles) do
+		if datos and datos.nivelID ~= nil then
 			total = total + 1
 			if datos.status == "completado" then
 				completados = completados + 1

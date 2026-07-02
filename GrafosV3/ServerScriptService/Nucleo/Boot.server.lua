@@ -246,18 +246,17 @@ obtenerProgreso.OnServerInvoke = function(jugador)
 	-- Fallback desde LevelsConfig
 	local LevelsConfig = require(Replicado:WaitForChild("Config"):WaitForChild("LevelsConfig"))
 	local resultado = {}
-	for i = 0, 4 do
-		local config = LevelsConfig[i] or {}
-		resultado[tostring(i)] = {
-			nivelID     = i,
-			nombre      = config.Nombre or ("Nivel " .. i),
+	for nivelID, config in pairs(LevelsConfig) do
+		resultado[tostring(nivelID)] = {
+			nivelID     = nivelID,
+			nombre      = config.Nombre or ("Nivel " .. nivelID),
 			descripcion = config.DescripcionCorta or "",
 			imageId     = config.ImageId or "",
-			tag         = config.Tag or ("NIVEL " .. i),
+			tag         = config.Tag or ("NIVEL " .. nivelID),
 			algoritmo   = config.Algoritmo,
 			seccion     = config.Seccion or "NIVELES",
 			conceptos   = config.Conceptos or {},
-			status      = (i == 0) and "disponible" or "bloqueado",
+			status      = (nivelID == 0) and "disponible" or "bloqueado",
 			estrellas   = 0, highScore = 0, aciertos = 0,
 			fallos      = 0, tiempoMejor = 0, intentos = 0,
 		}

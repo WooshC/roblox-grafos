@@ -742,7 +742,7 @@ LevelsConfig[3] = {
 
 	-- Presupuesto del nivel (en dolares): cada arista consume su peso x CostoPorMetro
 	Presupuesto = {
-		Inicial = 22000,
+		Inicial = 42000,
 		AdvertenciaBajo = 4000,
 	},
 
@@ -959,7 +959,7 @@ LevelsConfig[3] = {
 		{ ID=318, Zona="Zona_Hospital_2", Texto="Conecta el Parque Central con la Subestación Médica (peso 4)", Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Parque_z1", NodoB="Poste2_z2" } },
 		{ ID=319, Zona="Zona_Hospital_2", Texto="Completa el MST de las 15 ubicaciones sin superar el presupuesto", Tipo="GRAFO_CONEXO", Puntos=600, Parametros={ Nodos={"Gen_Estacion_z1","Casa_Estacion1_z1","Casa_Estacion2_z1","Parque2_z1","Parque_z1","Poste_Canchas_z1","Poste_Casa1_z1","Poste_Parque2_z1","NodoHos_z2","PosteCanchas_z2","NodoHos2_z2","PosteHospital_z2","Poste2_z2","NodoHos4_z2","Poste4_z2"} } },
 		{ ID=320, Zona="Zona_Hospital_2", Texto="EMERGENCIA: repara Urgencias, Laboratorio y Consulta Externa; luego devuélveles la energía", Tipo="EMERGENCIA", Puntos=800, Parametros={ NodosEnergizar={"NodoHos2_z2","NodoHos4_z2","Poste4_z2"}, TiempoLimite=180 } },
-		{ ID=321, Zona="Final_1", Texto="Cuenta la verdad durante la rueda de prensa del Alcalde", Tipo="DIALOGO_COMPLETADO", Puntos=0, Parametros={
+		{ ID=321, Zona="Zona_Hospital_2", Texto="Cuenta la verdad durante la rueda de prensa del Alcalde", Tipo="DIALOGO_COMPLETADO", Puntos=0, Parametros={
 			DialogoID="Final_1",
 			RequiereMisiones={
 				301,302,303,304,305,306,307,308,309,310,
@@ -974,7 +974,7 @@ LevelsConfig[3] = {
 	Guia = {
 		{ ID="residencial_1", Zona="Zona_Residencial_1", Label="Ve al Sector Residencial", WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Residencial" }, DestruirAlCompletar=false },
 		{ ID="hospital_2",    Zona="Zona_Hospital_2",    Label="Ve al Complejo Hospitalario", WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="ZonaTrigger_Hospital" }, DestruirAlCompletar=false },
-		{ ID="final_1", Label="Ve y cuenta la verdad a todos", WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="Final_1" }, DestruirAlCompletar=false },
+		{ ID="final_1", Label="Ve y cuenta la verdad a todos", WaypointRef={ Tipo="PART_DIRECTA", BuscarEn="NIVEL_ACTUAL", Nombre="Objetivo_Carlos" }, DestruirAlCompletar=false },
 	},
 
 	Bloqueos = {
