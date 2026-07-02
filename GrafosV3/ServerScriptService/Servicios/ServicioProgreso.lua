@@ -159,6 +159,7 @@ function ServicioProgreso.obtenerProgresoParaCliente(jugador)
 			algoritmo = config.Algoritmo,
 			tag = config.Tag or ("NIVEL " .. nivelID),
 			descripcion = config.DescripcionCorta or "",
+			historia = config.Historia or "",
 			conceptos = config.Conceptos or {},
 			seccion = config.Seccion or "NIVELES",
 			status = status,

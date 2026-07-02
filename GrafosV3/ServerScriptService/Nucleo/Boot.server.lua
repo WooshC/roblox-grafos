@@ -251,6 +251,7 @@ obtenerProgreso.OnServerInvoke = function(jugador)
 			nivelID     = nivelID,
 			nombre      = config.Nombre or ("Nivel " .. nivelID),
 			descripcion = config.DescripcionCorta or "",
+			historia    = config.Historia or "",
 			imageId     = config.ImageId or "",
 			tag         = config.Tag or ("NIVEL " .. nivelID),
 			algoritmo   = config.Algoritmo,

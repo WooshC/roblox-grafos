@@ -6,6 +6,7 @@ local LevelsConfig = {}
 LevelsConfig[0] = {
 	Nombre           = "Laboratorio de Grafos",
 	DescripcionCorta = "Aprende teoria de grafos a traves de 4 zonas educativas.",
+	Historia         = "Estas instalaciones de pruebas de la Empresa Electrica fueron creadas para simular lo que el Alcalde hizo mal en la ciudad. Carlos te entrenara en nodos, aristas, grafos dirigidos y conectividad para que puedas detectar cables mal tendidos, rutas inutiles y sobrecargas. Cada ejercicio aqui te prepara para auditar los contratos inflados del Alcalde.",
 	ImageId          = "rbxassetid://87116895331866",
 	Modelo           = "Nivel0",
 
@@ -274,6 +275,7 @@ LevelsConfig[0] = {
 LevelsConfig[1] = {
 	Nombre           = "El Barrio Antiguo",
 	DescripcionCorta = "El Barrio Antiguo esta a oscuras. Usa el Panel de Analisis para estudiar el cableado desordenado y reconecta los nodos aislados.",
+	Historia         = "A las doce de la noche todo deberia estar iluminado, pero las casas estan a oscuras. El Alcalde asegura que su plan fue impecable y que alguien saboteo la red, pero Carlos descubre la verdad: una sobrecarga en el Mercado Central derribo el poste principal y el grafo electrico colapso. Junto a Carlos deberas recorrer la Estacion, el Mercado, las Canchas y el Parque usando DFS y BFS para restaurar la luz.",
 	ImageId          = "rbxassetid://134869694289632",
 	Modelo           = "Nivel1",
 
@@ -520,6 +522,7 @@ LevelsConfig[1] = {
 LevelsConfig[2] = {
 	Nombre           = "La Ruta Mas Corta",
 	DescripcionCorta = "La ciudad necesita la ruta de cable mas economica. Usa Dijkstra para encontrar el camino de menor costo acumulado.",
+	Historia         = "La ciudad necesita reconectar su red electrica gastando la menor cantidad de cable posible. No basta con iluminar todo: debes elegir la ruta mas barata. Carlos te ensenara el algoritmo de Dijkstra para sumar pesos, comparar costos acumulados y relajar aristas. Desde la Fabrica hasta la Oficina de Analisis, cada metro de cable cuenta.",
 	ImageId          = "rbxassetid://76889299321141",
 	Modelo           = "Nivel2",
 
@@ -724,6 +727,7 @@ LevelsConfig[2] = {
 LevelsConfig[3] = {
 	Nombre           = "El Arbol de Expansion Minima",
 	DescripcionCorta = "El presupuesto es ajustado. Usa Prim para conectar toda la red con el minimo tendido de cable.",
+	Historia         = "Carlos encontro algo raro en los contratos del Alcalde: cables entre casi todas las viviendas, incluso donde no hacian falta. Cada conexion extra eleva el costo y satura los nodos. Debes auditar la propuesta con Prim, construyendo un Arbol de Expansion Minima sin ciclos ni desperdicio. La investigacion culmina en el Hospital Central, donde una emergencia electrica y una rueda de prensa decidirán si el Alcalde enfrenta la justicia.",
 	ImageId          = "rbxassetid://1234567893",
 	Modelo           = "Nivel3",
 

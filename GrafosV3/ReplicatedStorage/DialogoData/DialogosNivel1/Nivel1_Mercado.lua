@@ -31,40 +31,74 @@ local DIALOGOS = {
 					EfectosDialogo.resaltarNodo("Poste_Mercado_z2", "ADYACENTE")
 					EfectosDialogo.resaltarNodo("Puesto_Mercado_z2", "SELECCIONADO")
 				end,
-				Siguiente = "emergencia_bfs",
+				Siguiente = "alcalde_mercado",
 			},
-			-- ── Emergencia en el Mercado + conexión con BFS ───────────────────
+
+			-- ── El Alcalde defiende su plan ───────────────────────────────────
 			{
-				Id        = "emergencia_bfs",
+				Id        = "alcalde_mercado",
 				Numero    = 2,
+				Actor     = "Alcalde",
+				Expresion = "Sonriente",
+				Texto     = "¿Ven? El Mercado Central es prueba de mi visión. Más postes, más cables, más redundancia. Eso es seguridad para el ciudadano. No dejen que este alarmista les haga ver fantasmas donde solo hay buena infraestructura.",
+				Evento = function()
+					EfectosDialogo.limpiarTodo()
+					ServicioCamara.moverHaciaObjetivo("Puesto_Mercado_z2", { altura = 30, angulo = 62, duracion = 1.2 })
+					EfectosDialogo.resaltarNodo("Puesto_Mercado_z2", "SELECCIONADO")
+					EfectosDialogo.resaltarNodo("Parque_z2", "ADYACENTE")
+				end,
+				Siguiente = "carlos_mercado",
+			},
+
+			-- ── Carlos responde con la evidencia ──────────────────────────────
+			{
+				Id        = "carlos_mercado",
+				Numero    = 3,
 				Actor     = "Carlos",
-				Expresion = "Preocupado",
-				Texto     = "¡Mira eso! El Poste del Mercado está chamuscado. La sobrecarga del Alcalde empezó aquí. Pero hay buenas noticias: BFS es la herramienta perfecta para una emergencia. Al explorar por capas, garantiza que no quede ningún rincón sin revisar. En una crisis eléctrica, eso significa que encontramos el camino más corto en saltos para reconectar cada nodo antes de que el daño se propague.",
+				Expresion = "Serio",
+				Texto     = "Redundancia, dice. Miren esto: el Poste del Mercado está chamuscado. La sobrecarga empezó aquí, exactamente donde usted agregó más cables de los que el nodo podía soportar. Eso no es seguridad, es un grafo mal diseñado.",
 				Evento = function()
 					EfectosDialogo.resaltarNodo("Poste_Mercado_z2", "ERROR")
 					EfectosDialogo.mostrarLabel("Poste_Mercado_z2", "Daño por sobrecarga", "ERROR")
 					EfectosDialogo.resaltarNodo("Puesto_Mercado_z2", "ADYACENTE")
 					EfectosDialogo.resaltarNodo("Parque_z2", "ADYACENTE")
 				end,
-				Siguiente = "explicacion_error",
+				Siguiente = "emergencia_bfs",
 			},
+
+			-- ── Emergencia en el Mercado + conexión con BFS ───────────────────
+			{
+				Id        = "emergencia_bfs",
+				Numero    = 4,
+				Actor     = "Carlos",
+				Expresion = "Serio",
+				Texto     = "¡Hay buenas noticias! BFS es la herramienta perfecta para una emergencia. Al explorar por capas, garantiza que no quede ningún rincón sin revisar. En una crisis eléctrica, eso significa que encontramos el camino más corto en saltos para reconectar cada nodo antes de que el daño se propague.",
+				Evento = function()
+					EfectosDialogo.resaltarNodo("Poste_Mercado_z2", "ERROR")
+					EfectosDialogo.mostrarLabel("Poste_Mercado_z2", "Daño por sobrecarga", "ERROR")
+					EfectosDialogo.resaltarNodo("Puesto_Mercado_z2", "ADYACENTE")
+					EfectosDialogo.resaltarNodo("Parque_z2", "ADYACENTE")
+				end,
+				Siguiente = "concepto_adyacencia",
+			},
+
 			-- ── Concepto: Adyacencia ──────────────────────────────────────────
 			{
 				Id        = "concepto_adyacencia",
-				Numero    = 3,
+				Numero    = 5,
 				Actor     = "Carlos",
-				Expresion = "Pensativo",
-				Texto     = "'Tal parece que el nodo Poste del Mercado esta dañado por la sobrecarga que tuvo. Solo puede tener un grado 3: uno Entrada y Dos de salida",
+				Expresion = "Presentacion",
+				Texto     = "El Poste del Mercado está dañado por la sobrecarga. Solo puede tener grado 3: una entrada y dos salidas. Si agregamos más cables de los que soporta, volverá a caer.",
 				Evento = function()
 					ServicioCamara.moverHaciaObjetivo("Poste_Mercado_z2", { altura = 28, angulo = 60, duracion = 1.5 })
-
 				end,
 				Siguiente = "pregunta_adyacencia",
 			},
+
 			-- ── Pregunta 1: Adyacencia ────────────────────────────────────────
 			{
 				Id        = "pregunta_adyacencia",
-				Numero    = 4,
+				Numero    = 6,
 				Actor     = "Sistema",
 				Expresion = "Procesando",
 				Texto     = "Escucha bien: si el nodo A está conectado a B, y B está conectado a C, pero A NO tiene cable directo con C… ¿qué relación tiene A con C?",
@@ -76,7 +110,7 @@ local DIALOGOS = {
 			},
 			{
 				Id        = "resp_adyacencia_bien",
-				Numero    = 5,
+				Numero    = 7,
 				Actor     = "Sistema",
 				Expresion = "Feliz",
 				Texto     = "¡Correcto! La adyacencia requiere arista directa. Pero C sigue siendo alcanzable desde A pasando por B. BFS descubrirá C cuando procese los vecinos de B. Esa es la magia de explorar por capas.",
@@ -92,18 +126,19 @@ local DIALOGOS = {
 			},
 			{
 				Id        = "resp_adyacencia_mal",
-				Numero    = 5,
+				Numero    = 7,
 				Actor     = "Carlos",
 				Expresion = "Serio",
 				Texto     = "No exactamente. Adyacente significa arista DIRECTA. A-C no tienen cable, así que NO son adyacentes. Pero C sí es alcanzable desde A viajando por B. BFS lo encontrará en la siguiente capa de exploración.",
 				Opciones = { { Texto = "Entendido", Siguiente = "concepto_bfs_cola" } },
 			},
+
 			-- ── Concepto: Cola FIFO de BFS ────────────────────────────────────
 			{
 				Id        = "concepto_bfs_cola",
-				Numero    = 6,
+				Numero    = 8,
 				Actor     = "Carlos",
-				Expresion = "Pensativo",
+				Expresion = "Presentacion",
 				Texto     = "BFS usa una estructura llamada COLA. Es FIFO: el primero en entrar es el primero en salir. Los vecinos del nodo actual se colocan al final de la cola y se procesan en orden. Por eso nunca salta de nivel: primero termina toda una capa antes de pasar a la siguiente.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
@@ -116,12 +151,13 @@ local DIALOGOS = {
 				end,
 				Siguiente = "pregunta_bfs_cola",
 			},
+
 			-- ── Pregunta 2: Cola FIFO ─────────────────────────────────────────
 			{
 				Id        = "pregunta_bfs_cola",
-				Numero    = 7,
+				Numero    = 9,
 				Actor     = "Carlos",
-				Expresion = "Curioso",
+				Expresion = "Sonriente",
 				Texto     = "Si la cola de BFS tiene [B, C, D] y procesas B descubriendo E y F, ¿cuál es el nuevo estado de la cola?",
 				Opciones = {
 					{ Texto = "[E, F, C, D]",    Siguiente = "resp_cola_mal"  },
@@ -131,9 +167,9 @@ local DIALOGOS = {
 			},
 			{
 				Id        = "resp_cola_bien",
-				Numero    = 8,
+				Numero    = 10,
 				Actor     = "Carlos",
-				Expresion = "Extasiado",
+				Expresion = "Feliz",
 				Texto     = "¡Perfecto! B salió por el frente (fue procesado), y E y F se añaden al final. La cola queda [C, D, E, F]. Esto garantiza que BFS termine capa por capa, nunca salteando niveles. ¡Así se encuentra la ruta más corta en saltos!",
 				Evento = function()
 					local jugador = game:GetService("Players").LocalPlayer
@@ -147,16 +183,17 @@ local DIALOGOS = {
 			},
 			{
 				Id        = "resp_cola_mal",
-				Numero    = 8,
+				Numero    = 10,
 				Actor     = "Carlos",
 				Expresion = "Triste",
 				Texto     = "Recuerda: FIFO. B sale del frente (ya fue procesado), y los nuevos nodos E y F se añaden al FINAL. C y D siguen esperando su turno. La cola correcta es [C, D, E, F]. Eso mantiene el orden de capas.",
 				Opciones = { { Texto = "Entendido", Siguiente = "instruccion" } },
 			},
+
 			-- ── Instrucción final ─────────────────────────────────────────────
 			{
 				Id        = "instruccion",
-				Numero    = 9,
+				Numero    = 11,
 				Actor     = "Sistema",
 				Texto     = "Usa el Analizador BFS para ver la cola en acción. Conecta el Parque del Mercado y el Puesto antes de avanzar hacia las Canchas. Recuerda: cada arista nueva acerca la luz a más familias.",
 				Evento = function()

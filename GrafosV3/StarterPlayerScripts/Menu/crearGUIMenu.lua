@@ -158,8 +158,10 @@ n("TextLabel",{Size=UDim2.new(1,-40,0,20),Position=UDim2.new(0,20,0,10),Backgrou
 n("TextLabel",{Size=UDim2.new(1,-40,0,16),Position=UDim2.new(0,20,0,32),BackgroundTransparency=1,Text="Selecciona un nivel para ver detalles",TextColor3=C.muted,Font=F.body,TextSize=13,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5},sideHead)
 
 local placeholder=n("Frame",{Name="Placeholder",Size=UDim2.new(1,0,1,-130),Position=UDim2.new(0,0,0,56),BackgroundTransparency=1,Visible=true,ZIndex=4},sidebar)
-n("TextLabel",{Size=UDim2.new(1,0,0,44),Position=UDim2.new(0,0,0.38,0),BackgroundTransparency=1,Text="🗺️",Font=F.body,TextSize=40,ZIndex=5},placeholder)
-n("TextLabel",{Size=UDim2.new(1,-40,0,56),Position=UDim2.new(0,20,0.45,0),BackgroundTransparency=1,Text="Selecciona una tarjeta de nivel\npara ver su información y comenzar.",TextColor3=C.muted,Font=F.body,TextSize=14,TextXAlignment=Enum.TextXAlignment.Center,TextWrapped=true,ZIndex=5},placeholder)
+n("TextLabel",{Size=UDim2.new(1,0,0,44),Position=UDim2.new(0,0,0.26,0),BackgroundTransparency=1,Text="🗺️",Font=F.body,TextSize=40,ZIndex=5},placeholder)
+n("TextLabel",{Size=UDim2.new(1,-40,0,28),Position=UDim2.new(0,20,0.34,0),BackgroundTransparency=1,Text="EDA Quest",TextColor3=C.text,Font=F.bold,TextSize=18,TextXAlignment=Enum.TextXAlignment.Center,TextWrapped=true,ZIndex=5},placeholder)
+n("TextLabel",{Size=UDim2.new(1,-40,0,20),Position=UDim2.new(0,20,0.40,0),BackgroundTransparency=1,Text="La red eléctrica de la ciudad oculta un secreto",TextColor3=C.accent,Font=F.mono,TextSize=11,TextXAlignment=Enum.TextXAlignment.Center,TextWrapped=true,ZIndex=5},placeholder)
+n("TextLabel",{Size=UDim2.new(1,-48,0,140),Position=UDim2.new(0,24,0.46,0),BackgroundTransparency=1,Text="Carlos, ingeniero de Redes y Caminos, sospecha que el Alcalde infló los contratos de cableado con conexiones innecesarias. Junto a su aprendiz Tocino, deberás recorrer barrios, fábricas y hospitales usando grafos, BFS, DFS, Dijkstra y Prim para revelar la verdad.\n\nSelecciona una tarjeta de nivel para leer su historia y comenzar.",TextColor3=C.muted,Font=F.body,TextSize=13,TextXAlignment=Enum.TextXAlignment.Center,TextWrapped=true,ZIndex=5},placeholder)
 
 local infoContent=n("Frame",{Name="InfoContent",Size=UDim2.new(1,0,1,-130),Position=UDim2.new(0,0,0,56),BackgroundTransparency=1,Visible=false,ZIndex=4},sidebar)
 local hero=n("Frame",{Name="Hero",Size=UDim2.new(1,0,0,140),BackgroundColor3=Color3.fromRGB(8,14,26),BorderSizePixel=0,ZIndex=5},infoContent)
@@ -174,7 +176,7 @@ pad(16,16,20,20,infoBody)
 n("UIListLayout",{Padding=UDim.new(0,12),FillDirection=Enum.FillDirection.Vertical,SortOrder=Enum.SortOrder.LayoutOrder},infoBody)
 n("TextLabel",{Name="InfoTag",Size=UDim2.new(1,0,0,16),BackgroundTransparency=1,Text="",TextColor3=C.accent,Font=F.mono,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=1},infoBody)
 n("TextLabel",{Name="InfoName",Size=UDim2.new(1,0,0,48),BackgroundTransparency=1,Text="",TextColor3=C.text,Font=F.bold,TextSize=18,TextXAlignment=Enum.TextXAlignment.Left,TextWrapped=true,LayoutOrder=2},infoBody)
-n("TextLabel",{Name="InfoDesc",Size=UDim2.new(1,0,0,72),BackgroundTransparency=1,Text="",TextColor3=C.muted,Font=F.body,TextSize=14,TextXAlignment=Enum.TextXAlignment.Left,TextWrapped=true,LayoutOrder=3},infoBody)
+n("TextLabel",{Name="InfoDesc",Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,BackgroundTransparency=1,Text="",TextColor3=C.muted,Font=F.body,TextSize=14,TextXAlignment=Enum.TextXAlignment.Left,TextWrapped=true,LayoutOrder=3},infoBody)
 
 local starsFrame=n("Frame",{Name="Stars",Size=UDim2.new(1,0,0,26),BackgroundTransparency=1,LayoutOrder=4},infoBody)
 n("UIListLayout",{FillDirection=Enum.FillDirection.Horizontal,Padding=UDim.new(0,6),VerticalAlignment=Enum.VerticalAlignment.Center},starsFrame)
