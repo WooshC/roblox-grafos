@@ -1,6 +1,7 @@
 -- ReplicatedStorage/DialogoData/DialogosNivel2/Nivel2_Oficina.lua
 -- Diálogo de la Zona 3 (Oficina de Análisis) — Nivel 2: La Ruta Más Corta
 -- Concepto: cierre de Dijkstra, repaso de relajación y uso del algoritmo.
+-- Lore: Carlos cierra el nivel con evidencias, el Alcalde intenta desacreditarlo.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LevelsConfig = require(ReplicatedStorage:WaitForChild("Config"):WaitForChild("LevelsConfig"))
@@ -29,11 +30,12 @@ local DIALOGOS = {
 		Zona  = "Zona_Oficina_3",
 		Nivel = 2,
 		Lineas = {
+			-- 1. Llegada a la Oficina de Análisis
 			{
 				Id        = "intro_oficina",
 				Numero    = 1,
 				Actor     = "Carlos",
-				Expresion = "Sonriente",
+				Expresion = "Feliz",
 				Texto     = "Llegamos a la Oficina de Análisis. Aquí revisamos toda la red de la ciudad. En esta zona conectaremos la " .. aliasOficina .. " con el " .. aliasServidor .. " y la " .. aliasAntena .. ", siempre buscando el menor costo.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
@@ -45,6 +47,8 @@ local DIALOGOS = {
 				end,
 				Siguiente = "repaso_dijkstra",
 			},
+
+			-- 2. Repaso de Dijkstra
 			{
 				Id        = "repaso_dijkstra",
 				Numero    = 2,
@@ -62,11 +66,13 @@ local DIALOGOS = {
 				end,
 				Siguiente = "ejemplo_oficina",
 			},
+
+			-- 3. Ejemplo de la Oficina
 			{
 				Id        = "ejemplo_oficina",
 				Numero    = 3,
 				Actor     = "Carlos",
-				Expresion = "Pensativo",
+				Expresion = "Serio",
 				Texto     = "Por ejemplo, para llegar a la " .. aliasAntena .. " desde la " .. aliasOficina .. " solo existe una arista directa de 4 metros. Eso cuesta $" .. costo(4) .. ". Dijkstra la marca como la ruta mínima porque no hay otra forma más barata de llegar.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
@@ -81,11 +87,13 @@ local DIALOGOS = {
 				end,
 				Siguiente = "pregunta_relajacion",
 			},
+
+			-- 4. Pregunta de relajación
 			{
 				Id        = "pregunta_relajacion",
 				Numero    = 4,
 				Actor     = "Carlos",
-				Expresion = "Curioso",
+				Expresion = "Sonriente",
 				Texto     = "Pregunta: en Dijkstra, ¿qué significa relajar una arista?",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
@@ -99,6 +107,8 @@ local DIALOGOS = {
 					{ Texto = "Ordenar los nodos alfabéticamente antes de procesarlos.", Siguiente = "resp_relajacion_mal2" },
 				},
 			},
+
+			-- 5a. Respuesta correcta
 			{
 				Id        = "resp_relajacion_bien",
 				Numero    = 5,
@@ -118,6 +128,8 @@ local DIALOGOS = {
 				end,
 				Opciones = { { Texto = "Continuar", Siguiente = "resumen" } },
 			},
+
+			-- 5b. Respuesta incorrecta 1
 			{
 				Id        = "resp_relajacion_mal",
 				Numero    = 5,
@@ -131,11 +143,13 @@ local DIALOGOS = {
 				end,
 				Opciones = { { Texto = "Entendido", Siguiente = "resumen" } },
 			},
+
+			-- 5c. Respuesta incorrecta 2
 			{
 				Id        = "resp_relajacion_mal2",
 				Numero    = 5,
 				Actor     = "Carlos",
-				Expresion = "Serio",
+				Expresion = "Enojado",
 				Texto     = "No, Dijkstra no ordena alfabéticamente. Usa una cola de prioridad ordenada por costo acumulado, siempre extrayendo el nodo más barato primero.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
@@ -144,6 +158,8 @@ local DIALOGOS = {
 				end,
 				Opciones = { { Texto = "Entendido", Siguiente = "resumen" } },
 			},
+
+			-- 6. Resumen antes del cierre
 			{
 				Id        = "resumen",
 				Numero    = 6,
@@ -157,14 +173,62 @@ local DIALOGOS = {
 					EfectosDialogo.resaltarNodo("Servidor_z3", "ADYACENTE")
 					EfectosDialogo.resaltarNodo("Antena_z3", "ADYACENTE")
 				end,
+				Siguiente = "alcalde_interviene",
+			},
+
+			-- 7. El Alcalde interviene para desacreditar a Carlos
+			{
+				Id        = "alcalde_interviene",
+				Numero    = 7,
+				Actor     = "Alcalde",
+				Expresion = "Malevolo",
+				Texto     = "¿Menor costo? ¡Qué conveniente para justificar su lentitud! Mientras ustedes dibujan árboles y rutas, la ciudad sigue sin luz en algunos sectores. ¿No será que solo quieren hacerse los héroes a costa de mi administración?",
+				Evento = function()
+					EfectosDialogo.limpiarTodo()
+					ServicioCamara.moverHaciaObjetivo("Oficina_z3", { altura = 28, angulo = 60, duracion = 1.2 })
+					EfectosDialogo.resaltarNodo("Oficina_z3", "ERROR")
+				end,
+				Siguiente = "carlos_contraataca",
+			},
+
+			-- 8. Carlos responde con datos
+			{
+				Id        = "carlos_contraataca",
+				Numero    = 8,
+				Actor     = "Carlos",
+				Expresion = "Serio",
+				Texto     = "Señor Alcalde, los números no mienten. En el Barrio Antiguo, BFS y DFS revelaron un grafo mal diseñado que colapsó. Hoy, Dijkstra demuestra que se puede iluminar la ciudad gastando menos cable del que usted presupuestó. Esta oficina ya tiene toda la evidencia guardada.",
+				Evento = function()
+					EfectosDialogo.limpiarTodo()
+					EfectosDialogo.resaltarNodo("Servidor_z3", "EXITO")
+					EfectosDialogo.blink("Servidor_z3", "EXITO", 3)
+					EfectosDialogo.mostrarLabel("Servidor_z3", "Evidencia guardada")
+				end,
+				Siguiente = "alcalde_amenaza",
+			},
+
+			-- 9. El Alcalde amenaza antes de irse
+			{
+				Id        = "alcalde_amenaza",
+				Numero    = 9,
+				Actor     = "Alcalde",
+				Expresion = "Enojado",
+				Texto     = "Guarde sus acusaciones, ingeniero. La próxima auditoría será en el Hospital Central, y allí no habrá excusas. Cuidado con lo que insinúa... o terminará siendo denunciado por calumnia.",
+				Evento = function()
+					EfectosDialogo.limpiarTodo()
+					EfectosDialogo.resaltarNodo("Oficina_z3", "ERROR")
+					EfectosDialogo.mostrarLabel("Oficina_z3", "Hospital Central...")
+				end,
 				Siguiente = "cierre_nivel",
 			},
+
+			-- 10. Cierre del nivel
 			{
 				Id        = "cierre_nivel",
-				Numero    = 7,
+				Numero    = 10,
 				Actor     = "Carlos",
-				Expresion = "Extasiado",
-				Texto     = "¡Excelente trabajo, Tocino! Dominaste Dijkstra: pesos, costos, relajación y la diferencia con BFS. La ciudad ahora tiene la red eléctrica más económica posible. ¡Nos vemos en el siguiente nivel!",
+				Expresion = "Serio",
+				Texto     = "¿Lo escuchaste, Tocino? El Hospital Central. Allí es donde el Alcalde presume haber invertido más. Si sus números no cuadran, necesitaremos algo más potente que Dijkstra: Prim y el Árbol de Expansión Mínima. ¡Excelente trabajo hoy!",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					ServicioCamara.restaurar(1.2)
@@ -172,6 +236,7 @@ local DIALOGOS = {
 				Siguiente = "FIN",
 			},
 		},
+
 		Metadata = { TiempoDeEspera = 0.5, VelocidadTypewriter = 0.03, PuedeOmitir = true, OcultarHUD = true, UsarTTS = true },
 		Configuracion = { bloquearMovimiento = true, bloquearSalto = true, apuntarCamara = true, ocultarTechos = true },
 		EventoSaltar = function()
@@ -180,4 +245,5 @@ local DIALOGOS = {
 		end,
 	},
 }
+
 return DIALOGOS

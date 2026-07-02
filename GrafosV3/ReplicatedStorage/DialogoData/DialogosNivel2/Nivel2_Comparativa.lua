@@ -1,5 +1,6 @@
 -- ReplicatedStorage/DialogoData/DialogosNivel2/Nivel2_Comparativa.lua
 -- Diálogo comparativo BFS vs DFS — Barrio Oeste simplificado
+-- Conecta con el Nivel 1 y justifica por qué ahora usamos Dijkstra.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local EfectosDialogo = require(ReplicatedStorage:WaitForChild("Efectos"):WaitForChild("EfectosDialogo"))
@@ -21,13 +22,13 @@ local DIALOGOS = {
 				Numero    = 1,
 				Actor     = "Carlos",
 				Expresion = "Presentacion",
-				Texto     = "Desde aquí puedes ver todo el Barrio Oeste. Seis nodos conectados en dos ramas principales. Este es el escenario ideal para comparar BFS y DFS lado a lado.",
+				Texto     = "Desde aquí puedes ver todo el Barrio Oeste. Seis nodos conectados en dos ramas principales. Este es el escenario ideal para recordar por qué en el Nivel 1 usamos BFS y DFS, y por qué ahora necesitamos algo más.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					ServicioCamara.moverHaciaObjetivo("Cruce_z1", { altura = 35, angulo = 75, duracion = 1.5 })
 					EfectosDialogo.resaltarNodo("Cruce_z1", "SELECCIONADO")
 					EfectosDialogo.resaltarNodo("Tunel_Norte_z2", "ADYACENTE")
-					EfectosDialogo.resaltarNodo("Tunel_Sur_z2", "ADYACENTE")
+					EfectosDialogo.resaltarNodo("Paso_Sur_z2", "ADYACENTE")
 					EfectosDialogo.resaltarNodo("Cisterna_z2", "ADYACENTE")
 					EfectosDialogo.resaltarNodo("Almacen_z2", "ADYACENTE")
 					EfectosDialogo.resaltarNodo("Puente_z2", "ADYACENTE")
@@ -38,13 +39,13 @@ local DIALOGOS = {
 				Id        = "bfs_demo",
 				Numero    = 2,
 				Actor     = "Carlos",
-				Expresion = "Pensativo",
-				Texto     = "BFS usa una cola FIFO. Desde el Cruce, encola Norte y Sur. Luego procesa Norte y encola Cisterna y Almacén. Procesa Sur y encola Puente. Todos los nodos del Nivel 2 descubiertos a la vez. BFS ilumina por niveles, como una onda.",
+				Expresion = "Serio",
+				Texto     = "BFS usa una cola FIFO. Desde el Cruce, encola Norte y Sur. Luego procesa Norte y encola Cisterna y Almacén. Procesa Sur y encola Puente. Todos los nodos del Nivel 2 descubiertos a la vez. BFS ilumina por niveles, como una onda. En el Barrio Antiguo nos sirvió para cubrir zonas amplias rápidamente.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					EfectosDialogo.resaltarNodo("Cruce_z1", "SELECCIONADO")
 					EfectosDialogo.mostrarArista("Cruce_z1", "Tunel_Norte_z2", "SELECCIONADO", { sinParticulas = true })
-					EfectosDialogo.mostrarArista("Cruce_z1", "Tunel_Sur_z2", "SELECCIONADO", { sinParticulas = true })
+					EfectosDialogo.mostrarArista("Cruce_z1", "Paso_Sur_z2", "SELECCIONADO", { sinParticulas = true })
 					EfectosDialogo.mostrarLabel("Cruce_z1", "Nivel 0", "SELECCIONADO")
 					ServicioCamara.moverHaciaObjetivo("Cisterna_z2", { altura = 30, angulo = 65, duracion = 1.5 })
 				end,
@@ -55,22 +56,38 @@ local DIALOGOS = {
 				Numero    = 3,
 				Actor     = "Carlos",
 				Expresion = "Serio",
-				Texto     = "DFS usa una pila LIFO. Desde el Cruce, apila Norte y Sur. Como Sur se apiló después, DFS va primero al Sur, luego al Puente. Sin vecinos nuevos, retrocede. Luego explora Norte → Almacén, retrocede, y finalmente Norte → Cisterna → Puente. DFS completó una rama antes de tocar la otra.",
+				Texto     = "DFS usa una pila LIFO. Desde el Cruce, apila Norte y Sur. Como Sur se apiló después, DFS va primero al Sur, luego al Puente. Sin vecinos nuevos, retrocede. Luego explora Norte → Almacén, retrocede, y finalmente Norte → Cisterna → Puente. DFS completó una rama antes de tocar la otra. En el Barrio Antiguo nos ayudó a encontrar dónde se cortó la conexión.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					EfectosDialogo.resaltarNodo("Cruce_z1", "SELECCIONADO")
-					EfectosDialogo.mostrarArista("Cruce_z1", "Tunel_Sur_z2", "SELECCIONADO", { sinParticulas = true })
-					EfectosDialogo.mostrarArista("Tunel_Sur_z2", "Puente_z2", "SELECCIONADO", { sinParticulas = true })
+					EfectosDialogo.mostrarArista("Cruce_z1", "Paso_Sur_z2", "SELECCIONADO", { sinParticulas = true })
+					EfectosDialogo.mostrarArista("Paso_Sur_z2", "Puente_z2", "SELECCIONADO", { sinParticulas = true })
 					EfectosDialogo.mostrarLabel("Puente_z2", "Fondo de rama", "SELECCIONADO")
 					ServicioCamara.moverHaciaObjetivo("Puente_z2", { altura = 30, angulo = 65, duracion = 1.5 })
+				end,
+				Siguiente = "por_que_dijkstra",
+			},
+			{
+				Id        = "por_que_dijkstra",
+				Numero    = 4,
+				Actor     = "Carlos",
+				Expresion = "Presentacion",
+				Texto     = "Pero BFS y DFS solo cuentan saltos. Ahora cada cable tiene un costo en metros y en dinero. Para no caer en los sobrecostos del Alcalde necesitamos Dijkstra: un algoritmo que elija la ruta más barata, no la más corta en número de postes.",
+				Evento = function()
+					EfectosDialogo.limpiarTodo()
+					EfectosDialogo.resaltarNodo("Cruce_z1", "SELECCIONADO")
+					EfectosDialogo.resaltarNodo("Puente_z2", "ADYACENTE")
+					EfectosDialogo.mostrarLabel("Cruce_z1", "BFS/DFS = saltos")
+					EfectosDialogo.mostrarLabel("Puente_z2", "Dijkstra = $$$")
+					ServicioCamara.moverHaciaObjetivo("Cruce_z1", { altura = 35, angulo = 70, duracion = 1.5 })
 				end,
 				Siguiente = "pregunta_comparativa",
 			},
 			{
 				Id        = "pregunta_comparativa",
-				Numero    = 4,
+				Numero    = 5,
 				Actor     = "Carlos",
-				Expresion = "Curioso",
+				Expresion = "Sonriente",
 				Texto     = "En esta red de 6 nodos, ¿cuál es la diferencia principal entre BFS y DFS desde el Cruce?",
 				Opciones = {
 					{ Texto = "BFS ilumina nivel por nivel en onda; DFS se adentra por una rama antes de explorar la otra.", Siguiente = "resp_comp_bien" },
@@ -80,7 +97,7 @@ local DIALOGOS = {
 			},
 			{
 				Id        = "resp_comp_bien",
-				Numero    = 5,
+				Numero    = 6,
 				Actor     = "Carlos",
 				Expresion = "Feliz",
 				Texto     = "¡Exacto! Esa es la diferencia fundamental. Abre el Panel de Análisis (Tab) y ejecútalos tú mismo para ver la animación paso a paso.",
@@ -96,7 +113,7 @@ local DIALOGOS = {
 			},
 			{
 				Id        = "resp_comp_mal",
-				Numero    = 5,
+				Numero    = 6,
 				Actor     = "Carlos",
 				Expresion = "Serio",
 				Texto     = "No, el orden es completamente diferente. Cola FIFO versus pila LIFO produce órdenes de exploración distintos. Prueba el analizador para verlo.",
@@ -104,17 +121,17 @@ local DIALOGOS = {
 			},
 			{
 				Id        = "resp_comp_mal2",
-				Numero    = 5,
+				Numero    = 6,
 				Actor     = "Carlos",
-				Expresion = "Serio",
+				Expresion = "Enojado",
 				Texto     = "No, DFS no garantiza el camino más corto. BFS es el que encuentra el mínimo de saltos en grafos no ponderados.",
 				Opciones = { { Texto = "Entendido", Siguiente = "consejo_final" } },
 			},
 			{
 				Id        = "consejo_final",
-				Numero    = 6,
+				Numero    = 7,
 				Actor     = "Sistema",
-				Texto     = "Selecciona BFS en el Panel de Análisis y observa la cola. Luego cambia a DFS y observa la pila y el backtracking.",
+				Texto     = "Selecciona BFS en el Panel de Análisis y observa la cola. Luego cambia a DFS y observa la pila y el backtracking. Cuando estés listo, usa Dijkstra para elegir la ruta más económica.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					ServicioCamara.restaurar(1.5)

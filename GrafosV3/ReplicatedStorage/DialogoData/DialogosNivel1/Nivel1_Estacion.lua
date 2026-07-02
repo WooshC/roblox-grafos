@@ -105,7 +105,7 @@ local DIALOGOS = {
 				Numero    = 7,
 				Actor     = "Sistema",
 				Expresion = "Procesando",
-				Texto     = "Presiona el botón Ejecutar Algoritmo para ver cómo DFS explora la red paso a paso desde el Generador Principal. Observa cómo la pila LIFO decide qué nodo visita a continuación. dentro del panel de analisis",
+				Texto     = "Cuando termine el dialogo presiona el botón Ejecución Algoritmica para ver cómo DFS explora la red paso a paso desde el Generador Principal. Observa cómo la pila LIFO decide qué nodo visita a continuación. dentro del panel de analisis",
 
 				DestacarBoton = {
 					nombre         = "BtnEjecutarAlg",
@@ -158,7 +158,7 @@ local DIALOGOS = {
 			TiempoDeEspera      = 0.5,
 			VelocidadTypewriter = 0.03,
 			PuedeOmitir         = true,
-			OcultarHUD          = false,
+			OcultarHUD          = true,
 			UsarTTS             = true,
 			DelayTTS            = 0.15,
 		},

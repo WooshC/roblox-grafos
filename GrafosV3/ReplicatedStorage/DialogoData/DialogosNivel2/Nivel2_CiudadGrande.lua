@@ -1,6 +1,8 @@
 -- ReplicatedStorage/DialogoData/DialogosNivel2/Nivel2_CiudadGrande.lua
 -- Diálogo de la Zona 1 (Ciudad Grande) — Nivel 2: La Ruta Más Corta
 -- Concepto: introducción al algoritmo de Dijkstra, peso de arista y relajación.
+-- Lore: continuación del Nivel 1. El Alcalde presiona por una solución rápida,
+-- pero Carlos demuestra que lo importante es el costo real de cada metro de cable.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local EfectosDialogo = require(ReplicatedStorage:WaitForChild("Efectos"):WaitForChild("EfectosDialogo"))
@@ -30,11 +32,13 @@ local DIALOGOS = {
 		Zona  = "Zona_Laberinto_1",
 		Nivel = 2,
 		Lineas = {
+			-- 1. El Alcalde presiona por una solución rápida
 			{
-				Id        = "alerta_sistema",
+				Id        = "alcalde_presion",
 				Numero    = 1,
-				Actor     = "Sistema",
-				Texto     = "⚠️ ALERTA DE PRESUPUESTO: La Ciudad necesita reconectar la red eléctrica gastando la menor cantidad de cable posible. Tienes un presupuesto inicial de $9000.",
+				Actor     = "Alcalde",
+				Expresion = "Disgustado",
+				Texto     = "Carlos, ¿aún sigue usted husmeando? El Barrio Antiguo ya tiene luz. Ahora la Ciudad Grande está sin conexión y los ciudadanos exigen resultados. Conecten todo por el camino más corto y dejen de perder tiempo.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					ServicioCamara.moverHaciaObjetivo("Gen_Fabrica_z1", { altura = 35, angulo = 75, duracion = 1.5 })
@@ -43,28 +47,46 @@ local DIALOGOS = {
 					EfectosDialogo.resaltarNodo("Cruce_z1", "ADYACENTE")
 					EfectosDialogo.resaltarNodo("Sala_Maquinas_z1", "ADYACENTE")
 				end,
-				Siguiente = "intro_carlos",
+				Siguiente = "carlos_responde",
 			},
+
+			-- 2. Carlos responde con la lección del Nivel 1
 			{
-				Id        = "intro_carlos",
+				Id        = "carlos_responde",
 				Numero    = 2,
 				Actor     = "Carlos",
-				Expresion = "Extasiado",
-				Texto     = "¡Tocino, llegó el momento de ahorrar! En este nivel no basta con conectar todo: debemos elegir la ruta más barata. Para eso usaremos el algoritmo de Dijkstra.",
+				Expresion = "Serio",
+				Texto     = "Con todo respeto, señor Alcalde, en el Barrio Antiguo aprendimos que 'más corto en saltos' no significa 'mejor'. BFS y DFS nos mostraron dónde se cortó la red, pero ahora debemos auditar costos. Conectar por el camino con menos postes puede salir más caro.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					ServicioCamara.moverHaciaObjetivo("Gen_Fabrica_z1", { altura = 28, angulo = 65, duracion = 1.2 })
 					EfectosDialogo.resaltarNodo("Gen_Fabrica_z1", "SELECCIONADO")
 					EfectosDialogo.mostrarLabel("Gen_Fabrica_z1", aliasGen, "SELECCIONADO")
 				end,
-				Siguiente = "que_es_dijkstra",
+				Siguiente = "alcalde_enfurece",
 			},
+
+			-- 3. El Alcalde insiste en su versión
 			{
-				Id        = "que_es_dijkstra",
+				Id        = "alcalde_enfurece",
 				Numero    = 3,
+				Actor     = "Alcalde",
+				Expresion = "Furioso",
+				Texto     = "¡Insolencia! Mi plan de electrificación fue aprobado por los mejores técnicos. Ustedes solo necesitan tender cables, no cuestionar cada decisión. Menos saltos = menos material = menos dinero. ¡Hasta un niño lo entiende!",
+				Evento = function()
+					EfectosDialogo.limpiarTodo()
+					ServicioCamara.moverHaciaObjetivo("Gen_Fabrica_z1", { altura = 35, angulo = 70, duracion = 1.2 })
+				end,
+				Siguiente = "intro_dijkstra",
+			},
+
+			-- 4. Carlos presenta Dijkstra como respuesta
+			{
+				Id        = "intro_dijkstra",
+				Numero    = 4,
 				Actor     = "Carlos",
 				Expresion = "Presentacion",
-				Texto     = "Dijkstra encuentra el camino de MENOR COSTO ACUMULADO desde un nodo inicial hasta un destino. No importa cuántos saltos tenga: importa la suma total de los pesos de las aristas.",
+				Texto     = "Tocino, el Alcalde confunde saltos con metros. Aquí usaremos el algoritmo de Dijkstra: suma el costo real de cada cable y elige la ruta más barata en dinero, no la que tiene menos postes.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					ServicioCamara.moverHaciaObjetivo("Gen_Fabrica_z1", { altura = 30, angulo = 62, duracion = 1.2 })
@@ -75,11 +97,13 @@ local DIALOGOS = {
 				end,
 				Siguiente = "peso_y_costo",
 			},
+
+			-- 5. Peso y costo
 			{
 				Id        = "peso_y_costo",
-				Numero    = 4,
+				Numero    = 5,
 				Actor     = "Carlos",
-				Expresion = "Pensativo",
+				Expresion = "Serio",
 				Texto     = "Cada arista tiene un peso: metros de cable. Como cada metro cuesta $" .. COSTO_POR_METRO .. ", multiplicamos peso × " .. COSTO_POR_METRO .. " para saber el dinero que gastamos. Por ejemplo, una arista de 2 metros cuesta $" .. costo(2) .. ", y una de 5 metros cuesta $" .. costo(5) .. ".",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
@@ -92,11 +116,13 @@ local DIALOGOS = {
 				end,
 				Siguiente = "relajacion",
 			},
+
+			-- 6. Relajación
 			{
 				Id        = "relajacion",
-				Numero    = 5,
+				Numero    = 6,
 				Actor     = "Carlos",
-				Expresion = "Serio",
+				Expresion = "Presentacion",
 				Texto     = "El corazón de Dijkstra es la RELAJACIÓN: cuando encontramos una forma más barata de llegar a un nodo, actualizamos su costo mínimo. Si llegar por un camino cuesta menos que por otro, ¡guardamos el más barato!",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
@@ -107,11 +133,13 @@ local DIALOGOS = {
 				end,
 				Siguiente = "ejemplo_rutas",
 			},
+
+			-- 7. Ejemplo de rutas
 			{
 				Id        = "ejemplo_rutas",
-				Numero    = 6,
+				Numero    = 7,
 				Actor     = "Carlos",
-				Expresion = "Pensativo",
+				Expresion = "Serio",
 				Texto     = "Mira las dos formas de llegar a la " .. aliasSala .. ". Por la Entrada: 2 + 3 = 5 metros ($" .. costo(5) .. "). Por el Cruce: 5 + ... mucho más. Dijkstra elegirá la ruta de la Entrada porque su costo acumulado es menor, aunque ambas lleguen al mismo sitio.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
@@ -131,11 +159,13 @@ local DIALOGOS = {
 				end,
 				Siguiente = "pregunta_dijkstra",
 			},
+
+			-- 8. Pregunta de validación
 			{
 				Id        = "pregunta_dijkstra",
-				Numero    = 7,
+				Numero    = 8,
 				Actor     = "Carlos",
-				Expresion = "Curioso",
+				Expresion = "Sonriente",
 				Texto     = "Pregunta rápida: ¿qué criterio usa Dijkstra para elegir el mejor camino?",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
@@ -149,9 +179,11 @@ local DIALOGOS = {
 					{ Texto = "El orden alfabético de los nombres de los nodos.", Siguiente = "resp_dijkstra_mal2" },
 				},
 			},
+
+			-- 9a. Respuesta correcta
 			{
 				Id        = "resp_dijkstra_bien",
-				Numero    = 8,
+				Numero    = 9,
 				Actor     = "Carlos",
 				Expresion = "Feliz",
 				Texto     = "¡Exacto! Dijkstra siempre busca el camino con el menor costo acumulado. Por eso necesita conocer los pesos de las aristas y no solo la estructura del grafo.",
@@ -168,9 +200,11 @@ local DIALOGOS = {
 				end,
 				Opciones = { { Texto = "A conectar", Siguiente = "instruccion_final" } },
 			},
+
+			-- 9b. Respuesta incorrecta 1
 			{
 				Id        = "resp_dijkstra_mal",
-				Numero    = 8,
+				Numero    = 9,
 				Actor     = "Carlos",
 				Expresion = "Serio",
 				Texto     = "Casi, pero no. Contar nodos es lo que hace BFS para hallar el camino con menos saltos. Dijkstra va más allá: suma los pesos y elige la ruta más barata en costo total.",
@@ -181,11 +215,13 @@ local DIALOGOS = {
 				end,
 				Opciones = { { Texto = "Entendido", Siguiente = "instruccion_final" } },
 			},
+
+			-- 9c. Respuesta incorrecta 2
 			{
 				Id        = "resp_dijkstra_mal2",
-				Numero    = 8,
+				Numero    = 9,
 				Actor     = "Carlos",
-				Expresion = "Serio",
+				Expresion = "Enojado",
 				Texto     = "¡No! Dijkstra no mira el nombre de los nodos. Mira los pesos de las aristas y compara costos acumulados para elegir el camino más económico.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
@@ -194,9 +230,11 @@ local DIALOGOS = {
 				end,
 				Opciones = { { Texto = "Entendido", Siguiente = "instruccion_final" } },
 			},
+
+			-- 10. Instrucción final
 			{
 				Id        = "instruccion_final",
-				Numero    = 9,
+				Numero    = 10,
 				Actor     = "Sistema",
 				Texto     = "Conecta la red desde " .. aliasGen .. " hasta " .. aliasSala .. " gastando lo menos posible. Abre el Panel de Análisis (Tecla Tab) para ejecutar Dijkstra. ¡Cuida el presupuesto!",
 				Evento = function()
@@ -206,6 +244,7 @@ local DIALOGOS = {
 				Siguiente = "FIN",
 			},
 		},
+
 		Metadata = { TiempoDeEspera = 0.5, VelocidadTypewriter = 0.03, PuedeOmitir = true, OcultarHUD = true, UsarTTS = true },
 		Configuracion = { bloquearMovimiento = true, bloquearSalto = true, apuntarCamara = true, ocultarTechos = true },
 		EventoSaltar = function()

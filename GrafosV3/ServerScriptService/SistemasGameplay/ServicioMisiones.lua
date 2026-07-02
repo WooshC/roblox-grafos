@@ -231,26 +231,6 @@ local function construirPayload(overrideAllComplete)
 	}
 end
 
--- ════════════════════════════════════════════════════════════════════════════
--- TIMER DE EMERGENCIA (delegado a TimerEmergencia.lua)
--- ════════════════════════════════════════════════════════════════════════════
-
-local function _onTimerExpirado(misionID)
-	-- Penalización: -500 puntos por fallar la emergencia
-	_puntosAcum = math.max(0, _puntosAcum - 500)
-	if _servicioPuntaje then _servicioPuntaje:fijarPuntajeMision(_jugador, _puntosAcum, calcularEstrellasHelper(_puntosAcum)) end
-	-- print(string.format("[ServicioMisiones] Penalización -500 pts | Puntaje actual: %d", _puntosAcum))
-	verificarYNotificar()
-end
-
-local function _crearTimerEmergencia()
-	_timerEmergencia = TimerEmergencia.nuevo({
-		eventoTimer = _eventoTimerEmergencia,
-		jugador     = _jugador,
-		onExpirado  = _onTimerExpirado,
-	})
-end
-
 local function iniciarTimerEmergenciaSiPendiente(nombreZona)
 	if not nombreZona or nombreZona == "" then return end
 	if not _timerEmergencia then return end
@@ -409,6 +389,33 @@ local function verificarYNotificar()
 
 		_activo = false
 	end
+end
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- TIMER DE EMERGENCIA (delegado a TimerEmergencia.lua)
+-- ════════════════════════════════════════════════════════════════════════════
+
+local function _onTimerExpirado(misionID)
+	if not _activo then return end
+
+	-- Penalización: -500 puntos por fallar la emergencia
+	_puntosAcum = math.max(0, _puntosAcum - 500)
+	if _servicioPuntaje then
+		_servicioPuntaje:fijarPuntajeMision(_jugador, _puntosAcum, calcularEstrellasHelper(_puntosAcum))
+	end
+	-- print(string.format("[ServicioMisiones] Penalización -500 pts | Puntaje actual: %d", _puntosAcum))
+
+	if verificarYNotificar then
+		verificarYNotificar()
+	end
+end
+
+local function _crearTimerEmergencia()
+	_timerEmergencia = TimerEmergencia.nuevo({
+		eventoTimer = _eventoTimerEmergencia,
+		jugador     = _jugador,
+		onExpirado  = _onTimerExpirado,
+	})
 end
 
 -- ════════════════════════════════════════════════════════════════════════════
