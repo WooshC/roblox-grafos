@@ -34,22 +34,23 @@ local EstadoConexiones = nil
 
 -- Colores del modo mapa (para la part del Selector)
 local COLORES = {
-	SELECCIONADO = Color3.fromRGB(255, 255, 255),  -- Blanco
-	ADYACENTE    = Color3.fromRGB(255, 200, 50),   -- Dorado
-	CONECTADO    = Color3.fromRGB(0, 212, 255),    -- Cyan (Energizado)
-	SIN_ENERGIA  = Color3.fromRGB(255, 50, 100),   -- Rosado/Rojo claro
-	AISLADO      = Color3.fromRGB(239, 68, 68),    -- Rojo oscuro
-	INICIAL      = Color3.fromRGB(85, 170, 255),   -- Azul
+	SELECCIONADO    = Color3.fromRGB(255, 255, 255),  -- Blanco
+	ADYACENTE       = Color3.fromRGB(255, 200, 50),   -- Dorado
+	CONECTADO       = Color3.fromRGB(0, 212, 255),    -- Cyan (Energizado)
+	CONEXION_MINIMA = Color3.fromRGB(59, 130, 246),   -- Azul (tiene relación/adayacencia)
+	AISLADO         = Color3.fromRGB(239, 68, 68),    -- Rojo oscuro
+	INICIAL         = Color3.fromRGB(85, 170, 255),   -- Azul (compatibilidad)
+	SIN_ENERGIA     = Color3.fromRGB(255, 50, 100),   -- Rosado (reservado para aristas)
 }
 
 -- Tipos de Highlight por estado (para el Model)
 local HIGHLIGHT_TIPO = {
-	SELECCIONADO = "SELECCIONADO",
-	ADYACENTE    = "ADYACENTE",
-	CONECTADO    = "CONECTADO",
-	SIN_ENERGIA  = "ERROR", -- Usaremos ERROR de EfectosHighlight temporalmente (color rojo transparente) para resaltar nodos que fallan en recibir energía
-	AISLADO      = "AISLADO",
-	INICIAL      = "INICIAL",
+	SELECCIONADO    = "SELECCIONADO",
+	ADYACENTE       = "ADYACENTE",
+	CONECTADO       = "CONECTADO",
+	CONEXION_MINIMA = "CONEXION_MINIMA",
+	AISLADO         = "AISLADO",
+	INICIAL         = "INICIAL",
 }
 
 function EfectosMapa.inicializar(configNivel, estadoConexionesModulo)
@@ -142,6 +143,11 @@ function EfectosMapa.esNodoConectado(nodo)
 	end
 
 	return false
+end
+
+function EfectosMapa.tieneRelacionMinima(nodo)
+	-- Una "conexión mínima" es un cable físico real conectado al nodo.
+	return EfectosMapa.esNodoConectado(nodo)
 end
 
 function EfectosMapa.obtenerParteSelector(nodo)
@@ -323,33 +329,24 @@ function EfectosMapa.actualizarTodos(nivelActual, nodoSeleccionado, adyacentes)
 				local nombre      = nodo.Name
 				local esSeleccionado = (nodoSeleccionado and nodoSeleccionado.Name == nombre)
 				local esAdyacente    = adyacentes and table.find(adyacentes, nombre)
-				local conectado      = EfectosMapa.esNodoConectado(nodo)
-				local esInicial      = false
-
-				if configNivelGlobal and configNivelGlobal.Generadores then
-					esInicial = table.find(configNivelGlobal.Generadores, nombre) ~= nil
-				end
-
-				local tieneEnergia = nodosEnergizados[nombre] == true
+				local tieneRelacion  = EfectosMapa.tieneRelacionMinima(nodo)
+				local tieneEnergia   = nodosEnergizados[nombre] == true
 
 				-- Determinar estado: prioridad energía real del ServicioEnergia
 				local colorParte, tipoHighlight
 				if esSeleccionado then
 					colorParte    = COLORES.SELECCIONADO
 					tipoHighlight = HIGHLIGHT_TIPO.SELECCIONADO
-				elseif esInicial then
-					colorParte    = COLORES.INICIAL
-					tipoHighlight = HIGHLIGHT_TIPO.INICIAL
 				elseif esAdyacente then
 					colorParte    = COLORES.ADYACENTE
 					tipoHighlight = HIGHLIGHT_TIPO.ADYACENTE
 				elseif tieneEnergia then
 					colorParte    = COLORES.CONECTADO
 					tipoHighlight = HIGHLIGHT_TIPO.CONECTADO
-				elseif conectado then
-					-- Tiene cables físicos pero no recibe energía del generador
-					colorParte    = COLORES.SIN_ENERGIA
-					tipoHighlight = HIGHLIGHT_TIPO.SIN_ENERGIA
+				elseif tieneRelacion then
+					-- Tiene al menos una adyacencia/relación posible (incluye generadores y cables sin energía)
+					colorParte    = COLORES.CONEXION_MINIMA
+					tipoHighlight = HIGHLIGHT_TIPO.CONEXION_MINIMA
 				else
 					colorParte    = COLORES.AISLADO
 					tipoHighlight = HIGHLIGHT_TIPO.AISLADO
