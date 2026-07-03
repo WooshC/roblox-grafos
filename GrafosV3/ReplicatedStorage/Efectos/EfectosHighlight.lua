@@ -16,6 +16,7 @@ EfectosHighlight.COLORES = {
 	SELECCIONADO = Color3.fromRGB(0, 212, 255),  -- Cyan
 	ADYACENTE   = Color3.fromRGB(255, 200, 50),  -- Dorado
 	CONECTADO   = Color3.fromRGB(0, 212, 255),   -- Cyan (igual que zona/seleccionado)
+	CONEXION_MINIMA = Color3.fromRGB(59, 130, 246), -- Azul (nodo con relación/adayacencia)
 	AISLADO     = Color3.fromRGB(239, 68, 68),   -- Rojo
 	INICIAL     = Color3.fromRGB(85, 170, 255),  -- Azul (Nodos Iniciales o Generadores)
 	ERROR       = Color3.fromRGB(239, 68, 68),   -- Rojo
@@ -50,6 +51,14 @@ EfectosHighlight.CONFIG = {
 		FillColor = EfectosHighlight.COLORES.CONECTADO,
 		FillTransparency = 0.65,
 		OutlineColor = EfectosHighlight.COLORES.CONECTADO,
+		OutlineTransparency = 0.1,
+		DepthMode = Enum.HighlightDepthMode.AlwaysOnTop,
+	},
+	-- Estado de nodo en modo mapa: tiene al menos una adyacencia/relación posible
+	CONEXION_MINIMA = {
+		FillColor = EfectosHighlight.COLORES.CONEXION_MINIMA,
+		FillTransparency = 0.65,
+		OutlineColor = EfectosHighlight.COLORES.CONEXION_MINIMA,
 		OutlineTransparency = 0.1,
 		DepthMode = Enum.HighlightDepthMode.AlwaysOnTop,
 	},
