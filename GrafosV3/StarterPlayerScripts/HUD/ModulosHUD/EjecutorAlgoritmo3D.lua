@@ -902,9 +902,33 @@ end
 -- ════════════════════════════════════════════════════════════════
 -- MODO AUTO‑PLAY CON VALIDACIÓN GUIADA
 -- ════════════════════════════════════════════════════════════════
+local function aristaPerteneceSolucionFinal(arista)
+	if estado.algoritmoActual ~= "prim" and estado.algoritmoActual ~= "dijkstra" then
+		return true
+	end
+
+	local pasoFinal = estado.pasos[estado.totalPasos]
+	if not pasoFinal then return false end
+
+	local keyBuscada = claveArista(arista[1], arista[2])
+	for _, aristaFinal in ipairs(pasoFinal.aristasRecorridas or {}) do
+		if claveArista(aristaFinal[1], aristaFinal[2]) == keyBuscada then
+			return true
+		end
+	end
+	return false
+end
+
 local function obtenerAristaEsperadaDelPaso(step)
 	if step and step.aristaNueva then
-		return { step.aristaNueva[1], step.aristaNueva[2] }
+		local arista = { step.aristaNueva[1], step.aristaNueva[2] }
+
+		-- En guiado, Dijkstra solo solicita el camino mínimo final y Prim
+		-- únicamente las aristas que quedaron en el árbol de expansión mínimo.
+		-- Los pasos exploratorios se siguen mostrando, pero no exigen conexión.
+		if aristaPerteneceSolucionFinal(arista) then
+			return arista
+		end
 	end
 	return nil
 end
