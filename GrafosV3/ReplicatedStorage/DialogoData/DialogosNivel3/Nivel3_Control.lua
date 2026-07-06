@@ -1,15 +1,7 @@
--- Final_1 — rueda de prensa y desenlace del nivel 3.
--- La misión solo tiene éxito si se contestan correctamente las cuatro preguntas.
--- Estructura narrativa:
---   1. Rueda de prensa: el Alcalde presume sus "logros".
---   2. Carlos lo interrumpe con evidencia acumulada de los niveles 0, 1, 2 y 3.
---   3. El Reportero cuestiona al Alcalde con 4 preguntas integradoras.
---   4. Las respuestas correctas demuestran que sus números no cuadran.
 
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local EfectosDialogo    = require(ReplicatedStorage:WaitForChild("Efectos"):WaitForChild("EfectosDialogo"))
-local ServicioCamara    = require(ReplicatedStorage:WaitForChild("Compartido"):WaitForChild("ServicioCamara"))
 local Utilidades        = require(ReplicatedStorage:WaitForChild("Compartido"):WaitForChild("Utilidades"))
 
 local jugador = Players.LocalPlayer
@@ -34,14 +26,22 @@ local DIALOGOS = {
 			{
 				Id = "inicio",
 				Numero = 1,
-				Actor = "Reportero",
+				Actor = "Sistema",
 				Expresion = "Normal",
-				Texto = "Buenas noches. Estamos en vivo desde el Hospital Central, donde el Alcalde ha convocado una rueda de prensa para presentar los resultados de su plan de modernización eléctrica. Las luces de emergencia aún parpadean tras la falla de hace minutos.",
+				Texto = "Es medianoche en Villa Conexa. Las luces de emergencia del hospital se reflejan sobre la plaza. Frente a la Alcaldía, cámaras y micrófonos cercan el atril mientras la multitud contiene el aliento.",
 				Evento = function()
 					aciertosFinales = 0
 					jugador:SetAttribute(ATRIBUTO_RESULTADO, nil)
 					EfectosDialogo.limpiarTodo()
 				end,
+				Siguiente = "apertura_reportero",
+			},
+			{
+				Id = "apertura_reportero",
+				Numero = 2,
+				Actor = "Reportero",
+				Expresion = "Normal",
+				Texto = "Señor Alcalde, esta transmisión es en vivo. Explique por qué su red millonaria dejó los quirófanos al borde de la oscuridad. Cada palabra quedará registrada.",
 				Siguiente = "ciudadanos_felices",
 			},
 
@@ -49,9 +49,9 @@ local DIALOGOS = {
 			{
 				Id = "ciudadanos_felices",
 				Numero = 2,
-				Actor = "Ciudadanos",
+				Actor = "Sistema",
 				Expresion = "Normal",
-				Texto = "¡Viva el Alcalde! Vemos postes nuevos, cables por todas partes y obras en cada barrio. ¡Eso es progreso! Seguramente todo ese dinero se utilizó para protegernos.",
+				Texto = "La plaza hierve en murmullos. Algunos levantan carteles a favor del Alcalde; otros miran las ventanas intermitentes del hospital. Hay cables por todas partes, sí... pero esta noche nadie confunde cantidad con seguridad.",
 				Siguiente = "version_alcalde",
 			},
 
@@ -61,7 +61,7 @@ local DIALOGOS = {
 				Numero = 3,
 				Actor = "Alcalde",
 				Expresion = "Sonriente",
-				Texto = "Gracias, gracias. Mi administración ha instalado más cableado que ninguna otra en la historia de Villa Conexa. Cuantos más cables tiene una red, más segura es. Los costos exactos son asuntos administrativos que no necesitan preocupar a los ciudadanos.",
+				Texto = "No permitan que una falla aislada manche años de progreso. Mi administración tendió más cable que ninguna otra. Una ciudad cubierta de cobre es una ciudad protegida. Los costos son laberintos contables; no cargas que deban llevar ustedes. Déjenme gobernar.",
 				Siguiente = "interrupcion",
 			},
 
@@ -71,7 +71,7 @@ local DIALOGOS = {
 				Numero = 4,
 				Actor = "Carlos",
 				Expresion = "Serio",
-				Texto = "¡Eso es falso! Esta misma noche reparamos el hospital. Pero no empezó aquí: en el Barrio Antiguo, BFS y DFS revelaron un grafo desconexo que dejó familias a oscuras. En la Ciudad Grande, Dijkstra demostró que sus 'rutas directas' costaban más que las alternativas. Y ahora, en el Sector Residencial y el Hospital, Prim demuestra que sus conexiones redundantes inflaron el presupuesto, elevaron el grado de los nodos y saturaron el sistema.",
+				Texto = "Mi hijo estaba en ese hospital cuando las luces cayeron. Escuché detenerse las máquinas detrás de una puerta que no podía abrir. No vengo como ingeniero resentido; vengo como padre. Seguimos su cableado barrio por barrio: BFS abrió el mapa, DFS entró en sus callejones, Dijkstra siguió el rastro del dinero y Prim separó la red necesaria de la telaraña que usted cobró.",
 				Siguiente = "alcalde_defiende",
 			},
 
@@ -81,7 +81,7 @@ local DIALOGOS = {
 				Numero = 5,
 				Actor = "Alcalde",
 				Expresion = "Enojado",
-				Texto = "¡Son solo teorías de un ingeniero resentido! Mi plan conecta todo: la Estación, el Mercado, las Canchas, el Parque, la Ciudad, la Oficina, el Sector Residencial y ahora el Hospital. ¿Acaso no ven que todo está unido?",
+				Texto = "Una historia conmovedora no es una auditoría, Carlos. Está usando a su hijo para convertir números incomprensibles en una cacería política. Mi red une cada barrio. Si encontró callejones, quizá fue porque usted necesitaba perderse para fabricar un culpable.",
 				Siguiente = "reportero_pide_pruebas",
 			},
 
@@ -91,21 +91,21 @@ local DIALOGOS = {
 				Numero = 6,
 				Actor = "Reportero",
 				Expresion = "Normal",
-				Texto = "Es una acusación grave. Ingeniero, tiene cuatro oportunidades para demostrar lo aprendido desde los fundamentos de grafos hasta Prim. Si fallan, el Alcalde podrá denunciarlos por calumnia.",
+				Texto = "Basta de discursos. Pondré cuatro piezas del expediente sobre la mesa: BFS, DFS, Dijkstra y Prim. Tocino responderá. Tras cada respuesta veremos si la multitud se acerca a la verdad... o si el Alcalde consigue enterrarla bajo otra capa de cable.",
 				Siguiente = "pregunta_1",
 			},
 
-			-- 7. Pregunta 1: conectividad, grados y sobrecarga (Niveles 0 y 1)
+			-- Primera prueba: BFS
 			{
 				Id = "pregunta_1",
 				Numero = 7,
 				Actor = "Reportero",
 				Expresion = "Normal",
-				Texto = "Primera pregunta: en el Barrio Antiguo, BFS y DFS revelaron que la red del Alcalde no llegaba a todos los nodos. ¿Qué combinación de problemas explica por qué una red con 'muchos cables' puede dejar sectores sin luz y causar emergencias?",
+				Texto = "Primera prueba. Cuando el apagón se extendió por el Barrio Antiguo como tinta sobre un plano, necesitábamos inspeccionar primero todos los postes cercanos al generador y luego avanzar barrio por barrio. ¿Qué hizo BFS?",
 				Opciones = {
-					{ Texto = "Porque los cables estaban mal distribuidos: nodos aislados, grafos desconexos y postes sobrecargados por exceso de grado.", Siguiente = "p1_bien", OnSelect = acertar },
-					{ Texto = "Porque BFS y DFS siempre dejan nodos sin visitar a propósito.", Siguiente = "p1_mal" },
-					{ Texto = "Porque cuanto mayor es el grado de un nodo, menos energía consume.", Siguiente = "p1_mal" },
+					{ Texto = "Siguió una sola rama hasta el fondo antes de revisar los vecinos cercanos.", Siguiente = "p1_mal" },
+					{ Texto = "Usó una cola y recorrió la red por niveles, como ondas de luz que alcanzan primero los postes más cercanos.", Siguiente = "p1_bien", OnSelect = acertar },
+					{ Texto = "Sumó el precio de todos los cables para encontrar la ruta más barata.", Siguiente = "p1_mal" },
 				},
 			},
 
@@ -115,7 +115,7 @@ local DIALOGOS = {
 				Numero = 8,
 				Actor = "Sistema",
 				Expresion = "Feliz",
-				Texto = "Evidencia correcta: en el Laboratorio de Grafos aprendimos que un nodo aislado no recibe energía, y en el Mercado Central vimos que un poste con grado excesivo puede sobrecargarse. La cantidad de cables no importa si no están bien distribuidos.",
+				Texto = "La pantalla confirma el recorrido: una ola ordenada, capa por capa. Los ciudadanos señalan los barrios que quedaron fuera. BFS no inventó el apagón; mostró exactamente dónde dejó de propagarse la luz.",
 				Siguiente = "reaccion_1",
 			},
 
@@ -125,7 +125,7 @@ local DIALOGOS = {
 				Numero = 8,
 				Actor = "Alcalde",
 				Expresion = "Malevolo",
-				Texto = "Ni siquiera entienden por qué falló la red. Sus acusaciones empiezan a desmoronarse.",
+				Texto = "Confunden una cola con una prueba. Si eso es lo mejor que tienen, su acusación ya comenzó a desmoronarse.",
 				Siguiente = "reaccion_1",
 			},
 
@@ -133,23 +133,23 @@ local DIALOGOS = {
 			{
 				Id = "reaccion_1",
 				Numero = 9,
-				Actor = "Ciudadanos",
+				Actor = "Sistema",
 				Expresion = "Normal",
-				Texto = "Entendemos la conectividad y el grado. Ahora expliquen cómo inspeccionaron una red tan grande.",
+				Texto = "Un murmullo recorre la plaza como corriente por un cable desnudo. El Reportero no concede pausa; desliza una segunda hoja del expediente.",
 				Siguiente = "pregunta_recorridos",
 			},
 
-			-- Repaso de BFS y DFS (Nivel 1)
+			-- Segunda prueba: DFS
 			{
 				Id = "pregunta_recorridos",
 				Numero = 10,
 				Actor = "Reportero",
 				Expresion = "Normal",
-				Texto = "¿Qué diferencia práctica permitió usar BFS y DFS para inspeccionar el Barrio Antiguo?",
+				Texto = "Segunda prueba. Había que entrar en cada ramal sospechoso, seguirlo hasta donde muriera y retroceder para abrir el siguiente. ¿Cómo avanzó DFS por esa red?",
 				Opciones = {
-					{ Texto = "BFS explora por niveles con una cola; DFS profundiza por una rama con pila o recursión. Ambos revelan qué nodos son alcanzables.", Siguiente = "recorridos_bien", OnSelect = acertar },
-					{ Texto = "BFS calcula pesos mínimos y DFS construye automáticamente un MST.", Siguiente = "recorridos_mal" },
-					{ Texto = "No existe diferencia: siempre visitan los nodos en el mismo orden.", Siguiente = "recorridos_mal" },
+					{ Texto = "Visitó simultáneamente todos los nodos de la misma distancia.", Siguiente = "recorridos_mal" },
+					{ Texto = "Escogió siempre la arista de menor peso para evitar ciclos.", Siguiente = "recorridos_mal" },
+					{ Texto = "Profundizó por una rama usando pila o recursión y, al hallar un callejón, retrocedió hasta encontrar otra salida.", Siguiente = "recorridos_bien", OnSelect = acertar },
 				},
 			},
 			{
@@ -157,25 +157,25 @@ local DIALOGOS = {
 				Numero = 11,
 				Actor = "Sistema",
 				Expresion = "Feliz",
-				Texto = "Correcto: los dos recorren el grafo, pero su estructura de control produce órdenes distintos. Si un nodo no aparece, la red está desconectada desde el origen.",
+				Texto = "El trazado se hunde por una rama, toca fondo y regresa. Varias personas asienten: reconocen sus propias calles en aquel recorrido. DFS fue una linterna entrando en cada túnel que el contrato fingía no ver.",
 				Siguiente = "pregunta_2",
 			},
 			{
 				Id = "recorridos_mal",
 				Numero = 11,
-				Actor = "Carlos",
-				Expresion = "Serio",
-				Texto = "BFS y DFS son recorridos, no algoritmos de costo. BFS avanza por capas; DFS sigue una rama antes de retroceder.",
+				Actor = "Sistema",
+				Expresion = "Triste",
+				Texto = "El Alcalde golpea el atril. «Ni siquiera saben cómo siguieron sus propios cables». Los murmullos se vuelven incómodos. DFS debía profundizar y retroceder; la respuesta dejó ese túnel a oscuras.",
 				Siguiente = "pregunta_2",
 			},
 
-			-- 10. Pregunta 2: Dijkstra, pesos y costo acumulado (Nivel 2)
+			-- Tercera prueba: Dijkstra
 			{
 				Id = "pregunta_2",
 				Numero = 10,
 				Actor = "Reportero",
 				Expresion = "Normal",
-				Texto = "Segunda pregunta: en la Ciudad Grande y el Barrio Oeste, Dijkstra demostró que el Alcalde confundía distancia con dinero. ¿Por qué una ruta con menos saltos no siempre es la más barata?",
+				Texto = "Tercera prueba. El Alcalde vendió una ruta directa como si pocas esquinas significaran poco dinero. Pero cada cable llevaba un precio escondido, como piedras dentro de un maletín. ¿Qué comparó Dijkstra?",
 				Opciones = {
 					{ Texto = "Porque cada arista tiene un peso o costo distinto; Dijkstra suma el costo acumulado, no solo cuenta los saltos.", Siguiente = "p2_bien", OnSelect = acertar },
 					{ Texto = "Porque el Alcalde siempre elige la ruta con más postes.", Siguiente = "p2_mal" },
@@ -187,9 +187,9 @@ local DIALOGOS = {
 			{
 				Id = "p2_bien",
 				Numero = 11,
-				Actor = "Oficial",
-				Expresion = "Normal",
-				Texto = "El informe de la Oficina de Análisis respalda esa explicación: la ruta 'directa' propuesta por el Alcalde costaba más que las alternativas calculadas por Dijkstra. Cada metro de cable a $500 suma.",
+				Actor = "Sistema",
+				Expresion = "Feliz",
+				Texto = "El Oficial levanta las facturas. Dijkstra sumó cada peso acumulado y la supuesta ruta «directa» resultó ser la más cara. La plaza deja de murmurar: ahora cuenta.",
 				Siguiente = "confrontacion_ciudadana",
 			},
 
@@ -197,9 +197,9 @@ local DIALOGOS = {
 			{
 				Id = "p2_mal",
 				Numero = 11,
-				Actor = "Oficial",
-				Expresion = "Normal",
-				Texto = "Esa respuesta no coincide con el informe técnico de la Oficina de Análisis. Los pesos de las aristas determinan el costo real.",
+				Actor = "Sistema",
+				Expresion = "Triste",
+				Texto = "El Oficial cierra la carpeta. Sin costo acumulado no hay rastro del dinero. El Alcalde aprovecha el silencio: «Ven fantasmas donde solo hay infraestructura».",
 				Siguiente = "confrontacion_ciudadana",
 			},
 
@@ -209,7 +209,7 @@ local DIALOGOS = {
 				Numero = 12,
 				Actor = "Ciudadanos",
 				Expresion = "Normal",
-				Texto = "Alcalde, ¿por qué ocultó los grados de los nodos y el costo real de cada cable? Usted dijo que 'más cables es más seguridad', pero esta noche el Hospital estuvo a punto de quedar a oscuras.",
+				Texto = "¡Aquí están nuestros recibos, las fotografías y las órdenes de compra! ¿Por qué ocultó el peso de cada cable? ¿Cuánto valía para usted la vida de quienes estaban conectados al hospital?",
 				Siguiente = "alcalde_evasivo",
 			},
 
@@ -219,20 +219,20 @@ local DIALOGOS = {
 				Numero = 13,
 				Actor = "Alcalde",
 				Expresion = "Enojado",
-				Texto = "¡Porque los ciudadanos no necesitan entender algoritmos! Lo importante es que vean muchas obras. Si el hospital falló fue por un sabotaje, no por mis números.",
+				Texto = "La ciudad no se gobierna con diagramas. Se gobierna con confianza, y ustedes me la dieron. Si el hospital falló, fue sabotaje. Carlos tenía acceso, motivos y una tragedia personal perfecta para fabricar esta escena.",
 				Siguiente = "pregunta_3",
 			},
 
-			-- 14. Pregunta 3: Prim y MST (Nivel 3)
+			-- Cuarta prueba: Prim
 			{
 				Id = "pregunta_3",
 				Numero = 14,
 				Actor = "Reportero",
 				Expresion = "Normal",
-				Texto = "Última pregunta: en el Sector Residencial y el Complejo Hospitalario, Prim construyó el Árbol de Expansión Mínima. ¿qué demuestra ese resultado frente al argumento del Alcalde de que 'más cables = más seguridad'?",
+				Texto = "Última prueba. Imagine la ciudad como un bosque de postes: todos deben quedar unidos, pero cada ciclo es una soga de cobre cobrada dos veces. ¿Qué demuestra el árbol de expansión mínima construido por Prim?",
 				Opciones = {
-					{ Texto = "Que se puede conectar toda la red con el mínimo tendido de cable, sin ciclos ni desperdicio, reduciendo costos y saturación.", Siguiente = "p3_bien", OnSelect = acertar },
 					{ Texto = "Que el camino entre dos nodos siempre debe usar todos los cables disponibles.", Siguiente = "p3_mal" },
+					{ Texto = "Que se puede conectar toda la red con el mínimo tendido de cable, sin ciclos ni desperdicio, reduciendo costos y saturación.", Siguiente = "p3_bien", OnSelect = acertar },
 					{ Texto = "Que aumentar el grado de todos los nodos reduce automáticamente el costo.", Siguiente = "p3_mal" },
 				},
 			},
@@ -243,7 +243,7 @@ local DIALOGOS = {
 				Numero = 15,
 				Actor = "Sistema",
 				Expresion = "Feliz",
-				Texto = "La explicación de Prim coincide con la matriz, los pesos y la red reparada: 20 unidades en el Sector Residencial, 22 en el Hospital y 4 en el enlace entre zonas, para un total mínimo de 46.",
+				Texto = "La matriz cae sobre la pantalla como una sentencia: 20 unidades en el Sector Residencial, 22 en el Hospital y 4 en el enlace. Peso mínimo total: 46. Prim dejó toda la ciudad conectada y cortó cada ciclo donde podía esconderse un sobrecosto.",
 				Siguiente = "resultado_exito",
 			},
 
@@ -253,22 +253,26 @@ local DIALOGOS = {
 				Numero = 15,
 				Actor = "Alcalde",
 				Expresion = "Codicioso",
-				Texto = "No lograron sostener toda la auditoría. Mi plan conecta todo y eso es lo que importa.",
+				Texto = "No pueden distinguir una obra de un árbol. Mi red conecta todo; sus números solo podan la seguridad de esta ciudad.",
 				Siguiente = "resultado_exito",
 			},
 
-			-- 16. Resultado: éxito si aciertos == 3
+			-- Resultado: la luz del hospital simboliza el veredicto.
 			{
 				Id = "resultado_exito",
 				Numero = 16,
-				Actor = "Ciudadanos",
-				Expresion = "Normal",
-				Texto = "¡Las cuatro pruebas coinciden! Alcalde, infló los costos y puso en peligro al hospital. Exigimos una investigación.",
+				Actor = "Sistema",
+				Expresion = "Feliz",
+				Texto = "Las cuatro rutas encajan. La plaza estalla: ya no es ruido, es una sola voz. En la colina, las ventanas del hospital se encienden una tras otra, como si la verdad encontrara por fin un camino hasta cada habitación.",
 				Condicion = function()
 					return aciertosFinales == 4
 				end,
 				Evento = function()
 					marcarResultado("exito")
+					EfectosDialogo.limpiarTodo()
+					EfectosDialogo.resaltarNodo("PosteHospital_z2", "EXITO")
+					EfectosDialogo.mostrarLabel("PosteHospital_z2", "LA VERDAD SALE A LA LUZ", "EXITO")
+					EfectosDialogo.blink("PosteHospital_z2", "EXITO", 4)
 				end,
 				SiguienteSiFalso = "resultado_fracaso",
 				Siguiente = "oficial_exito",
@@ -280,11 +284,7 @@ local DIALOGOS = {
 				Numero = 17,
 				Actor = "Oficial",
 				Expresion = "Normal",
-				Texto = "Las pruebas quedan registradas. Abriremos una investigación por corrupción, sobrecostos y negligencia en la emergencia hospitalaria.",
-				Evento = function()
-					EfectosDialogo.limpiarTodo()
-					ServicioCamara.restaurar(1.2)
-				end,
+				Texto = "Queda detenido mientras investigamos corrupción, sobrecostos y negligencia. Esta vez los números no serán enterrados. Carlos, su hijo está a salvo; el hospital vuelve a tener energía estable.",
 				Siguiente = "FIN",
 			},
 
@@ -292,11 +292,12 @@ local DIALOGOS = {
 			{
 				Id = "resultado_fracaso",
 				Numero = 16,
-				Actor = "Ciudadanos",
+				Actor = "Sistema",
 				Expresion = "Normal",
-				Texto = "Las respuestas no fueron suficientes. Confiamos en las obras que podemos ver y no en acusaciones sin pruebas completas.",
+				Texto = "FALLO DE AUDITORÍA. El Alcalde alza los brazos y sus partidarios ahogan las dudas con aplausos. Las pruebas quedan incompletas y la multitud comienza a dispersarse. Carlos permanece inmóvil, pensando en su hijo y en una verdad que no logró atravesar la plaza.",
 				Evento = function()
 					marcarResultado("fracaso")
+					EfectosDialogo.limpiarTodo()
 				end,
 				Siguiente = "oficial_fracaso",
 			},
@@ -307,18 +308,20 @@ local DIALOGOS = {
 				Numero = 17,
 				Actor = "Oficial",
 				Expresion = "Normal",
-				Texto = "El Alcalde presentará una denuncia por calumnia. La rueda de prensa ha terminado.",
+				Texto = "Sin una cadena completa de pruebas no puedo detenerlo. Señor Alcalde, puede retirarse. Su oficina queda autorizada para presentar cargos por calumnia.",
 				Condicion = function()
 					return aciertosFinales < 4
-				end,
-				Evento = function()
-					EfectosDialogo.limpiarTodo()
-					ServicioCamara.restaurar(1.2)
 				end,
 				Siguiente = "FIN",
 			},
 		},
-		Metadata = { TiempoDeEspera = 0.5, VelocidadTypewriter = 0.03, PuedeOmitir = false, OcultarHUD = true, UsarTTS = true },
+		EventoSalida = function()
+			if jugador:GetAttribute(ATRIBUTO_RESULTADO) == nil then
+				aciertosFinales = 0
+				marcarResultado("fracaso")
+			end
+		end,
+		Metadata = { TiempoDeEspera = 0.5, VelocidadTypewriter = 0.03, PuedeOmitir = true, OcultarHUD = true, UsarTTS = true },
 		Configuracion = { bloquearMovimiento = true, bloquearSalto = true, apuntarCamara = true, ocultarTechos = true },
 	},
 }

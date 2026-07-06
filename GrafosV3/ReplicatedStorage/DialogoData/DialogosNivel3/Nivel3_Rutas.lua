@@ -25,7 +25,7 @@ local DIALOGOS = {
 				Id = "rueda_prensa",
 				Numero = 1,
 				Actor = "Carlos",
-				Expresion = "Preocupado",
+				Expresion = "Serio",
 				Texto = "La rueda de prensa está por comenzar junto al complejo hospitalario, pero tres puntos críticos quedaron dañados. La red se saturó exactamente donde el Alcalde aseguraba haber financiado una instalación moderna y segura.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
@@ -34,11 +34,24 @@ local DIALOGOS = {
 					EfectosDialogo.resaltarNodo("Poste_Alcaldia_z2", "ERROR")
 					EfectosDialogo.resaltarNodo("Poste_secundario_z2", "ERROR")
 				end,
+				Siguiente = "hijo_hospital",
+			},
+			{
+				Id = "hijo_hospital",
+				Numero = 2,
+				Actor = "Carlos",
+				Expresion = "Triste",
+				Texto = "Espera... ese mensaje es de mi esposa. Mi hijo está aquí, en una de las salas que dependen de esta subestación. Creí que veníamos a auditar un contrato; ahora escucho las alarmas y solo puedo pensar que cada segundo sin energía puede arrancármelo. Tocino, esta red tiene que sostenerse.",
+				Evento = function()
+					ServicioCamara.moverHaciaObjetivo("PosteHospital_z2", { altura = 24, angulo = 62, duracion = 1.2 })
+					EfectosDialogo.resaltarNodo("PosteHospital_z2", "ERROR")
+					EfectosDialogo.mostrarLabel("PosteHospital_z2", "HIJO DE CARLOS · EN RIESGO", "ERROR")
+				end,
 				Siguiente = "diagnostico",
 			},
 			{
 				Id = "diagnostico",
-				Numero = 2,
+				Numero = 3,
 				Actor = "Sistema",
 				Expresion = "Procesando",
 				Texto = "Diagnóstico: " .. alcaldia .. ", " .. apoyo .. " y " .. subestacion .. " están dañados. Además, dos cables defectuosos interrumpen el flujo de energía.",
@@ -53,7 +66,7 @@ local DIALOGOS = {
 			},
 			{
 				Id = "causa",
-				Numero = 3,
+				Numero = 4,
 				Actor = "Carlos",
 				Expresion = "Serio",
 				Texto = "Los planos revelan demasiadas conexiones redundantes. El Alcalde infló el costo de la obra agregando cables y concentró grados innecesarios en pocos nodos. La sobrecarga resultante dañó áreas críticas del hospital.",
@@ -61,9 +74,9 @@ local DIALOGOS = {
 			},
 			{
 				Id = "pregunta",
-				Numero = 4,
+				Numero = 5,
 				Actor = "Carlos",
-				Expresion = "Curioso",
+				Expresion = "Serio",
 				Texto = "¿Qué debemos hacer para recuperar el hospital sin repetir el error?",
 				Opciones = {
 					{ Texto = "Reparar los nodos y cables, y usar Prim para conservar solo conexiones necesarias y económicas.", Siguiente = "respuesta_bien" },
@@ -73,7 +86,7 @@ local DIALOGOS = {
 			},
 			{
 				Id = "respuesta_bien",
-				Numero = 5,
+				Numero = 6,
 				Actor = "Carlos",
 				Expresion = "Feliz",
 				Texto = "Correcto. Repararemos primero y después construiremos un árbol de 7 nodos, 6 cables y peso máximo 22.",
@@ -82,7 +95,7 @@ local DIALOGOS = {
 			},
 			{
 				Id = "respuesta_mal",
-				Numero = 5,
+				Numero = 6,
 				Actor = "Carlos",
 				Expresion = "Serio",
 				Texto = "Eso repetiría la corrupción del contrato. Debemos reparar la infraestructura y conectar solo lo necesario según Prim.",
@@ -90,7 +103,7 @@ local DIALOGOS = {
 			},
 			{
 				Id = "mision",
-				Numero = 6,
+				Numero = 7,
 				Actor = "Sistema",
 				Expresion = "Normal",
 				Texto = "EMERGENCIA: repara el Poste de la Alcaldía, el Poste Secundario y la Subestación Médica. Después construye el MST hospitalario con peso 22 o menor. La red global completa debe tener 15 nodos, 14 cables y peso máximo 46.",
