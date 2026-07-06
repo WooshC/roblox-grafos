@@ -645,7 +645,7 @@ LevelsConfig[2] = {
 	NodosZona = {
 		["Zona_Laberinto_1"] = {
 			"Gen_Fabrica_z1", "Entrada_z1", "Sala_Maquinas_z1",
-			"Patio_Carga_z1", "Cruce_z1",
+			"Patio_Carga_z1", "Cruce_z1","Oficinas_Admin_z1"
 		},
 		["Zona_BarrioOeste_2"] = {
 			"Cruce_z1", "Tunel_Norte_z2", "Paso_Sur_z2", "Cisterna_z2",
@@ -735,10 +735,7 @@ LevelsConfig[2] = {
 	Misiones = {
 		-- Zona 1: Ciudad Grande
 		{ ID=201, Zona="Zona_Laberinto_1", Texto="Selecciona el Generador Ciudad",                      Tipo="NODO_SELECCIONADO", Puntos=100, Parametros={ Nodo="Gen_Fabrica_z1" } },
-		{ ID=202, Zona="Zona_Laberinto_1", Texto="Conecta la Entrada al Generador (costo 2)",            Tipo="ARISTA_CREADA",     Puntos=150, Parametros={ NodoA="Gen_Fabrica_z1", NodoB="Entrada_z1" } },
-		{ ID=204, Zona="Zona_Laberinto_1", Texto="Continua la ruta minima por la Sala de Maquinas (costo acumulado 5)", Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Entrada_z1", NodoB="Sala_Maquinas_z1" } },
-		{ ID=203, Zona="Zona_Laberinto_1", Texto="Completa la ruta minima hasta el Cruce Principal (costo total 6)", Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Sala_Maquinas_z1", NodoB="Cruce_z1" } },
-		{ ID=205, Zona="Zona_Laberinto_1", Texto="Energiza el Cruce Principal por el camino minimo",      Tipo="GRAFO_CONEXO",      Puntos=200, Parametros={ Nodos={"Gen_Fabrica_z1","Entrada_z1","Sala_Maquinas_z1","Cruce_z1"} } },
+		{ ID=203, Zona="Zona_Laberinto_1", Texto="Encuentra una ruta al Cruce Principal con peso total 5 o menor", Tipo="RUTA_COSTO", Puntos=200, Parametros={ Inicio="Gen_Fabrica_z1", Destino="Cruce_z1", PesoMaximo=5 } },
 		{ ID=299, Zona="Zona_Laberinto_1", Texto="EMERGENCIA! Energiza el Cruce Principal en 60 segundos", Tipo="EMERGENCIA",       Puntos=500, Parametros={ NodosEnergizar={"Cruce_z1"}, TiempoLimite=60 } },
 
 		-- Zona 2: Barrio Oeste

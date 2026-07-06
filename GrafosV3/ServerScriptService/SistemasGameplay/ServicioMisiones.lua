@@ -33,6 +33,8 @@ local _nodosSobrecargados = {}  -- { [nombreNodo] = true } nodos que sufrieron s
 local _dialogosTerminados = {}  -- { [dialogoID] = true } diálogos cerrados durante el nivel
 local _resultadoFinal = nil
 local _mensajeFinal = nil
+local _pesosTemporales = {}
+local _actualizarPesosConn = nil
 
 -- ── Timer de emergencia (instancia delegada) ──────────────────────────────────
 local _timerEmergencia = nil
@@ -121,6 +123,79 @@ end
 
 Validadores.GRADO_NODO = function(params)
 	return contarConexiones(params.Nodo) >= (params.GradoRequerido or 1)
+end
+
+-- Comprueba que el camino más barato construido entre Inicio y Destino no
+-- supere el máximo. Usa los pesos temporales configurados por el jugador.
+Validadores.RUTA_COSTO = function(params)
+	local inicio = params.Inicio
+	local destino = params.Destino
+	local pesoMaximo = params.PesoMaximo or params.PesoObjetivo
+	if type(inicio) ~= "string" or type(destino) ~= "string" then return false end
+	if type(pesoMaximo) ~= "number" or pesoMaximo < 0 then return false end
+
+	local adyacencias = {}
+	local aristasAgregadas = {}
+	local pendientes = { inicio }
+	local descubiertos = { [inicio] = true }
+	local indicePendiente = 1
+
+	-- ValidadorConexiones contiene la topología física real. Recorrer desde el
+	-- inicio evita depender de que la copia interna de misiones esté sincronizada.
+	while indicePendiente <= #pendientes do
+		local nodoA = pendientes[indicePendiente]
+		indicePendiente = indicePendiente + 1
+
+		for _, nodoB in ipairs(ValidadorConexiones.obtenerConexiones(nodoA)) do
+			local clave = GrafoHelpers.clavePar(nodoA, nodoB)
+			if not aristasAgregadas[clave] then
+				aristasAgregadas[clave] = true
+				local peso = _pesosTemporales[clave]
+					or GrafoHelpers.obtenerPeso(_nivelID, nodoA, nodoB, 0)
+				if peso > 0 then
+					adyacencias[nodoA] = adyacencias[nodoA] or {}
+					adyacencias[nodoB] = adyacencias[nodoB] or {}
+					table.insert(adyacencias[nodoA], { nodo = nodoB, peso = peso })
+					table.insert(adyacencias[nodoB], { nodo = nodoA, peso = peso })
+				end
+			end
+			if not descubiertos[nodoB] then
+				descubiertos[nodoB] = true
+				table.insert(pendientes, nodoB)
+			end
+		end
+	end
+
+	local distancias = { [inicio] = 0 }
+	local visitados = {}
+	while true do
+		local actual = nil
+		local menor = math.huge
+		for nodo, distancia in pairs(distancias) do
+			if not visitados[nodo] and distancia < menor then
+				actual = nodo
+				menor = distancia
+			end
+		end
+		if not actual or menor > pesoMaximo then break end
+		if actual == destino then
+			print(string.format(
+				"[ServicioMisiones] RUTA_COSTO completada: %s -> %s, costo=%s, maximo=%s",
+				inicio, destino, tostring(menor), tostring(pesoMaximo)
+			))
+			return true
+		end
+
+		visitados[actual] = true
+		for _, vecino in ipairs(adyacencias[actual] or {}) do
+			local alternativa = menor + vecino.peso
+			if alternativa <= pesoMaximo
+				and alternativa < (distancias[vecino.nodo] or math.huge) then
+				distancias[vecino.nodo] = alternativa
+			end
+		end
+	end
+	return false
 end
 
 Validadores.NODO_SELECCIONADO = function(params)
@@ -282,7 +357,10 @@ local function verificarYNotificar()
 			-- Solo marcar como permanente si NO es una misión de cableado ni de conectividad
 			-- ARISTA_CREADA, ARISTA_DIRIGIDA y GRAFO_CONEXO pueden revocarse al desconectar
 			-- EMERGENCIA es permanente: una vez superada o fallida, no cambia
-			if m.Tipo ~= "ARISTA_CREADA" and m.Tipo ~= "ARISTA_DIRIGIDA" and m.Tipo ~= "GRAFO_CONEXO" then
+			if m.Tipo ~= "ARISTA_CREADA"
+				and m.Tipo ~= "ARISTA_DIRIGIDA"
+				and m.Tipo ~= "GRAFO_CONEXO"
+				and m.Tipo ~= "RUTA_COSTO" then
 				_permanentes[m.ID] = true
 			end
 			_puntosAcum = _puntosAcum + (m.Puntos or 0)
@@ -444,6 +522,7 @@ function ServicioMisiones.activar(config, nivelID, jugador, eventos, servicioPun
 	_dialogosTerminados = {}
 	_resultadoFinal = nil
 	_mensajeFinal = nil
+	_pesosTemporales = {}
 	if _timerEmergencia then _timerEmergencia:detener() end
 	_timerEmergencia = nil
 
@@ -451,6 +530,47 @@ function ServicioMisiones.activar(config, nivelID, jugador, eventos, servicioPun
 		_eventoActualizarMisiones = eventos:FindFirstChild("ActualizarMisiones")
 		_eventoNivelCompletado    = eventos:FindFirstChild("NivelCompletado")
 		_eventoTimerEmergencia    = eventos:FindFirstChild("TimerEmergencia")
+
+		local actualizarPesos = eventos:FindFirstChild("ActualizarPesosTemporales")
+			or eventos:WaitForChild("ActualizarPesosTemporales", 2)
+		if _actualizarPesosConn then
+			_actualizarPesosConn:Disconnect()
+			_actualizarPesosConn = nil
+		end
+		if actualizarPesos then
+			_actualizarPesosConn = actualizarPesos.OnServerEvent:Connect(function(player, cambios)
+				if not _activo or player ~= _jugador or type(cambios) ~= "table" then return end
+
+				local aceptados = 0
+				for _, cambio in ipairs(cambios) do
+					local nodoA = cambio.nodoA
+					local nodoB = cambio.nodoB
+					local peso = cambio.peso
+					if type(nodoA) == "string"
+						and type(nodoB) == "string"
+						and type(peso) == "number"
+						and peso >= 1 and peso <= 50 and peso % 1 == 0
+						and GrafoHelpers.obtenerPeso(_nivelID, nodoA, nodoB, 0) > 0 then
+						local clave = GrafoHelpers.clavePar(nodoA, nodoB)
+						_pesosTemporales[clave] = peso
+
+						-- _config es la misma tabla LevelsConfig usada por los
+						-- servicios del servidor durante esta partida. Actualizarla
+						-- hace que ConectarCables cobre y reembolse el peso nuevo.
+						if _config then
+							_config.PesosAristas = _config.PesosAristas or {}
+							_config.PesosAristas[clave] = peso
+						end
+						aceptados = aceptados + 1
+					end
+				end
+				print(string.format(
+					"[ServicioMisiones] Pesos temporales recibidos de %s: %d aceptados",
+					player.Name, aceptados
+				))
+				verificarYNotificar()
+			end)
+		end
 
 		_eventoReproducirEfecto = eventos:FindFirstChild("ReproducirEfecto")
 		if not _eventoReproducirEfecto then
@@ -571,8 +691,10 @@ function ServicioMisiones.desactivar()
 	_dialogosTerminados = {}
 	_resultadoFinal = nil
 	_mensajeFinal = nil
+	_pesosTemporales = {}
 
 	-- Limpiar conexiones de diálogo y timer para evitar fugas entre niveles
+	if _actualizarPesosConn then _actualizarPesosConn:Disconnect(); _actualizarPesosConn = nil end
 	if _dialogoIniciadoConn then _dialogoIniciadoConn:Disconnect(); _dialogoIniciadoConn = nil end
 	if _dialogoTerminadoConn then _dialogoTerminadoConn:Disconnect(); _dialogoTerminadoConn = nil end
 	if _timerEmergencia then _timerEmergencia:detener() end

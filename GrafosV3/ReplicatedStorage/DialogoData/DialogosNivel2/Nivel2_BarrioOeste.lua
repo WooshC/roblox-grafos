@@ -77,6 +77,38 @@ local function enfocarGrupo(nombresNodos, opciones)
 	})
 end
 
+-- Recorre visualmente una ruta, moviendo la cámara de nodo en nodo para que
+-- cada salto se vea en lugar de limitarse a enumerarlo en el texto.
+local recorridoActual = 0
+local function recorrerRuta(nodos, pesosAcumulados, estadoFinal)
+	recorridoActual = recorridoActual + 1
+	local idRecorrido = recorridoActual
+
+	task.spawn(function()
+		for indice, nodo in ipairs(nodos) do
+			if idRecorrido ~= recorridoActual then return end
+
+			enfocarNodo(nodo, { altura = 22, angulo = 58, duracion = 1.3 })
+			EfectosDialogo.resaltarNodo(
+				nodo,
+				indice == #nodos and (estadoFinal or "EXITO") or "SELECCIONADO"
+			)
+			EfectosDialogo.mostrarLabel(nodo, tostring(pesosAcumulados[indice]) .. " m")
+
+			if indice > 1 then
+				EfectosDialogo.mostrarArista(
+					nodos[indice - 1],
+					nodo,
+					estadoFinal or "SELECCIONADO",
+					{ sinParticulas = true }
+				)
+			end
+
+			task.wait(1.55)
+		end
+	end)
+end
+
 -- ════════════════════════════════════════════════════════════════════
 -- DATOS DEL DIÁLOGO
 -- ════════════════════════════════════════════════════════════════════
@@ -147,25 +179,14 @@ local DIALOGOS = {
 				Numero    = 4,
 				Actor     = "Carlos",
 				Expresion = "Serio",
-				Texto     = "Mira la ruta Norte: " .. aliasCruce .. " → " .. aliasTunelN .. " → " .. aliasCisterna .. " → " .. aliasPuente .. ". Tiene 3 saltos, pero sus pesos son 2 + 4 + 1 = 7 metros. Eso cuesta $" .. costo(7) .. ".",
+				Texto     = "Mira esta primera ruta. Tiene 3 saltos; observa cómo avanzamos de nodo en nodo. Sus pesos suman 2 + 4 + 1 = 7 metros, así que cuesta $" .. costo(7) .. ".",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
-					enfocarGrupo({"Cruce_z1", "Tunel_Norte_z2", "Cisterna_z2", "Puente_z2"}, { altura = 28, angulo = 60, duracion = 1.5 })
-					EfectosDialogo.resaltarNodo("Cruce_z1", "SELECCIONADO")
-					EfectosDialogo.resaltarNodo("Tunel_Norte_z2", "ADYACENTE")
-					EfectosDialogo.resaltarNodo("Cisterna_z2", "ADYACENTE")
-					EfectosDialogo.resaltarNodo("Puente_z2", "EXITO")
-					task.delay(0.3, function()
-						EfectosDialogo.mostrarArista("Cruce_z1", "Tunel_Norte_z2", "SELECCIONADO", { sinParticulas = true })
-						EfectosDialogo.mostrarArista("Tunel_Norte_z2", "Cisterna_z2", "SELECCIONADO", { sinParticulas = true })
-						EfectosDialogo.mostrarArista("Cisterna_z2", "Puente_z2", "SELECCIONADO", { sinParticulas = true })
-					end)
-					task.delay(0.6, function()
-						EfectosDialogo.mostrarLabel("Cruce_z1", "0 m")
-						EfectosDialogo.mostrarLabel("Tunel_Norte_z2", "2 m")
-						EfectosDialogo.mostrarLabel("Cisterna_z2", "6 m")
-						EfectosDialogo.mostrarLabel("Puente_z2", "7 m")
-					end)
+					recorrerRuta(
+						{"Cruce_z1", "Tunel_Norte_z2", "Cisterna_z2", "Puente_z2"},
+						{0, 2, 6, 7},
+						"EXITO"
+					)
 				end,
 				Siguiente = "ruta_sur",
 			},
@@ -176,22 +197,14 @@ local DIALOGOS = {
 				Numero    = 5,
 				Actor     = "Carlos",
 				Expresion = "Presentacion",
-				Texto     = "Ahora la ruta Sur: " .. aliasCruce .. " → " .. aliasTunelS .. " → " .. aliasPuente .. ". Solo 2 saltos, pero pesa 6 + 2 = 8 metros, es decir, $" .. costo(8) .. ". ¡Más corta en saltos, más cara en dinero!",
+				Texto     = "Ahora mira esta otra ruta. Tiene solo 2 saltos; sigamos otra vez la cámara nodo por nodo. Sus pesos suman 6 + 2 = 8 metros, es decir, $" .. costo(8) .. ". ¡Menos saltos, pero más dinero!",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
-					enfocarGrupo({"Cruce_z1", "Paso_Sur_z2", "Puente_z2"}, { altura = 28, angulo = 60, duracion = 1.5 })
-					EfectosDialogo.resaltarNodo("Cruce_z1", "SELECCIONADO")
-					EfectosDialogo.resaltarNodo("Paso_Sur_z2", "ADYACENTE")
-					EfectosDialogo.resaltarNodo("Puente_z2", "ERROR")
-					task.delay(0.3, function()
-						EfectosDialogo.mostrarArista("Cruce_z1", "Paso_Sur_z2", "SELECCIONADO", { sinParticulas = true })
-						EfectosDialogo.mostrarArista("Paso_Sur_z2", "Puente_z2", "SELECCIONADO", { sinParticulas = true })
-					end)
-					task.delay(0.6, function()
-						EfectosDialogo.mostrarLabel("Cruce_z1", "0 m")
-						EfectosDialogo.mostrarLabel("Paso_Sur_z2", "6 m")
-						EfectosDialogo.mostrarLabel("Puente_z2", "8 m ✗")
-					end)
+					recorrerRuta(
+						{"Cruce_z1", "Paso_Sur_z2", "Puente_z2"},
+						{0, 6, 8},
+						"ERROR"
+					)
 				end,
 				Siguiente = "comparacion",
 			},
@@ -220,7 +233,7 @@ local DIALOGOS = {
 					end)
 					task.delay(0.8, function()
 						EfectosDialogo.mostrarLabel("Tunel_Norte_z2", "Ruta barata ✓")
-						EfectosDialogo.mostrarLabel("Paso_Sur_z2", "Más saltos, más cara")
+						EfectosDialogo.mostrarLabel("Paso_Sur_z2", "Menos saltos, más cara")
 					end)
 				end,
 				Siguiente = "pregunta_ruta",
@@ -232,17 +245,17 @@ local DIALOGOS = {
 				Numero    = 7,
 				Actor     = "Carlos",
 				Expresion = "Sonriente",
-				Texto     = "Pregunta: desde el " .. aliasCruce .. " hasta el " .. aliasPuente .. ", ¿cuál es la ruta más barata según Dijkstra?",
+				Texto     = "Pregunta de Dijkstra: cuando dos rutas llegan al mismo destino, ¿cómo decide el algoritmo cuál conservar?",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					enfocarNodo("Puente_z2", { altura = 28, angulo = 60, duracion = 1.0 })
 					EfectosDialogo.resaltarNodo("Puente_z2", "SELECCIONADO")
-					EfectosDialogo.mostrarLabel("Puente_z2", "¿Norte o Sur?")
+					EfectosDialogo.mostrarLabel("Puente_z2", "¿Cómo decide Dijkstra?")
 				end,
 				Opciones = {
-					{ Texto = "Norte: Cruce → Avenida Norte → Cisterna → Puente (7 m, $" .. costo(7) .. ")", Siguiente = "resp_ruta_bien" },
-					{ Texto = "Sur: Cruce → Avenida Sur → Puente (8 m, $" .. costo(8) .. ")", Siguiente = "resp_ruta_mal" },
-					{ Texto = "Ambas cuestan lo mismo.", Siguiente = "resp_ruta_mal2" },
+					{ Texto = "Conserva la ruta con menos saltos, aunque la suma de pesos sea mayor.", Siguiente = "resp_ruta_mal" },
+					{ Texto = "Conserva la primera ruta descubierta y ya no vuelve a compararla.", Siguiente = "resp_ruta_mal2" },
+					{ Texto = "Conserva la ruta con menor peso acumulado, aunque tenga más saltos.", Siguiente = "resp_ruta_bien" },
 				},
 			},
 
@@ -252,7 +265,7 @@ local DIALOGOS = {
 				Numero    = 8,
 				Actor     = "Carlos",
 				Expresion = "Feliz",
-				Texto     = "¡Correcto! La ruta Norte cuesta $" .. costo(7) .. ", mientras que la Sur cuesta $" .. costo(8) .. ". Dijkstra siempre elige la más barata, aunque tenga más saltos. Otra evidencia de que el Alcalde no mira los números.",
+				Texto     = "¡Correcto! Dijkstra compara el peso acumulado. Aquí conserva la ruta de 7 metros y descarta la de 8, aunque la primera tenga más saltos. Esa es la diferencia esencial frente a buscar solo el menor número de pasos.",
 				Evento = function()
 					local jugador = game:GetService("Players").LocalPlayer
 					if jugador then
@@ -281,7 +294,7 @@ local DIALOGOS = {
 				Numero    = 8,
 				Actor     = "Carlos",
 				Expresion = "Serio",
-				Texto     = "No. La ruta Sur es más cara: 6 + 2 = 8 metros ($" .. costo(8) .. "). Aunque tiene menos saltos, Dijkstra descarta el camino más costoso y se queda con el Norte.",
+				Texto     = "No. Dijkstra no minimiza la cantidad de saltos: minimiza el peso acumulado. Por eso descarta la ruta de 2 saltos que pesa 8 y conserva la ruta de 3 saltos que pesa 7.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					enfocarGrupo({"Cruce_z1", "Paso_Sur_z2", "Puente_z2"}, { altura = 26, angulo = 60, duracion = 1.0 })
@@ -300,12 +313,12 @@ local DIALOGOS = {
 				Numero    = 8,
 				Actor     = "Carlos",
 				Expresion = "Enojado",
-				Texto     = "No, no cuestan lo mismo. La ruta Norte suma 7 metros ($" .. costo(7) .. ") y la Sur suma 8 metros ($" .. costo(8) .. "). Dijkstra distingue esas diferencias y elige la menor.",
+				Texto     = "No. Dijkstra puede mejorar una distancia que descubrió antes. Cada vez que encuentra un camino más barato, actualiza el costo conocido mediante la relajación.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					enfocarNodo("Cruce_z1", { altura = 28, angulo = 60, duracion = 1.0 })
 					EfectosDialogo.resaltarNodo("Cruce_z1", "SELECCIONADO")
-					EfectosDialogo.mostrarLabel("Cruce_z1", "Norte 7 m ≠ Sur 8 m")
+					EfectosDialogo.mostrarLabel("Cruce_z1", "Compara y actualiza")
 				end,
 				Opciones = { { Texto = "Entendido", Siguiente = "relajacion_barrio" } },
 			},
@@ -334,7 +347,7 @@ local DIALOGOS = {
 				Id        = "instruccion_final",
 				Numero    = 10,
 				Actor     = "Sistema",
-				Texto     = "Conecta el Barrio Oeste eligiendo la ruta más barata. Recuerda: Dijkstra prioriza el costo acumulado, no los saltos. Abre el Panel de Análisis (Tecla Tab) para ver el algoritmo paso a paso.",
+				Texto     = "Conecta el Barrio Oeste eligiendo la ruta más barata. Recuerda: Dijkstra prioriza el costo acumulado, no los saltos. Abre el Panel de Análisis con la tecla T para ver el algoritmo paso a paso.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					ServicioCamara.restaurar(1.2)

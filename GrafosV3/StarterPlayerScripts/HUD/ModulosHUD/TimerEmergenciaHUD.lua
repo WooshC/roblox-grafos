@@ -23,6 +23,16 @@ local COLOR_ROJO = Color3.fromRGB(231, 76, 60)
 local COLOR_FONDO = Color3.fromRGB(30, 30, 30)
 local COLOR_FONDO_ROJO = Color3.fromRGB(80, 20, 20)
 
+local function ocultarFramesDuplicados()
+	local screenGui = playerGui:FindFirstChild("TimerEmergenciaGui")
+	if not screenGui then return end
+	for _, objeto in ipairs(screenGui:GetDescendants()) do
+		if objeto:IsA("Frame") and objeto.Name == "TimerEmergencia" then
+			objeto.Visible = false
+		end
+	end
+end
+
 function TimerEmergenciaHUD.init(hudGui)
 	_hudGui = hudGui
 
@@ -34,6 +44,14 @@ function TimerEmergenciaHUD.init(hudGui)
 		screenGui.ResetOnSpawn = false
 		screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 		screenGui.Parent = playerGui
+	end
+
+	-- ResetOnSpawn=false conserva este ScreenGui entre recargas. Eliminar el
+	-- frame anterior evita que quede un temporizador visible sin referencia.
+	for _, child in ipairs(screenGui:GetChildren()) do
+		if child:IsA("Frame") and child.Name == "TimerEmergencia" then
+			child:Destroy()
+		end
 	end
 
 	-- Crear frame principal dinámicamente
@@ -111,9 +129,10 @@ function TimerEmergenciaHUD.actualizar(restante, texto, expirado, completada)
 
 	if completada then
 		-- Emergencia superada
-		_frame.Visible = false
+		ocultarFramesDuplicados()
 		detenerParpadeo()
 		_activo = false
+		print("[TimerEmergenciaHUD] Emergencia completada — HUD ocultado")
 		return
 	end
 
@@ -181,11 +200,9 @@ function TimerEmergenciaHUD.actualizar(restante, texto, expirado, completada)
 end
 
 function TimerEmergenciaHUD.ocultar()
-	if _frame then
-		_frame.Visible = false
-		detenerParpadeo()
-		_activo = false
-	end
+	ocultarFramesDuplicados()
+	detenerParpadeo()
+	_activo = false
 end
 
 function TimerEmergenciaHUD.limpiar()

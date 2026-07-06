@@ -363,6 +363,14 @@ local function guardarPesosEditor()
 	end
 	GestorEfectos.emitir("PesosLocalesActualizados", { arg1 = pesosActualizados })
 
+	local remotos = RS:WaitForChild("EventosGrafosV3"):WaitForChild("Remotos")
+	local actualizarPesos = remotos:WaitForChild("ActualizarPesosTemporales", 5)
+	if actualizarPesos then
+		actualizarPesos:FireServer(pesosActualizados)
+	else
+		warn("[ModuloAnalisis] ActualizarPesosTemporales no disponible")
+	end
+
 	detenerAutoPlay()
 	if E.matrizData then
 		ViewportAnalisis.construirViewport()

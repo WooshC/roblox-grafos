@@ -104,7 +104,7 @@ local DIALOGOS = {
 				Numero    = 5,
 				Actor     = "Carlos",
 				Expresion = "Serio",
-				Texto     = "Cada arista tiene un peso: metros de cable. Como cada metro cuesta $" .. COSTO_POR_METRO .. ", multiplicamos peso × " .. COSTO_POR_METRO .. " para saber el dinero que gastamos. Por ejemplo, una arista de 2 metros cuesta $" .. costo(2) .. ", y una de 5 metros cuesta $" .. costo(5) .. ".",
+				Texto     = "Cada arista tiene un peso: metros de cable. Abre el Panel de Análisis con T: allí encontrarás el botón Configurar pesos, que te servirá para cambiar valores y probar nuevas rutas. Como cada metro cuesta $" .. COSTO_POR_METRO .. ", multiplicamos peso × " .. COSTO_POR_METRO .. " para calcular el gasto.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					ServicioCamara.moverHaciaObjetivo("Gen_Fabrica_z1", { altura = 26, angulo = 58, duracion = 1.2 })
@@ -174,8 +174,8 @@ local DIALOGOS = {
 					EfectosDialogo.mostrarLabel("Cruce_z1", "¿Por dónde voy?")
 				end,
 				Opciones = {
-					{ Texto = "La suma total de pesos (costo acumulado) desde el inicio hasta el destino.", Siguiente = "resp_dijkstra_bien" },
 					{ Texto = "La cantidad de nodos que visita, sin importar los pesos.", Siguiente = "resp_dijkstra_mal" },
+					{ Texto = "La suma total de pesos (costo acumulado) desde el inicio hasta el destino.", Siguiente = "resp_dijkstra_bien" },
 					{ Texto = "El orden alfabético de los nombres de los nodos.", Siguiente = "resp_dijkstra_mal2" },
 				},
 			},
@@ -236,7 +236,7 @@ local DIALOGOS = {
 				Id        = "instruccion_final",
 				Numero    = 10,
 				Actor     = "Sistema",
-				Texto     = "Conecta la red desde " .. aliasGen .. " hasta " .. aliasSala .. " gastando lo menos posible. Abre el Panel de Análisis (Tecla Tab) para ejecutar Dijkstra. ¡Cuida el presupuesto!",
+				Texto     = "Conecta la red desde " .. aliasGen .. " hasta " .. aliasSala .. " gastando lo menos posible. Abre el Panel de Análisis con la tecla T para ejecutar Dijkstra. ¡Cuida el presupuesto!",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					ServicioCamara.restaurar(1.2)
