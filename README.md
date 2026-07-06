@@ -6,11 +6,15 @@
 
 ## 🎮 ¿De qué trata?
 
-**EDA GRAFOS** es una experiencia de aprendizaje interactiva que combina **estructuras de datos y algoritmos** con una narrativa de misterio y aventura. El jugador asume el rol de **Tocino**, un aprendiz de electricista contratado por la empresa **Redes y Caminos**, dirigida por el ingeniero **Carlos**.
+**Grafos Electricos** es una experiencia de aprendizaje interactiva que combina **estructuras de datos y algoritmos** con una narrativa de misterio y aventura. El jugador asume el rol de **Tocino**, un aprendiz de electricista contratado por la empresa **Redes y Caminos**, dirigida por el ingeniero **Carlos**.
+
+
+![alt text](Grafos-Electricos.png)
+
 
 La ciudad de **Villa Conexa** sufre constantes apagones y emergencias eléctricas. El **Alcalde** asegura que todo es sabotaje y que su plan de modernización es impecable, pero Carlos sospecha que los contratos públicos están inflados con cables innecesarios, conexiones redundantes y nodos sobrecargados.
 
-Tu misión: **auditar la red eléctrica usando algoritmos de grafos**, reparar las zonas afectadas y reunir pruebas para confrontar al Alcalde en una rueda de prensa final.
+Tu misión: **auditar la red eléctrica usando algoritmos de grafos**, reparar las zonas afectadas y reunir pruebas para confrontar al Alcalde en una rueda de prensa final. 
 
 ## 🧠 Conceptos y algoritmos que se practican
 
