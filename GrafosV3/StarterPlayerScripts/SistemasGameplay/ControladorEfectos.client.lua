@@ -352,6 +352,12 @@ end
 
 -- Helper: crear tag de costo sobre un cable
 local function crearTagCosto(nomA, nomB, peso)
+	-- El servidor envía el peso base con el evento de conexión. Si el jugador
+	-- lo modificó desde ModuloAnalisis, priorizar la configuración local.
+	local pesoLocal = GrafoHelpers.obtenerPeso(_nivelActualID, nomA, nomB, 0)
+	if pesoLocal and pesoLocal > 0 then
+		peso = pesoLocal
+	end
 	if not peso or peso <= 0 then return end
 	if not _nivelActualID then return end
 	local costoPorMetro = (LevelsConfig[_nivelActualID] or {}).CostoPorMetro or 0
@@ -470,6 +476,17 @@ end
 GestorEfectos.registrar("CableCreadoConPeso", function(params)
 	local nomA, nomB, peso = params.arg1, params.arg2, params.arg3
 	crearTagCosto(nomA, nomB, peso)
+end)
+
+-- Refrescar inmediatamente los billboards de cables ya construidos cuando
+-- ModuloAnalisis guarda pesos locales nuevos.
+GestorEfectos.registrar("PesosLocalesActualizados", function(params)
+	for _, arista in ipairs(params.arg1 or {}) do
+		if arista.nodoA and arista.nodoB then
+			destruirTagCosto(arista.nodoA, arista.nodoB)
+			crearTagCosto(arista.nodoA, arista.nodoB, arista.peso)
+		end
+	end
 end)
 
 -- Cable desconectado: limpiar highlights y destruir tag de costo

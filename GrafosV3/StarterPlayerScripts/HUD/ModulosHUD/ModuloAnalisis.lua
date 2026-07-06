@@ -17,6 +17,28 @@ local GestorEfectos   = require(script.Parent.Parent.Parent:WaitForChild("Sistem
 local jugador = Players.LocalPlayer
 
 local ModuloAnalisis = {}
+local frameConfigurarPesos = nil
+local filasEditorPesos = {}
+local datosFilasPesos = {}
+
+local function elevarEditorPesos()
+	if not frameConfigurarPesos then return end
+
+	-- FrameConfigurarPesos es hermano de PanelAnalisis. Elevar toda su
+	-- jerarquía evita que el panel principal lo dibuje por encima.
+	frameConfigurarPesos.ZIndex = 100
+	frameConfigurarPesos.Active = true
+	for _, objeto in ipairs(frameConfigurarPesos:GetDescendants()) do
+		if objeto:IsA("GuiObject") then
+			local zOriginal = objeto:GetAttribute("EditorPesosZOriginal")
+			if zOriginal == nil then
+				zOriginal = objeto.ZIndex
+				objeto:SetAttribute("EditorPesosZOriginal", zOriginal)
+			end
+			objeto.ZIndex = 100 + zOriginal
+		end
+	end
+end
 
 -- ════════════════════════════════════════════════════════════════
 -- LAZY-GET RemoteFunction
@@ -197,6 +219,166 @@ local function ejecutarAlgoritmo()
 end
 
 -- ════════════════════════════════════════════════════════════════
+-- EDITOR LOCAL DE PESOS
+-- ════════════════════════════════════════════════════════════════
+local function obtenerAristasDeZona(zona)
+	local nivelID = jugador:GetAttribute("CurrentLevelID") or E.nivelID or 0
+	local config = LevelsConfig[nivelID]
+	local nodosZona = config and config.NodosZona and config.NodosZona[zona]
+	if not config or not nodosZona then return {}, config end
+
+	local enZona = {}
+	for _, nombre in ipairs(nodosZona) do
+		enZona[nombre] = true
+	end
+
+	local vistas = {}
+	local aristas = {}
+	for nodoA, vecinos in pairs(config.Adyacencias or {}) do
+		if enZona[nodoA] then
+			for _, nodoB in ipairs(vecinos) do
+				if enZona[nodoB] then
+					local clave = GrafoHelpers.clavePar(nodoA, nodoB)
+					if not vistas[clave] then
+						vistas[clave] = true
+						table.insert(aristas, {
+							nodoA = nodoA,
+							nodoB = nodoB,
+							clave = clave,
+							peso = GrafoHelpers.obtenerPeso(config, nodoA, nodoB, 1),
+						})
+					end
+				end
+			end
+		end
+	end
+
+	local nombres = config.NombresNodos or {}
+	table.sort(aristas, function(a, b)
+		local textoA = (nombres[a.nodoA] or a.nodoA) .. (nombres[a.nodoB] or a.nodoB)
+		local textoB = (nombres[b.nodoA] or b.nodoA) .. (nombres[b.nodoB] or b.nodoB)
+		return textoA < textoB
+	end)
+	return aristas, config
+end
+
+local function abrirEditorPesos()
+	if not frameConfigurarPesos then
+		warn("[ModuloAnalisis] No se puede abrir: FrameConfigurarPesos no encontrado")
+		return
+	end
+
+	elevarEditorPesos()
+	frameConfigurarPesos.Visible = true
+
+	local zona = jugador:GetAttribute("ZonaActual") or ""
+	local mensaje = C.buscar(frameConfigurarPesos, "MensajeEstado")
+	if zona == "" then
+		if mensaje then mensaje.Text = "Entra en una zona para configurar sus pesos." end
+		return
+	end
+
+	local aristas, config = obtenerAristasDeZona(zona)
+	local zonaConfig = config and config.Zonas and config.Zonas[zona]
+	local labelZona = C.buscar(frameConfigurarPesos, "LabelZona")
+	if labelZona then
+		labelZona.Text = zonaConfig and zonaConfig.Descripcion or zona
+	end
+
+	datosFilasPesos = {}
+	for indice, fila in ipairs(filasEditorPesos) do
+		local arista = aristas[indice]
+		fila.Visible = arista ~= nil
+		if arista then
+			local nombres = config.NombresNodos or {}
+			local nombreA = nombres[arista.nodoA] or arista.nodoA
+			local nombreB = nombres[arista.nodoB] or arista.nodoB
+			local nombreConexion = fila:FindFirstChild("NombreConexion")
+			local pesoAnterior = fila:FindFirstChild("PesoAnterior")
+			local inputPeso = fila:FindFirstChild("InputPeso")
+
+			if nombreConexion then nombreConexion.Text = nombreA .. " ↔ " .. nombreB end
+			if pesoAnterior then pesoAnterior.Text = "Peso actual: " .. tostring(arista.peso) end
+			if inputPeso then
+				inputPeso.Text = tostring(arista.peso)
+				inputPeso.ClearTextOnFocus = false
+			end
+			datosFilasPesos[fila] = arista
+		end
+	end
+
+	if mensaje then
+		mensaje.Text = #aristas > #filasEditorPesos
+			and string.format("Faltan filas GUI: se muestran %d de %d conexiones.", #filasEditorPesos, #aristas)
+			or string.format("%d conexiones disponibles en esta zona.", #aristas)
+	end
+	local resumen = C.buscar(frameConfigurarPesos, "ResumenCambios")
+	if resumen then resumen.Text = "Modifica los valores y pulsa Guardar" end
+	print("[ModuloAnalisis] Editor de pesos abierto — zona:", zona)
+end
+
+local function guardarPesosEditor()
+	local nivelID = jugador:GetAttribute("CurrentLevelID") or E.nivelID or 0
+	local config = LevelsConfig[nivelID]
+	local mensaje = frameConfigurarPesos and C.buscar(frameConfigurarPesos, "MensajeEstado")
+	if not config then return end
+
+	local cambios = {}
+	for fila, arista in pairs(datosFilasPesos) do
+		local input = fila:FindFirstChild("InputPeso")
+		local nuevoPeso = input and tonumber(input.Text)
+		if not nuevoPeso or nuevoPeso < 1 or nuevoPeso > 50 or nuevoPeso % 1 ~= 0 then
+			if mensaje then
+				mensaje.Text = "Todos los pesos deben ser enteros entre 1 y 50."
+			end
+			return
+		end
+		if nuevoPeso ~= arista.peso then
+			table.insert(cambios, { arista = arista, peso = nuevoPeso, fila = fila })
+		end
+	end
+
+	config.PesosAristas = config.PesosAristas or {}
+	if E.matrizData then E.matrizData.PesosAristas = E.matrizData.PesosAristas or {} end
+	if E.idealMatrizData then E.idealMatrizData.PesosAristas = E.idealMatrizData.PesosAristas or {} end
+
+	for _, cambio in ipairs(cambios) do
+		local arista = cambio.arista
+		config.PesosAristas[arista.clave] = cambio.peso
+		if E.matrizData then E.matrizData.PesosAristas[arista.clave] = cambio.peso end
+		if E.idealMatrizData then E.idealMatrizData.PesosAristas[arista.clave] = cambio.peso end
+
+		arista.peso = cambio.peso
+		local pesoAnterior = cambio.fila:FindFirstChild("PesoAnterior")
+		if pesoAnterior then pesoAnterior.Text = "Peso actual: " .. tostring(cambio.peso) end
+	end
+
+	local pesosActualizados = {}
+	for _, cambio in ipairs(cambios) do
+		table.insert(pesosActualizados, {
+			nodoA = cambio.arista.nodoA,
+			nodoB = cambio.arista.nodoB,
+			peso = cambio.peso,
+		})
+	end
+	GestorEfectos.emitir("PesosLocalesActualizados", { arg1 = pesosActualizados })
+
+	detenerAutoPlay()
+	if E.matrizData then
+		ViewportAnalisis.construirViewport()
+		ejecutarAlgoritmo()
+	end
+
+	if mensaje then
+		mensaje.Text = #cambios == 0
+			and "No había cambios pendientes."
+			or string.format("%d peso(s) guardado(s). Ruta recalculada.", #cambios)
+	end
+	local resumen = C.buscar(frameConfigurarPesos, "ResumenCambios")
+	if resumen then resumen.Text = "Cambios aplicados durante esta partida" end
+end
+
+-- ════════════════════════════════════════════════════════════════
 -- SELECCIONAR ALGORITMO
 -- ════════════════════════════════════════════════════════════════
 local function seleccionarAlgo(algo)
@@ -226,6 +408,13 @@ local function cargarGrafoCompleto(zona, onExito, onFallo)
 	task.spawn(function()
 		local ok, datos = pcall(function() return fn:InvokeServer(zona) end)
 		if ok and datos and not datos.SinZona and #datos.Headers > 0 then
+			-- GetGrafoCompleto viene del servidor con los pesos originales.
+			-- Reaplicar la configuración local conserva los cambios de esta partida.
+			local nivelID = jugador:GetAttribute("CurrentLevelID") or E.nivelID or 0
+			local configLocal = LevelsConfig[nivelID]
+			if configLocal and configLocal.PesosAristas then
+				datos.PesosAristas = table.clone(configLocal.PesosAristas)
+			end
 			E.matrizData      = datos
 			E.idealMatrizData = datos
 			E.adyacencias     = buildAdyacencias(datos, false)
@@ -342,6 +531,46 @@ function ModuloAnalisis.inicializar(hudGui)
 		return
 	end
 	E.overlay.Visible = false
+
+	frameConfigurarPesos = C.buscar(E.overlay, "FrameConfigurarPesos")
+	if frameConfigurarPesos then
+		frameConfigurarPesos.Visible = false
+		elevarEditorPesos()
+		local scrollPesos = C.buscar(frameConfigurarPesos, "ScrollPesos")
+		if scrollPesos then
+			scrollPesos.AutomaticCanvasSize = Enum.AutomaticSize.Y
+			for _, child in ipairs(scrollPesos:GetChildren()) do
+				if child:IsA("Frame") and child.Name == "FilaPeso" then
+					table.insert(filasEditorPesos, child)
+				end
+			end
+			table.sort(filasEditorPesos, function(a, b)
+				return a.LayoutOrder < b.LayoutOrder
+			end)
+		end
+
+		local btnCerrarPesos = C.buscar(frameConfigurarPesos, "BtnCerrarPesos")
+		if btnCerrarPesos then
+			btnCerrarPesos.Activated:Connect(function()
+				frameConfigurarPesos.Visible = false
+			end)
+		end
+
+		local btnGuardarPesos = C.buscar(frameConfigurarPesos, "BtnGuardarPesos")
+		if btnGuardarPesos then
+			btnGuardarPesos.Activated:Connect(guardarPesosEditor)
+		end
+	else
+		warn("[ModuloAnalisis] FrameConfigurarPesos no encontrado")
+	end
+
+	local btnConfigurarPesos = C.buscar(E.overlay, "BtnConfigurarPesos")
+	if btnConfigurarPesos then
+		btnConfigurarPesos.Activated:Connect(abrirEditorPesos)
+		print("[ModuloAnalisis] BtnConfigurarPesos conectado")
+	else
+		warn("[ModuloAnalisis] BtnConfigurarPesos no encontrado")
+	end
 
 	-- ViewportFrame
 	E.visor = C.buscar(E.overlay, "VisorGrafoAna")
@@ -520,6 +749,7 @@ function ModuloAnalisis.inicializar(hudGui)
 	-- Cambio de zona → recargar grafo y config
 	jugador:GetAttributeChangedSignal("ZonaActual"):Connect(function()
 		if not E.abierto then return end
+		if frameConfigurarPesos then frameConfigurarPesos.Visible = false end
 		limpiarEstadoVisual()
 		local zona = jugador:GetAttribute("ZonaActual") or ""
 		if zona == "" then
@@ -615,6 +845,7 @@ function ModuloAnalisis.cerrar()
 	end
 
 	E.abierto = false
+	if frameConfigurarPesos then frameConfigurarPesos.Visible = false end
 	if E.overlay then E.overlay.Visible = false end
 	print("[ModuloAnalisis] Cerrado")
 end
@@ -624,6 +855,7 @@ function ModuloAnalisis.limpiar()
 	E.nivelModel = nil
 	E.nivelID    = nil
 	if E.overlay then E.overlay.Visible = false end
+	if frameConfigurarPesos then frameConfigurarPesos.Visible = false end
 	E.abierto = false
 	print("[ModuloAnalisis] Limpiado")
 end
