@@ -332,9 +332,12 @@ GestorEfectos.registrar("NodoSeleccionado", function(params)
 				local nomAdj = (typeof(adjModel) == "Instance" and adjModel.Name) or (type(adjModel) == "string" and adjModel) or nil
 				highlightNode(adjModel, COLOR_ADYACENTE)
 				if nomSeleccionado and nomAdj then
-					crearTagCostoNodo(nomAdj, nomSeleccionado, nomAdj)
+					local restantes = conexionesRestantes and conexionesRestantes[nomAdj]
+					crearTagCostoNodo(nomAdj, nomSeleccionado, nomAdj, restantes)
+					if restantes == nil then
+						mostrarConexionesRestantes(adjModel, nomAdj, conexionesRestantes)
+					end
 				end
-				mostrarConexionesRestantes(adjModel, nomAdj, conexionesRestantes)
 			end
 		end
 	end
@@ -388,7 +391,7 @@ obtenerPesoArista = function(nomA, nomB)
 end
 
 -- Helper: crear tag de costo previo sobre un nodo adyacente
-crearTagCostoNodo = function(nomNodo, nomA, nomB)
+crearTagCostoNodo = function(nomNodo, nomA, nomB, conexionesRestantes)
 	if not nomNodo or not nomA or not nomB then return end
 	local peso = obtenerPesoArista(nomA, nomB)
 	if not peso or peso <= 0 then return end
@@ -403,6 +406,33 @@ crearTagCostoNodo = function(nomNodo, nomA, nomB)
 	if not nodo then return end
 	local _, basePart = getSelector(nodo)
 	if not basePart then return end
+
+	if conexionesRestantes ~= nil then
+		local claveLimite = "GRADO_RESTANTE_" .. nomNodo
+		local color = conexionesRestantes > 0
+			and Color3.fromRGB(255, 220, 80)
+			or Color3.fromRGB(239, 68, 68)
+		local texto = string.format(
+			"Peso: %s | Costo: %s\nConexiones restantes: %s",
+			tostring(peso),
+			GrafoHelpers.formatearDinero(costoTotal),
+			tostring(conexionesRestantes)
+		)
+		BillboardNombres.crear(
+			basePart,
+			texto,
+			"NODO_CONEXIONES_RESTANTES",
+			claveLimite,
+			{
+				tamano = UDim2.new(0, 240, 0, 48),
+				offsetY = 12,
+				colorBorde = color,
+				colorTexto = color,
+			}
+		)
+		_tagsConexionesRestantes[claveLimite] = true
+		return
+	end
 
 	local claveTag = "COSTO_NODO_" .. GrafoHelpers.clavePar(nomA, nomB)
 	BillboardNombres.crear(basePart, GrafoHelpers.formatearDinero(costoTotal), "NODO_COSTO_PREVIEW", claveTag)

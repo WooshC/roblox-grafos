@@ -52,7 +52,7 @@ local DIALOGOS = {
 				Numero = 3,
 				Actor = "Sistema",
 				Expresion = "Normal",
-				Texto = "Prim permite auditar la propuesta: conecta todos los nodos con un Árbol de Expansión Mínima, sin ciclos y con el menor peso total. Para el sector residencial, la solución óptima pesa 22.",
+				Texto = "Prim permite auditar la propuesta: conecta todos los nodos con un Árbol de Expansión Mínima, sin ciclos y con el menor peso total. Para el sector residencial, la solución óptima pesa 20.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					EfectosDialogo.resaltarNodo("Gen_Estacion_z1", "SELECCIONADO")
@@ -95,12 +95,12 @@ local DIALOGOS = {
 				Numero = 6,
 				Actor = "Carlos",
 				Expresion = "Preocupado",
-				Texto = "El presupuesto disponible es de $" .. presupuesto .. " y cada unidad de peso cuesta $" .. costoPorMetro .. ". Guarda las pruebas: el Alcalde dará una rueda de prensa junto al Hospital Central. Allí podremos comparar sus cifras con el MST real.",
+				Texto = "El presupuesto disponible es de $" .. presupuesto .. " y cada unidad de peso cuesta $" .. costoPorMetro .. ". El árbol residencial óptimo cuesta $10 000 y la red global, antes de reparaciones, $23 000. Cada ciclo innecesario puede dejarnos sin margen.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
-					EfectosDialogo.resaltarNodo("Parque_z1", "SELECCIONADO")
-					EfectosDialogo.mostrarLabel("Parque_z1", parque .. " · salida al hospital")
-					EfectosDialogo.mostrarLabel("Casa_Estacion1_z1", casaPinos)
+					EfectosDialogo.resaltarNodo("Casa_Estacion1_z1", "SELECCIONADO")
+					EfectosDialogo.mostrarLabel("Casa_Estacion1_z1", casaPinos .. " · enlace al hospital")
+					EfectosDialogo.mostrarLabel("Parque_z1", parque)
 					ServicioCamara.restaurar(1.2)
 				end,
 				Siguiente = "FIN",

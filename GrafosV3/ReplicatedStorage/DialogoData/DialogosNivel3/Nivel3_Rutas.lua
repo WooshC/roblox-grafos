@@ -8,9 +8,9 @@ local ServicioCamara    = require(ReplicatedStorage:WaitForChild("Compartido"):W
 local Utilidades        = require(ReplicatedStorage:WaitForChild("Compartido"):WaitForChild("Utilidades"))
 
 local nombres = LevelsConfig[3].NombresNodos
-local urgencias   = nombres["NodoHos2_z2"]
-local laboratorio = nombres["NodoHos4_z2"]
-local consulta    = nombres["Poste4_z2"]
+local alcaldia    = nombres["Poste_Alcaldia_z2"]
+local apoyo       = nombres["Poste_secundario_z2"]
+local subestacion = nombres["Poste_principal_z2"]
 
 local function respuestaCorrecta()
 	Utilidades.notificarDialogoCorrecto()
@@ -26,14 +26,13 @@ local DIALOGOS = {
 				Numero = 1,
 				Actor = "Carlos",
 				Expresion = "Preocupado",
-				Texto = "Esta noche, la rueda de prensa del Alcalde está a punto de comenzar junto al hospital, pero ocurrió una emergencia. Entre sirenas y luces apagadas, la red se saturó exactamente donde él aseguraba haber financiado una instalación moderna y segura.",
+				Texto = "La rueda de prensa está por comenzar junto al complejo hospitalario, pero tres puntos críticos quedaron dañados. La red se saturó exactamente donde el Alcalde aseguraba haber financiado una instalación moderna y segura.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
-					ServicioCamara.moverHaciaObjetivo("NodoHos_z2", { altura = 32, angulo = 60, duracion = 1.5 })
-					EfectosDialogo.resaltarNodo("NodoHos_z2", "SELECCIONADO")
-					EfectosDialogo.resaltarNodo("NodoHos2_z2", "ERROR")
-					EfectosDialogo.resaltarNodo("NodoHos4_z2", "ERROR")
-					EfectosDialogo.resaltarNodo("Poste4_z2", "ERROR")
+					ServicioCamara.moverHaciaObjetivo("Poste_principal_z2", { altura = 32, angulo = 60, duracion = 1.5 })
+					EfectosDialogo.resaltarNodo("Poste_principal_z2", "ERROR")
+					EfectosDialogo.resaltarNodo("Poste_Alcaldia_z2", "ERROR")
+					EfectosDialogo.resaltarNodo("Poste_secundario_z2", "ERROR")
 				end,
 				Siguiente = "diagnostico",
 			},
@@ -42,13 +41,13 @@ local DIALOGOS = {
 				Numero = 2,
 				Actor = "Sistema",
 				Expresion = "Procesando",
-				Texto = "Diagnóstico: " .. urgencias .. ", " .. laboratorio .. " y " .. consulta .. " están dañados. Además, dos cables defectuosos interrumpen el flujo de energía.",
+				Texto = "Diagnóstico: " .. alcaldia .. ", " .. apoyo .. " y " .. subestacion .. " están dañados. Además, dos cables defectuosos interrumpen el flujo de energía.",
 				Evento = function()
-					EfectosDialogo.mostrarLabel("NodoHos2_z2", "NODO DAÑADO", "ERROR")
-					EfectosDialogo.mostrarLabel("NodoHos4_z2", "NODO DAÑADO", "ERROR")
-					EfectosDialogo.mostrarLabel("Poste4_z2", "NODO DAÑADO", "ERROR")
-					EfectosDialogo.mostrarArista("NodoHos_z2", "NodoHos2_z2", "ERROR", { sinParticulas = true })
-					EfectosDialogo.mostrarArista("Poste2_z2", "NodoHos4_z2", "ERROR", { sinParticulas = true })
+					EfectosDialogo.mostrarLabel("Poste_Alcaldia_z2", "NODO DAÑADO", "ERROR")
+					EfectosDialogo.mostrarLabel("Poste_secundario_z2", "NODO DAÑADO", "ERROR")
+					EfectosDialogo.mostrarLabel("Poste_principal_z2", "NODO DAÑADO", "ERROR")
+					EfectosDialogo.mostrarArista("Poste_Alcaldia_z2", "Poste_secundario_z2", "ERROR", { sinParticulas = true })
+					EfectosDialogo.mostrarArista("Poste_principal_z2", "Poste_secundario_z2", "ERROR", { sinParticulas = true })
 				end,
 				Siguiente = "causa",
 			},
@@ -77,7 +76,7 @@ local DIALOGOS = {
 				Numero = 5,
 				Actor = "Carlos",
 				Expresion = "Feliz",
-				Texto = "Correcto. Repararemos primero y después validaremos una red mínima, conectada y sin desperdicio.",
+				Texto = "Correcto. Repararemos primero y después construiremos un árbol de 7 nodos, 6 cables y peso máximo 22.",
 				Evento = respuestaCorrecta,
 				Opciones = {{ Texto = "Iniciar emergencia", Siguiente = "mision" }},
 			},
@@ -94,7 +93,7 @@ local DIALOGOS = {
 				Numero = 6,
 				Actor = "Sistema",
 				Expresion = "Normal",
-				Texto = "EMERGENCIA: repara los tres nodos dañados. Después retira y reemplaza los dos cables defectuosos para devolver energía a Urgencias, Laboratorio y Consulta Externa. Cuando termines, busca al Alcalde en la rueda de prensa y confronta sus cifras.",
+				Texto = "EMERGENCIA: repara el Poste de la Alcaldía, el Poste Secundario y la Subestación Médica. Después construye el MST hospitalario con peso 22 o menor. La red global completa debe tener 15 nodos, 14 cables y peso máximo 46.",
 				Evento = function()
 					EfectosDialogo.limpiarTodo()
 					ServicioCamara.restaurar(1.2)

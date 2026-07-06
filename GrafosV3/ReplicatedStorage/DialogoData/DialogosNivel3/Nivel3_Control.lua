@@ -1,9 +1,9 @@
 -- Final_1 — rueda de prensa y desenlace del nivel 3.
--- La misión solo tiene éxito si se contestan correctamente las tres preguntas.
+-- La misión solo tiene éxito si se contestan correctamente las cuatro preguntas.
 -- Estructura narrativa:
 --   1. Rueda de prensa: el Alcalde presume sus "logros".
 --   2. Carlos lo interrumpe con evidencia acumulada de los niveles 0, 1, 2 y 3.
---   3. El Reportero cuestiona al Alcalde con 3 preguntas integradoras.
+--   3. El Reportero cuestiona al Alcalde con 4 preguntas integradoras.
 --   4. Las respuestas correctas demuestran que sus números no cuadran.
 
 local Players           = game:GetService("Players")
@@ -27,7 +27,7 @@ end
 
 local DIALOGOS = {
 	["Final_1"] = {
-		Zona = "Zona_Hospital_2",
+		Zona = "Zona_Alcaldia",
 		Nivel = 3,
 		Lineas = {
 			-- 1. Apertura de la rueda de prensa
@@ -91,7 +91,7 @@ local DIALOGOS = {
 				Numero = 6,
 				Actor = "Reportero",
 				Expresion = "Normal",
-				Texto = "Es una acusación grave. Ingeniero, tiene tres oportunidades para demostrar con datos lo que aprendieron en cada zona. Si fallan, el Alcalde podrá denunciarlos por calumnia.",
+				Texto = "Es una acusación grave. Ingeniero, tiene cuatro oportunidades para demostrar lo aprendido desde los fundamentos de grafos hasta Prim. Si fallan, el Alcalde podrá denunciarlos por calumnia.",
 				Siguiente = "pregunta_1",
 			},
 
@@ -135,7 +135,37 @@ local DIALOGOS = {
 				Numero = 9,
 				Actor = "Ciudadanos",
 				Expresion = "Normal",
-				Texto = "Queremos ver números claros. Continúen con la auditoría.",
+				Texto = "Entendemos la conectividad y el grado. Ahora expliquen cómo inspeccionaron una red tan grande.",
+				Siguiente = "pregunta_recorridos",
+			},
+
+			-- Repaso de BFS y DFS (Nivel 1)
+			{
+				Id = "pregunta_recorridos",
+				Numero = 10,
+				Actor = "Reportero",
+				Expresion = "Normal",
+				Texto = "¿Qué diferencia práctica permitió usar BFS y DFS para inspeccionar el Barrio Antiguo?",
+				Opciones = {
+					{ Texto = "BFS explora por niveles con una cola; DFS profundiza por una rama con pila o recursión. Ambos revelan qué nodos son alcanzables.", Siguiente = "recorridos_bien", OnSelect = acertar },
+					{ Texto = "BFS calcula pesos mínimos y DFS construye automáticamente un MST.", Siguiente = "recorridos_mal" },
+					{ Texto = "No existe diferencia: siempre visitan los nodos en el mismo orden.", Siguiente = "recorridos_mal" },
+				},
+			},
+			{
+				Id = "recorridos_bien",
+				Numero = 11,
+				Actor = "Sistema",
+				Expresion = "Feliz",
+				Texto = "Correcto: los dos recorren el grafo, pero su estructura de control produce órdenes distintos. Si un nodo no aparece, la red está desconectada desde el origen.",
+				Siguiente = "pregunta_2",
+			},
+			{
+				Id = "recorridos_mal",
+				Numero = 11,
+				Actor = "Carlos",
+				Expresion = "Serio",
+				Texto = "BFS y DFS son recorridos, no algoritmos de costo. BFS avanza por capas; DFS sigue una rama antes de retroceder.",
 				Siguiente = "pregunta_2",
 			},
 
@@ -213,7 +243,7 @@ local DIALOGOS = {
 				Numero = 15,
 				Actor = "Sistema",
 				Expresion = "Feliz",
-				Texto = "La explicación de Prim coincide con la matriz, los pesos y la red reparada: 22 unidades en el Sector Residencial, 15 en el Hospital y 4 en el enlace entre zonas, para un total mínimo de 41.",
+				Texto = "La explicación de Prim coincide con la matriz, los pesos y la red reparada: 20 unidades en el Sector Residencial, 22 en el Hospital y 4 en el enlace entre zonas, para un total mínimo de 46.",
 				Siguiente = "resultado_exito",
 			},
 
@@ -223,7 +253,7 @@ local DIALOGOS = {
 				Numero = 15,
 				Actor = "Alcalde",
 				Expresion = "Codicioso",
-				Texto = "Tres preguntas eran suficientes para demostrar que no tienen pruebas sólidas. Mi plan conecta todo y eso es lo que importa.",
+				Texto = "No lograron sostener toda la auditoría. Mi plan conecta todo y eso es lo que importa.",
 				Siguiente = "resultado_exito",
 			},
 
@@ -233,9 +263,9 @@ local DIALOGOS = {
 				Numero = 16,
 				Actor = "Ciudadanos",
 				Expresion = "Normal",
-				Texto = "¡Las tres pruebas coinciden! Alcalde, infló los costos y puso en peligro al hospital. Exigimos una investigación.",
+				Texto = "¡Las cuatro pruebas coinciden! Alcalde, infló los costos y puso en peligro al hospital. Exigimos una investigación.",
 				Condicion = function()
-					return aciertosFinales == 3
+					return aciertosFinales == 4
 				end,
 				Evento = function()
 					marcarResultado("exito")
@@ -279,7 +309,7 @@ local DIALOGOS = {
 				Expresion = "Normal",
 				Texto = "El Alcalde presentará una denuncia por calumnia. La rueda de prensa ha terminado.",
 				Condicion = function()
-					return aciertosFinales < 3
+					return aciertosFinales < 4
 				end,
 				Evento = function()
 					EfectosDialogo.limpiarTodo()

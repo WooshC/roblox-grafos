@@ -198,6 +198,66 @@ Validadores.RUTA_COSTO = function(params)
 	return false
 end
 
+Validadores.ARBOL_EXPANSION_MINIMA = function(params)
+	local nodos = params.Nodos or {}
+	local pesoMaximo = params.PesoMaximo
+	if #nodos < 2 or type(pesoMaximo) ~= "number" then return false end
+
+	local enArbol = {}
+	for _, nodo in ipairs(nodos) do enArbol[nodo] = true end
+
+	local adyacencias = {}
+	local aristasVistas = {}
+	local cantidadAristas = 0
+	local pesoTotal = 0
+
+	for _, nodoA in ipairs(nodos) do
+		for _, nodoB in ipairs(ValidadorConexiones.obtenerConexiones(nodoA)) do
+			if enArbol[nodoB] then
+				local clave = GrafoHelpers.clavePar(nodoA, nodoB)
+				if not aristasVistas[clave] then
+					aristasVistas[clave] = true
+					cantidadAristas = cantidadAristas + 1
+					pesoTotal = pesoTotal
+						+ (_pesosTemporales[clave] or GrafoHelpers.obtenerPeso(_nivelID, nodoA, nodoB, 0))
+					adyacencias[nodoA] = adyacencias[nodoA] or {}
+					adyacencias[nodoB] = adyacencias[nodoB] or {}
+					table.insert(adyacencias[nodoA], nodoB)
+					table.insert(adyacencias[nodoB], nodoA)
+				end
+			end
+		end
+	end
+
+	-- Un árbol de n nodos debe tener exactamente n-1 aristas.
+	if cantidadAristas ~= #nodos - 1 or pesoTotal > pesoMaximo then return false end
+
+	local visitados = {}
+	local cola = { nodos[1] }
+	visitados[nodos[1]] = true
+	local indice = 1
+	while indice <= #cola do
+		local actual = cola[indice]
+		indice = indice + 1
+		for _, vecino in ipairs(adyacencias[actual] or {}) do
+			if not visitados[vecino] then
+				visitados[vecino] = true
+				table.insert(cola, vecino)
+			end
+		end
+	end
+
+	for _, nodo in ipairs(nodos) do
+		if not visitados[nodo] then return false end
+	end
+
+	print(string.format(
+		"[ServicioMisiones] MST válido: %d nodos, %d aristas, peso=%s, máximo=%s",
+		#nodos, cantidadAristas, tostring(pesoTotal), tostring(pesoMaximo)
+	))
+	return true
+end
+
 Validadores.NODO_SELECCIONADO = function(params)
 	-- Si Nodo es "ANY" o nil, cualquier nodo seleccionado cuenta
 	if params.Nodo == "ANY" or params.Nodo == nil or params.Nodo == "" then
@@ -360,7 +420,8 @@ local function verificarYNotificar()
 			if m.Tipo ~= "ARISTA_CREADA"
 				and m.Tipo ~= "ARISTA_DIRIGIDA"
 				and m.Tipo ~= "GRAFO_CONEXO"
-				and m.Tipo ~= "RUTA_COSTO" then
+				and m.Tipo ~= "RUTA_COSTO"
+				and m.Tipo ~= "ARBOL_EXPANSION_MINIMA" then
 				_permanentes[m.ID] = true
 			end
 			_puntosAcum = _puntosAcum + (m.Puntos or 0)

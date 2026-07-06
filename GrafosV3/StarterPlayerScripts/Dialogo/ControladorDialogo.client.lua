@@ -141,6 +141,7 @@ local misionDialogoFinalCompletada = false
 -- Se conserva mientras el jugador recorre una carga del nivel, pero debe
 -- reiniciarse al salir o volver a cargar para reproducir los diálogos de zona.
 local dialogosZonaVistos = {}
+local zonasCompletadas = {}
 
 -- Configuración por defecto de restricciones
 local RESTRICCIONES_DEFAULT = {
@@ -654,6 +655,18 @@ local function onZonaChanged()
 	-- ¿Ya se mostró en este nivel?
 	if dialogosZonaVistos[nombreZona] then return end
 
+	local nivelID = jugador:GetAttribute("CurrentLevelID") or 0
+	local config = LevelsConfig[nivelID]
+	local zonaData = config and config.Zonas and config.Zonas[nombreZona]
+	local zonaRequerida = zonaData and zonaData.RequiereZonaCompleta
+	if zonaRequerida and not zonasCompletadas[zonaRequerida] then
+		print(string.format(
+			"[ControladorDialogo] Zona '%s' bloqueada hasta completar '%s'",
+			nombreZona, zonaRequerida
+		))
+		return
+	end
+
 	-- ¿Esta zona tiene diálogo configurado?
 	local dialogoID = obtenerDialogoDeZona(nombreZona)
 	if not dialogoID then return end
@@ -691,10 +704,24 @@ jugador:GetAttributeChangedSignal("ZonaActual"):Connect(onZonaChanged)
 local actualizarMisiones = remotos:FindFirstChild("ActualizarMisiones")
 if actualizarMisiones then
 	actualizarMisiones.OnClientEvent:Connect(function(payload)
+		if not payload or not payload.porZona then return end
+
+		zonasCompletadas = {}
+		for nombreZona, datosZona in pairs(payload.porZona) do
+			if datosZona.total and datosZona.total > 0
+				and datosZona.completadas >= datosZona.total then
+				zonasCompletadas[nombreZona] = true
+			end
+		end
+
+		-- Si el jugador ya está dentro cuando se desbloquea la zona, intentar
+		-- iniciar ahora el diálogo que antes fue rechazado.
+		task.defer(onZonaChanged)
+
 		local nivelID = jugador:GetAttribute("CurrentLevelID") or 0
 		local cfgNivel = LevelsConfig[nivelID]
 		local cfgFinal = cfgNivel and cfgNivel.DialogoFinal
-		if not cfgFinal or not payload or not payload.porZona then return end
+		if not cfgFinal then return end
 
 		local requeridas = cfgFinal.MisionesRequeridas or {}
 		if cfgFinal.MisionRequerida then
@@ -738,6 +765,7 @@ remotos.NivelListo.OnClientEvent:Connect(function(data)
 	-- NivelListo también cubre reinicios donde NivelDescargado pudiera llegar
 	-- tarde o no haberse procesado todavía.
 	dialogosZonaVistos = {}
+	zonasCompletadas = {}
 
 	-- print("[ControladorDialogo] Nivel cargado - buscando prompts de diálogo")
 
