@@ -19,6 +19,7 @@ local LevelsConfig     = require(Replicado:WaitForChild("Config"):WaitForChild("
 local ControladorAudio = require(script.Parent.Parent
 	:WaitForChild("Compartido")
 	:WaitForChild("ControladorAudio"))
+local GestorColisiones = require(Replicado:WaitForChild("Compartido"):WaitForChild("GestorColisiones"))
 local GestorEfectos    = require(script.Parent:WaitForChild("GestorEfectos"))
 local OrquestadorModos = require(script.Parent:WaitForChild("OrquestadorModos"))
 
@@ -39,6 +40,7 @@ local _nodosDaniados = {}   -- { nombreNodo → config } desde LevelsConfig
 local _nodosReparadosLocal = {}  -- TG 07: { [nombreNodo] = true } nodos reparados manualmente
 local _tagsCable = {}       -- { clave → BillboardGui } tags de costo en cables
 local _tagsNodoCosto = {}   -- { clave → true } tags de costo previo sobre nodos adyacentes
+local _tagsConexionesRestantes = {} -- { clave → true } límites visibles sobre nodos adyacentes
 local _efectosConexionRecientes = {}  -- { { clon = Instance, nodo = string, tiempo = number } }
 local _dialogosReparacionMostrados = {}  -- { [nombreNodo] = true }
 
@@ -231,6 +233,8 @@ local function clearAll()
 	-- Destruir billboards gestionados por BillboardNombres
 	BillboardNombres.destruirPorPrefijo("CE_")
 	destruirTagsNodoCosto()
+	BillboardNombres.destruirPorPrefijo("GRADO_RESTANTE_")
+	_tagsConexionesRestantes = {}
 
 	-- Restaurar partes modificadas
 	for _, state in ipairs(_savedStates) do
@@ -278,10 +282,11 @@ end
 -- EVENTOS (via GestorEfectos — conexión única centralizada)
 -- ═══════════════════════════════════════════════════════════════════════════════
 
--- Nodo seleccionado: arg1 = Model nodo, arg2 = {Model,...} adyacentes
+-- Nodo seleccionado: arg1 = Model nodo, arg2 = {Model,...} adyacentes,
+-- arg3 = { [nombreNodo] = conexionesRestantes }
 GestorEfectos.registrar("NodoSeleccionado", function(params)
 	if not modoVisualActivo() then return end
-	local arg1, arg2 = params.arg1, params.arg2
+	local arg1, arg2, conexionesRestantes = params.arg1, params.arg2, params.arg3
 	clearAll()
 	local adyNames = {}
 	if type(arg2) == "table" then
@@ -303,6 +308,24 @@ GestorEfectos.registrar("NodoSeleccionado", function(params)
 				highlightNode(adjModel, COLOR_ADYACENTE)
 				if nomSeleccionado and nomAdj then
 					crearTagCostoNodo(nomAdj, nomSeleccionado, nomAdj)
+				end
+				local restantes = type(conexionesRestantes) == "table" and conexionesRestantes[nomAdj]
+				if restantes ~= nil then
+					local _, basePart = getSelector(adjModel)
+					if basePart then
+						local clave = "GRADO_RESTANTE_" .. nomAdj
+						local color = restantes > 0
+							and Color3.fromRGB(255, 220, 80)
+							or Color3.fromRGB(239, 68, 68)
+						BillboardNombres.crear(
+							basePart,
+							"Conexiones restantes: " .. tostring(restantes),
+							"NODO_CONEXIONES_RESTANTES",
+							clave,
+							{ colorBorde = color, colorTexto = color }
+						)
+						_tagsConexionesRestantes[clave] = true
+					end
 				end
 			end
 		end
@@ -635,7 +658,13 @@ GestorEfectos.registrar("NodoSobrecargado", function(params)
 	local _, basePart = nodo and getSelector(nodo)
 	local claveBB = "SOBRECARGA_" .. nombreNodo
 
-	-- 1. Guardar estado y mover cámara al nodo afectado
+	-- 1. Ocultar techos para la cinemática, guardar si ya estaban ocultos
+	local techosYaOcultos = GestorColisiones.estaOculto
+	if not techosYaOcultos then
+		GestorColisiones:ocultarTecho()
+	end
+
+	-- 2. Guardar estado y mover cámara al nodo afectado
 	ServicioCamara.guardarEstado()
 	ServicioCamara.moverHaciaObjetivo(nombreNodo, {
 		altura = 18,
@@ -643,24 +672,29 @@ GestorEfectos.registrar("NodoSobrecargado", function(params)
 		duracion = 0.8,
 	})
 
-	-- 2. Billboard temporal
+	-- 3. Billboard temporal
 	if basePart then
 		BillboardNombres.crear(basePart, "NODO SOBRECARGADO", "NODO_DANIADO", claveBB)
 	end
 
-	-- 3. Sonido, efectos de daño y flash
+	-- 4. Sonido, efectos de daño y flash
 	ControladorAudio.playSFX("Explosion")
 	EfectosDano.activar(nombreNodo)
 	if nodo then
 		flashModel(nodo, Color3.fromRGB(255, 0, 0), 0.6)
 	end
 
-	-- 4. Limpiar efectos de conexión recientes para evitar partículas flotantes
+	-- 5. Limpiar efectos de conexión recientes para evitar partículas flotantes
 	destruirEfectosConexionRecientes(nombreNodo)
 
-	-- 5. Esperar, quitar billboard, restaurar cámara e iniciar diálogo de feedback
+	-- 6. Esperar, quitar billboard, restaurar cámara e iniciar diálogo de feedback
 	task.delay(2.5, function()
 		BillboardNombres.destruir(claveBB)
+		-- Restaurar techos solo si no estaban ocultos antes de la cinemática
+		-- (por ejemplo, si el mapa está abierto no debemos restaurarlos)
+		if not techosYaOcultos then
+			GestorColisiones:restaurar()
+		end
 		ServicioCamara.restaurar(0.6)
 		task.delay(0.7, function()
 			if _G.ControladorDialogo and not _G.ControladorDialogo.estaActivo() then

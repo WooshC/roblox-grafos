@@ -450,14 +450,14 @@ function actualizarSidebar(datosNivel)
 				or datosNivel.status == "disponible" and "Disponible"
 				or "🔒 Bloqueado")
 			-- Cambiar label a "Conexiones"
-				local statAciert = infoBody:FindFirstChild("StatAciert")
-				if statAciert then
-					local lblAciert = statAciert:FindFirstChild("Label")
-					if lblAciert and lblAciert:IsA("TextLabel") then
-						lblAciert.Text = "Conexiones"
-					end
+			local statAciert = infoBody:FindFirstChild("StatAciert")
+			if statAciert then
+				local lblAciert = statAciert:FindFirstChild("Label")
+				if lblAciert and lblAciert:IsA("TextLabel") then
+					lblAciert.Text = "Conexiones"
 				end
-				actualizarStat("StatAciert", tostring(datosNivel.aciertos or 0))
+			end
+			actualizarStat("StatAciert", tostring(datosNivel.aciertos or 0))
 			actualizarStat("StatFallos", tostring(datosNivel.fallos or 0))
 			actualizarStat("StatTiempo", formatearTiempo(datosNivel.tiempoMejor or 0))
 			actualizarStat("StatInten", tostring(datosNivel.intentos or 0))
@@ -992,30 +992,33 @@ local function conectarBotonesNavegacion()
 	-- Botones de cerrar en modales
 	for _, modal in ipairs({frameCredits, frameExit, frameLogros}) do
 		if modal then
-			local closeBtn = modal:FindFirstChild("CloseBtn", true)
+			-- Evitar que los callbacks terminen apuntando al ultimo modal del bucle.
+			local modalActual = modal
+
+			local closeBtn = modalActual:FindFirstChild("CloseBtn", true)
 			if closeBtn then
 				closeBtn.MouseButton1Click:Connect(function()
-					cerrarModal(modal)
+					cerrarModal(modalActual)
 				end)
 			end
 
 			-- Botones específicos
-			local cancelBtn = modal:FindFirstChild("CancelBtn", true)
+			local cancelBtn = modalActual:FindFirstChild("CancelBtn", true)
 			if cancelBtn then
 				cancelBtn.MouseButton1Click:Connect(function()
-					cerrarModal(modal)
+					cerrarModal(modalActual)
 				end)
 			end
 
-			local okBtn = modal:FindFirstChild("OkBtn", true)
+			local okBtn = modalActual:FindFirstChild("OkBtn", true)
 			if okBtn then
 				okBtn.MouseButton1Click:Connect(function()
-					cerrarModal(modal)
+					cerrarModal(modalActual)
 				end)
 			end
 
-			local confirmBtn = modal:FindFirstChild("ConfirmBtn", true)
-			if confirmBtn and modal == frameExit then
+			local confirmBtn = modalActual:FindFirstChild("ConfirmBtn", true)
+			if confirmBtn and modalActual == frameExit then
 				confirmBtn.MouseButton1Click:Connect(function()
 					-- Salir del juego
 					jugador:Kick("Gracias por jugar EDA Quest!")
