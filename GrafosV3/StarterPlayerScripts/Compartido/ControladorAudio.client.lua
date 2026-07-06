@@ -33,6 +33,7 @@ local _maxSFXSimultaneos = 6  -- Limite de SFX simultaneos
 -- Sonidos persistentes (clones)
 local _bgmActual = nil        -- Sonido BGM actual (clon)
 local _ambienteActual = nil   -- Sonido de ambiente actual (clon)
+local _bgmTransicionId = 0    -- Invalida cambios de BGM diferidos que ya quedaron obsoletos
 
 -- Estado
 local _inicializado = false
@@ -49,19 +50,19 @@ local TWEEN_FADE_OUT = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDire
 
 function ControladorAudio.init()
 	if _inicializado then return end
-	
+
 	-- Obtener referencia a carpeta de audio
 	_carpetaAudio = ReplicatedStorage:WaitForChild("Audio", 10)
 	if not _carpetaAudio then
 		error("[ControladorAudio] No se encontro ReplicatedStorage/Audio")
 		return
 	end
-	
+
 	-- Crear contenedor para sonidos activos en SoundService
 	_contenedor = Instance.new("Folder")
 	_contenedor.Name = "AudioGrafosV3_Activo"
 	_contenedor.Parent = SoundService
-	
+
 	_inicializado = true
 	print("[ControladorAudio] Inicializado - Usando sonidos de ReplicatedStorage/Audio")
 end
@@ -73,10 +74,10 @@ end
 -- Buscar un objeto Sound en ReplicatedStorage/Audio segun la ruta
 local function buscarSonidoOriginal(ruta)
 	if not _carpetaAudio then return nil end
-	
+
 	local partes = string.split(ruta, "/")
 	local actual = _carpetaAudio
-	
+
 	for _, parte in ipairs(partes) do
 		actual = actual:FindFirstChild(parte)
 		if not actual then
@@ -84,7 +85,7 @@ local function buscarSonidoOriginal(ruta)
 			return nil
 		end
 	end
-	
+
 	if actual:IsA("Sound") then
 		return actual
 	else
@@ -96,7 +97,7 @@ end
 -- Clonar un sonido para reproducirlo
 local function clonarSonido(sonidoOriginal, parent, nombre)
 	if not sonidoOriginal then return nil end
-	
+
 	local clon = sonidoOriginal:Clone()
 	clon.Name = nombre or sonidoOriginal.Name
 	clon.Parent = parent or _contenedor
@@ -106,11 +107,11 @@ end
 -- Aplicar configuracion de volumen y pitch a un sonido
 local function aplicarConfiguracion(sonido, config)
 	if not sonido or not config then return end
-	
+
 	local volumenFinal = ConfigAudio.calcularVolumen(config.Categoria, config.Volumen)
 	sonido.Volume = volumenFinal * _volumenMaster
 	sonido.PlaybackSpeed = config.Pitch or 1.0
-	
+
 	-- Aplicar loop si esta definido
 	if config.Loop ~= nil then
 		sonido.Looped = config.Loop
@@ -120,15 +121,15 @@ end
 -- Aplicar fade in a un sonido
 local function fadeIn(sonido, duracion, volumenFinal)
 	duracion = duracion or 1.0
-	
+
 	local volumenObjetivo = volumenFinal or sonido.Volume
 	sonido.Volume = 0
-	
+
 	-- Asegurar que el sonido este sonando antes de hacer fade
 	if not sonido.IsPlaying then
 		sonido:Play()
 	end
-	
+
 	local tween = TweenService:Create(sonido, TweenInfo.new(duracion, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Volume = volumenObjetivo})
 	tween:Play()
 	return tween
@@ -140,17 +141,17 @@ local function fadeOut(sonido, duracion, callback)
 		if callback then callback() end
 		return nil
 	end
-	
+
 	duracion = duracion or 1.0
 	local volumenOriginal = sonido.Volume
-	
+
 	-- Si el volumen ya es 0, solo detener
 	if volumenOriginal <= 0.01 then
 		sonido:Stop()
 		if callback then callback() end
 		return nil
 	end
-	
+
 	local tween = TweenService:Create(sonido, TweenInfo.new(duracion, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Volume = 0})
 	tween.Completed:Connect(function()
 		sonido:Stop()
@@ -182,23 +183,23 @@ end
 function ControladorAudio.playSFX(nombreSFX, callback)
 	if not _inicializado then ControladorAudio.init() end
 	if _muteado then return nil end
-	
+
 	local config = ConfigAudio.obtenerConfig("SFX", nombreSFX)
 	if not config then
 		warn("[ControladorAudio] SFX no encontrado en config: " .. tostring(nombreSFX))
 		return nil
 	end
-	
+
 	-- Buscar sonido original
 	local sonidoOriginal = buscarSonidoOriginal(config.Ruta)
 	if not sonidoOriginal then
 		warn("[ControladorAudio] Sonido original no encontrado: " .. config.Ruta)
 		return nil
 	end
-	
+
 	-- Limpiar SFX viejos
 	limpiarSFXTerminados()
-	
+
 	-- Limitar SFX simultaneos
 	if #_sfxActivos >= _maxSFXSimultaneos then
 		-- Destruir el mas antiguo
@@ -207,18 +208,18 @@ function ControladorAudio.playSFX(nombreSFX, callback)
 			viejo:Destroy()
 		end
 	end
-	
+
 	-- Clonar y reproducir
 	local clon = clonarSonido(sonidoOriginal, _contenedor, "SFX_" .. nombreSFX)
 	if not clon then return nil end
-	
+
 	aplicarConfiguracion(clon, config)
-	
+
 	-- Conectar callback
 	if callback then
 		clon.Ended:Connect(callback)
 	end
-	
+
 	-- Auto-limpiar al terminar
 	clon.Ended:Connect(function()
 		task.delay(0.1, function()
@@ -228,10 +229,10 @@ function ControladorAudio.playSFX(nombreSFX, callback)
 			limpiarSFXTerminados()
 		end)
 	end)
-	
+
 	clon:Play()
 	table.insert(_sfxActivos, clon)
-	
+
 	return clon
 end
 
@@ -239,7 +240,7 @@ end
 function ControladorAudio.playUI(tipo, callback)
 	if not _inicializado then ControladorAudio.init() end
 	if _muteado then return nil end
-	
+
 	local config = ConfigAudio.obtenerConfig("UI", tipo)
 	if not config then
 		-- Fallback a Click si no existe
@@ -248,26 +249,26 @@ function ControladorAudio.playUI(tipo, callback)
 		end
 		return nil
 	end
-	
+
 	-- Buscar sonido original
 	local sonidoOriginal = buscarSonidoOriginal(config.Ruta)
 	if not sonidoOriginal then
 		return nil
 	end
-	
+
 	-- Limpiar
 	limpiarSFXTerminados()
-	
+
 	-- Clonar y reproducir
 	local clon = clonarSonido(sonidoOriginal, _contenedor, "UI_" .. tipo)
 	if not clon then return nil end
-	
+
 	aplicarConfiguracion(clon, config)
-	
+
 	if callback then
 		clon.Ended:Connect(callback)
 	end
-	
+
 	clon.Ended:Connect(function()
 		task.delay(0.1, function()
 			if clon and clon.Parent then
@@ -275,10 +276,10 @@ function ControladorAudio.playUI(tipo, callback)
 			end
 		end)
 	end)
-	
+
 	clon:Play()
 	table.insert(_sfxActivos, clon)
-	
+
 	return clon
 end
 
@@ -289,25 +290,28 @@ end
 function ControladorAudio.playBGM(nombreMusica, fadeInDuracion)
 	if not _inicializado then ControladorAudio.init() end
 	if _muteado then return nil end
-	
+
+	-- Una reproduccion directa reemplaza cualquier crossfade pendiente.
+	_bgmTransicionId += 1
+
 	local config = ConfigAudio.obtenerConfig("BGM", nombreMusica)
 	if not config then
 		warn("[ControladorAudio] BGM no encontrado: " .. tostring(nombreMusica))
 		return nil
 	end
-	
+
 	-- Buscar sonido original
 	local sonidoOriginal = buscarSonidoOriginal(config.Ruta)
 	if not sonidoOriginal then
 		return nil
 	end
-	
+
 	-- Si ya existe un BGM del mismo tipo, no hacer nada
 	if _bgmActual and _bgmActual.Name == "BGM_" .. nombreMusica and _bgmActual.IsPlaying then
 		print("[ControladorAudio] BGM ya esta sonando: " .. nombreMusica)
 		return _bgmActual
 	end
-	
+
 	-- Detener BGM anterior suavemente
 	local bgmAnterior = _bgmActual
 	if bgmAnterior then
@@ -318,27 +322,36 @@ function ControladorAudio.playBGM(nombreMusica, fadeInDuracion)
 		end)
 		_bgmActual = nil
 	end
-	
+
 	-- Crear nuevo BGM (clon)
 	_bgmActual = clonarSonido(sonidoOriginal, _contenedor, "BGM_" .. nombreMusica)
 	if not _bgmActual then return nil end
-	
+
 	aplicarConfiguracion(_bgmActual, config)
-	
+
 	-- Aplicar fade in mas suave
 	local volumenObjetivo = _bgmActual.Volume
 	fadeIn(_bgmActual, fadeInDuracion or 2.0, volumenObjetivo)
-	
+
 	print("[ControladorAudio] BGM iniciado: " .. nombreMusica)
 	return _bgmActual
 end
 
+function ControladorAudio.getBGMActualNombre()
+	if not _bgmActual then return nil end
+	return _bgmActual.Name:gsub("^BGM_", "")
+end
+
+
 function ControladorAudio.stopBGM(fadeOutDuracion)
+	-- Evitar que un crossfade anterior vuelva a iniciar musica despues del stop.
+	_bgmTransicionId += 1
+
 	if not _bgmActual then return end
-	
+
 	local bgm = _bgmActual
 	_bgmActual = nil -- Limpiar referencia inmediatamente
-	
+
 	fadeOut(bgm, fadeOutDuracion or 2.0, function()
 		if bgm and bgm.Parent then
 			bgm:Destroy()
@@ -348,30 +361,35 @@ end
 
 function ControladorAudio.crossfadeBGM(nuevaMusica, duracion)
 	duracion = duracion or 2.0
-	
+	_bgmTransicionId += 1
+	local transicionId = _bgmTransicionId
+
 	-- Si no hay BGM actual, solo reproducir el nuevo
 	if not _bgmActual then
 		ControladorAudio.playBGM(nuevaMusica, duracion)
 		return
 	end
-	
+
 	-- Si es la misma musica, no hacer nada
 	if _bgmActual.Name == "BGM_" .. nuevaMusica then
 		return
 	end
-	
+
 	-- Fade out del actual
 	local bgmAnterior = _bgmActual
 	_bgmActual = nil
-	
+
 	fadeOut(bgmAnterior, duracion, function()
 		if bgmAnterior and bgmAnterior.Parent then
 			bgmAnterior:Destroy()
 		end
 	end)
-	
+
 	-- Fade in del nuevo con solapamiento
 	task.delay(duracion * 0.5, function()
+		if transicionId ~= _bgmTransicionId then
+			return
+		end
 		ControladorAudio.playBGM(nuevaMusica, duracion * 0.8)
 	end)
 end
@@ -387,24 +405,24 @@ end
 function ControladorAudio.playAmbiente(nombreAmbiente, fadeInDuracion)
 	if not _inicializado then ControladorAudio.init() end
 	if _muteado then return nil end
-	
+
 	local config = ConfigAudio.obtenerConfig("AMBIENTE", nombreAmbiente)
 	if not config then
 		warn("[ControladorAudio] Ambiente no encontrado: " .. tostring(nombreAmbiente))
 		return nil
 	end
-	
+
 	-- Buscar sonido original
 	local sonidoOriginal = buscarSonidoOriginal(config.Ruta)
 	if not sonidoOriginal then
 		return nil
 	end
-	
+
 	-- Si ya existe el mismo ambiente, no hacer nada
 	if _ambienteActual and _ambienteActual.Name == "Ambiente_" .. nombreAmbiente and _ambienteActual.IsPlaying then
 		return _ambienteActual
 	end
-	
+
 	-- Detener ambiente anterior suavemente
 	local ambienteAnterior = _ambienteActual
 	if ambienteAnterior then
@@ -415,26 +433,26 @@ function ControladorAudio.playAmbiente(nombreAmbiente, fadeInDuracion)
 		end)
 		_ambienteActual = nil
 	end
-	
+
 	-- Crear nuevo ambiente (clon)
 	_ambienteActual = clonarSonido(sonidoOriginal, _contenedor, "Ambiente_" .. nombreAmbiente)
 	if not _ambienteActual then return nil end
-	
+
 	aplicarConfiguracion(_ambienteActual, config)
-	
+
 	local volumenObjetivo = _ambienteActual.Volume
 	fadeIn(_ambienteActual, fadeInDuracion or 3.0, volumenObjetivo)
-	
+
 	print("[ControladorAudio] Ambiente iniciado: " .. nombreAmbiente)
 	return _ambienteActual
 end
 
 function ControladorAudio.stopAmbiente(fadeOutDuracion)
 	if not _ambienteActual then return end
-	
+
 	local ambiente = _ambienteActual
 	_ambienteActual = nil
-	
+
 	fadeOut(ambiente, fadeOutDuracion or 3.0, function()
 		if ambiente and ambiente.Parent then
 			ambiente:Destroy()
@@ -483,7 +501,7 @@ local _victoriaFanfare = nil
 
 function ControladorAudio.playVictoria()
 	if not _inicializado then ControladorAudio.init() end
-	
+
 	-- Detener cualquier BGM anterior
 	if _bgmActual then
 		local bgmAnterior = _bgmActual
@@ -494,10 +512,10 @@ function ControladorAudio.playVictoria()
 			end
 		end)
 	end
-	
+
 	-- Detener ambiente
 	ControladorAudio.stopAmbiente(1.0)
-	
+
 	-- Buscar config de fanfarria
 	local configFanfare = ConfigAudio.obtenerConfig("VICTORIA", "Fanfare")
 	if configFanfare then
@@ -507,12 +525,12 @@ function ControladorAudio.playVictoria()
 			if _victoriaFanfare and _victoriaFanfare.Parent then
 				_victoriaFanfare:Destroy()
 			end
-			
+
 			_victoriaFanfare = clonarSonido(sonidoOriginal, _contenedor, "Victoria_Fanfare")
 			if _victoriaFanfare then
 				aplicarConfiguracion(_victoriaFanfare, configFanfare)
 				_victoriaFanfare:Play()
-				
+
 				-- Luego reproducir tema de victoria en loop
 				local configTema = ConfigAudio.obtenerConfig("VICTORIA", "Tema")
 				if configTema then
@@ -521,7 +539,7 @@ function ControladorAudio.playVictoria()
 						if _victoriaFanfare and _victoriaFanfare.Parent then
 							_victoriaFanfare:Destroy()
 							_victoriaFanfare = nil
-							
+
 							local sonidoTema = buscarSonidoOriginal(configTema.Ruta)
 							if sonidoTema then
 								_bgmActual = clonarSonido(sonidoTema, _contenedor, "Victoria_Tema")
@@ -534,7 +552,7 @@ function ControladorAudio.playVictoria()
 						end
 					end)
 				end
-				
+
 				return _victoriaFanfare
 			end
 		end
@@ -545,7 +563,7 @@ end
 -- Funcion para detener especificamente la musica de victoria
 function ControladorAudio.stopVictoria(fadeOutDuracion)
 	fadeOutDuracion = fadeOutDuracion or 1.0
-	
+
 	-- Detener fanfarria si existe
 	if _victoriaFanfare and _victoriaFanfare.Parent then
 		local fanfare = _victoriaFanfare
@@ -556,7 +574,7 @@ function ControladorAudio.stopVictoria(fadeOutDuracion)
 			end
 		end)
 	end
-	
+
 	-- Detener tema de victoria si existe
 	if _bgmActual and (_bgmActual.Name == "Victoria_Tema" or _bgmActual.Name:find("Victoria")) then
 		ControladorAudio.stopBGM(fadeOutDuracion)
@@ -570,7 +588,7 @@ end
 function ControladorAudio.setMasterVolume(volumen)
 	_volumenMaster = math.clamp(volumen, 0, 1)
 	ConfigAudio.Volumenes.MASTER = _volumenMaster
-	
+
 	-- Actualizar volumenes activos
 	if _bgmActual then
 		local config = ConfigAudio.obtenerConfig("BGM", _bgmActual.Name:gsub("BGM_", ""))
@@ -578,7 +596,7 @@ function ControladorAudio.setMasterVolume(volumen)
 			_bgmActual.Volume = ConfigAudio.calcularVolumen("BGM", config.Volumen)
 		end
 	end
-	
+
 	if _ambienteActual then
 		local config = ConfigAudio.obtenerConfig("AMBIENTE", _ambienteActual.Name:gsub("Ambiente_", ""))
 		if config then
@@ -601,6 +619,8 @@ function ControladorAudio.muteAll()
 	end
 end
 
+
+
 function ControladorAudio.unmuteAll()
 	_muteado = false
 	-- Restaurar volumenes
@@ -622,7 +642,7 @@ function ControladorAudio.cleanup()
 	end
 	ControladorAudio.stopBGM(0.1)
 	ControladorAudio.stopAmbiente(0.1)
-	
+
 	-- Destruir SFX activos
 	for _, sfx in ipairs(_sfxActivos) do
 		if sfx and sfx.Parent then
@@ -630,7 +650,7 @@ function ControladorAudio.cleanup()
 		end
 	end
 	_sfxActivos = {}
-	
+
 	print("[ControladorAudio] Cleanup completado")
 end
 
