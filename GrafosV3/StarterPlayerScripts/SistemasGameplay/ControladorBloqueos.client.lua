@@ -19,6 +19,32 @@ print("[GrafosV3] === ControladorBloqueos Iniciando ===")
 
 -- Zonas ya procesadas (para no intentar eliminar bloqueos de una zona repetidamente)
 local _zonasProcesadas = {}
+local _zonasCompletadas = {}
+
+local function procesarZonaCompletada(nombreZona)
+	if _zonasProcesadas[nombreZona] then return end
+
+	local eliminados, intentoValido, configurados = GestorBloqueos:eliminarPorZona(nombreZona)
+	if not intentoValido then
+		print(string.format("[ControladorBloqueos] Zona '%s' pendiente hasta capturar los bloqueos", nombreZona))
+		return
+	end
+
+	-- Si había un bloqueo configurado pero no se encontró, se conserva como
+	-- pendiente para poder reintentarlo después de una nueva captura.
+	if configurados and configurados > 0 and eliminados == 0 then
+		warn(string.format("[ControladorBloqueos] Bloqueo de zona '%s' no encontrado; se reintentará", nombreZona))
+		return
+	end
+
+	_zonasProcesadas[nombreZona] = true
+end
+
+local function reconciliarZonasCompletadas()
+	for nombreZona in pairs(_zonasCompletadas) do
+		procesarZonaCompletada(nombreZona)
+	end
+end
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- INICIALIZAR: Capturar bloqueos cuando el nivel esta listo
@@ -29,11 +55,13 @@ Remotos.NivelListo.OnClientEvent:Connect(function(data)
 		return
 	end
 
+	-- Reiniciar antes de ceder el hilo. ActualizarMisiones puede llegar durante
+	-- la espera y sus zonas completadas deben conservarse para reconciliarlas.
+	_zonasProcesadas = {}
+	_zonasCompletadas = {}
+
 	-- Esperar un frame para que el nivel este completamente cargado
 	task.wait()
-
-	-- Limpiar zonas procesadas del nivel anterior
-	_zonasProcesadas = {}
 
 	local nivelActual = Workspace:FindFirstChild("NivelActual")
 	if nivelActual then
@@ -43,6 +71,7 @@ Remotos.NivelListo.OnClientEvent:Connect(function(data)
 		else
 			print("[ControladorBloqueos] No se encontraron bloqueos en el nivel")
 		end
+		reconciliarZonasCompletadas()
 	else
 		warn("[ControladorBloqueos] No se encontro NivelActual en Workspace")
 	end
@@ -55,6 +84,7 @@ Remotos.NivelDescargado.OnClientEvent:Connect(function()
 	print("[ControladorBloqueos] Nivel descargado - liberando referencias")
 	GestorBloqueos:liberar()
 	_zonasProcesadas = {}
+	_zonasCompletadas = {}
 end)
 
 -- ═══════════════════════════════════════════════════════════════════════════════
@@ -68,11 +98,9 @@ if actualizarMisionesEv then
 		for nombreZona, infoZona in pairs(datos.porZona) do
 			-- Si la zona tiene misiones y estan todas completadas
 			if infoZona.total and infoZona.completadas and infoZona.total > 0 and infoZona.completadas >= infoZona.total then
-				if not _zonasProcesadas[nombreZona] then
-					_zonasProcesadas[nombreZona] = true
-					print(string.format("[ControladorBloqueos] Zona '%s' completada - verificando bloqueos...", nombreZona))
-					GestorBloqueos:eliminarPorZona(nombreZona)
-				end
+				_zonasCompletadas[nombreZona] = true
+				print(string.format("[ControladorBloqueos] Zona '%s' completada - verificando bloqueos...", nombreZona))
+				procesarZonaCompletada(nombreZona)
 			end
 		end
 	end)

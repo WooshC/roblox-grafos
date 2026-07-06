@@ -134,13 +134,23 @@ local DIALOGOS = {
 					end)
 					enfocarCadena({ altura = 22, angulo = 65, duracion = 1.2 })
 				end,
+				Siguiente = "observar_particulas",
+			},
+
+			-- ── 4. OBSERVAR LA DIRECCIÓN ──────────────────────────────
+			{
+				Id        = "observar_particulas",
+				Numero    = 4,
+				Actor     = "Sistema",
+				Expresion = "Normal",
+				Texto     = "Puedes observar la dirección de una arista viendo cómo se mueven las partículas creadas sobre ella: viajan desde el nodo de origen hacia el nodo de destino.",
 				Siguiente = "direccion_importa",
 			},
 
 			-- ── 4. LA DIRECCIÓN IMPORTA ───────────────────────────────
 			{
 				Id        = "direccion_importa",
-				Numero    = 4,
+				Numero    = 5,
 				Actor     = "Carlos",
 				Expresion = "Serio",
 				Texto     = "La dirección importa. Si solo existe la flecha " .. aliasA .. " → " .. aliasB .. ", el " .. aliasA .. " puede enviar al " .. aliasB .. ", pero el " .. aliasB .. " NO puede enviar al " .. aliasA .. ". Ese tipo de errores es lo que provoca atascos y cortes: el alcalde diseñó rutas que parecían dobles, pero solo funcionaban en un sentido.",
@@ -151,7 +161,7 @@ local DIALOGOS = {
 			-- ── 5. CONCEPTO: CAMINO DIRIGIDO ──────────────────────────
 			{
 				Id        = "concepto_camino",
-				Numero    = 5,
+				Numero    = 6,
 				Actor     = "Carlos",
 				Expresion = "Serio",
 				Texto     = "Cuando encadenamos flechas — " .. aliasA .. " → " .. aliasB .. " → " .. aliasC .. " — creamos un CAMINO DIRIGIDO. La información puede viajar de " .. aliasA .. " hasta " .. aliasC .. " siguiendo ese orden.",
@@ -175,7 +185,7 @@ local DIALOGOS = {
 			-- ── 6. PREGUNTA DE VALIDACIÓN ─────────────────────────────
 			{
 				Id        = "pregunta",
-				Numero    = 6,
+				Numero    = 7,
 				Actor     = "Carlos",
 				Expresion = "Sorprendido",
 				Texto     = "En el dígrafo " .."que va de " .. aliasA .. " a " .. aliasB .. " a " .. aliasC .. ", ¿puede el " .. aliasB .. " enviar datos directamente al " .. aliasA .. "?",
@@ -202,7 +212,7 @@ local DIALOGOS = {
 			-- ── 7a. RESPUESTA CORRECTA ────────────────────────────────
 			{
 				Id        = "respuesta_correcta",
-				Numero    = 7,
+				Numero    = 8,
 				Actor     = "Carlos",
 				Expresion = "Feliz",
 				Texto     = "¡Correcto! La flecha " .. aliasA .. " → " .. aliasB .. " solo permite el flujo de " .. aliasA .. " hacia " .. aliasB .. ". Para el sentido inverso haría falta una segunda flecha.",
@@ -214,7 +224,7 @@ local DIALOGOS = {
 			-- ── 7b. RESPUESTA INCORRECTA ──────────────────────────────
 			{
 				Id        = "respuesta_incorrecta",
-				Numero    = 7,
+				Numero    = 8,
 				Actor     = "Carlos",
 				Expresion = "Serio",
 				Texto     = "No exactamente. En un dígrafo cada flecha tiene un único sentido. La flecha " .. aliasA .. " → " .. aliasB .. " solo permite el flujo de " .. aliasA .. " a " .. aliasB .. ". El camino inverso requeriría una flecha separada.",
@@ -226,7 +236,7 @@ local DIALOGOS = {
 			-- ── 8. INSTRUCCIÓN: CONECTAR A → B ────────────────────────
 			{
 				Id        = "instruccion_ab",
-				Numero    = 8,
+				Numero    = 9,
 				Actor     = "Sistema",
 				Expresion = "Normal",
 				Texto     = "Construye el dígrafo. Primero conecta " .. aliasA .. " → " .. aliasB .. ": haz clic en " .. aliasA .. " y luego en " .. aliasB .. ".",
@@ -247,7 +257,7 @@ local DIALOGOS = {
 			-- ── 9. INSTRUCCIÓN: CONECTAR B → C ────────────────────────
 			{
 				Id        = "instruccion_bc",
-				Numero    = 9,
+				Numero    = 10,
 				Actor     = "Sistema",
 				Expresion = "Normal",
 				Texto     = "Ahora conecta " .. aliasB .. " → " .. aliasC .. ". Haz clic en " .. aliasB .. " y luego en " .. aliasC .. " para completar el camino dirigido.",
@@ -270,7 +280,7 @@ local DIALOGOS = {
 			-- ── 10. RESULTADO ─────────────────────────────────────────
 			{
 				Id        = "resultado",
-				Numero    = 10,
+				Numero    = 11,
 				Actor     = "Carlos",
 				Expresion = "Feliz",
 				Texto     = "¡Excelente! Has construido el camino dirigido " .. aliasA .. " → " .. aliasB .. " → " .. aliasC .. ". Eso es un dígrafo en acción. Entender el sentido del flujo te permitirá detectar por qué la red del alcalde falla aunque en los papeles parezca completa.",

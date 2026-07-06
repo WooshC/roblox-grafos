@@ -148,13 +148,23 @@ local DIALOGOS = {
 					end)
 					enfocarMedio({ altura = 22, angulo = 65, duracion = 1.2 })
 				end,
+				Siguiente = "adyacentes_amarillos",
+			},
+
+			-- ── 6. INDICADOR DE NODOS ADYACENTES ─────────────────────
+			{
+				Id        = "adyacentes_amarillos",
+				Numero    = 6,
+				Actor     = "Sistema",
+				Expresion = "Normal",
+				Texto     = "Cuando hagas clic en un nodo, los nodos adyacentes —es decir, aquellos con los que puede conectarse— se iluminarán de color amarillo.",
 				Siguiente = "validacion_intro",
 			},
 
 			-- ── 6. VALIDACIÓN: INTRO ──────────────────────────────────
 			{
 				Id        = "validacion_intro",
-				Numero    = 6,
+				Numero    = 7,
 				Actor     = "Sistema",
 				Expresion = "Normal",
 				Texto     = "Contesta la siguiente pregunta para verificar que entendiste el concepto.",
@@ -164,7 +174,7 @@ local DIALOGOS = {
 			-- ── 7. VALIDACIÓN: PREGUNTA ───────────────────────────────
 			{
 				Id        = "validacion_pregunta",
-				Numero    = 7,
+				Numero    = 8,
 				Actor     = "Sistema",
 				Expresion = "Normal",
 				Texto     = "¿Se puede considerar un nodo a?",
@@ -179,7 +189,7 @@ local DIALOGOS = {
 			-- ── 7a. RESPUESTA CORRECTA ────────────────────────────────
 			{
 				Id        = "validacion_correcta",
-				Numero    = 8,
+				Numero    = 9,
 				Actor     = "Sistema",
 				Expresion = "Normal",
 				Texto     = "¡Correcto! Un nodo es un punto dentro de una red, como una persona, ciudad o computadora.",
@@ -189,7 +199,7 @@ local DIALOGOS = {
 			-- ── 7b. RESPUESTA INCORRECTA ──────────────────────────────
 			{
 				Id        = "validacion_incorrecta",
-				Numero    = 8,
+				Numero    = 9,
 				Actor     = "Sistema",
 				Expresion = "Normal",
 				Texto     = "No exactamente. Un nodo es un punto dentro de una red. La arista es la relación entre nodos, no el nodo mismo.",
@@ -199,7 +209,7 @@ local DIALOGOS = {
 			-- ── 8. INSTRUCCIÓN: ORIGEN ────────────────────────────────
 			{
 				Id        = "instruccion_origen",
-				Numero    = 9,
+				Numero    = 10,
 				Actor     = "Carlos",
 				Expresion = "Normal",
 				Texto     = "Selecciona el nodo de origen (" .. alias1 .. ").",
@@ -219,7 +229,7 @@ local DIALOGOS = {
 			-- ── 10. INSTRUCCIÓN: DESTINO ──────────────────────────────
 			{
 				Id        = "instruccion_destino",
-				Numero    = 10,
+				Numero    = 11,
 				Actor     = "Carlos",
 				Expresion = "Serio",
 				Texto     = "Luego selecciona el nodo destino (" .. alias2 .. "). ¡Conéctalos!",
@@ -241,7 +251,7 @@ local DIALOGOS = {
 			-- ── 11. RESULTADO ──────────────────────────────────────────
 			{
 				Id        = "instruccion_resultado",
-				Numero    = 11,
+				Numero    = 12,
 				Actor     = "Carlos",
 				Expresion = "Feliz",
 				Texto     = "Así crearás una arista entre dos nodos. ¡Bien hecho! Cada conexión correcta es una prueba de que se puede hacer mejor —y más barato— que los contratos inflados del alcalde.",
@@ -260,7 +270,7 @@ local DIALOGOS = {
 			-- ── 12. ELIMINAR ARISTA ───────────────────────────────────
 			{
 				Id        = "eliminar_arista",
-				Numero    = 12,
+				Numero    = 13,
 				Actor     = "Sistema",
 				Expresion = "Normal",
 				Texto     = "Para eliminar una arista, simplemente haz clic sobre el cable que se ha creado. ¡Inténtalo! Aprender a quitar lo sobrante es tan importante como aprender a conectar.",

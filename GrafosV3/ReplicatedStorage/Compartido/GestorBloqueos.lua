@@ -134,22 +134,24 @@ end
 function GestorBloqueos:eliminarPorZona(zonaNombre)
 	if not self.estaCapturado then
 		warn("[GestorBloqueos] No hay bloqueos capturados.")
-		return
+		return 0, false
 	end
 
 	local Players = game:GetService("Players")
 	local ReplicatedStorage = game:GetService("ReplicatedStorage")
 	local jugador = Players.LocalPlayer
-	if not jugador then return end
+	if not jugador then return 0, false end
 
 	local nivelID = jugador:GetAttribute("CurrentLevelID") or 0
 	local LevelsConfig = require(ReplicatedStorage:WaitForChild("Config"):WaitForChild("LevelsConfig"))
 	local config = LevelsConfig[nivelID]
-	if not config or not config.Bloqueos then return end
+	if not config or not config.Bloqueos then return 0, true end
 
 	local eliminados = 0
+	local configurados = 0
 	for nombreBloqueo, condicion in pairs(config.Bloqueos) do
 		if type(condicion) == "table" and condicion.Zona == zonaNombre then
+			configurados = configurados + 1
 			if self:eliminar(nombreBloqueo) then
 				eliminados = eliminados + 1
 			end
@@ -159,6 +161,10 @@ function GestorBloqueos:eliminarPorZona(zonaNombre)
 	if eliminados > 0 then
 		print(string.format("[GestorBloqueos] %d bloqueo(s) eliminado(s) por zona '%s'", eliminados, zonaNombre))
 	end
+
+	-- El segundo valor permite al controlador distinguir entre un intento válido
+	-- y uno que ocurrió antes de que los bloqueos fueran capturados.
+	return eliminados, true, configurados
 end
 
 -- ═══════════════════════════════════════════════════════════════════════════════
