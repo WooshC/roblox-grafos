@@ -138,6 +138,9 @@ local modoPrevioDialogo = nil  -- Para restaurar el modo visual al cerrar
 local modoCambiadoPorDialogo = false
 local promptDialogoFinal = nil
 local misionDialogoFinalCompletada = false
+-- Se conserva mientras el jugador recorre una carga del nivel, pero debe
+-- reiniciarse al salir o volver a cargar para reproducir los diálogos de zona.
+local dialogosZonaVistos = {}
 
 -- Configuración por defecto de restricciones
 local RESTRICCIONES_DEFAULT = {
@@ -633,8 +636,6 @@ end
 _G.ControladorDialogo = ControladorDialogo
 _G.GestorBloqueos = GestorBloqueos
 
-local dialogosZonaVistos = {}
-
 ---Devuelve el DialogoID configurado para una zona en el nivel actual, o nil si no tiene.
 local function obtenerDialogoDeZona(nombreZona)
 	local nivelID  = jugador:GetAttribute("CurrentLevelID") or 0
@@ -734,6 +735,10 @@ end
 remotos.NivelListo.OnClientEvent:Connect(function(data)
 	if data and data.error then return end
 
+	-- NivelListo también cubre reinicios donde NivelDescargado pudiera llegar
+	-- tarde o no haberse procesado todavía.
+	dialogosZonaVistos = {}
+
 	-- print("[ControladorDialogo] Nivel cargado - buscando prompts de diálogo")
 
 	task.wait(0.5)
@@ -751,6 +756,7 @@ remotos.NivelDescargado.OnClientEvent:Connect(function()
 	nivelActual = nil
 	promptDialogoFinal = nil
 	misionDialogoFinalCompletada = false
+	dialogosZonaVistos = {}
 end)
 
 print("[GrafosV3] ControladorDialogo activo y esperando niveles")

@@ -132,6 +132,13 @@ function CargadorNiveles.descargar()
 		print("[CargadorNiveles] ServicioPuntaje reiniciado")
 	end
 
+	-- Los atributos viven en Player y sobreviven al reemplazo del personaje.
+	-- Si ZonaActual conserva el mismo valor, la siguiente entrada a esa zona no
+	-- genera una señal de cambio y su diálogo no vuelve a iniciarse.
+	if _jugadorActual then
+		_jugadorActual:SetAttribute("ZonaActual", nil)
+	end
+
 	local existente = Workspace:FindFirstChild(NOMBRE_NIVEL_ACTUAL)
 	if existente then
 		existente:Destroy()
@@ -165,12 +172,13 @@ function CargadorNiveles.cargar(nivelID, jugador)
 		return false
 	end
 
-	-- Guardar referencias
-	_jugadorActual = jugador
-	_nivelIDActual = nivelID
-
 	-- Descargar nivel anterior
 	CargadorNiveles.descargar()
+
+	-- Guardar referencias después de descargar: descargar() limpia el estado
+	-- anterior, incluidas estas referencias.
+	_jugadorActual = jugador
+	_nivelIDActual = nivelID
 
 	-- Buscar modelo
 	local nombreModelo = config.Modelo
