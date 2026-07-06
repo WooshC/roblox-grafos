@@ -65,9 +65,8 @@ LevelsConfig[0] = {
 
 	LimitesGrado = {
 		-- Zona 4: La Carolina tiene un transformador viejo que solo soporta 2 conexiones.
-		-- Al superar el límite el nodo se sobrecarga, explota y queda dañado.
-		-- MaxEntrada/MaxSalida permiten extender la mecánica a dígrafos en el futuro.
-		["NodoC_z4"] = { GradoMaximo = 2, MaxEntrada = 2, MaxSalida = 2, QuitarLimiteAlReparar = false },
+		-- CablesMaximos representa la cantidad total de cables conectados al nodo.
+		["NodoC_z4"] = { CablesMaximos = 2, QuitarLimiteAlReparar = false },
 	},
 
 	Zonas = {
@@ -291,7 +290,7 @@ LevelsConfig[1] = {
 		IluminacionExteriores = Color3.fromRGB(10, 10, 25),
 		LinternaJugador = true -- Activa la luz cálida que sigue al jugador
 	},
-	
+
 	Presupuesto = {
 		Inicial = 250,
 		AdvertenciaBajo = 50,
@@ -300,9 +299,9 @@ LevelsConfig[1] = {
 	CostosReparacion = {
 		["NodoC_z4"] = 200,
 	},
-	
+
 	LimitesGrado = {
-		["Poste_Mercado_z2"] = { GradoMaximo = 3, MaxEntrada = 1, MaxSalida = 2, QuitarLimiteAlReparar = false },
+		["Poste_Mercado_z2"] = { CablesMaximos = 3, QuitarLimiteAlReparar = false },
 	},
 
 
@@ -416,12 +415,10 @@ LevelsConfig[1] = {
 
 		-- ── Zona 2: Mercado ───────────────────────────────────────────────────
 		{ ID=102,  Zona="Zona_Mercado_2", Texto="Tiende el cable desde el Parque al Poste del Mercado",   Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Parque_z1",        NodoB="Poste_Mercado_z2" } },
-		{ ID=1021, Zona="Zona_Mercado_2", Texto="Conecta también el Parque del Mercado",                  Tipo="ARISTA_CREADA", Puntos=100, Parametros={ NodoA="Parque_z2",        NodoB="Poste_Mercado_z2" } },
-		{ ID=1022, Zona="Zona_Mercado_2", Texto="Ilumina todo el Mercado",                                Tipo="GRAFO_CONEXO",  Puntos=200, Parametros={ Nodos={"Gen_Estacion_z1","Casa_Estacion1_z1","Parque_z1","Poste_Mercado_z2","Puesto_Mercado_z2","Parque_z2"} } },
+		{ ID=1022, Zona="Zona_Mercado_2", Texto="Traspasa energia al mercado",                                Tipo="GRAFO_CONEXO",  Puntos=200, Parametros={ Nodos={"Gen_Estacion_z1","Casa_Estacion1_z1","Parque_z1","Poste_Mercado_z2","Puesto_Mercado_z2","Parque_z2"} } },
 		{ ID=1023, Zona="Zona_Mercado_2", Texto="¡Emergencia eléctrica! Repara el poste dañado y reconecta el Mercado antes de que el tiempo se agote.", Tipo="EMERGENCIA", Puntos=400, Parametros={ Nodos={"Parque_z1","Poste_Mercado_z2","Puesto_Mercado_z2","Parque_z2"}, TiempoLimite=90 } },
 
 		-- ── Zona 3: Canchas ────────────────────────────────────────────────────
-		{ ID=103,  Zona="Zona_Canchas_3", Texto="Lleva energía al Poste de las Canchas",               Tipo="ARISTA_CREADA", Puntos=200, Parametros={ NodoA="Puesto_Mercado_z2", NodoB="Poste_Canchas_z3" } },
 		{ ID=1031, Zona="Zona_Canchas_3", Texto="Conecta el Segundo Poste de las Canchas",              Tipo="ARISTA_CREADA", Puntos=150, Parametros={ NodoA="Poste_Canchas_z3",  NodoB="Poste2_Canchas_z3" } },
 		{ ID=1032, Zona="Zona_Canchas_3", Texto="Ilumina todas las Canchas",                            Tipo="GRAFO_CONEXO",  Puntos=200, Parametros={ Nodos={"Gen_Estacion_z1","Parque_z1","Poste_Mercado_z2","Puesto_Mercado_z2","Poste_Canchas_z3","Poste2_Canchas_z3","Casa_Canchas_z3"} } },
 
@@ -758,15 +755,11 @@ LevelsConfig[3] = {
 
 	LimitesGrado = {
 		["Poste_Casa1_z1"] = {
-			GradoMaximo = 3,
-			MaxEntrada = 3,
-			MaxSalida = 3,
+			CablesMaximos = 3,
 			QuitarLimiteAlReparar = false,
 		},
 		["Poste2_z2"] = {
-			GradoMaximo = 3,
-			MaxEntrada = 3,
-			MaxSalida = 3,
+			CablesMaximos = 3,
 			QuitarLimiteAlReparar = false,
 		},
 	},
@@ -834,7 +827,7 @@ LevelsConfig[3] = {
 		["Poste2_z2|NodoHos4_z2"]               = 2,
 		["Poste2_z2|Poste4_z2"]                 = 6,
 		["NodoHos4_z2|Poste4_z2"]               = 1,
-		
+
 		["Parque_z1|Poste2_z2"]                 = 4,
 		["PosteCanchas_z2|Poste_Canchas_z1"]    = 6,
 	},

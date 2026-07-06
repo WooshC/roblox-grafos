@@ -78,6 +78,26 @@ local PRESETS = {
 		textoEscalado       = true,
 	},
 
+	-- Cantidad de cables que todavía admite un nodo con grado limitado.
+	NODO_CONEXIONES_RESTANTES = {
+		tamano              = UDim2.new(0, 190, 0, 28),
+		offsetY             = 12.5,
+		offsetMundo         = true,
+		maxDistance         = 80,
+		alwaysOnTop         = true,
+		conFondo            = true,
+		colorFondo          = Color3.fromRGB(20, 20, 20),
+		transparenciaFondo  = 0.25,
+		colorTexto          = Color3.fromRGB(255, 220, 80),
+		fuente              = Enum.Font.GothamBold,
+		colorBorde          = Color3.fromRGB(255, 220, 80),
+		transparenciaBorde  = 0.1,
+		grosorBorde         = 2,
+		radioBorde          = UDim.new(0, 6),
+		conPadding          = true,
+		textoEscalado       = true,
+	},
+
 	-- Etiqueta sobre nodo durante gameplay/diálogo: fondo negro, borde+texto del color del nodo.
 	-- Sobreescribir colorBorde y colorTexto via el parámetro opcs de BillboardNombres.crear().
 	NODO_INTERACCION = {

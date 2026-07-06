@@ -223,6 +223,28 @@ local function highlightNode(nodoModel, color)
 	end
 end
 
+local function mostrarConexionesRestantes(nodoModel, nombreNodo, conexionesRestantes)
+	if not nodoModel or not nombreNodo or type(conexionesRestantes) ~= "table" then return end
+	local restantes = conexionesRestantes[nombreNodo]
+	if restantes == nil then return end
+
+	local _, basePart = getSelector(nodoModel)
+	if not basePart then return end
+
+	local clave = "GRADO_RESTANTE_" .. nombreNodo
+	local color = restantes > 0
+		and Color3.fromRGB(255, 220, 80)
+		or Color3.fromRGB(239, 68, 68)
+	BillboardNombres.crear(
+		basePart,
+		"Conexiones restantes: " .. tostring(restantes),
+		"NODO_CONEXIONES_RESTANTES",
+		clave,
+		{ colorBorde = color, colorTexto = color }
+	)
+	_tagsConexionesRestantes[clave] = true
+end
+
 -- Limpiar TODOS los efectos y restaurar estados originales
 local function clearAll()
 	EfectosNodo.limpiarSeleccion()
@@ -300,7 +322,10 @@ GestorEfectos.registrar("NodoSeleccionado", function(params)
 	end
 	local nomSeleccionado = (typeof(arg1) == "Instance" and arg1.Name) or (type(arg1) == "string" and arg1) or nil
 	EfectosNodo.establecerSeleccion(nomSeleccionado, adyNames)
-	if arg1 then highlightNode(arg1, COLOR_SELECCIONADO) end
+	if arg1 then
+		highlightNode(arg1, COLOR_SELECCIONADO)
+		mostrarConexionesRestantes(arg1, nomSeleccionado, conexionesRestantes)
+	end
 	if type(arg2) == "table" then
 		for _, adjModel in ipairs(arg2) do
 			if adjModel and adjModel ~= arg1 then
@@ -309,24 +334,7 @@ GestorEfectos.registrar("NodoSeleccionado", function(params)
 				if nomSeleccionado and nomAdj then
 					crearTagCostoNodo(nomAdj, nomSeleccionado, nomAdj)
 				end
-				local restantes = type(conexionesRestantes) == "table" and conexionesRestantes[nomAdj]
-				if restantes ~= nil then
-					local _, basePart = getSelector(adjModel)
-					if basePart then
-						local clave = "GRADO_RESTANTE_" .. nomAdj
-						local color = restantes > 0
-							and Color3.fromRGB(255, 220, 80)
-							or Color3.fromRGB(239, 68, 68)
-						BillboardNombres.crear(
-							basePart,
-							"Conexiones restantes: " .. tostring(restantes),
-							"NODO_CONEXIONES_RESTANTES",
-							clave,
-							{ colorBorde = color, colorTexto = color }
-						)
-						_tagsConexionesRestantes[clave] = true
-					end
-				end
+				mostrarConexionesRestantes(adjModel, nomAdj, conexionesRestantes)
 			end
 		end
 	end
@@ -601,6 +609,13 @@ end)
 GestorEfectos.registrar("NodoReparado", function(params)
 	local nombreNodo = type(params.arg1) == "string" and params.arg1 or nil
 	if nombreNodo then
+		local cfgNivel = _nivelActualID and LevelsConfig[_nivelActualID]
+		local cfgLimite = cfgNivel and cfgNivel.LimitesGrado and cfgNivel.LimitesGrado[nombreNodo]
+		if cfgLimite and cfgLimite.QuitarLimiteAlReparar == true then
+			local claveLimite = "GRADO_RESTANTE_" .. nombreNodo
+			BillboardNombres.destruir(claveLimite)
+			_tagsConexionesRestantes[claveLimite] = nil
+		end
 		-- Marcar como reparado para no reactivar al volver a la zona
 		_nodosReparadosLocal[nombreNodo] = true
 		-- Sonido de reparacion

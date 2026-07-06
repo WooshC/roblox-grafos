@@ -189,7 +189,14 @@ end
 local function obtenerLimiteGrado(nombreNodo)
 	if not _limitesGrado then return nil end
 	local cfg = _limitesGrado[nombreNodo]
-	return cfg and cfg.GradoMaximo
+	return cfg and cfg.CablesMaximos
+end
+
+local function obtenerConexionesRestantes(nombreNodo)
+	local limite = obtenerLimiteGrado(nombreNodo)
+	if not limite or _nodosLimiteRelajado[nombreNodo] then return nil end
+	local grado = ValidadorConexiones.obtenerGrado(nombreNodo)
+	return math.max(0, limite - grado)
 end
 
 local function procesarSobrecarga(nombreNodo)
@@ -584,11 +591,29 @@ local function alClickearSelector(jugador, selector)
 		local nomA = obtenerNombreNodo(selector)
 		local modeloNodo = selector.Parent
 		local modelosAdyacentes = obtenerModelosAdyacentes(nomA)
+		local conexionesRestantes = {}
+		local restantesSeleccionado = obtenerConexionesRestantes(nomA)
+		if restantesSeleccionado ~= nil then
+			conexionesRestantes[nomA] = restantesSeleccionado
+		end
+		for _, modeloAdyacente in ipairs(modelosAdyacentes) do
+			local nombreAdyacente = modeloAdyacente.Name
+			local restantes = obtenerConexionesRestantes(nombreAdyacente)
+			if restantes ~= nil then
+				conexionesRestantes[nombreAdyacente] = restantes
+			end
+		end
 		
 		-- Notificar al cliente para efectos visuales (el cliente obtiene nombres de LevelsConfig)
 		local notificarEvento = Remotos:FindFirstChild("NotificarSeleccionNodo")
 		if notificarEvento then
-			notificarEvento:FireClient(jugador, "NodoSeleccionado", modeloNodo, modelosAdyacentes)
+			notificarEvento:FireClient(
+				jugador,
+				"NodoSeleccionado",
+				modeloNodo,
+				modelosAdyacentes,
+				conexionesRestantes
+			)
 		end
 		
 		-- Notificar a sistemas via callbacks

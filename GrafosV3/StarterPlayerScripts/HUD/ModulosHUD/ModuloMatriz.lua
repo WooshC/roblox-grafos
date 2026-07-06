@@ -121,15 +121,12 @@ local function esNodoDaniadoVisible(nodeName)
 	return false
 end
 
-local function obtenerLimitesGrado(nombreNodo)
-	if not nombreNodo then return nil, nil end
+local function obtenerLimiteCables(nombreNodo)
+	if not nombreNodo then return nil end
 	local nivelID = jugador:GetAttribute("CurrentLevelID") or 0
 	local cfg = LevelsConfig[nivelID]
 	local limite = cfg and cfg.LimitesGrado and cfg.LimitesGrado[nombreNodo]
-	if not limite then return nil, nil end
-	local maxE = limite.MaxEntrada or limite.GradoMaximo
-	local maxS = limite.MaxSalida  or limite.GradoMaximo
-	return maxE, maxS
+	return limite and limite.CablesMaximos or nil
 end
 
 local function configurarInfoNodo()
@@ -232,7 +229,7 @@ end
 -- ════════════════════════════════════════════════════════════════
 -- ACTUALIZAR INFORMACIÓN DEL NODO
 -- ════════════════════════════════════════════════════════════════
-local function actualizarInfoNodo(nombreInterno, gTotal, gEntrada, gSalida, maxEntrada, maxSalida)
+local function actualizarInfoNodo(nombreInterno, gTotal, gEntrada, gSalida, cablesMaximos)
 	local panel = getPanel()
 	if not panel then return end
 	local marco = panel:FindFirstChild("MarcoInfoNodo")
@@ -263,9 +260,8 @@ local function actualizarInfoNodo(nombreInterno, gTotal, gEntrada, gSalida, maxE
 	local fMax = marco:FindFirstChild("GradoMax")
 	local valorMax = fMax and fMax:FindFirstChild("Valor")
 	if valorMax then
-		if maxEntrada or maxSalida then
-			local maxTotal = (maxEntrada or 0) + (maxSalida or 0)
-			valorMax.Text = string.format("E:%d, S:%d, G:%d", maxEntrada or 0, maxSalida or 0, maxTotal)
+		if cablesMaximos then
+			valorMax.Text = string.format("%d cables", cablesMaximos)
 		else
 			valorMax.Text = "--"
 		end
@@ -392,8 +388,8 @@ local function seleccionarNodo(nodeName)
 	_nodoSelecIdx = idx
 	local n = #_matrizData.Headers
 	local gT, gE, gS = calcularGrados(_matrizData.Matrix, idx, n)
-	local maxE, maxS = obtenerLimitesGrado(nodeName)
-	actualizarInfoNodo(nodeName, gT, gE, gS, maxE, maxS)
+	local cablesMaximos = obtenerLimiteCables(nodeName)
+	actualizarInfoNodo(nodeName, gT, gE, gS, cablesMaximos)
 	resaltarEnMatriz(idx)
 end
 
@@ -615,8 +611,8 @@ local function solicitarMatriz(zonaID)
 					_nodoSelecIdx = nuevoIdx
 					local n = #resultado.Headers
 					local gT, gE, gS = calcularGrados(resultado.Matrix, nuevoIdx, n)
-					local maxE, maxS = obtenerLimitesGrado(nombrePrevio)
-					actualizarInfoNodo(nombrePrevio, gT, gE, gS, maxE, maxS)
+					local cablesMaximos = obtenerLimiteCables(nombrePrevio)
+					actualizarInfoNodo(nombrePrevio, gT, gE, gS, cablesMaximos)
 					resaltarEnMatriz(nuevoIdx)
 				else
 					_nodoSelecIdx = nil
