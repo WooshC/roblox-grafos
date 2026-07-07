@@ -413,7 +413,7 @@ local function restaurarNodo(nombre)
 	}):Play()
 end
 
-local function encenderNodo(nombre, tipoColor, distancia)
+local function encenderNodo(nombre, tipoColor, distancia, sinLuz)
 	local sel = obtenerSelector(buscarNodoWorkspace(nombre))
 	if not sel or not sel:IsA("BasePart") then return 0 end
 	guardarEstadoOriginal(sel, nombre)
@@ -430,7 +430,7 @@ local function encenderNodo(nombre, tipoColor, distancia)
 	if previa then previa:Destroy() end
 
 	local brillo, rango = cfg.brillo, cfg.rango
-	if brillo > 0 then
+	if brillo > 0 and not sinLuz then
 		-- En BFS, los nodos más lejanos del origen brillan menos para leer la "ola".
 		if tipoColor == "visitado" and typeof(distancia) == "number" and distancia > 0 then
 			local factor = math.max(0.35, 1 - distancia * 0.15)
@@ -809,7 +809,7 @@ local function aplicarPaso3D(step)
 				end
 			end
 			for nombre in pairs(caminoSet) do
-				encenderNodo(nombre, "camino_final")
+				encenderNodo(nombre, "camino_final", nil, true)
 			end
 
 			for _, info in pairs(estado.aristaMap) do
