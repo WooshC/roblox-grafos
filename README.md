@@ -47,6 +47,10 @@ Haz clic en el siguiente enlace para jugar directamente en Roblox:
 
 **👉 [https://www.roblox.com/es/games/75898735178917/EDA-GRAFOS](https://www.roblox.com/es/games/75898735178917/EDA-GRAFOS)**
 
+## Video Tutorial
+
+**https://youtu.be/L6jPDT7cDn4**
+
 ## 🛠️ Tecnología
 
 - **Motor:** Roblox Studio
