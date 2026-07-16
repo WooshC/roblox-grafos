@@ -63,6 +63,17 @@ LevelsConfig[0] = {
 
 	},
 
+	PesosAristas = {
+		-- Zona 4: pesos usados por Dijkstra y Prim en el panel de analisis.
+		["NodoE_z4|NodoA_z4"] = 1,
+		["NodoA_z4|NodoB_z4"] = 2,
+		["NodoA_z4|NodoC_z4"] = 5,
+		["NodoB_z4|NodoC_z4"] = 1,
+		["NodoB_z4|NodoD_z4"] = 6,
+		["NodoC_z4|NodoF_z4"] = 2,
+		["NodoD_z4|NodoF_z4"] = 1,
+	},
+
 	LimitesGrado = {
 		-- Zona 4: La Carolina tiene un transformador viejo que solo soporta 2 conexiones.
 		-- CablesMaximos representa la cantidad total de cables conectados al nodo.
@@ -74,6 +85,17 @@ LevelsConfig[0] = {
 		["Zona_Estacion_2"] = { Trigger = "ZonaTrigger_Estacion2", Descripcion = "Grado de Nodo",    Dialogo = "Zona2_GradoNodo",       CarpetaLuz = "Zona_luz_2" },
 		["Zona_Estacion_3"] = { Trigger = "ZonaTrigger_Estacion3", Descripcion = "Grafos Dirigidos", Dialogo = "Zona3_GrafosDirigidos", CarpetaLuz = "Zona_luz_3" },
 		["Zona_Estacion_4"] = { Trigger = "ZonaTrigger_Estacion4", Descripcion = "Conectividad",     Dialogo = "Zona4_Conectividad",    CarpetaLuz = "Zona_luz_4" },
+	},
+
+	NodosZona = {
+		["Zona_Estacion_4"] = {
+			"NodoE_z4",
+			"NodoA_z4",
+			"NodoB_z4",
+			"NodoC_z4",
+			"NodoF_z4",
+			"NodoD_z4",
+		},
 	},
 
 	NombresNodos = {
